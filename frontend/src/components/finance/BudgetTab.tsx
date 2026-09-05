@@ -2,6 +2,7 @@ import React, { forwardRef, useImperativeHandle } from 'react';
 import { Alert, Box, Button, IconButton, MenuItem, Stack, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
@@ -13,6 +14,7 @@ import YearTabs from '../navigation/YearTabs';
 import FormattedNumberField from '../inputs/FormattedNumberField';
 import BudgetTrendChart from './BudgetTrendChart';
 import { FinanceModuleConfig } from './config';
+import { patchYearlyTotalsCache } from './yearlyTotals';
 
 export type BudgetTabHandle = {
   flush: () => Promise<boolean>;
@@ -66,6 +68,7 @@ const QUARTERS = [
 export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year, currency, availableYears, onYearChange, config }, ref) {
   const { t } = useTranslation(['ops', 'common']);
   const locale = useLocale();
+  const queryClient = useQueryClient();
 
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -73,6 +76,9 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
   const [mode, setMode] = React.useState<'flat' | 'monthly'>('flat');
   const [flat, setFlat] = React.useState<Record<MeasureKey, number | ''>>({ planned: '', committed: '', actual: '', expected_landing: '' });
   const [months, setMonths] = React.useState<AmountRow[]>(() => emptyMonths(year));
+  // Overlay the chart only once this `year`'s amounts are in local state — otherwise
+  // a year-tab switch would paint the previous year's figures onto the new year.
+  const [loadedYear, setLoadedYear] = React.useState<number | null>(null);
 
   // Spread-from-annual helper state.
   const [spreadMeasure, setSpreadMeasure] = React.useState<MeasureKey>('planned');
@@ -127,6 +133,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
         setMode('flat');
         setFlat({ planned: '', committed: '', actual: '', expected_landing: '' });
         setMonths(emptyMonths(year));
+        setLoadedYear(year);
         return;
       }
       setVersion(v);
@@ -148,6 +155,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
           ? { period: p, planned: num('planned'), committed: num('committed'), actual: num('actual'), expected_landing: num('expected_landing'), forecast: num('forecast') }
           : { period: p, planned: 0, committed: 0, actual: 0, expected_landing: 0, forecast: 0 };
       }));
+      setLoadedYear(year);
     } catch (e) {
       setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.budget.failedToLoad`)));
     } finally {
@@ -266,6 +274,20 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
     }, { planned: 0, committed: 0, actual: 0, expected_landing: 0, forecast: 0 } as Record<AmountCol, number>);
   }, [mode, flat, months]);
 
+  const liveTotals = React.useMemo(() => ({
+    planned: totals.planned,
+    committed: totals.committed,
+    actual: totals.actual,
+    expected_landing: totals.expected_landing,
+  }), [totals.planned, totals.committed, totals.actual, totals.expected_landing]);
+
+  // Keep the yearly-totals query cache in sync so a year-tab switch does not snap
+  // the previously edited year back to the value fetched on first paint.
+  React.useEffect(() => {
+    if (loadedYear !== year) return;
+    patchYearlyTotalsCache(queryClient, config, id, year, liveTotals);
+  }, [loadedYear, year, liveTotals, id, config, queryClient]);
+
   const fmt = (n: number) => formatAmount(n);
 
   const labelFor = (m: typeof MEASURES[number]) => t(m.labelKey);
@@ -298,27 +320,24 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
       </Tabs>
 
       {mode === 'flat' ? (
-        <Stack spacing={5}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 2.5 }}>
-            {MEASURES.map((m) => (
-              <Box key={m.key} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {labelFor(m)}
-                  {isFrozen(m) && <LockOutlinedIcon sx={{ fontSize: 12 }} />}
-                </Typography>
-                <FormattedNumberField
-                  value={flat[m.key]}
-                  onChange={(e) => onFlatChange(m.key, (e.target.value as unknown as number | ''))}
-                  variant="standard"
-                  disabled={loading || isFrozen(m)}
-                  InputProps={{ disableUnderline: true, readOnly: isFrozen(m) }}
-                  sx={{ '& input': { fontSize: 15, fontWeight: 500, py: '4px' } }}
-                />
-              </Box>
-            ))}
-          </Box>
-          <BudgetTrendChart id={id} currency={currency} config={config} />
-        </Stack>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 2.5 }}>
+          {MEASURES.map((m) => (
+            <Box key={m.key} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {labelFor(m)}
+                {isFrozen(m) && <LockOutlinedIcon sx={{ fontSize: 12 }} />}
+              </Typography>
+              <FormattedNumberField
+                value={flat[m.key]}
+                onChange={(e) => onFlatChange(m.key, (e.target.value as unknown as number | ''))}
+                variant="standard"
+                disabled={loading || isFrozen(m)}
+                InputProps={{ disableUnderline: true, readOnly: isFrozen(m) }}
+                sx={{ '& input': { fontSize: 15, fontWeight: 500, py: '4px' } }}
+              />
+            </Box>
+          ))}
+        </Box>
       ) : (
         <Stack spacing={2}>
           {/* Spread-from-annual helper */}
@@ -416,6 +435,14 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
           </Box>
         </Stack>
       )}
+
+      <BudgetTrendChart
+        id={id}
+        year={year}
+        liveTotals={loadedYear === year && !loading ? liveTotals : undefined}
+        currency={currency}
+        config={config}
+      />
 
       {anyFrozen && (
         <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t(`${config.i18nPrefix}.budget.someColumnsFrozen`)}</Typography>

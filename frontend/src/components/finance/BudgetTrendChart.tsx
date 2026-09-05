@@ -6,28 +6,53 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { formatAmount } from '../../i18n/formatters';
 import { FinanceModuleConfig } from './config';
+import {
+  overlayYear,
+  YEARLY_TOTALS_FROM,
+  YEARLY_TOTALS_TO,
+  yearlyTotalsQueryKey,
+  type LiveBudgetTotals,
+  type YearTotals,
+} from './yearlyTotals';
 
-type YearTotals = { year: number; budget: number; revision: number; actual: number; landing: number };
-
-// Multi-year vision window: N-3 … N+1 around the current calendar year.
-const N = new Date().getFullYear();
-const FROM = N - 3;
-const TO = N + 1;
-
-export default function BudgetTrendChart({ id, currency, config }: { id: string; currency?: string; config: FinanceModuleConfig }) {
+export default function BudgetTrendChart({
+  id,
+  year,
+  liveTotals,
+  currency,
+  config,
+}: {
+  id: string;
+  year: number;
+  liveTotals?: LiveBudgetTotals;
+  currency?: string;
+  config: FinanceModuleConfig;
+}) {
   const { t } = useTranslation(['ops', 'common']);
   const theme = useTheme();
   const dark = theme.palette.mode === 'dark';
 
   const { data } = useQuery({
-    queryKey: [`${config.queryKeyPrefix}-yearly-totals`, id, FROM, TO],
+    queryKey: yearlyTotalsQueryKey(config, id),
     queryFn: async () => {
-      const res = await api.get<{ items: YearTotals[] }>(`${config.itemsApi}/${id}/yearly-totals`, { params: { from: FROM, to: TO } });
+      const res = await api.get<{ items: YearTotals[] }>(`${config.itemsApi}/${id}/yearly-totals`, {
+        params: { from: YEARLY_TOTALS_FROM, to: YEARLY_TOTALS_TO },
+      });
       return res.data?.items || [];
     },
     staleTime: 30_000,
     enabled: !!id,
   });
+
+  // Keep the last payload across refetches so the canvas is never fed [].
+  const itemsRef = React.useRef<YearTotals[]>([]);
+  if (data) itemsRef.current = data;
+  const items = data ?? itemsRef.current;
+
+  const merged = React.useMemo(
+    () => overlayYear(items, year, liveTotals),
+    [items, year, liveTotals],
+  );
 
   const series = React.useMemo(() => {
     const colors = {
@@ -53,10 +78,11 @@ export default function BudgetTrendChart({ id, currency, config }: { id: string;
     ];
   }, [dark, theme, t]);
 
-  const options = React.useMemo(() => ({
+  // Theme / series stay on a data-independent object so AG Charts can delta-update
+  // the series data without re-applying the theme (canvas flash).
+  const chartMeta = React.useMemo(() => ({
     theme: dark ? 'ag-default-dark' : 'ag-default',
     background: { fill: 'transparent' },
-    data: data || [],
     series,
     axes: [
       { type: 'category', position: 'bottom' },
@@ -64,7 +90,13 @@ export default function BudgetTrendChart({ id, currency, config }: { id: string;
     ],
     legend: { enabled: true, position: 'bottom' },
     padding: { top: 8, right: 12, bottom: 4, left: 4 },
-  }), [dark, data, series]);
+    animation: { enabled: false },
+  }), [dark, series]);
+
+  const options = React.useMemo(
+    () => ({ ...chartMeta, data: merged }),
+    [chartMeta, merged],
+  );
 
   return (
     <Box sx={{ bgcolor: 'kanap.bg.drawer', border: '1px solid', borderColor: 'kanap.border.soft', borderRadius: '8px', p: 2 }}>
