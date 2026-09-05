@@ -19,6 +19,10 @@ import { InterfacesService } from '../../interfaces/services';
 import { Document } from '../../knowledge/document.entity';
 import { isDocumentStatus } from '../../knowledge/document-status';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
+import {
+  documentIncidentVisibilityQueryBuilderClause,
+  resolveDocumentIncidentViewer,
+} from '../../knowledge/document-entity-visibility';
 import { LocationsService } from '../../locations/locations.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
@@ -972,7 +976,7 @@ export class AiAggregateExecutor {
     };
   }
 
-  private buildDocumentAggregateQuery(
+  private async buildDocumentAggregateQuery(
     context: AiExecutionContextWithManager,
     groupBy: string,
     q: string | undefined,
@@ -991,6 +995,27 @@ export class AiAggregateExecutor {
       .leftJoin('document_folders', 'f', 'f.id = d.folder_id AND f.tenant_id = d.tenant_id')
       .leftJoin('document_libraries', 'dl', 'dl.id = d.library_id AND dl.tenant_id = d.tenant_id')
       .leftJoin('document_types', 'dtype', 'dtype.id = d.document_type_id AND dtype.tenant_id = d.tenant_id');
+
+    // §3.7 point 5: aggregation must not become a content oracle. `q` runs a
+    // full-text match over content_plain/content_markdown, so counts have to be
+    // computed on the documents the caller could actually open — Knowledge
+    // library ACL plus the incident rules for bound reviews.
+    const accessibleLibraries = await this.knowledge.listReadableLibraryIdsForUser(
+      context.manager,
+      context.userId ?? null,
+    );
+    if (accessibleLibraries) {
+      if (accessibleLibraries.length === 0) {
+        qb.andWhere('1 = 0');
+      } else {
+        qb.andWhere('d.library_id IN (:...documentAclLibraryIds)', { documentAclLibraryIds: accessibleLibraries });
+      }
+    }
+    const incidentAcl = documentIncidentVisibilityQueryBuilderClause(
+      'd',
+      await resolveDocumentIncidentViewer(context.manager, context.userId ?? null, context.tenantId),
+    );
+    qb.andWhere(incidentAcl.clause, incidentAcl.params);
 
     const search = getDocumentSearchState(q);
     if (search) {
@@ -1414,7 +1439,7 @@ export class AiAggregateExecutor {
         };
       }
 
-      const { qb, groupExpression } = this.buildDocumentAggregateQuery(
+      const { qb, groupExpression } = await this.buildDocumentAggregateQuery(
         context,
         input.group_by,
         input.q?.trim(),

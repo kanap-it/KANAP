@@ -2,6 +2,10 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { validate as isUuid } from 'uuid';
 import { incidentVisibilitySql, resolveIncidentViewer } from '../../incidents/incident-visibility';
 import { KnowledgeService, RelationEntityType } from '../../knowledge/knowledge.service';
+import {
+  documentIncidentVisibilitySql,
+  resolveDocumentIncidentViewer,
+} from '../../knowledge/document-entity-visibility';
 import { AiExecutionContextWithManager } from '../ai.types';
 import {
   AI_DOCUMENT_RELATION_ENTITY_TYPES,
@@ -608,6 +612,13 @@ export class AiDocumentMutationSupportService {
     }
     params.push(accessibleLibraryIds);
     const libraryAccessClause = `AND d.library_id = ANY($${params.length}::uuid[])`;
+    // Resolving a document by title must not surface an incident review the
+    // caller cannot see (the managed title carries "INC-N - <incident title>").
+    const incidentAccessClause = documentIncidentVisibilitySql(
+      'd',
+      await resolveDocumentIncidentViewer(context.manager, context.userId ?? null, context.tenantId),
+      params,
+    );
     params.push(limit);
 
     const rows = await context.manager.query(
@@ -624,6 +635,7 @@ export class AiDocumentMutationSupportService {
        WHERE d.tenant_id = $1
          ${templateClause}
          ${libraryAccessClause}
+         ${incidentAccessClause}
          AND (
            d.title ILIKE $2
            OR COALESCE(d.summary, '') ILIKE $2

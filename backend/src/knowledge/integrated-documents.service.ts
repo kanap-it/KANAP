@@ -22,6 +22,12 @@ import {
   IntegratedDocumentSlotKey,
 } from './integrated-document.constants';
 import { KnowledgeService, RelationEntityType } from './knowledge.service';
+import {
+  DocumentSourceAccessContext,
+  buildIncidentReviewImportContext,
+  buildIncidentReviewSourceContext,
+  resolveCurrentTenantId,
+} from './document-entity-visibility';
 import { incidentVisibilitySql, resolveIncidentViewer } from '../incidents/incident-visibility';
 
 type SourceScopedEntityType = 'requests' | 'projects' | 'interfaces' | 'applications' | 'incidents';
@@ -265,6 +271,31 @@ export class IntegratedDocumentsService {
       throw new ForbiddenException('Authenticated user is required');
     }
     return normalized;
+  }
+
+  /**
+   * The §3.7 "source" access context, for incidents only.
+   *
+   * It travels with every Knowledge call made on behalf of an incident route so
+   * the incident's own permissions and visibility replace the Knowledge library
+   * ACL for that exact document — a reporter without Knowledge rights can read,
+   * edit, version and illustrate the review of an incident they can see. The
+   * other integrated types keep their historical behaviour (null context).
+   */
+  private async buildSourceAccessContext(
+    sourceEntityType: SourceScopedEntityType,
+    sourceEntityId: string,
+    slotKey: string,
+    userId: string | null | undefined,
+    manager: EntityManager,
+    opts?: { allowFrozenIncident?: boolean },
+  ): Promise<DocumentSourceAccessContext | null> {
+    if (sourceEntityType !== 'incidents' || slotKey !== 'review') return null;
+    const tenantId = await resolveCurrentTenantId(manager, null);
+    const params = { userId, tenantId, incidentId: sourceEntityId };
+    return opts?.allowFrozenIncident
+      ? buildIncidentReviewImportContext(params)
+      : buildIncidentReviewSourceContext(params);
   }
 
   private assertSupportedSlot(sourceEntityType: SourceScopedEntityType, slotKey: string): asserts slotKey is IntegratedDocumentSlotKey {
@@ -2254,6 +2285,13 @@ export class IntegratedDocumentsService {
       { useTemplateWhenBlank: opts?.useTemplateWhenBlank },
     );
 
+    const provisioningContext = await this.buildSourceAccessContext(
+      sourceEntityType,
+      source.id,
+      slotKey,
+      userId,
+      manager,
+    );
     const created = await this.knowledge.createManagedDocument(
       {
         tenantId: source.tenant_id,
@@ -2278,6 +2316,7 @@ export class IntegratedDocumentsService {
       {
         manager,
         initializer: opts?.initializer,
+        sourceContext: provisioningContext,
       },
     );
     await this.ensurePrimaryOwnerContributor(created.id, opts?.ownerUserId ?? null, manager);
@@ -2383,6 +2422,130 @@ export class IntegratedDocumentsService {
     });
   }
 
+  /**
+   * §3.3 closure snapshot primitive, called by `IncidentsService` from the
+   * close/cancel transaction (phase A3).
+   *
+   * **Lock ordering contract**: the caller MUST already hold the incident row
+   * lock (`SELECT ... FROM incidents WHERE id = $1 FOR UPDATE`) in the same
+   * transaction. This method then takes the document row lock. Incident first,
+   * document second, on every path that serializes review mutations, status
+   * transitions and confidentiality/owner/reporter changes.
+   *
+   * It refuses with 423 when another user holds an edit lock on the review, and
+   * returns the reference to store in `incident_entries.changed_fields.review_version`.
+   */
+  async snapshotReviewForIncidentTransition(
+    incidentId: string,
+    userId: string | null | undefined,
+    opts?: { manager?: EntityManager; changeNote?: string | null },
+  ): Promise<{ document_id: string; version_number: number; revision: number }> {
+    const manager = this.getManager(opts);
+    const slotKey: IntegratedDocumentSlotKey = 'review';
+
+    let binding = await this.findBinding('incidents', incidentId, slotKey, manager);
+    if (!binding) {
+      // Eager provisioning happens at create; a missing binding here is an
+      // integrity gap and is repaired explicitly rather than silently skipped.
+      await this.provisionForIncident(incidentId, userId, { manager });
+      binding = await this.findBinding('incidents', incidentId, slotKey, manager);
+    }
+    if (!binding) {
+      throw new NotFoundException('Integrated document not found');
+    }
+
+    const documentId = String(binding.document_id);
+    await manager.query('SELECT id FROM documents WHERE id = $1 FOR UPDATE', [documentId]);
+    await this.knowledge.assertDocumentUnlockedForUser(documentId, userId ?? null, manager);
+
+    const document = await this.getDocumentOrThrow(documentId, manager);
+    const snapshot = await this.knowledge.ensureCurrentVersionSnapshot(
+      document,
+      opts?.changeNote ?? null,
+      String(userId || '').trim() || null,
+      manager,
+    );
+
+    return {
+      document_id: documentId,
+      version_number: Number(snapshot.version.version_number),
+      revision: Number(document.revision),
+    };
+  }
+
+  /**
+   * §3.8 CSV-import write path for `incidents:review`, and the only place that
+   * may write the review of a closed or cancelled incident.
+   *
+   * It still enforces the tenant, `incidents:contributor`, the incident's row
+   * visibility (404 when invisible) and another user's edit lock (423). It is
+   * not reachable from any document route: no DTO, header or AI tool can build
+   * the exemption. Must run inside the CSV commit transaction so a failure rolls
+   * the incident upsert back with it.
+   */
+  async writeIncidentReviewForImport(
+    incidentId: string,
+    content: string | null | undefined,
+    userId: string | null | undefined,
+    opts?: { manager?: EntityManager; changeNote?: string | null; activityContent?: string | null },
+  ): Promise<{ document_id: string; changed: boolean; version_number: number | null }> {
+    const manager = this.getManager(opts);
+    const normalizedUserId = this.normalizeUserId(userId);
+    const slotKey: IntegratedDocumentSlotKey = 'review';
+
+    this.assertSupportedSlot('incidents', slotKey);
+    await this.assertSourcePermission('incidents', 'edit', normalizedUserId, manager);
+    await this.assertSourceEntityExists('incidents', incidentId, manager, normalizedUserId);
+
+    let binding = await this.findBinding('incidents', incidentId, slotKey, manager);
+    if (!binding) {
+      // An imported incident may already be closed: provision explicitly rather
+      // than going through the lazy repair, which refuses frozen incidents.
+      await this.provisionForIncident(incidentId, normalizedUserId, { manager });
+      binding = await this.findBinding('incidents', incidentId, slotKey, manager);
+    }
+    if (!binding) {
+      throw new NotFoundException('Integrated document not found');
+    }
+
+    const documentId = String(binding.document_id);
+    await this.ensureOwningRelationRow('incidents', incidentId, documentId, manager);
+    await this.knowledge.assertDocumentUnlockedForUser(documentId, normalizedUserId, manager);
+
+    const existing = await this.getDocumentOrThrow(documentId, manager);
+    const nextContent = normalizeMarkdownRichText(content, { fieldName: 'content_markdown' }) || '';
+    if (existing.content_markdown === nextContent) {
+      return { document_id: documentId, changed: false, version_number: null };
+    }
+
+    const importContext = await this.buildSourceAccessContext(
+      'incidents',
+      incidentId,
+      slotKey,
+      normalizedUserId,
+      manager,
+      { allowFrozenIncident: true },
+    );
+    await this.knowledge.updateManagedDocument(
+      documentId,
+      {
+        content_markdown: nextContent,
+        create_version: true,
+        change_note: opts?.changeNote ?? this.getImportChangeNote('incidents'),
+        activity_content: opts?.activityContent ?? 'Document updated',
+      },
+      normalizedUserId,
+      { manager, sourceContext: importContext },
+    );
+
+    const saved = await this.getDocumentOrThrow(documentId, manager);
+    return {
+      document_id: documentId,
+      changed: true,
+      version_number: Number(saved.current_version_number) || null,
+    };
+  }
+
   async writeSourceSlotContent(
     sourceEntityType: SourceScopedEntityType,
     source: SourceDescriptor,
@@ -2433,7 +2596,11 @@ export class IntegratedDocumentsService {
         activity_content: 'Document updated',
       },
       userId || null,
-      { manager },
+      {
+        manager,
+        sourceContext: await this.buildSourceAccessContext(sourceEntityType, source.id, slotKey, userId, manager),
+        systemOperation: !String(userId || '').trim(),
+      },
     );
 
     if (opts?.logSourceActivity !== false) {
@@ -2480,7 +2647,11 @@ export class IntegratedDocumentsService {
           create_version: false,
         },
         userId || null,
-        { manager },
+        {
+          manager,
+          sourceContext: await this.buildSourceAccessContext(sourceEntityType, source.id, slotKey, userId, manager),
+          systemOperation: !String(userId || '').trim(),
+        },
       );
       updatedCount += 1;
     }
@@ -3282,7 +3453,10 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.get(documentId, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.get(documentId, { manager, userId: normalizedUserId, sourceContext });
   }
 
   async acquireLockBySource(
@@ -3303,7 +3477,10 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.acquireLock(documentId, normalizedUserId, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.acquireLock(documentId, normalizedUserId, { manager, sourceContext });
   }
 
   async heartbeatLockBySource(
@@ -3325,7 +3502,10 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.heartbeatLock(documentId, normalizedUserId, lockToken, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.heartbeatLock(documentId, normalizedUserId, lockToken, { manager, sourceContext });
   }
 
   async releaseLockBySource(
@@ -3347,7 +3527,10 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.releaseLock(documentId, normalizedUserId, lockToken, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.releaseLock(documentId, normalizedUserId, lockToken, { manager, sourceContext });
   }
 
   async updateBySource(
@@ -3375,6 +3558,9 @@ export class IntegratedDocumentsService {
       ? existing.content_markdown
       : (normalizeMarkdownRichText(body?.content_markdown, { fieldName: 'content_markdown' }) || '');
 
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
     const result = await this.knowledge.update(
       documentId,
       {
@@ -3385,7 +3571,7 @@ export class IntegratedDocumentsService {
       },
       normalizedUserId,
       lockToken,
-      { manager },
+      { manager, sourceContext },
     );
 
     if (
@@ -3432,9 +3618,13 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
     return this.knowledge.uploadAttachment(documentId, file, normalizedUserId, {
       manager,
       sourceField: 'content_markdown',
+      sourceContext,
     });
   }
 
@@ -3458,7 +3648,10 @@ export class IntegratedDocumentsService {
         normalizedUserId,
         manager,
       );
-      return this.knowledge.importDocument(documentId, file, normalizedUserId, lockToken, { manager });
+      const sourceContext = await this.buildSourceAccessContext(
+        sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+      );
+      return this.knowledge.importDocument(documentId, file, normalizedUserId, lockToken, { manager, sourceContext });
     }
 
     let manager = this.getManager(opts);
@@ -3481,7 +3674,12 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.finalizeImportedDocument(documentId, released.result, normalizedUserId, lockToken, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.finalizeImportedDocument(
+      documentId, released.result, normalizedUserId, lockToken, { manager, sourceContext },
+    );
   }
 
   async importInlineAttachmentBySourceUrl(
@@ -3502,9 +3700,13 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
     return this.knowledge.importInlineAttachmentFromUrl(documentId, sourceUrl, normalizedUserId, {
       manager,
       sourceField: 'content_markdown',
+      sourceContext,
     });
   }
 
@@ -3525,7 +3727,10 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.listVersions(documentId, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.listVersions(documentId, { manager, userId: normalizedUserId, sourceContext });
   }
 
   async revertBySource(
@@ -3548,7 +3753,12 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    const result = await this.knowledge.revert(documentId, versionNumber, normalizedUserId, lockToken, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
+    );
+    const result = await this.knowledge.revert(
+      documentId, versionNumber, normalizedUserId, lockToken, { manager, sourceContext },
+    );
     const sourceRows = await manager.query<Array<{ tenant_id: string }>>(
       `SELECT tenant_id
        FROM ${SOURCE_ENTITY_CONFIG[sourceEntityType].sourceTable}

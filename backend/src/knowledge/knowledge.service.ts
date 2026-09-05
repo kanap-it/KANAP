@@ -38,8 +38,21 @@ import type { EmailContent } from '../notifications/notification-templates';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { PermissionLevel, PermissionsService } from '../permissions/permissions.service';
+import { incidentVisibilitySql } from '../incidents/incident-visibility';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user-role.entity';
+import {
+  DocumentSourceAccessContext,
+  assertDocumentIncidentVisible,
+  assertDocumentIncidentWritable,
+  documentIncidentVisibilityQueryBuilderClause,
+  documentIncidentVisibilitySql,
+  isDocumentIncidentVisible,
+  isDocumentIncidentWritable,
+  loadDocumentIncidentBinding,
+  resolveDocumentIncidentViewer,
+  sourceContextMatchesBinding,
+} from './document-entity-visibility';
 import { DocumentActivity } from './document-activity.entity';
 import { DocumentApplication } from './document-application.entity';
 import { DocumentAsset } from './document-asset.entity';
@@ -144,6 +157,18 @@ type KnowledgeLibraryDetailView = KnowledgeLibraryView & {
   readers: KnowledgeLibraryMemberView[];
   writers: KnowledgeLibraryMemberView[];
 };
+
+/**
+ * Internal-only access options threaded through every document read/write.
+ * `sourceContext` is built by the server (incident routes, incident PDF/AI
+ * record) and is never accepted from a DTO, a header or an AI tool argument.
+ */
+export type DocumentAccessOptions = {
+  sourceContext?: DocumentSourceAccessContext | null;
+  tenantId?: string | null;
+};
+
+export type { DocumentSourceAccessContext };
 
 const LOCK_TTL_SECONDS = 5 * 60;
 const DEFAULT_DOCUMENT_TYPE_NAME = 'Document';
@@ -903,22 +928,129 @@ export class KnowledgeService {
     return libraryId;
   }
 
+  private async getLibraryOrThrow(libraryId: string, manager: EntityManager): Promise<DocumentLibrary> {
+    const library = await manager.getRepository(DocumentLibrary).findOne({ where: { id: libraryId } as any });
+    if (!library) {
+      throw new NotFoundException('Library not found');
+    }
+    return library;
+  }
+
+  /**
+   * The single access gate for one document, covering both columns of the §3.7
+   * matrix.
+   *
+   * - Knowledge context (no `sourceContext`): the Knowledge library ACL as
+   *   before, plus — when the document is an incident review — `incidents:reader`
+   *   and the incident's row visibility (and `incidents:contributor` + the
+   *   closure freeze for writes).
+   * - Source context (`opts.sourceContext` matching this exact binding): the
+   *   incident rules alone, no Knowledge permission required. The context is
+   *   server-built and re-validated against the binding here; it never applies to
+   *   templates or other documents reached along the way.
+   *
+   * The returned view already carries an incident-aware `can_write`, which is
+   * what `GET /knowledge/:idOrRef` reports to the client.
+   */
+  private async resolveDocumentAccess(
+    documentId: string,
+    manager: EntityManager,
+    userId: string | null | undefined,
+    mode: 'read' | 'write',
+    opts?: DocumentAccessOptions & { knownLibraryId?: string | null },
+  ): Promise<KnowledgeLibraryView> {
+    const resolveLibraryId = async () => (
+      String(opts?.knownLibraryId || '').trim()
+      || await this.getDocumentLibraryId(documentId, manager)
+    );
+    const binding = await loadDocumentIncidentBinding(manager, documentId, opts?.tenantId ?? null);
+    const normalizedUserId = String(userId || '').trim();
+    const sourceContext = opts?.sourceContext ?? null;
+    // A context built for someone else is ignored, not honoured: the caller's
+    // identity and the context identity must be the same person.
+    const contextMatchesActor = !!sourceContext
+      && (!normalizedUserId || normalizedUserId === sourceContext.userId);
+
+    if (binding && contextMatchesActor && sourceContextMatchesBinding(sourceContext, binding, documentId)) {
+      const viewer = await resolveDocumentIncidentViewer(
+        manager,
+        sourceContext!.userId,
+        sourceContext!.tenantId,
+      );
+      const shared = { binding, viewer, tenantId: opts?.tenantId ?? binding.tenant_id };
+      await assertDocumentIncidentVisible(documentId, manager, sourceContext!.userId, shared.tenantId, shared);
+      if (mode === 'write') {
+        await assertDocumentIncidentWritable(documentId, manager, sourceContext!.userId, shared.tenantId, {
+          ...shared,
+          allowFrozenIncident: sourceContext!.allowFrozenIncident === true,
+        });
+      }
+      const libraryId = await resolveLibraryId();
+      const library = await this.getLibraryOrThrow(libraryId, manager);
+      // No Knowledge level is granted: the incident permissions decide, and the
+      // synthesized view stays below `admin` so manage/delete remain refused.
+      return this.toKnowledgeLibraryView(
+        library,
+        isDocumentIncidentWritable(binding, viewer) ? 'writer' : 'reader',
+        null,
+      );
+    }
+
+    const libraryId = await resolveLibraryId();
+    const view = mode === 'write'
+      ? await this.assertLibraryWritable(libraryId, manager, userId)
+      : await this.assertLibraryReadable(libraryId, manager, userId);
+
+    if (!binding) {
+      return view;
+    }
+
+    const tenantId = opts?.tenantId ?? binding.tenant_id;
+    const viewer = await resolveDocumentIncidentViewer(manager, userId, tenantId);
+    await assertDocumentIncidentVisible(documentId, manager, userId, tenantId, { binding, viewer });
+    if (mode === 'write') {
+      await assertDocumentIncidentWritable(documentId, manager, userId, tenantId, { binding, viewer });
+    }
+    return { ...view, can_write: view.can_write && isDocumentIncidentWritable(binding, viewer) };
+  }
+
   async assertDocumentReadable(
     documentId: string,
     manager: EntityManager,
     userId: string | null | undefined,
+    opts?: DocumentAccessOptions,
   ): Promise<KnowledgeLibraryView> {
-    const libraryId = await this.getDocumentLibraryId(documentId, manager);
-    return this.assertLibraryReadable(libraryId, manager, userId);
+    return this.resolveDocumentAccess(documentId, manager, userId, 'read', opts);
   }
 
   async assertDocumentWritable(
     documentId: string,
     manager: EntityManager,
     userId: string | null | undefined,
+    opts?: DocumentAccessOptions,
   ): Promise<KnowledgeLibraryView> {
-    const libraryId = await this.getDocumentLibraryId(documentId, manager);
-    return this.assertLibraryWritable(libraryId, manager, userId);
+    return this.resolveDocumentAccess(documentId, manager, userId, 'write', opts);
+  }
+
+  /**
+   * Can this user open `DOC-N` through Knowledge? Library ACL plus, for an
+   * incident review, `incidents:reader` and the incident's row visibility.
+   * Used to vet share recipients; never throws, so nothing leaks about them.
+   */
+  async canUserOpenDocument(
+    candidateUserId: string,
+    documentId: string,
+    manager: EntityManager,
+    tenantId?: string | null,
+  ): Promise<boolean> {
+    const normalized = String(candidateUserId || '').trim();
+    if (!normalized) return false;
+    try {
+      await this.assertDocumentReadable(documentId, manager, normalized, { tenantId: tenantId ?? null });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async getIntegratedBinding(
@@ -1303,17 +1435,42 @@ export class KnowledgeService {
     return userId || null;
   }
 
+  /**
+   * Viewer gate for `GET /knowledge/inline/:tenantSlug/:attachmentId`.
+   *
+   * The route is `@Public()`: identity comes from the refresh-token cookie. The
+   * parent document (not just the source type) is passed in, so an incident
+   * review image is checked against the exact incident it belongs to.
+   *
+   * For an incident review there is **no** `knowledge:reader` fallback: only
+   * `incidents:reader` plus the incident's row visibility can authorize it.
+   * Images referenced only by older versions follow the same rule — the check is
+   * on the parent document, not on the current body.
+   */
   private async ensureInlineAttachmentAccess(
     manager: EntityManager,
     tenantId: string,
     refreshToken: string | null | undefined,
-    integratedBinding?: Pick<IntegratedDocumentBinding, 'source_entity_type'> | null,
+    parent?: {
+      documentId: string;
+      integratedBinding?: Pick<IntegratedDocumentBinding, 'source_entity_type'> | null;
+    } | null,
   ): Promise<boolean> {
     const userId = await this.resolveUserIdFromRefreshToken(manager, tenantId, refreshToken);
     if (!userId) return false;
 
-    if (integratedBinding?.source_entity_type === 'requests' || integratedBinding?.source_entity_type === 'projects') {
-      const resource = INLINE_ATTACHMENT_SOURCE_RESOURCE[integratedBinding.source_entity_type];
+    const sourceEntityType = parent?.integratedBinding?.source_entity_type ?? null;
+
+    if (sourceEntityType === 'incidents') {
+      if (!parent?.documentId) return false;
+      const binding = await loadDocumentIncidentBinding(manager, parent.documentId, tenantId);
+      if (!binding) return false;
+      const viewer = await resolveDocumentIncidentViewer(manager, userId, tenantId);
+      return isDocumentIncidentVisible(binding, viewer);
+    }
+
+    if (sourceEntityType === 'requests' || sourceEntityType === 'projects') {
+      const resource = INLINE_ATTACHMENT_SOURCE_RESOURCE[sourceEntityType];
       const level = await this.getPermissionLevelForUser(manager, userId, resource);
       return this.hasPermissionLevel(level || undefined, 'reader');
     }
@@ -2556,6 +2713,13 @@ export class KnowledgeService {
     if (accessibleLibraries) {
       qb.andWhere('d.library_id IN (:...accessibleLibraryIds)', { accessibleLibraryIds: accessibleLibraries });
     }
+    {
+      const acl = documentIncidentVisibilityQueryBuilderClause(
+        'd',
+        await resolveDocumentIncidentViewer(manager, opts?.userId || null, tenantId || null),
+      );
+      qb.andWhere(acl.clause, acl.params);
+    }
 
     const search = this.getDocumentSearchState(q);
     if (search) {
@@ -2805,6 +2969,13 @@ export class KnowledgeService {
     if (accessibleLibraries) {
       qb.andWhere('d.library_id IN (:...accessibleLibraryIds)', { accessibleLibraryIds: accessibleLibraries });
     }
+    {
+      const acl = documentIncidentVisibilityQueryBuilderClause(
+        'd',
+        await resolveDocumentIncidentViewer(manager, opts?.userId || null, tenantId || null),
+      );
+      qb.andWhere(acl.clause, acl.params);
+    }
 
     if (search) {
       const params: Record<string, string | number> = {
@@ -2892,6 +3063,10 @@ export class KnowledgeService {
     if (accessibleLibraries) {
       scopeConditions.push(`d.library_id = ANY($${scopeParams.length + 1}::uuid[])`);
       scopeParams.push(accessibleLibraries);
+    }
+    {
+      const viewer = await resolveDocumentIncidentViewer(manager, opts?.userId || null, tenantId || null);
+      scopeConditions.push(documentIncidentVisibilitySql('d', viewer, scopeParams).replace(/^\s*AND\s/, ''));
     }
 
     // Apply cross-filter from other active filters
@@ -3046,7 +3221,7 @@ export class KnowledgeService {
   async listRelationOptions(
     entity: RelationEntityType,
     query: any,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; userId?: string | null; tenantId?: string | null },
   ): Promise<{ items: Array<{ id: string; label: string }> }> {
     const manager = this.getManager(opts);
     const q = String(query?.q || '').trim();
@@ -3203,24 +3378,32 @@ export class KnowledgeService {
         };
       }
       case 'incidents': {
+        // Confidential incidents (and every incident for a caller without
+        // incidents:reader) must not surface as a picker label: `INC-N · title`
+        // would leak both the reference and the title.
+        const viewer = await resolveDocumentIncidentViewer(manager, opts?.userId ?? null, opts?.tenantId ?? null);
+        if (!viewer.canReadIncidents) {
+          return { items: [] };
+        }
         const params: any[] = [];
-        let where = `tenant_id = app_current_tenant()`;
+        let where = `i.tenant_id = app_current_tenant()`;
+        where += incidentVisibilitySql('i', viewer, params);
         if (q) {
           params.push(`%${q}%`);
           const textPos = params.length;
           if (itemNumber != null) {
             params.push(itemNumber);
-            where += ` AND (title ILIKE $${textPos} OR item_number = $${params.length})`;
+            where += ` AND (i.title ILIKE $${textPos} OR i.item_number = $${params.length})`;
           } else {
-            where += ` AND title ILIKE $${textPos}`;
+            where += ` AND i.title ILIKE $${textPos}`;
           }
         }
         params.push(limit);
         const rows = await manager.query(
-          `SELECT id, title, item_number
-           FROM incidents
+          `SELECT i.id, i.title, i.item_number
+           FROM incidents i
            WHERE ${where}
-           ORDER BY (status IN ('closed', 'cancelled')) ASC, detected_at DESC
+           ORDER BY (i.status IN ('closed', 'cancelled')) ASC, i.detected_at DESC
            LIMIT $${params.length}`,
           params,
         );
@@ -3303,7 +3486,7 @@ export class KnowledgeService {
     }));
   }
 
-  async get(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async get(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null } & DocumentAccessOptions) {
     const manager = this.getManager(opts);
     const id = await this.resolveDocumentId(idOrRef, manager);
 
@@ -3333,7 +3516,40 @@ export class KnowledgeService {
     }
 
     const document = rows[0];
-    const libraryAccess = await this.assertLibraryReadable(document.library_id, manager, opts?.userId || null);
+    const libraryAccess = await this.resolveDocumentAccess(id, manager, opts?.userId || null, 'read', {
+      ...(opts ?? {}),
+      knownLibraryId: document.library_id,
+    });
+    // Related incidents and backlinks are filtered on their own rights: reaching a
+    // document (even through the incident source context) never exposes the
+    // metadata of neighbouring incidents or documents the caller cannot read.
+    const incidentViewer = await resolveDocumentIncidentViewer(
+      manager,
+      opts?.userId || null,
+      opts?.tenantId ?? document.tenant_id,
+    );
+    const backlinkLibraries = await this.listAccessibleLibraryIds(manager, opts?.userId || null, 'reader');
+
+    const incidentRelationParams: unknown[] = [id];
+    const incidentRelationSql = incidentViewer.canReadIncidents
+      ? `SELECT dinc.incident_id, inc.title, inc.item_number FROM document_incidents dinc
+           JOIN incidents inc ON inc.id = dinc.incident_id AND inc.tenant_id = dinc.tenant_id
+           WHERE dinc.document_id = $1
+             ${incidentVisibilitySql('inc', incidentViewer, incidentRelationParams)}
+           ORDER BY dinc.created_at ASC`
+      : null;
+
+    const backlinkParams: unknown[] = [id];
+    let backlinkLibraryClause = '';
+    if (backlinkLibraries) {
+      if (backlinkLibraries.length === 0) {
+        backlinkLibraryClause = ' AND false';
+      } else {
+        backlinkParams.push(backlinkLibraries);
+        backlinkLibraryClause = ` AND d.library_id = ANY($${backlinkParams.length}::uuid[])`;
+      }
+    }
+    const backlinkIncidentClause = documentIncidentVisibilitySql('d', incidentViewer, backlinkParams);
 
     const [
       contributors,
@@ -3389,10 +3605,9 @@ export class KnowledgeService {
            FROM document_interfaces di
            JOIN interfaces i ON i.id = di.interface_id AND i.tenant_id = di.tenant_id
            WHERE di.document_id = $1 ORDER BY di.created_at ASC`, [id]),
-        manager.query(
-          `SELECT dinc.incident_id, inc.title, inc.item_number FROM document_incidents dinc
-           JOIN incidents inc ON inc.id = dinc.incident_id AND inc.tenant_id = dinc.tenant_id
-           WHERE dinc.document_id = $1 ORDER BY dinc.created_at ASC`, [id]),
+        incidentRelationSql
+          ? manager.query(incidentRelationSql, incidentRelationParams)
+          : Promise.resolve([]),
       ]),
       manager.query(
         `SELECT r.id,
@@ -3403,8 +3618,10 @@ export class KnowledgeService {
          FROM document_references r
          JOIN documents d ON d.id = r.source_document_id AND d.tenant_id = r.tenant_id
          WHERE r.target_document_id = $1
+           ${backlinkLibraryClause}
+           ${backlinkIncidentClause}
          ORDER BY d.updated_at DESC`,
-        [id],
+        backlinkParams,
       ),
       manager.query(
         `SELECT *
@@ -3469,7 +3686,24 @@ export class KnowledgeService {
     );
     if (!rows.length) throw new NotFoundException('Document not found');
     const document = rows[0];
-    await this.assertLibraryReadable(document.library_id, manager, userId || null);
+    await this.assertDocumentReadable(id, manager, userId || null);
+
+    // §3.7 point 10: an incident review must not be pushed to someone who could
+    // not open DOC-N. Every recipient is checked (library ACL + incidents:reader
+    // + row visibility) before anything is queued, and the error never says which
+    // recipient failed or anything about the document.
+    const incidentBinding = await loadDocumentIncidentBinding(manager, id, tenantId);
+    if (incidentBinding) {
+      if (rawEmails.length > 0) {
+        throw new ForbiddenException('This document cannot be shared outside the application');
+      }
+      for (const recipientId of userIds) {
+        const allowed = await this.canUserOpenDocument(String(recipientId), id, manager, tenantId);
+        if (!allowed) {
+          throw new ForbiddenException('One of the recipients is not allowed to open this document');
+        }
+      }
+    }
 
     const senderRows = await manager.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
     const senderName = senderRows.length > 0
@@ -3649,7 +3883,7 @@ export class KnowledgeService {
         summary?: string | null;
         content_markdown?: string | null;
       } | void>;
-    },
+    } & DocumentAccessOptions,
   ): Promise<Document> {
     const manager = this.getManager(opts);
     const normalizedUserId = String(userId || '').trim() || null;
@@ -3667,7 +3901,12 @@ export class KnowledgeService {
 
     await this.ensureFolderInLibrary(String(body.folder_id), String(body.library_id), manager);
     await this.ensureDocumentTypeExists(String(body.document_type_id), manager);
-    if (normalizedUserId) {
+    // Provisioning an integrated document is a system operation bounded to the
+    // slot: the caller (IntegratedDocumentsService) has already enforced the
+    // source entity's own permissions and visibility. Requiring Knowledge write
+    // on Managed Docs here would stop an incident reporter from creating an
+    // incident at all.
+    if (normalizedUserId && !opts?.sourceContext) {
       await this.assertLibraryWritable(String(body.library_id), manager, normalizedUserId);
     }
 
@@ -3772,7 +4011,7 @@ export class KnowledgeService {
       create_version?: boolean;
     },
     userId: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; systemOperation?: boolean } & DocumentAccessOptions,
   ): Promise<Document> {
     const manager = this.getManager(opts);
     const id = await this.resolveDocumentId(idOrRef, manager);
@@ -3783,8 +4022,13 @@ export class KnowledgeService {
     if (!existing) {
       throw new NotFoundException('Document not found');
     }
-    if (normalizedUserId) {
-      await this.assertDocumentWritable(existing.id, manager, normalizedUserId);
+    // §3.7 point 2: a null userId is never an implicit authorization. Either the
+    // caller is an authenticated writer (Knowledge or incident source context),
+    // or it is an explicit system operation (migration / backfill / title sync).
+    if (normalizedUserId || opts?.sourceContext) {
+      await this.assertDocumentWritable(existing.id, manager, normalizedUserId, opts);
+    } else if (opts?.systemOperation !== true) {
+      throw new ForbiddenException('A user or an explicit system operation is required');
     }
 
     await this.assertWorkflowAllowsEditing(existing.id, manager);
@@ -4021,7 +4265,7 @@ export class KnowledgeService {
     body: any,
     userId: string,
     lockToken: string | null | undefined,
-    opts?: { manager?: EntityManager; audit?: KnowledgeAuditOptions },
+    opts?: { manager?: EntityManager; audit?: KnowledgeAuditOptions } & DocumentAccessOptions,
   ) {
     const manager = this.getManager(opts);
     const id = await this.resolveDocumentId(idOrRef, manager);
@@ -4031,7 +4275,11 @@ export class KnowledgeService {
     if (!existing) {
       throw new NotFoundException('Document not found');
     }
-    await this.assertDocumentWritable(existing.id, manager, userId);
+    await this.assertDocumentWritable(existing.id, manager, userId, opts);
+
+    const integratedBinding = await this.getIntegratedBinding(existing.id, manager);
+    const isIncidentReview = integratedBinding?.source_entity_type === 'incidents'
+      && integratedBinding.slot_key === 'review';
 
     const saveMode = body?.save_mode === 'autosave' ? 'autosave' : 'manual';
 
@@ -4101,17 +4349,25 @@ export class KnowledgeService {
     const nextTemplateId = hasExplicitTemplateDocumentId
       ? (body?.template_document_id ? String(body.template_document_id) : null)
       : (existing.template_document_id ? String(existing.template_document_id) : null);
-    const nextTemplateDocument = nextTemplateId
-      ? await this.getTemplateDocumentSummary(nextTemplateId, manager, null, userId)
-      : null;
+    if (integratedBinding) {
+      // A managed document cannot change type or template (already refused by
+      // assertIntegratedDocumentUpdateRestrictions above), so re-reading the
+      // template is pure overhead — and it would refuse the write outright for an
+      // incident reporter who has no Knowledge rights on the Templates library.
+      existing.template_document_id = nextTemplateId;
+    } else {
+      const nextTemplateDocument = nextTemplateId
+        ? await this.getTemplateDocumentSummary(nextTemplateId, manager, null, userId)
+        : null;
 
-    existing.document_type_id = await this.resolveDocumentTypeId(manager, {
-      explicitDocumentTypeId: body?.document_type_id,
-      hasExplicitDocumentTypeId,
-      templateDocument: nextTemplateDocument,
-      currentDocumentTypeId: existing.document_type_id ? String(existing.document_type_id) : null,
-    });
-    existing.template_document_id = nextTemplateId;
+      existing.document_type_id = await this.resolveDocumentTypeId(manager, {
+        explicitDocumentTypeId: body?.document_type_id,
+        hasExplicitDocumentTypeId,
+        templateDocument: nextTemplateDocument,
+        currentDocumentTypeId: existing.document_type_id ? String(existing.document_type_id) : null,
+      });
+      existing.template_document_id = nextTemplateId;
+    }
 
     let statusChanged = false;
     if (body?.status !== undefined) {
@@ -4140,7 +4396,13 @@ export class KnowledgeService {
 
     const saved = await repo.save(existing);
 
-    const shouldVersion = saveMode === 'manual' || statusChanged;
+    // §3.3: for `incidents:review` only, every save that actually changes the
+    // content keeps a version — autosave included. `ensureVersionSnapshot`
+    // deduplicates identical content, so a no-op save adds nothing, and the
+    // policy is applied here (the common document write path) so Knowledge, the
+    // integrated routes, import and CSV all follow it. Other document types keep
+    // the historical "manual save or status change" behaviour.
+    const shouldVersion = saveMode === 'manual' || statusChanged || isIncidentReview;
     if (shouldVersion) {
       await this.ensureVersionSnapshot(saved, body?.change_note ? String(body.change_note) : null, userId, manager);
     }
@@ -4176,7 +4438,7 @@ export class KnowledgeService {
       await this.cleanupOrphanedInlineAttachments(saved.id, before.content_markdown, saved.content_markdown, manager);
     }
 
-    return this.get(saved.id, { manager, userId });
+    return this.get(saved.id, { manager, userId, ...(opts ?? {}) });
   }
 
   async remove(idOrRef: string, userId: string | null, opts?: { manager?: EntityManager }) {
@@ -4673,10 +4935,11 @@ export class KnowledgeService {
     return this.list({ ...query, folder_id: folderId }, opts);
   }
 
-  async acquireLock(idOrRef: string, userId: string, opts?: { manager?: EntityManager }) {
+  async acquireLock(idOrRef: string, userId: string, opts?: { manager?: EntityManager } & DocumentAccessOptions) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentWritable(documentId, manager, userId);
+    // Write gate: acquiring an edit lock on a closed/cancelled incident review is refused.
+    await this.assertDocumentWritable(documentId, manager, userId, opts);
     await this.assertWorkflowAllowsEditing(documentId, manager);
 
     const repo = manager.getRepository(DocumentEditLock);
@@ -4740,11 +5003,12 @@ export class KnowledgeService {
     idOrRef: string,
     userId: string,
     lockToken: string | null | undefined,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager } & DocumentAccessOptions,
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentWritable(documentId, manager, userId);
+    // Heartbeat keeps an editing session alive, so it follows the write rules too.
+    await this.assertDocumentWritable(documentId, manager, userId, opts);
     const repo = manager.getRepository(DocumentEditLock);
 
     const lock = await this.ensureValidLock(documentId, userId, lockToken, manager);
@@ -4760,28 +5024,49 @@ export class KnowledgeService {
     idOrRef: string,
     userId: string,
     lockToken: string | null | undefined,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager } & DocumentAccessOptions,
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentWritable(documentId, manager, userId);
+    // Releasing one's own lock is not a document mutation: it must stay possible
+    // after the incident was closed, so this is a read gate plus the token check
+    // in ensureValidLock (holder + matching token).
+    await this.assertDocumentReadable(documentId, manager, userId, opts);
     const lock = await this.ensureValidLock(documentId, userId, lockToken, manager);
     await manager.getRepository(DocumentEditLock).delete({ id: lock.id } as any);
     return { ok: true };
   }
 
-  async forceReleaseLock(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
+  /**
+   * Administrative unlock. On an incident review it additionally requires
+   * `incidents:admin` — a Knowledge admin is not a registry admin.
+   */
+  async forceReleaseLock(
+    idOrRef: string,
+    opts?: { manager?: EntityManager; userId?: string | null } & DocumentAccessOptions,
+  ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null, opts);
+    const binding = await loadDocumentIncidentBinding(manager, documentId, opts?.tenantId ?? null);
+    if (binding) {
+      const viewer = await resolveDocumentIncidentViewer(
+        manager,
+        opts?.sourceContext?.userId ?? opts?.userId ?? null,
+        opts?.tenantId ?? binding.tenant_id,
+      );
+      if (!viewer.isAdmin) {
+        throw new ForbiddenException('incidents:admin permission is required');
+      }
+    }
     await manager.getRepository(DocumentEditLock).delete({ document_id: documentId } as any);
     return { ok: true };
   }
 
-  async listVersions(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async listVersions(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null } & DocumentAccessOptions) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null, opts);
     return manager
       .getRepository(DocumentVersion)
       .createQueryBuilder('v')
@@ -4795,11 +5080,11 @@ export class KnowledgeService {
     body: { change_note?: string | null } | null | undefined,
     userId: string,
     lockToken: string | null | undefined,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager } & DocumentAccessOptions,
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentWritable(documentId, manager, userId);
+    await this.assertDocumentWritable(documentId, manager, userId, opts);
     await this.assertWorkflowAllowsEditing(documentId, manager);
     await this.ensureValidLock(documentId, userId, lockToken, manager);
 
@@ -4826,14 +5111,18 @@ export class KnowledgeService {
     return {
       created: result.created,
       version: result.version,
-      document: await this.get(documentId, { manager, userId }),
+      document: await this.get(documentId, { manager, userId, ...(opts ?? {}) }),
     };
   }
 
-  async getVersion(idOrRef: string, versionNumber: number, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async getVersion(
+    idOrRef: string,
+    versionNumber: number,
+    opts?: { manager?: EntityManager; userId?: string | null } & DocumentAccessOptions,
+  ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null, opts);
     const version = await manager
       .getRepository(DocumentVersion)
       .findOne({ where: { document_id: documentId, version_number: versionNumber } as any });
@@ -4841,11 +5130,16 @@ export class KnowledgeService {
     return version;
   }
 
-  async compareVersions(idOrRef: string, fromVersion: number, toVersion: number, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async compareVersions(
+    idOrRef: string,
+    fromVersion: number,
+    toVersion: number,
+    opts?: { manager?: EntityManager; userId?: string | null } & DocumentAccessOptions,
+  ) {
     const manager = this.getManager(opts);
     const [from, to] = await Promise.all([
-      this.getVersion(idOrRef, fromVersion, { manager, userId: opts?.userId || null }),
-      this.getVersion(idOrRef, toVersion, { manager, userId: opts?.userId || null }),
+      this.getVersion(idOrRef, fromVersion, { ...(opts ?? {}), manager, userId: opts?.userId || null }),
+      this.getVersion(idOrRef, toVersion, { ...(opts ?? {}), manager, userId: opts?.userId || null }),
     ]);
 
     return {
@@ -4864,11 +5158,11 @@ export class KnowledgeService {
     versionNumber: number,
     userId: string,
     lockToken: string | null | undefined,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager } & DocumentAccessOptions,
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentWritable(documentId, manager, userId);
+    await this.assertDocumentWritable(documentId, manager, userId, opts);
     await this.assertWorkflowAllowsEditing(documentId, manager);
 
     const doc = await manager.getRepository(Document).findOne({ where: { id: documentId } });
@@ -4906,7 +5200,7 @@ export class KnowledgeService {
       }),
     );
 
-    return this.get(saved.id, { manager, userId });
+    return this.get(saved.id, { manager, userId, ...(opts ?? {}) });
   }
 
   async bulkReplaceContributors(
@@ -5136,10 +5430,27 @@ export class KnowledgeService {
     return { ok: true };
   }
 
-  async listIncomingReferences(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async listIncomingReferences(
+    idOrRef: string,
+    opts?: { manager?: EntityManager; userId?: string | null } & DocumentAccessOptions,
+  ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null, opts);
+
+    // Source documents are filtered on their own rights (library ACL + incidents).
+    const accessibleLibraries = await this.listAccessibleLibraryIds(manager, opts?.userId || null, 'reader');
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return [];
+    }
+    const viewer = await resolveDocumentIncidentViewer(manager, opts?.userId || null, opts?.tenantId ?? null);
+    const params: unknown[] = [documentId];
+    let libraryClause = '';
+    if (accessibleLibraries) {
+      params.push(accessibleLibraries);
+      libraryClause = ` AND d.library_id = ANY($${params.length}::uuid[])`;
+    }
+    const incidentClause = documentIncidentVisibilitySql('d', viewer, params);
 
     return manager.query(
       `SELECT r.id,
@@ -5151,15 +5462,17 @@ export class KnowledgeService {
        FROM document_references r
        JOIN documents d ON d.id = r.source_document_id AND d.tenant_id = r.tenant_id
        WHERE r.target_document_id = $1
+         ${libraryClause}
+         ${incidentClause}
        ORDER BY d.updated_at DESC`,
-      [documentId],
+      params,
     );
   }
 
-  async listActivities(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async listActivities(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null } & DocumentAccessOptions) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null, opts);
 
     return manager.query(
       `SELECT a.*,
@@ -5172,10 +5485,15 @@ export class KnowledgeService {
     );
   }
 
-  async createActivity(idOrRef: string, body: any, userId: string | null, opts?: { manager?: EntityManager }) {
+  async createActivity(
+    idOrRef: string,
+    body: any,
+    userId: string | null,
+    opts?: { manager?: EntityManager } & DocumentAccessOptions,
+  ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentWritable(documentId, manager, userId);
+    await this.assertDocumentWritable(documentId, manager, userId, opts);
 
     const type = String(body?.type || 'comment').trim().toLowerCase();
     if (type !== 'comment') {
@@ -5195,10 +5513,16 @@ export class KnowledgeService {
     return manager.getRepository(DocumentActivity).save(activity);
   }
 
-  async updateActivity(idOrRef: string, activityId: string, body: any, userId: string, opts?: { manager?: EntityManager }) {
+  async updateActivity(
+    idOrRef: string,
+    activityId: string,
+    body: any,
+    userId: string,
+    opts?: { manager?: EntityManager } & DocumentAccessOptions,
+  ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentWritable(documentId, manager, userId);
+    await this.assertDocumentWritable(documentId, manager, userId, opts);
 
     const repo = manager.getRepository(DocumentActivity);
     const existing = await repo.findOne({ where: { id: activityId, document_id: documentId } as any });
@@ -5216,10 +5540,11 @@ export class KnowledgeService {
     return repo.save(existing);
   }
 
-  async search(query: any, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async search(query: any, opts?: { manager?: EntityManager; userId?: string | null; tenantId?: string | null }) {
     const manager = this.getManager(opts);
     const search = this.getDocumentSearchState(query?.q);
     if (!search) throw new BadRequestException('q is required');
+    const incidentViewer = await resolveDocumentIncidentViewer(manager, opts?.userId || null, opts?.tenantId ?? null);
 
     const limit = Math.min(Math.max(Number(query?.limit) || 20, 1), 200);
     const offset = Math.min(Math.max(Number(query?.offset) || 0, 0), 5000);
@@ -5268,6 +5593,7 @@ export class KnowledgeService {
       params.push(accessibleLibraries);
       whereClauses.push(`d.library_id = ANY($${params.length}::uuid[])`);
     }
+    whereClauses.push(documentIncidentVisibilitySql('d', incidentViewer, params).replace(/^\s*AND\s/, ''));
     params.push(limit);
     params.push(offset);
 
@@ -5327,6 +5653,9 @@ export class KnowledgeService {
           fallbackParams.push(accessibleLibraries);
           fallbackWhereClauses.push(`d.library_id = ANY($${fallbackParams.length}::uuid[])`);
         }
+        fallbackWhereClauses.push(
+          documentIncidentVisibilitySql('d', incidentViewer, fallbackParams).replace(/^\s*AND\s/, ''),
+        );
         fallbackParams.push(limit);
         fallbackParams.push(offset);
         rows = await manager.query(
@@ -5370,7 +5699,7 @@ export class KnowledgeService {
     };
   }
 
-  async searchMentionOptions(query: any, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async searchMentionOptions(query: any, opts?: { manager?: EntityManager; userId?: string | null; tenantId?: string | null }) {
     const manager = this.getManager(opts);
     const rawSearch = String(query?.q || '').trim();
     const itemNumber = rawSearch ? this.parseItemNumberQuery(rawSearch) : null;
@@ -5387,6 +5716,13 @@ export class KnowledgeService {
       params.push(accessibleLibraries);
       whereClauses.push(`d.library_id = ANY($${params.length}::uuid[])`);
     }
+    whereClauses.push(
+      documentIncidentVisibilitySql(
+        'd',
+        await resolveDocumentIncidentViewer(manager, opts?.userId || null, opts?.tenantId ?? null),
+        params,
+      ).replace(/^\s*AND\s/, ''),
+    );
 
     let exactIndex: number | null = null;
     let prefixIndex: number | null = null;
@@ -5467,7 +5803,7 @@ export class KnowledgeService {
     };
   }
 
-  async listLinkOptions(query: any, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async listLinkOptions(query: any, opts?: { manager?: EntityManager; userId?: string | null; tenantId?: string | null }) {
     const manager = this.getManager(opts);
     const page = Math.max(1, parseInt(query?.page ?? '1', 10) || 1);
     const limit = Math.min(Math.max(parseInt(query?.limit ?? '100', 10) || 100, 1), 200);
@@ -5485,6 +5821,13 @@ export class KnowledgeService {
       params.push(accessibleLibraries);
       whereClauses.push(`d.library_id = ANY($${params.length}::uuid[])`);
     }
+    whereClauses.push(
+      documentIncidentVisibilitySql(
+        'd',
+        await resolveDocumentIncidentViewer(manager, opts?.userId || null, opts?.tenantId ?? null),
+        params,
+      ).replace(/^\s*AND\s/, ''),
+    );
 
     if (rawSearch) {
       params.push(`%${rawSearch}%`);
@@ -5549,10 +5892,10 @@ export class KnowledgeService {
     };
   }
 
-  async listAttachments(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async listAttachments(idOrRef: string, opts?: { manager?: EntityManager; userId?: string | null } & DocumentAccessOptions) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentReadable(documentId, manager, opts?.userId || null);
+    await this.assertDocumentReadable(documentId, manager, opts?.userId || null, opts);
     return manager
       .getRepository(DocumentAttachment)
       .createQueryBuilder('a')
@@ -5566,11 +5909,11 @@ export class KnowledgeService {
     idOrRef: string,
     file: Express.Multer.File,
     userId: string | null,
-    opts?: { manager?: EntityManager; sourceField?: string | null },
+    opts?: { manager?: EntityManager; sourceField?: string | null } & DocumentAccessOptions,
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentWritable(documentId, manager, userId);
+    await this.assertDocumentWritable(documentId, manager, userId, opts);
     await this.assertWorkflowAllowsEditing(documentId, manager);
     await this.assertDocumentUnlockedForUser(documentId, userId, manager);
     if (!file) throw new BadRequestException('No file uploaded');
@@ -5648,17 +5991,20 @@ export class KnowledgeService {
     documentId: string,
     sourceUrl: string,
     userId?: string | null,
-    opts?: { manager?: EntityManager; sourceField?: string | null },
+    opts?: { manager?: EntityManager; sourceField?: string | null } & DocumentAccessOptions,
   ) {
     const file = await this.remoteInlineImages.importFromUrl(sourceUrl);
     return this.uploadAttachment(documentId, file, userId || null, opts);
   }
 
-  async getAttachmentMeta(attachmentId: string, opts?: { manager?: EntityManager; userId?: string | null }) {
+  async getAttachmentMeta(
+    attachmentId: string,
+    opts?: { manager?: EntityManager; userId?: string | null } & DocumentAccessOptions,
+  ) {
     const manager = this.getManager(opts);
     const found = await manager.getRepository(DocumentAttachment).findOne({ where: { id: attachmentId } });
     if (!found) throw new NotFoundException('Attachment not found');
-    await this.assertDocumentReadable(found.document_id, manager, opts?.userId || null);
+    await this.assertDocumentReadable(found.document_id, manager, opts?.userId || null, opts);
     return found;
   }
 
@@ -5666,11 +6012,11 @@ export class KnowledgeService {
     idOrRef: string,
     attachmentId: string,
     userId: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager } & DocumentAccessOptions,
   ) {
     const manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
-    await this.assertDocumentWritable(documentId, manager, userId);
+    await this.assertDocumentWritable(documentId, manager, userId, opts);
     await this.assertWorkflowAllowsEditing(documentId, manager);
     await this.assertDocumentUnlockedForUser(documentId, userId, manager);
 
@@ -5706,12 +6052,12 @@ export class KnowledgeService {
     file: Express.Multer.File,
     userId: string | null,
     lockToken: string | null | undefined,
-    opts?: ImportExecutionOptions,
+    opts?: ImportExecutionOptions & DocumentAccessOptions,
   ): Promise<{ markdown: string; warnings: string[] }> {
     let manager = this.getManager(opts);
     const documentId = await this.resolveDocumentId(idOrRef, manager);
 
-    await this.assertDocumentWritable(documentId, manager, userId);
+    await this.assertDocumentWritable(documentId, manager, userId, opts);
     await this.assertWorkflowAllowsEditing(documentId, manager);
     await this.ensureValidLock(documentId, String(userId || ''), lockToken, manager);
 
@@ -5731,7 +6077,7 @@ export class KnowledgeService {
       );
     }
 
-    return this.finalizeImportedDocument(documentId, converted, userId, lockToken, { manager });
+    return this.finalizeImportedDocument(documentId, converted, userId, lockToken, { ...(opts ?? {}), manager });
   }
 
   async finalizeImportedDocument(
@@ -5739,11 +6085,11 @@ export class KnowledgeService {
     converted: ImportedDocumentResult,
     userId: string | null,
     lockToken: string | null | undefined,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager } & DocumentAccessOptions,
   ): Promise<{ markdown: string; warnings: string[] }> {
     const manager = this.getManager(opts);
 
-    await this.assertDocumentWritable(documentId, manager, userId);
+    await this.assertDocumentWritable(documentId, manager, userId, opts);
     await this.assertWorkflowAllowsEditing(documentId, manager);
     await this.ensureValidLock(documentId, String(userId || ''), lockToken, manager);
 
@@ -5752,6 +6098,7 @@ export class KnowledgeService {
 
     for (const image of converted.images) {
       const attachment = await this.uploadAttachment(documentId, image.file, userId, {
+        ...(opts ?? {}),
         manager,
         sourceField: 'content_markdown',
       });
@@ -5798,6 +6145,22 @@ export class KnowledgeService {
     const nextUrls = new Set(extractInlineImageUrls(newContent));
     if (previousUrls.length === 0) {
       return;
+    }
+
+    // Kept versions still render their images: an attachment that disappeared
+    // from the current body but is referenced by any stored version is not an
+    // orphan. Without this, reverting or reading an older version of an incident
+    // review after a closure would show broken images.
+    const versionRows = await manager.query<Array<{ content_markdown: string | null }>>(
+      `SELECT content_markdown
+       FROM document_versions
+       WHERE document_id = $1`,
+      [documentId],
+    );
+    for (const row of versionRows) {
+      for (const url of extractInlineImageUrls(row.content_markdown)) {
+        nextUrls.add(url);
+      }
     }
 
     const repo = manager.getRepository(DocumentAttachment);
@@ -5867,6 +6230,7 @@ export class KnowledgeService {
         `SELECT a.storage_path,
                 a.mime_type,
                 a.size,
+                a.document_id::text AS document_id,
                 b.source_entity_type
          FROM document_attachments a
          LEFT JOIN integrated_document_bindings b
@@ -5880,17 +6244,20 @@ export class KnowledgeService {
         storage_path: string;
         mime_type: string | null;
         size: number | null;
-        source_entity_type: 'requests' | 'projects' | null;
+        document_id: string;
+        source_entity_type: IntegratedDocumentBinding['source_entity_type'] | null;
       }>;
       if (!rows.length) {
         await runner.rollbackTransaction();
         return null;
       }
 
-      const binding = rows[0]?.source_entity_type
-        ? { source_entity_type: rows[0].source_entity_type as 'requests' | 'projects' }
-        : null;
-      const canAccess = await this.ensureInlineAttachmentAccess(runner.manager, tenantId, refreshToken, binding);
+      const canAccess = await this.ensureInlineAttachmentAccess(runner.manager, tenantId, refreshToken, {
+        documentId: String(rows[0].document_id),
+        integratedBinding: rows[0]?.source_entity_type
+          ? { source_entity_type: rows[0].source_entity_type }
+          : null,
+      });
       if (!canAccess) {
         await runner.rollbackTransaction();
         return null;
@@ -5915,10 +6282,10 @@ export class KnowledgeService {
   async exportDocument(
     idOrRef: string,
     format: 'pdf' | 'docx' | 'odt',
-    opts?: { manager?: EntityManager; imageFetchCookie?: string | null; userId?: string | null },
+    opts?: { manager?: EntityManager; imageFetchCookie?: string | null; userId?: string | null } & DocumentAccessOptions,
   ) {
     const manager = this.getManager(opts);
-    const document = await this.get(idOrRef, { manager, userId: opts?.userId || null });
+    const document = await this.get(idOrRef, { ...(opts ?? {}), manager, userId: opts?.userId || null });
 
     return this.exportService.exportMarkdown(
       String(document.content_markdown || ''),
@@ -5990,6 +6357,11 @@ export class KnowledgeService {
       params.push(accessibleLibraries);
       libraryClause = ` AND d.library_id = ANY($${params.length}::uuid[])`;
     }
+    const incidentClause = documentIncidentVisibilitySql(
+      'd',
+      await resolveDocumentIncidentViewer(manager, userId || null, null),
+      params,
+    );
 
     return manager.query(
       `SELECT rel.${map.idColumn} AS entity_id,
@@ -6010,6 +6382,7 @@ export class KnowledgeService {
        WHERE rel.${map.idColumn} = ANY($1::uuid[])
          AND (b.document_id IS NULL OR b.hidden_from_entity_knowledge = false)
          ${libraryClause}
+         ${incidentClause}
        ORDER BY rel.${map.idColumn} ASC, d.updated_at DESC`,
       params,
     );
@@ -6455,17 +6828,28 @@ export class KnowledgeService {
     entityType: 'tasks' | 'locations' | 'connections' | 'interfaces' | 'incidents',
     entityId: string,
     manager: EntityManager,
+    userId?: string | null,
   ): Promise<EntityKnowledgeContextGroupDefinition[]> {
     const sourceRows =
       entityType === 'incidents'
-        ? await manager.query<KnowledgeContextSourceRow[]>(
-            `SELECT i.id AS entity_id, i.item_number, i.title AS name, i.status
-             FROM incidents i
-             WHERE i.id = $1
-               AND i.tenant_id = app_current_tenant()
-             LIMIT 1`,
-            [entityId],
-          )
+        ? await (async () => {
+            // An incident the caller cannot see (no incidents:reader, or a
+            // confidential row they neither report nor own) yields no source at
+            // all, so its review never reaches the knowledge context.
+            const viewer = await resolveDocumentIncidentViewer(manager, userId || null, null);
+            if (!viewer.canReadIncidents) return [] as KnowledgeContextSourceRow[];
+            const params: unknown[] = [entityId];
+            const visibility = incidentVisibilitySql('i', viewer, params);
+            return manager.query<KnowledgeContextSourceRow[]>(
+              `SELECT i.id AS entity_id, i.item_number, i.title AS name, i.status
+               FROM incidents i
+               WHERE i.id = $1
+                 AND i.tenant_id = app_current_tenant()
+                 ${visibility}
+               LIMIT 1`,
+              params,
+            );
+          })()
       : entityType === 'locations'
         ? await manager.query<KnowledgeContextSourceRow[]>(
             `SELECT l.id AS entity_id,
@@ -6542,7 +6926,7 @@ export class KnowledgeService {
           ? await this.getApplicationKnowledgeContextGroupDefinitions(entityId, manager)
           : entity === 'assets'
             ? await this.getAssetKnowledgeContextGroupDefinitions(entityId, manager)
-            : await this.getDirectKnowledgeContextGroupDefinitions(entity, entityId, manager);
+            : await this.getDirectKnowledgeContextGroupDefinitions(entity, entityId, manager, opts?.userId ?? null);
 
     const groups: EntityKnowledgeContextGroup[] = [];
     const distinctDocumentIds = new Set<string>();
@@ -6595,6 +6979,11 @@ export class KnowledgeService {
       params.push(accessibleLibraries);
       libraryClause = ` AND d.library_id = ANY($${params.length}::uuid[])`;
     }
+    libraryClause += documentIncidentVisibilitySql(
+      'd',
+      await resolveDocumentIncidentViewer(manager, opts?.userId || null, null),
+      params,
+    );
 
     const countRows: Array<{ total: string | number }> = await manager.query(
       `SELECT COUNT(DISTINCT d.id)::int AS total

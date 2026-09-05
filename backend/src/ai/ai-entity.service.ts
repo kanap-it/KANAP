@@ -3,6 +3,10 @@ import { bilingualDocumentTsQuerySql } from '../common/document-search-tsquery';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import {
+  documentIncidentVisibilitySql,
+  resolveDocumentIncidentViewer,
+} from '../knowledge/document-entity-visibility';
+import {
   AI_SEARCH_ENTITY_TYPES,
   AiEntityCommentDto,
   AiEntityCommentsDto,
@@ -506,8 +510,30 @@ export class AiEntityService {
       tenantId: string;
       sourceEntityType: 'projects';
       sourceEntityId: string;
+      userId: string | null;
     },
   ): Promise<AiEntitySummaryDto[]> {
+    // §3.7 point 6: the entity-context tool applies the same document filter as
+    // the Knowledge lists — library ACL plus the incident rules for bound reviews.
+    const accessibleLibraries = await this.knowledge.listReadableLibraryIdsForUser(
+      manager,
+      params.userId,
+    );
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return [];
+    }
+    const queryParams: unknown[] = [params.sourceEntityType, params.sourceEntityId, params.tenantId];
+    let libraryClause = '';
+    if (accessibleLibraries) {
+      queryParams.push(accessibleLibraries);
+      libraryClause = ` AND d.library_id = ANY($${queryParams.length}::uuid[])`;
+    }
+    const incidentClause = documentIncidentVisibilitySql(
+      'd',
+      await resolveDocumentIncidentViewer(manager, params.userId, params.tenantId),
+      queryParams,
+    );
+
     const rows = await manager.query<SearchRow[]>(
       `SELECT d.id,
               d.item_number,
@@ -526,8 +552,10 @@ export class AiEntityService {
        WHERE b.source_entity_type = $1
          AND b.source_entity_id = $2
          AND b.tenant_id = $3
+         ${libraryClause}
+         ${incidentClause}
        ORDER BY b.slot_key ASC, d.updated_at DESC`,
-      [params.sourceEntityType, params.sourceEntityId, params.tenantId],
+      queryParams,
     );
 
     return rows.map((row) => toIntegratedDocumentSummary(row));
@@ -2169,6 +2197,28 @@ export class AiEntityService {
             AND d_acl.library_id = ANY(${librariesRef}::uuid[])
         ))`);
       }
+
+      // §3.7 point 4: a document bound to an incident also follows the incident's
+      // permissions and row visibility. Resolved as soon as `documents` is among
+      // the searched types — never gated on `incidents` being searched too, and
+      // never inside the library branch (which is skipped for unrestricted
+      // Knowledge access).
+      const documentIncidentViewer = await resolveDocumentIncidentViewer(
+        context.manager,
+        context.userId ?? null,
+        context.tenantId,
+      );
+      const incidentAclParams: unknown[] = [];
+      const incidentAclSql = documentIncidentVisibilitySql('d_acl', documentIncidentViewer, incidentAclParams);
+      const incidentAclClause = incidentAclParams.length > 0
+        ? incidentAclSql.replace(/\$1\b/g, push(incidentAclParams[0]))
+        : incidentAclSql;
+      scopeClauses.push(`AND (search_index.entity_type <> 'documents' OR EXISTS (
+        SELECT 1 FROM documents d_acl
+        WHERE d_acl.id = search_index.entity_id
+          AND d_acl.tenant_id = search_index.tenant_id
+          ${incidentAclClause}
+      ))`);
     }
 
     if (entityTypes.includes('incidents')) {
@@ -3206,6 +3256,7 @@ export class AiEntityService {
           tenantId,
           sourceEntityType: 'projects',
           sourceEntityId: projectId,
+          userId: context.userId ?? null,
         })
         : Promise.resolve([]),
       this.listRecentActivity(manager, { tenantId, projectId }),
