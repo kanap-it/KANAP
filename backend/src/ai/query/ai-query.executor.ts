@@ -1513,6 +1513,18 @@ export class AiQueryExecutor {
       return value;
     }
 
+    if (entityType === 'incidents') {
+      const itemNumber = value.match(/^INC-?(\d+)$/i)?.[1];
+      if (itemNumber) {
+        const rows: Array<{ id: string }> = await context.manager.query(
+          `SELECT id FROM incidents WHERE tenant_id = $1 AND item_number = $2 LIMIT 1`,
+          [context.tenantId, Number(itemNumber)],
+        );
+        if (rows.length === 0) throw new NotFoundException('Incident not found.');
+        return String(rows[0].id);
+      }
+    }
+
     const result = await this.execute(context, {
       entity_type: entityType,
       q: value,
@@ -2306,6 +2318,13 @@ export class AiQueryExecutor {
       raw = await this.users.listFilterValuesForAi(query, {
         manager: context.manager,
         tenantId: context.tenantId,
+      }) as any;
+    } else if (input.entity_type === 'incidents') {
+      const viewer = await resolveIncidentViewer(context.manager, context.userId, context.tenantId);
+      raw = await this.incidents.listFilterValues(query, {
+        manager: context.manager,
+        tenantId: context.tenantId,
+        viewer,
       }) as any;
     }
 

@@ -176,6 +176,7 @@ export class IncidentsController {
   async exportReport(
     @Param('id') idOrRef: string,
     @Query('lang') lang: string | undefined,
+    @Query('tz') tz: string | undefined,
     @Res() res: Response,
     @Tenant() ctx: TenantRequest,
   ): Promise<void> {
@@ -185,7 +186,7 @@ export class IncidentsController {
       tenantId: ctx.tenantId,
       userId: ctx.userId || null,
       viewer: incidentViewerFromContext(ctx),
-    });
+    }, tz);
     res.setHeader('Content-Type', result.mimeType);
     res.setHeader('Content-Disposition', contentDisposition(result.filename));
     res.send(result.buffer);

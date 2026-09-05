@@ -370,15 +370,22 @@ export function reportHeading(itemNumber: number | string, title: string): strin
 export function escapeMd(value: unknown, forTable = false): string {
   let text = value == null ? '' : String(value);
   if (forTable) text = text.replace(/\r?\n+/g, ' ').trim();
-  return text
+  text = text
     .replace(/\\/g, '\\\\')
     .replace(/\|/g, '\\|')
     .replace(/\*/g, '\\*')
     .replace(/_/g, '\\_')
     .replace(/`/g, '\\`')
     .replace(/#/g, '\\#')
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]')
+    .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+  if (!forTable) {
+    text = text.replace(/^([ \t]*)([-+*>#=~]|\d+[.)])/gm, '$1\\$2');
+  }
+  return text;
 }
 
 function hasText(value: unknown): boolean {
@@ -395,7 +402,22 @@ function toDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function formatDateTime(value: Date | string | null | undefined, lang: ReportLang): string | null {
+export function normalizeReportTimeZone(timeZone?: string | null): string {
+  const value = String(timeZone || '').trim();
+  if (!value) return 'UTC';
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: value }).format(0);
+    return value;
+  } catch {
+    return 'UTC';
+  }
+}
+
+export function formatDateTime(
+  value: Date | string | null | undefined,
+  lang: ReportLang,
+  timeZone?: string | null,
+): string | null {
   const date = toDate(value);
   if (!date) return null;
   return new Intl.DateTimeFormat(DATE_LOCALES[lang], {
@@ -404,6 +426,8 @@ function formatDateTime(value: Date | string | null | undefined, lang: ReportLan
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: normalizeReportTimeZone(timeZone),
+    timeZoneName: 'short',
   }).format(date);
 }
 
@@ -487,18 +511,25 @@ function table(headers: string[], rows: string[][]): string {
   return [head, sep, ...body].join('\n');
 }
 
-export function buildMarkdown(record: IncidentReportRecord, lang: ReportLang, labels: ReportLabels): string {
+export function buildMarkdown(
+  record: IncidentReportRecord,
+  lang: ReportLang,
+  labels: ReportLabels,
+  timeZone?: string | null,
+): string {
   const incident = record.incident;
   const sections: string[] = [];
+  const tz = normalizeReportTimeZone(timeZone);
+  const when = (value: Date | string | null | undefined) => formatDateTime(value, lang, tz);
 
   const headerLines = [
     `- **${labels.fieldSeverity}:** ${escapeMd(lookup(labels.severity, incident.severity))}`,
     `- **${labels.fieldStatus}:** ${escapeMd(lookup(labels.status, incident.status))}`,
   ];
-  const detected = formatDateTime(incident.detected_at, lang);
-  const started = formatDateTime(incident.started_at, lang);
-  const resolved = formatDateTime(incident.resolved_at, lang);
-  const closed = formatDateTime(incident.closed_at, lang);
+  const detected = when(incident.detected_at);
+  const started = when(incident.started_at);
+  const resolved = when(incident.resolved_at);
+  const closed = when(incident.closed_at);
   if (detected) headerLines.push(`- **${labels.detected}:** ${escapeMd(detected)}`);
   if (started) headerLines.push(`- **${labels.started}:** ${escapeMd(started)}`);
   if (resolved) headerLines.push(`- **${labels.resolved}:** ${escapeMd(resolved)}`);
@@ -515,8 +546,8 @@ export function buildMarkdown(record: IncidentReportRecord, lang: ReportLang, la
     propertyRow(labels.reporter, incident.reporter_name),
     propertyRow(labels.owner, incident.owner_name),
     propertyRow(labels.externalRef, incident.source_ref),
-    propertyRow(labels.created, formatDateTime(incident.created_at, lang)),
-    propertyRow(labels.updated, formatDateTime(incident.updated_at, lang)),
+    propertyRow(labels.created, when(incident.created_at)),
+    propertyRow(labels.updated, when(incident.updated_at)),
   ].filter((row): row is string => !!row);
   if (propertyRows.length) {
     sections.push(`${heading(2, labels.properties)}\n\n${propertyRows.join('\n')}`);
@@ -537,8 +568,8 @@ export function buildMarkdown(record: IncidentReportRecord, lang: ReportLang, la
   const entries = record.entries || [];
   if (entries.length) {
     const rows = entries.map((entry) => [
-      formatDateTime(entry.occurred_at, lang) || '',
-      formatDateTime(entry.created_at, lang) || '',
+      when(entry.occurred_at) || '',
+      when(entry.created_at) || '',
       authorName(entry, labels),
       lookup(labels.kind, entry.kind || 'note'),
       journalContent(entry, labels),
@@ -584,7 +615,7 @@ export function buildMarkdown(record: IncidentReportRecord, lang: ReportLang, la
     `- **${labels.personalData}:** ${isTrue(incident.personal_data_affected) ? labels.yes : labels.no}`,
     `- **${labels.authorityRequired}:** ${isTrue(incident.authority_notification_required) ? labels.yes : labels.no}`,
   ];
-  const notifiedOn = formatDateTime(incident.authority_notified_at, lang);
+  const notifiedOn = when(incident.authority_notified_at);
   if (notifiedOn) complianceRows.push(`- **${labels.notifiedOn}:** ${escapeMd(notifiedOn)}`);
   if (hasText(incident.notified_parties)) {
     complianceRows.push(`- **${labels.partiesInformed}:** ${escapeMd(incident.notified_parties)}`);
@@ -603,14 +634,14 @@ export function buildMarkdown(record: IncidentReportRecord, lang: ReportLang, la
     const rows = attachments.map((item) => [
       String(item.original_filename || ''),
       item.size == null || item.size === '' ? '' : formatSize(Number(item.size), lang),
-      formatDateTime(item.uploaded_at, lang) || '',
+      when(item.uploaded_at) || '',
     ]);
     sections.push(
       `${heading(2, labels.attachments)}\n\n${table([labels.filename, labels.size, labels.uploaded], rows)}`,
     );
   }
 
-  const generated = formatDateTime(new Date(), lang) || '';
+  const generated = when(new Date()) || '';
   sections.push(labels.generatedOn.replace('{date}', generated));
 
   return sections.join('\n\n');
@@ -634,7 +665,7 @@ export class IncidentReportService {
     private readonly itOps: ItOpsSettingsService,
   ) {}
 
-  async exportPdf(id: string, lang: string | undefined, opts: IncidentRecordOpts) {
+  async exportPdf(id: string, lang: string | undefined, opts: IncidentRecordOpts, timeZone?: string) {
     const locale = normalizeReportLang(lang);
     const labels = labelsFor(locale);
     const record = await this.records.load(id, {
@@ -648,6 +679,7 @@ export class IncidentReportService {
       { ...record, categoryLabel: resolveCategoryLabel(record.incident.category, settings.incidentCategories) },
       locale,
       labels,
+      timeZone,
     );
     const exported = await this.documentExport.exportMarkdown(
       markdown,

@@ -1,9 +1,12 @@
 import * as assert from 'node:assert/strict';
 import {
   buildMarkdown,
+  escapeMd,
+  formatDateTime,
   IncidentReportService,
   labelsFor,
   normalizeReportLang,
+  normalizeReportTimeZone,
   reportHeading,
   reportPdfFilename,
   type IncidentReportRecord,
@@ -175,6 +178,40 @@ function testMarkdownEscaping() {
   assert.equal(markdown.includes('| Mail outage |'), false);
 }
 
+function testMarkdownLinkAndFenceEscaping() {
+  assert.equal(escapeMd('![x](http://evil.example/a.png)').includes('!['), false);
+  assert.match(escapeMd('![x](http://evil.example/a.png)'), /!\\\[x\\\]/);
+  assert.equal(escapeMd('[texte](https://example.com)').includes('[texte]'), false);
+  assert.match(escapeMd('[texte](https://example.com)'), /\\\[texte\\\]/);
+  assert.match(escapeMd('A & B'), /A &amp; B/);
+
+  const fences = escapeMd('para\n===\n---\n~~~\n- item\n1. numbered');
+  assert.match(fences, /^\\===/m);
+  assert.match(fences, /^\\---/m);
+  assert.match(fences, /^\\~~~/m);
+  assert.match(fences, /^\\- item/m);
+  assert.match(fences, /^\\1\. numbered/m);
+
+  const table = escapeMd('![x](http://evil.example/a.png)', true);
+  assert.equal(table.includes('\n'), false);
+  assert.match(table, /!\\\[x\\\]/);
+}
+
+function testReportTimestampsUseTimezone() {
+  assert.equal(normalizeReportTimeZone(undefined), 'UTC');
+  assert.equal(normalizeReportTimeZone('Not/AZone'), 'UTC');
+  assert.equal(normalizeReportTimeZone('Europe/Paris'), 'Europe/Paris');
+
+  const utc = formatDateTime('2026-03-10T08:00:00.000Z', 'en', 'UTC') || '';
+  assert.match(utc, /GMT|UTC/);
+  const paris = formatDateTime('2026-03-10T08:00:00.000Z', 'en', 'Europe/Paris') || '';
+  assert.match(paris, /09:00/);
+  assert.notEqual(utc, paris);
+
+  const markdown = buildMarkdown(fixture(), 'en', labelsFor('en'), 'UTC');
+  assert.match(markdown, /Generated on .*(GMT|UTC)/);
+}
+
 function testRestrictedDocumentsOmitted() {
   const labels = labelsFor('en');
   const markdown = buildMarkdown(
@@ -250,6 +287,8 @@ async function run() {
   testJournalChronologicalAndChangeRendering();
   testEmptySectionsOmitted();
   testMarkdownEscaping();
+  testMarkdownLinkAndFenceEscaping();
+  testReportTimestampsUseTimezone();
   testRestrictedDocumentsOmitted();
   testFrenchChangeLabels();
   testLinkChangeUsesContentOnly();
