@@ -32,7 +32,7 @@ const COUNT_EXPRESSIONS: Record<string, string> = {
 const COUNT_COLUMNS = Object.entries(COUNT_EXPRESSIONS).map(([name, sql]) => `${sql} AS ${name}`).join(',\n  ');
 
 const ROW_COLUMNS = `
-  i.id, i.item_number, i.title, i.category, i.severity, i.status,
+  i.id, i.item_number, i.title, i.category, i.severity, i.status, i.confidential,
   i.started_at, i.detected_at, i.resolved_at, i.closed_at,
   i.owner_user_id, ${OWNER_NAME} AS owner_name,
   i.reporter_user_id, ${REPORTER_NAME} AS reporter_name,
@@ -55,7 +55,7 @@ const FIELD_EXPRESSIONS: Record<string, string> = {
   source_ref: 'i.source_ref',
   personal_data_affected: 'i.personal_data_affected',
   authority_notification_required: 'i.authority_notification_required',
-  linked_assets: `(SELECT string_agg(TRIM(CONCAT_WS(' ', NULLIF(a.asset_reference, ''), a.name)), ', ' ORDER BY a.name)
+  linked_assets: `(SELECT string_agg(TRIM(CONCAT_WS(' ', NULLIF(a.asset_reference, ''), a.name, NULLIF(a.hostname, ''), NULLIF(a.fqdn, ''))), ', ' ORDER BY a.name)
     FROM incident_assets ia
     JOIN assets a ON a.id = ia.asset_id AND a.tenant_id = ia.tenant_id
     WHERE ia.incident_id = i.id AND ia.tenant_id = i.tenant_id)`,
@@ -63,6 +63,7 @@ const FIELD_EXPRESSIONS: Record<string, string> = {
     FROM incident_applications iap
     JOIN applications app ON app.id = iap.application_id AND app.tenant_id = iap.tenant_id
     WHERE iap.incident_id = i.id AND iap.tenant_id = i.tenant_id)`,
+  confidential: 'i.confidential',
   created_at: 'i.created_at',
   updated_at: 'i.updated_at',
   ...COUNT_EXPRESSIONS,
@@ -70,7 +71,7 @@ const FIELD_EXPRESSIONS: Record<string, string> = {
 
 const DATE_FIELDS = new Set(['started_at', 'detected_at', 'resolved_at', 'closed_at', 'created_at', 'updated_at']);
 const NUMBER_FIELDS = new Set(Object.keys(COUNT_EXPRESSIONS));
-const BOOLEAN_FILTER_FIELDS = new Set<string>(['personal_data_affected', 'authority_notification_required']);
+const BOOLEAN_FILTER_FIELDS = new Set<string>(['personal_data_affected', 'authority_notification_required', 'confidential']);
 
 const FILTER_VALUE_FIELDS = new Set(['category', 'severity', 'status', 'owner_name', 'reporter_name']);
 

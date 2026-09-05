@@ -16,7 +16,7 @@ import {
   AiKnowledgeContextDto,
   AiSearchEntityType,
 } from './ai.types';
-import { incidentRelatedTitleSql, incidentVisibilitySql, resolveIncidentViewer } from '../incidents/incident-visibility';
+import { incidentRelatedLabelSql, incidentRelatedTitleSql, incidentVisibilitySql, resolveIncidentViewer } from '../incidents/incident-visibility';
 import { AiPolicyService } from './ai-policy.service';
 import {
   participantConditionForAiEntity,
@@ -1973,7 +1973,7 @@ export class AiEntityService {
       `SELECT t.id, t.item_number, COALESCE(t.title, 'Untitled task') AS label, t.description AS summary, t.status, t.updated_at,
               tt.name AS task_type_name,
               t.related_object_type,
-              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description, ${incidentRelatedTitleSql('rel_inc')}) AS related_object_name,
+              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description, ${incidentRelatedLabelSql('rel_inc')}) AS related_object_name,
               CONCAT_WS(' ', u_assign.first_name, u_assign.last_name) AS assignee_name,
               t.priority_level
        FROM tasks t
@@ -3273,7 +3273,7 @@ export class AiEntityService {
               phase.planned_end AS phase_planned_end,
               phase.sequence AS phase_sequence,
               tt.name AS task_type_name,
-              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description, ${incidentRelatedTitleSql('rel_inc')}) AS related_object_name,
+              COALESCE(rel_proj.name, rel_si.product_name, rel_ct.name, rel_cx.description, ${incidentRelatedLabelSql('rel_inc')}) AS related_object_name,
               pr.id AS converted_request_id,
               pr.item_number AS converted_request_item_number,
               pr.name AS converted_request_name,

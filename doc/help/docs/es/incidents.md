@@ -236,7 +236,7 @@ Mantenga la lista corta. Las categorías son aquello por lo que agrupará un añ
 
 ## Preguntar al asistente
 
-Plaid puede consultar el registro en el chat, con los mismos permisos que en el resto de la aplicación. Pídale un recuento (« ¿Cuántos incidentes críticos este trimestre? »), una lista filtrada (« Lista de incidentes abiertos en PAR-ESX-01 ») o una ficha completa (« Resumen de INC-2 ») — esta última incluye el diario. Las referencias de incidente como `INC-12` en la respuesta son enlaces al espacio de trabajo.
+Plaid puede consultar el registro en el chat, con los mismos permisos que en el resto de la aplicación. Pídale un recuento (« ¿Cuántos incidentes críticos este trimestre? »), una lista filtrada (« Lista de incidentes abiertos en PAR-ESX-01 ») o una ficha completa (« Resumen de INC-2 »). Esta última incluye el diario. Las referencias de incidente como `INC-12` en la respuesta son enlaces al espacio de trabajo.
 
 ---
 

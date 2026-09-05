@@ -185,12 +185,22 @@ function testMarkdownLinkAndFenceEscaping() {
   assert.match(escapeMd('[texte](https://example.com)'), /\\\[texte\\\]/);
   assert.match(escapeMd('A & B'), /A &amp; B/);
 
-  const fences = escapeMd('para\n===\n---\n~~~\n- item\n1. numbered');
+  const fences = escapeMd('para\n===\n---\n~~~\n- item\n1. numbered\n2) also\n    indented');
   assert.match(fences, /^\\===/m);
   assert.match(fences, /^\\---/m);
   assert.match(fences, /^\\~~~/m);
   assert.match(fences, /^\\- item/m);
-  assert.match(fences, /^\\1\. numbered/m);
+  // The delimiter is escaped, not the digit: "\1." would print literally.
+  assert.match(fences, /^1\\\. numbered/m);
+  assert.match(fences, /^2\\\) also/m);
+  assert.equal(fences.includes('\\1.'), false);
+  // Leading indentation is dropped so a line cannot open an indented code block.
+  assert.match(fences, /^indented/m);
+
+  // Single newlines become hard breaks (two trailing spaces) so the author's
+  // line structure survives GFM's soft-break joining; blank lines stay blank.
+  const breaks = escapeMd('line one\nline two\n\npara two');
+  assert.equal(breaks, 'line one  \nline two  \n  \npara two');
 
   const table = escapeMd('![x](http://evil.example/a.png)', true);
   assert.equal(table.includes('\n'), false);

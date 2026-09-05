@@ -686,17 +686,20 @@ export class TasksUnifiedService {
     return { type: target.type, id: target.id };
   }
 
-  listForTarget(target: { type: RelatedType; id: string | null }, opts?: { manager?: EntityManager }) {
+  listForTarget(target: { type: RelatedType; id: string | null }, opts?: { manager?: EntityManager; tenantId?: string | null }) {
     const repo = (opts?.manager ?? this.repo.manager).getRepository(Task);
+    // RLS already scopes the manager; the explicit tenant predicate is the
+    // project-wide rule for every query (callers pass it when they have it).
+    const tenantScope = opts?.tenantId ? { tenant_id: opts.tenantId } : {};
     if (target.type === null) {
       // List standalone tasks
       return repo.find({
-        where: { related_object_type: null as any } as any,
+        where: { ...tenantScope, related_object_type: null as any } as any,
         order: { created_at: 'DESC' as any },
       });
     }
     return repo.find({
-      where: { related_object_type: target.type, related_object_id: target.id } as any,
+      where: { ...tenantScope, related_object_type: target.type, related_object_id: target.id } as any,
       order: { created_at: 'DESC' as any },
     });
   }

@@ -45,7 +45,7 @@ Navigate to **IT Landscape > Incidents** to see the register. Click **New incide
 - Create, edit, journal, links, attachments: `incidents:contributor`
 - Reopen, cancel, and lift a restriction: `incidents:admin`
 
-A restricted incident is hidden from everyone except register administrators, the reporter and the owner. On a stock tenant that means Administrator and IT Landscape Administrator, plus whoever logged or owns that record. Readers and contributors who are not the reporter or owner do not see it in the list, in search, in chat or in a CSV export — opening it by reference returns the same “not found” as a missing number. Linked tasks keep the `INC-N` reference but drop the title.
+A restricted incident is hidden from everyone except register administrators, the reporter and the owner. On a stock tenant that means Administrator and IT Landscape Administrator, plus whoever logged or owns that record. Readers and contributors who are not the reporter or owner do not see it in the list, in search, in chat or in a CSV export. Opening it by reference returns the same “not found” as a missing number. Linked tasks keep the `INC-N` reference but drop the title.
 
 **Restrict to register administrators** is in the properties drawer, under Classification. A contributor can turn it on while they can still see the record; only an administrator can turn it off, including after the incident is closed. The change is written to the journal. The audit log, document relation chips and “recently viewed” still show the title to people who already have those screens.
 
@@ -236,7 +236,7 @@ Keep the list short. Categories are what you will group a year of incidents by, 
 
 ## Ask the assistant
 
-Plaid can query the register in chat, with the same permissions as the rest of the application. Ask it for a count ("How many critical incidents this quarter?"), a filtered list ("List of open incidents on PAR-ESX-01"), or a full record ("Summary of INC-2") — the last includes the journal. Incident references such as `INC-12` in the answer are links to the workspace.
+Plaid can query the register in chat, with the same permissions as the rest of the application. Ask it for a count ("How many critical incidents this quarter?"), a filtered list ("List of open incidents on PAR-ESX-01"), or a full record ("Summary of INC-2"). The last one includes the journal. Incident references such as `INC-12` in the answer are links to the workspace.
 
 ---
 

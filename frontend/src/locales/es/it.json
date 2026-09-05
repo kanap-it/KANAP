@@ -20,7 +20,8 @@
         "assets": "Activos",
         "applications": "Aplicaciones",
         "tasks": "Tareas",
-        "created": "Creado"
+        "created": "Creado",
+        "access": "Acceso"
       },
       "filters": {
         "noCategory": "(Sin categoría)",

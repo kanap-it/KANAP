@@ -383,7 +383,19 @@ export function escapeMd(value: unknown, forTable = false): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
   if (!forTable) {
-    text = text.replace(/^([ \t]*)([-+*>#=~]|\d+[.)])/gm, '$1\\$2');
+    // Line-start block markers: bullets, quotes, setext underlines, fences.
+    // `*`, `#` and `>` are already neutralised above.
+    text = text
+      // Leading indentation would open an indented code block (4 spaces / tab)
+      // and carries no meaning in a paragraph anyway.
+      .replace(/^[ \t]+/gm, '')
+      .replace(/^([-+=~])/gm, '\\$1')
+      // Ordered lists: a backslash only escapes punctuation, so escape the
+      // delimiter ("1\.") rather than the digit ("\1." renders literally).
+      .replace(/^(\d+)([.)])/gm, '$1\\$2')
+      // Single newlines are soft breaks in GFM (joined into one paragraph);
+      // two trailing spaces keep the author's line breaks in the PDF.
+      .replace(/\r?\n/g, '  \n');
   }
   return text;
 }

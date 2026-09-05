@@ -45,7 +45,7 @@ Le **Déclarant** est vous par défaut. Les deux dates acceptent des valeurs pas
 - Création, modification, journal, liens, pièces jointes : `incidents:contributor`
 - Réouverture, annulation et levée d'une restriction : `incidents:admin`
 
-Un incident restreint est masqué pour tout le monde sauf les administrateurs du registre, le déclarant et le responsable. Sur un tenant standard, cela veut dire Administrateur et Administrateur cartographie SI, plus la personne qui a consigné l'incident ou qui en est responsable. Un lecteur ou un contributeur qui n'est ni le déclarant ni le responsable ne le voit pas dans la liste, la recherche, le chat ou l'export CSV — l'ouvrir par sa référence renvoie la même page « introuvable » qu'un numéro inexistant. Les tâches liées gardent la référence `INC-N` mais sans le titre.
+Un incident restreint est masqué pour tout le monde sauf les administrateurs du registre, le déclarant et le responsable. Sur un tenant standard, cela veut dire Administrateur et Administrateur cartographie SI, plus la personne qui a consigné l'incident ou qui en est responsable. Un lecteur ou un contributeur qui n'est ni le déclarant ni le responsable ne le voit pas dans la liste, la recherche, le chat ou l'export CSV. L'ouvrir par sa référence renvoie la même page « introuvable » qu'un numéro inexistant. Les tâches liées gardent la référence `INC-N` mais sans le titre.
 
 **Restreindre aux administrateurs du registre** se trouve dans le tiroir des propriétés, sous Classification. Un contributeur peut l'activer tant qu'il voit encore la fiche ; seul un administrateur peut la désactiver, y compris après clôture. Le changement est écrit dans le journal. Le journal d'audit, les pastilles de relation documentaire et « récemment consultés » continuent d'afficher le titre pour ceux qui ont déjà ces écrans.
 
@@ -236,7 +236,7 @@ Gardez la liste courte. Les catégories sont ce qui vous servira à regrouper un
 
 ## Demander à l'assistant
 
-Plaid peut interroger le registre dans le chat, avec les mêmes droits que dans le reste de l'application. Demandez-lui un décompte (« Combien d'incidents critiques ce trimestre ? »), une liste filtrée (« Liste des incidents ouverts sur PAR-ESX-01 ») ou une fiche complète (« Résumé de INC-2 ») — cette dernière inclut le journal. Les références d'incident telles que `INC-12` dans la réponse sont des liens vers l'espace de travail.
+Plaid peut interroger le registre dans le chat, avec les mêmes droits que dans le reste de l'application. Demandez-lui un décompte (« Combien d'incidents critiques ce trimestre ? »), une liste filtrée (« Liste des incidents ouverts sur PAR-ESX-01 ») ou une fiche complète (« Résumé de INC-2 »). Cette dernière inclut le journal. Les références d'incident telles que `INC-12` dans la réponse sont des liens vers l'espace de travail.
 
 ---
 
