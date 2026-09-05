@@ -180,34 +180,38 @@ export default function OpexListPage() {
       }
       const res = await api.get('/spend-items/summary/totals', { params });
       const totals = res.data || {};
+      const yMinus1 = {
+        budget: Number(totals.yMinus1Budget || 0),
+        landing: Number(totals.yMinus1Landing || 0),
+        revision: 0,
+        follow_up: 0,
+      };
+      const y = {
+        budget: Number(totals.yBudget || 0),
+        revision: Number(totals.yRevision || 0),
+        follow_up: Number(totals.yFollowUp || 0),
+        landing: Number(totals.yLanding || 0),
+      };
+      const yPlus1 = {
+        budget: Number(totals.yPlus1Budget || 0),
+        revision: Number(totals.yPlus1Revision || 0),
+        landing: 0,
+        follow_up: 0,
+      };
+      const yPlus2 = {
+        budget: Number(totals.yPlus2Budget || 0),
+        revision: 0,
+        landing: 0,
+        follow_up: 0,
+      };
       const pinned = {
+        id: '__opex_totals__',
         product_name: t('shared.total'),
         versions: {
-          yMinus1: {
-            totals: {
-              budget: Number(totals.yMinus1Budget || 0),
-              landing: Number(totals.yMinus1Landing || 0),
-            },
-          },
-          y: {
-            totals: {
-              budget: Number(totals.yBudget || 0),
-              revision: Number(totals.yRevision || 0),
-              follow_up: Number(totals.yFollowUp || 0),
-              landing: Number(totals.yLanding || 0),
-            },
-          },
-          yPlus1: {
-            totals: {
-              budget: Number(totals.yPlus1Budget || 0),
-              revision: Number(totals.yPlus1Revision || 0),
-            },
-          },
-          yPlus2: {
-            totals: {
-              budget: Number(totals.yPlus2Budget || 0),
-            },
-          },
+          yMinus1: { reporting: yMinus1, totals: yMinus1 },
+          y: { reporting: y, totals: y },
+          yPlus1: { reporting: yPlus1, totals: yPlus1 },
+          yPlus2: { reporting: yPlus2, totals: yPlus2 },
         },
       };
       setPinnedTotals([pinned]);
@@ -850,7 +854,7 @@ export default function OpexListPage() {
         columns={columns}
         endpoint="/spend-items/summary"
         queryKey="spend-items-summary"
-        getRowId={(r) => r.id}
+        getRowId={(r) => r.id || '__opex_totals__'}
         enableSearch
         pinnedBottomRowData={pinnedTotals}
         defaultSort={{ field: 'yBudget', direction: 'DESC' }}

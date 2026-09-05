@@ -273,25 +273,28 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
     return columns.map(col => {
       const { required, defaultHidden, category, ...agGridCol } = col;
 
-      // When showRowCount is enabled, suppress renderers/formatters for pinned
-      // bottom rows on every column except the one carrying the label.
       const field = col.field || col.colId || '';
-      if (showRowCount && field !== rowCountField) {
-        if (agGridCol.cellRenderer) {
-          const orig = agGridCol.cellRenderer;
-          agGridCol.cellRendererSelector = (params: any) => {
-            if (params.node?.rowPinned) return undefined;
-            return { component: orig };
-          };
-          delete agGridCol.cellRenderer;
-        }
-        if (agGridCol.valueFormatter) {
-          const origFmt = agGridCol.valueFormatter;
-          agGridCol.valueFormatter = (params: any) => {
-            if (params.node?.rowPinned) return '';
-            return typeof origFmt === 'function' ? origFmt(params) : params.value;
-          };
-        }
+
+      // Pinned rows (totals) use the default renderer so numeric columns keep
+      // AG Grid's right alignment. Custom React renderers wrap content in a
+      // flex box that ignores text-align, which shifts totals vs body values.
+      if (agGridCol.cellRenderer) {
+        const orig = agGridCol.cellRenderer;
+        agGridCol.cellRendererSelector = (params: any) => {
+          if (params.node?.rowPinned) return undefined;
+          return { component: orig };
+        };
+        delete agGridCol.cellRenderer;
+      }
+
+      // When showRowCount is enabled, suppress formatters for pinned
+      // bottom rows on every column except the one carrying the label.
+      if (showRowCount && field !== rowCountField && agGridCol.valueFormatter) {
+        const origFmt = agGridCol.valueFormatter;
+        agGridCol.valueFormatter = (params: any) => {
+          if (params.node?.rowPinned) return '';
+          return typeof origFmt === 'function' ? origFmt(params) : params.value;
+        };
       }
 
       return {
