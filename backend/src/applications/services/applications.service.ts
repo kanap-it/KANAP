@@ -79,6 +79,14 @@ export class ApplicationsService {
     return this.crudService.get(id, opts);
   }
 
+  copyApplication(id: string, name: string, userId: string | null, opts?: ServiceOpts) { return this.crudService.copyApplication(id, name, userId, opts); }
+
+  getClassificationCatalog(opts?: ServiceOpts) { return this.crudService.getClassificationCatalog(opts); }
+
+  reviewClassification(id: string, expectedRevision: number, userId: string | null, opts?: ServiceOpts, expectedVersions?: import('../../it-ops-settings/classification-catalog').ClassificationVersions) {
+    return this.crudService.reviewClassification(id, expectedRevision, userId, opts, expectedVersions);
+  }
+
   create(body: Partial<Application>, userId?: string | null, opts?: ServiceOpts) {
     return this.crudService.create(body, userId, opts);
   }

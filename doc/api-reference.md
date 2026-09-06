@@ -374,6 +374,19 @@ Sub-resources
 - Suites: `GET /applications/:id/suites`, `POST /applications/:id/suites/bulk-replace`, `GET /applications/:id/components`
 - Helper: `GET /applications/:id/total-users?year=YYYY`
 
+### Application classification and continuity (V1)
+- `GET /applications/classification-catalog` → tenant catalog for business MTD thresholds, allowed MTD durations, cyber criticality, data classes, recovery waves, catalog versions, and `classificationSettingsRevision`; requires `applications:reader`. Deprecated options are included for historical reads. New or changed MTD writes must use a configured allowed duration; unchanged historical non-preset durations remain valid.
+- Application responses include nullable `business_mtd_minutes`, calculated `criticality`, `legacy_criticality`, `business_criticality_origin`, `cyber_criticality`, `recovery_wave`, `rto_minutes`, `rpo_minutes`, `classification_justification`, `classification_revision`, and derived review fields (`classification_review_state`, `classification_review_reason` (a code translated by the UI), `classification_reviewed_at`, `classification_reviewer_name`, `classification_catalog_versions`). The application detail adds `classification_reviewer_name` from a tenant-scoped name lookup; the stored review identifies the reviewing user.
+- `PATCH /applications/:id` accepts classification inputs and optional `expected_classification_revision` / `expected_classification_versions`. `criticality` is a calculated echo only; changing it directly is rejected. New or changed `business_mtd_minutes` values must be configured presets; unchanged historical values remain valid. RTO/RPO are free integer minutes, RPO accepts zero, and null means not set.
+- `POST /applications/:id/classification-review` → `{ expected_revision, expected_classification_versions? }`; rejects a stale revision or supplied catalog versions, and marks the current classification reviewed only when MTD/business, cyber, confidentiality, recovery wave, and justification are present and current. The server supplies actor, date, revision, and catalog versions.
+- CSV classification cells preserve existing values when blank in both modes; the literal `__CLEAR__` clears a value. `criticality` is export-only as a calculated result.
+
+### IT Ops classification settings
+- `GET /it-ops/settings` includes the classification catalog for settings readers.
+- `PATCH /it-ops/settings` accepts catalog fields and `expectedClassificationSettingsRevision`; business changes require a complete valid catalog and the current revision.
+- `POST /it-ops/settings/classification-preview` accepts the same payload and returns `{ affectedApplications, transitions: [{ from, to, count }], classificationVersions, classificationSettingsRevision }` without publishing.
+- Catalog publication is tenant-scoped and preserves legacy/manual values. Interfaces and connections use business ranks for operational criticality; incomplete derivations are flagged and null values are not treated as low.
+
 Notes
 - Attachments are stored in S3-compatible storage; tenant purge deletes DB rows and blobs.
 - Filters include `is_suite`, derived counts, and all base fields.

@@ -2,7 +2,6 @@
 export {
   InterfacesBaseService,
   ServiceOpts,
-  CRITICALITIES,
   ROUTE_TYPES,
   ENVIRONMENTS,
   EnvironmentValue,

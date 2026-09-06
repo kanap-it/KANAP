@@ -51,6 +51,9 @@ import { AiToolName } from '../ai.types';
 import { AiConversationRetentionService } from '../../cleanup/ai-conversation-retention.service';
 import { AiAggregateExecutor } from '../query/ai-aggregate.executor';
 import { AiQueryExecutor } from '../query/ai-query.executor';
+import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
+import { Tenant } from '../../tenants/tenant.entity';
+import { Location } from '../../locations/location.entity';
 
 type SeededGraph = {
   applicationId: string;
@@ -1482,6 +1485,18 @@ function buildToolIsolationCases(
   },
 ) {
   switch (toolName) {
+    case 'get_application_classification_catalog':
+      return [{
+        label: 'tenant-classification-catalog',
+        input: {},
+        assertResult: (result: any) => {
+          assert.equal(result.durationUnit, 'minutes');
+          assert.deepEqual(result.cyberCriticalityLevels, [{
+            code: 'custom_cyber', label: 'Tenant A cyber', description: 'Tenant A definition', rank: 7,
+          }]);
+          assert.deepEqual(result.businessMtdPresets, [240, 1440, 4320, 10080]);
+        },
+      }];
     case 'search_all':
       return [
         {
@@ -2430,6 +2445,13 @@ async function testAiToolRegistryIsolationCoverageTracksRegisteredTools() {
   try {
     await seedTenant(runner, tenantA, `ai-tools-a-${tenantA.slice(0, 8)}`, 'AI Tools Tenant A');
     await seedTenant(runner, tenantB, `ai-tools-b-${tenantB.slice(0, 8)}`, 'AI Tools Tenant B');
+    for (const [tenantId, label, rank] of [[tenantA, 'Tenant A', 7], [tenantB, 'Tenant B', 99]] as const) {
+      await runner.query(`UPDATE tenants SET metadata = $2::jsonb WHERE id = $1`, [tenantId, JSON.stringify({
+        it_ops: { cyber_criticality_levels: [{
+          code: 'custom_cyber', label: `${label} cyber`, description: `${label} definition`, rank,
+        }] },
+      })]);
+    }
 
     const graphA = await seedApplicationAssetGraph(runner, tenantA, '5101', {
       applicationName: 'Shared Boundary Application',
@@ -2477,6 +2499,11 @@ async function testAiToolRegistryIsolationCoverageTracksRegisteredTools() {
         listOperations: () => [],
         getOperationOrNull: () => null,
       } as any,
+      new ItOpsSettingsService(
+        runner.manager.getRepository(Tenant),
+        runner.manager.getRepository(Location),
+        {} as any,
+      ),
     );
 
     const tenantAContext = {

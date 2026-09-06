@@ -260,8 +260,8 @@ export class InterfaceBindingsManagementService extends InterfacesBaseService {
       connection_name: string;
       topology: string;
       lifecycle: string;
-      criticality: string;
-      data_class: string;
+      criticality: string | null;
+      data_class: string | null;
       contains_pii: boolean;
       risk_mode: string | null;
       protocol_codes: string[] | null;

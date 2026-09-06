@@ -239,6 +239,22 @@ Niveaux de classification des données pour les Applications et Interfaces.
 - Espace de travail Interfaces > Onglet Vue d'ensemble > Champ **Classification données**
 - Liste Applications > Colonne **Classification données**
 
+### Classifications et continuité
+
+Cet éditeur spécialisé configure les catalogues utilisés par la classification et la continuité des applications. Il est disponible aux utilisateurs `settings:admin` dans la section **Applications, services et interfaces**.
+
+- **Criticité métier et seuils DMIA** : codes stables, libellés, descriptions, rangs de gravité uniques et limite DMIA en minutes ; le dernier niveau actif est sans limite.
+- **Durées DMIA autorisées en minutes** : choix proposés par l'éditeur d'application. L'éditeur ne propose pas de saisie libre ; une valeur historique hors durées autorisées reste lisible et peut être effacée. Les nouvelles valeurs ou modifications via API/CSV/Plaid doivent utiliser une durée autorisée configurée ; une valeur historique inchangée reste valide. La liste doit contenir au moins une valeur entière positive distincte. Le champ API reste `businessMtdPresets` ; ces durées ne modifient pas la méthode de classement.
+- **Criticité cyber** : niveaux de conséquences avec rangs explicites.
+- **Confidentialité des données** : catalogue des classes de données avec descriptions et rangs.
+- **Vagues de reprise** : étapes ordonnées de restauration ; l'ordre n'est ni une gravité ni une estimation de durée.
+
+Les codes sont des identifiants stables. Une valeur utilisée peut être rendue obsolète : elle reste visible sur les applications existantes mais ne peut plus être affectée à de nouveaux enregistrements. Les libellés et descriptions restent modifiables.
+
+Les modifications métier utilisent **Prévisualiser l'impact** avant **Publier les modifications**. La prévisualisation indique le nombre d'applications concernées et les transitions. La publication exige la révision actuelle des réglages ; une modification concurrente impose de recharger la page. La remise à zéro respecte les mêmes protections et ne supprime pas silencieusement les codes utilisés par les applications, interfaces ou connexions.
+
+Les niveaux métier alimentent aussi la criticité opérationnelle des interfaces et connexions. Les seuils DMIA s'appliquent uniquement aux applications ; les dérivations incomplètes restent signalées et ne deviennent pas faibles.
+
 ### Patterns d'intégration
 
 Patterns d'intégration pour les legs d'interfaces (ex. : API REST, Batch fichier, File d'attente, Staging BDD).

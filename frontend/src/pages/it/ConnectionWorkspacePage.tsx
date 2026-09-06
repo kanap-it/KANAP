@@ -1,3 +1,4 @@
+import useApplicationClassificationCatalog from '../../hooks/useApplicationClassificationCatalog';
 import React from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert, Autocomplete, Box, Button, Chip, MenuItem, Stack, Switch, TextField, Typography } from '@mui/material';
@@ -92,17 +93,12 @@ type ConnectionDetail = {
   effective_data_class: string;
   effective_contains_pii: boolean;
   derived_interface_count: number;
+  classification_incomplete?: boolean;
   legs?: ConnectionPathHop[];
   created_at: string;
   updated_at: string;
 };
 
-const CRITICALITIES = [
-  { code: 'low', label: 'Low' },
-  { code: 'medium', label: 'Medium' },
-  { code: 'high', label: 'High' },
-  { code: 'business_critical', label: 'Business critical' },
-];
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
@@ -132,8 +128,8 @@ function createInitialForm(): CreateConnectionForm {
     servers: [],
     protocolCodes: [],
     lifecycle: 'active',
-    criticality: 'medium',
-    dataClass: 'internal',
+    criticality: '',
+    dataClass: '',
     containsPii: false,
   };
 }
@@ -155,6 +151,8 @@ function getCreateValidationMessage(form: CreateConnectionForm): string | null {
 }
 
 export default function ConnectionWorkspacePage() {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
+  const CRITICALITIES = [{ code: '', label: 'Not set' }, ...(classificationCatalog?.businessCriticalityLevels || [])];
   const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const navigate = useNavigate();
@@ -214,9 +212,7 @@ export default function ConnectionWorkspacePage() {
       const nextLifecycle = lifecycleIsValid
         ? prev.lifecycle
         : lifecycleOptions.find((option) => option.code === 'active')?.code || lifecycleOptions[0]?.code || prev.lifecycle;
-      const nextDataClass = dataClassIsValid
-        ? prev.dataClass
-        : dataClassOptions.find((option) => option.code === 'internal')?.code || dataClassOptions[0]?.code || prev.dataClass;
+      const nextDataClass = prev.dataClass;
 
       if (
         nextProtocols.join('|') === prev.protocolCodes.join('|') &&
@@ -471,7 +467,7 @@ export default function ConnectionWorkspacePage() {
   const handleCriticalityChange = React.useCallback(
     (next: string) => {
       if (!data || next === data.criticality) return;
-      void patchConnection({ criticality: next });
+      void patchConnection({ criticality: next || null } as any);
     },
     [data, patchConnection],
   );
@@ -479,7 +475,7 @@ export default function ConnectionWorkspacePage() {
   const handleDataClassChange = React.useCallback(
     (next: string) => {
       if (!data || next === data.data_class) return;
-      void patchConnection({ data_class: next });
+      void patchConnection({ data_class: next || null } as any);
     },
     [data, patchConnection],
   );
@@ -516,8 +512,8 @@ export default function ConnectionWorkspacePage() {
         topology: createForm.topology,
         lifecycle: createForm.lifecycle,
         protocol_codes: createForm.protocolCodes,
-        criticality: createForm.criticality,
-        data_class: createForm.dataClass,
+        criticality: createForm.criticality || null,
+        data_class: createForm.dataClass || null,
         contains_pii: createForm.containsPii,
         risk_mode: 'manual',
         ...(createForm.topology === 'server_to_server'
@@ -728,6 +724,7 @@ export default function ConnectionWorkspacePage() {
       effectiveDataClass={data.effective_data_class}
       effectiveContainsPii={data.effective_contains_pii}
       derivedInterfaceCount={data.derived_interface_count || 0}
+      classificationIncomplete={!!data.classification_incomplete}
       derivedAvailable={linkedInterfaces.length > 0}
       createdAt={data.created_at}
       updatedAt={data.updated_at}
@@ -750,6 +747,7 @@ export default function ConnectionWorkspacePage() {
       effectiveCriticality={data.effective_criticality}
       riskMode={data.risk_mode}
       derivedInterfaceCount={data.derived_interface_count || 0}
+      classificationIncomplete={!!data.classification_incomplete}
       protocolCodes={data.protocol_codes}
       protocolLabels={data.protocol_codes}
       endpointsLabel={endpointsLabel}

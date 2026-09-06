@@ -308,14 +308,14 @@ async function seedGraph(runner: QueryRunner): Promise<SeededTenant> {
   await runner.query(
     `INSERT INTO applications (
        id, tenant_id, name, supplier_id, category, description, editor, version,
-       lifecycle, environment, criticality, data_class, hosting_model, external_facing,
+       lifecycle, environment, criticality, business_mtd_minutes, business_criticality_origin, data_class, hosting_model, external_facing,
        sso_enabled, mfa_supported, etl_enabled, access_methods, contains_pii,
        licensing, notes, support_notes, users_mode, users_year, users_override,
        status, created_at, updated_at
      )
      VALUES (
        $1, $2, $3, $4, 'line_of_business', 'Original app description',
-       'Capability Editor', '1.0', 'active', 'prod', 'medium', 'internal',
+       'Capability Editor', '1.0', 'active', 'prod', 'medium', 4320, 'derived', 'internal',
        'saas', false, true, true, false, ARRAY['browser']::text[], false,
        'subscription', 'Original app note', 'Original support note',
        'manual', 2026, 40, 'enabled', now(), now()
@@ -696,30 +696,40 @@ async function testBusinessTaskFinancialWritesAndRbac(harness: Harness) {
     const createdSpendId = spendExecution.target.entity_id;
     assert.ok(createdSpendId, 'created spend item id should be populated after approval');
 
+    await assert.rejects(
+      () => executeToolPreview(harness, context(seed, runner, 'business-update'), 'update_business_record', {
+        entity_type: 'applications',
+        ref: seed.applicationId,
+        fields: { criticality: 'high' },
+      }),
+      /criticality is not writable for applications/,
+    );
     const updateAppPreview = await executeToolPreview(harness, context(seed, runner, 'business-update'), 'update_business_record', {
       entity_type: 'applications',
       ref: seed.applicationId,
       fields: {
-        criticality: 'high',
+        business_mtd_minutes: 1440,
         description: `Updated app description ${seed.tag}`,
       },
     });
     await approvePreview(harness, context(seed, runner, 'business-update'), updateAppPreview);
     let [appRow] = await runner.query(
-      `SELECT criticality, description FROM applications WHERE tenant_id = $1 AND id = $2`,
+      `SELECT criticality, business_mtd_minutes, description FROM applications WHERE tenant_id = $1 AND id = $2`,
       [seed.tenantId, seed.applicationId],
     );
     assert.equal(appRow.criticality, 'high');
+    assert.equal(appRow.business_mtd_minutes, 1440);
     assert.equal(appRow.description, `Updated app description ${seed.tag}`);
     const undoBusinessPreview = await harness.tools.execute(context(seed, runner, 'business-update'), 'undo_preview', {
       preview_id: updateAppPreview.preview_id,
     }) as any;
     await approvePreview(harness, context(seed, runner, 'business-update'), undoBusinessPreview);
     [appRow] = await runner.query(
-      `SELECT criticality, description FROM applications WHERE tenant_id = $1 AND id = $2`,
+      `SELECT criticality, business_mtd_minutes, description FROM applications WHERE tenant_id = $1 AND id = $2`,
       [seed.tenantId, seed.applicationId],
     );
     assert.equal(appRow.criticality, 'medium');
+    assert.equal(appRow.business_mtd_minutes, 4320);
     assert.equal(appRow.description, 'Original app description');
 
     const taskCtx = context(seed, runner, 'task-update');

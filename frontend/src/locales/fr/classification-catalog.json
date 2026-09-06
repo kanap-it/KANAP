@@ -1,0 +1,26 @@
+{
+  "businessCriticalityLevels": {
+    "business_critical": { "label": "Critique", "description": "L’activité tolère au maximum quatre heures d’interruption." },
+    "high": { "label": "Élevée", "description": "L’activité tolère plus de quatre heures et jusqu’à un jour d’interruption." },
+    "medium": { "label": "Modérée", "description": "L’activité tolère plus d’un jour et jusqu’à trois jours d’interruption." },
+    "low": { "label": "Faible", "description": "L’activité tolère plus de trois jours d’interruption." }
+  },
+  "cyberCriticalityLevels": {
+    "low": { "label": "Faible", "description": "Conséquences limitées et localisées d’une compromission." },
+    "moderate": { "label": "Modérée", "description": "Préjudice significatif mais contenu." },
+    "high": { "label": "Élevée", "description": "Préjudice majeur pour les données, une activité importante ou plusieurs systèmes." },
+    "critical": { "label": "Critique", "description": "Conséquences catastrophiques, préjudice grave pour les personnes ou l’environnement, ou compromission étendue du système d’information." }
+  },
+  "dataClasses": {
+    "public": { "label": "Public", "description": "Informations approuvées pour une divulgation publique." },
+    "internal": { "label": "Interne", "description": "Informations destinées à un usage interne ; leur divulgation a des conséquences limitées." },
+    "confidential": { "label": "Confidentiel", "description": "La divulgation pourrait causer un préjudice significatif ; l’accès est limité aux destinataires autorisés." },
+    "restricted": { "label": "Restreint", "description": "La divulgation pourrait causer un préjudice grave ; l’accès est strictement limité au besoin d’en connaître." }
+  },
+  "recoveryWaves": {
+    "foundation": { "label": "V0 — Socle", "description": "Prérequis partagés et services socles." },
+    "vital": { "label": "V1 — Activités vitales", "description": "Rétablir les activités vitales après leurs prérequis." },
+    "priority": { "label": "V2 — Activités prioritaires", "description": "Rétablir les activités prioritaires." },
+    "normal": { "label": "V3 — Fonctionnement normal", "description": "Revenir au fonctionnement normal." }
+  }
+}

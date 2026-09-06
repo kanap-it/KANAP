@@ -23,7 +23,7 @@ export const ListApplicationsQuerySchema = ListQuerySchema.extend({
     }),
 
   /** Filter by criticality */
-  criticality: z.enum(CriticalityLevels).optional(),
+  criticality: z.string().optional(),
 
   /** Filter by supplier ID */
   supplier_id: z.string().uuid().optional(),
@@ -108,7 +108,7 @@ export class ListApplicationsQueryDto implements ListApplicationsQuery {
   status?: 'enabled' | 'disabled';
   category?: string;
   lifecycle?: string[];
-  criticality?: (typeof CriticalityLevels)[number];
+  criticality?: string;
   supplier_id?: string;
   external_facing?: boolean;
   is_suite?: boolean;

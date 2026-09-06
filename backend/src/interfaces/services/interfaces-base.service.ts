@@ -6,12 +6,11 @@ import { InterfaceMiddlewareApplication } from '../interface-middleware-applicat
 import { InterfaceBinding } from '../../interface-bindings/interface-binding.entity';
 import { Application } from '../../applications/application.entity';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
+import { highestClassification, resolveClassificationOption } from '../../it-ops-settings/classification-catalog';
 
 /**
  * Criticality levels for interfaces.
  */
-export const CRITICALITIES = ['business_critical', 'high', 'medium', 'low'] as const;
-
 /**
  * Route types for interfaces.
  */
@@ -24,7 +23,7 @@ export const ENVIRONMENTS = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox']
 
 export type EnvironmentValue = (typeof ENVIRONMENTS)[number];
 export type Lifecycle = string;
-export type Criticality = (typeof CRITICALITIES)[number];
+export type Criticality = string;
 export type RouteType = (typeof ROUTE_TYPES)[number];
 
 /**
@@ -166,15 +165,26 @@ export abstract class InterfacesBaseService {
     value: unknown,
     tenantId: string,
     manager?: EntityManager,
-  ): Promise<string> {
-    const code = String(value || '').trim().toLowerCase();
-    if (!code) {
-      throw new BadRequestException('data_class is required');
-    }
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
-    const allowed = new Set((settings.dataClasses || []).map((o) => o.code));
-    if (!allowed.has(code)) {
+    existing?: string | null,
+  ): Promise<string | null> {
+    const catalog = await this.itOpsSettings.getClassificationCatalog(tenantId, { manager });
+    const code = resolveClassificationOption(value, catalog.dataClasses, existing);
+    if (value != null && String(value).trim() && code === null) {
       throw new BadRequestException(`Invalid data_class "${value}"`);
+    }
+    return code;
+  }
+
+  protected async normalizeCriticality(
+    value: unknown,
+    tenantId: string,
+    manager?: EntityManager,
+    existing?: string | null,
+  ): Promise<string | null> {
+    const catalog = await this.itOpsSettings.getClassificationCatalog(tenantId, { manager });
+    const code = resolveClassificationOption(value, catalog.businessCriticalityLevels, existing);
+    if (value != null && String(value).trim() && code === null) {
+      throw new BadRequestException(`Invalid criticality "${value}"`);
     }
     return code;
   }
@@ -222,13 +232,17 @@ export abstract class InterfacesBaseService {
     return (bothActive ? 'active' : 'proposed') as Lifecycle;
   }
 
-  protected computeDefaultCriticality(source: Application, target: Application): Criticality {
-    const order: Criticality[] = ['business_critical', 'high', 'medium', 'low'];
-    const src = source.criticality as Criticality;
-    const tgt = target.criticality as Criticality;
-    const srcIdx = order.indexOf(src);
-    const tgtIdx = order.indexOf(tgt);
-    return order[Math.min(srcIdx === -1 ? order.length - 1 : srcIdx, tgtIdx === -1 ? order.length - 1 : tgtIdx)];
+  protected async computeDefaultCriticality(
+    source: Application,
+    target: Application,
+    tenantId: string,
+    manager?: EntityManager,
+  ): Promise<{ code: string | null; incomplete: boolean }> {
+    const catalog = await this.itOpsSettings.getClassificationCatalog(tenantId, { manager });
+    return highestClassification(
+      [source.criticality, target.criticality],
+      catalog.businessCriticalityLevels,
+    );
   }
 
   protected async normalizeLifecycle(

@@ -1,3 +1,4 @@
+import { classificationText } from '../../utils/applicationClassification';
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { Box, Button, Stack, Chip, Tooltip, Typography, RadioGroup, FormControlLabel, Radio, Link, useTheme } from '@mui/material';
 import PageHeader from '../../components/PageHeader';
@@ -18,6 +19,8 @@ import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import CheckboxSetFilter from '../../components/CheckboxSetFilter';
 import CheckboxSetFloatingFilter from '../../components/CheckboxSetFloatingFilter';
 import { useGridScopePreference } from '../../hooks/useGridScopePreference';
+import useApplicationClassificationCatalog from '../../hooks/useApplicationClassificationCatalog';
+import { formatDuration } from './components/DurationEditor';
 
 import { useTranslation } from 'react-i18next';
 const ENV_SUMMARY = [
@@ -52,6 +55,14 @@ type AppRow = {
   editor: string | null;
   lifecycle: string;
   criticality: string;
+  business_mtd_minutes?: number | null;
+  business_criticality_origin?: string;
+  cyber_criticality?: string | null;
+  recovery_wave?: string | null;
+  rto_minutes?: number | null;
+  rpo_minutes?: number | null;
+  classification_review_state?: string;
+  classification_reviewed_at?: string | null;
   environment?: 'prod' | 'pre_prod' | 'qa' | 'test' | 'dev' | 'sandbox' | string;
   etl_enabled?: boolean;
   derived_total_users?: number;
@@ -93,6 +104,7 @@ export default function ApplicationsPage() {
   const [selectedRows, setSelectedRows] = useState<AppRow[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const { labelFor, byField } = useItOpsEnumOptions();
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
   const [includeFlags, setIncludeFlags] = useState<string>('');
 
   // Read filters from URL to restore state when returning from workspace
@@ -275,14 +287,15 @@ export default function ApplicationsPage() {
   }, [labelFor]);
   const categoryLabel = useCallback((value?: string) => labelFor('applicationCategory', value), [labelFor]);
   const criticalityLabel = useCallback((v?: string) => {
-    switch (String(v || '')) {
-      case 'business_critical': return t('enums.criticality.businessCritical');
-      case 'high': return t('enums.criticality.high');
-      case 'medium': return t('enums.criticality.medium');
-      case 'low': return t('enums.criticality.low');
-      default: return String(v || '');
-    }
-  }, []);
+    const configured = classificationCatalog?.businessCriticalityLevels.find((item) => item.code === v);
+    if (configured) return configured.label;
+    return String(v || classificationText('Not set'));
+  }, [classificationCatalog?.businessCriticalityLevels, t]);
+  const catalogLabel = useCallback((axis: 'cyber' | 'wave', value?: string | null) => {
+    if (!value) return classificationText("Not set");
+    const options = axis === 'cyber' ? classificationCatalog?.cyberCriticalityLevels : classificationCatalog?.recoveryWaves;
+    return options?.find((item) => item.code === value)?.label || value;
+  }, [classificationCatalog]);
   const hostingModelLabel = useCallback((v?: string) => {
     switch (String(v || '')) {
       case 'on_premise': return t('enums.hostingModel.onPremise');
@@ -304,8 +317,8 @@ export default function ApplicationsPage() {
     }
   }, []);
   const dataClassLabel = useCallback((v?: string) => {
-    return labelFor('dataClass', v);
-  }, [labelFor]);
+    return classificationCatalog?.dataClasses.find((item) => item.code === v)?.label || v || classificationText('Not set');
+  }, [classificationCatalog?.dataClasses]);
 
   const getAppFilterValues = useCallback((
     field: string,
@@ -619,7 +632,7 @@ export default function ApplicationsPage() {
       cellRenderer: ClickToOverview,
     },
     {
-      headerName: t('pages.connections.columns.criticality'),
+      headerName: classificationText("Business criticality"),
       field: 'criticality',
       width: 140,
       filter: CheckboxSetFilter,
@@ -628,9 +641,16 @@ export default function ApplicationsPage() {
         getValues: getAppFilterValues('criticality', { labelFormatter: criticalityLabel }),
         searchable: false,
       },
-      valueFormatter: (p: any) => criticalityLabel(p.value),
-      cellRenderer: ClickToOverview,
+      valueFormatter: (p: any) => `${criticalityLabel(p.value)}${p.data?.business_mtd_minutes != null ? ` · ${formatDuration(p.data.business_mtd_minutes)}` : p.data?.business_criticality_origin === 'legacy' ? ` · ${classificationText('Legacy')}` : ''}`,
+      cellRenderer: ClickToCompliance,
     },
+    { headerName: classificationText('MTD'), field: 'business_mtd_minutes', width: 120, defaultHidden: true, filter: 'agNumberColumnFilter', valueFormatter: (p: any) => formatDuration(p.value, ''), cellRenderer: ClickToCompliance },
+    { headerName: classificationText("Cyber criticality"), field: 'cyber_criticality', filter: CheckboxSetFilter, floatingFilterComponent: CheckboxSetFloatingFilter, filterParams: { getValues: getAppFilterValues('cyber_criticality', { labelFormatter: (v: any) => catalogLabel('cyber', v) }) }, width: 160, defaultHidden: true, valueFormatter: (p: any) => catalogLabel('cyber', p.value), cellRenderer: ClickToCompliance },
+    { headerName: classificationText("Recovery wave"), field: 'recovery_wave', filter: CheckboxSetFilter, floatingFilterComponent: CheckboxSetFloatingFilter, filterParams: { getValues: getAppFilterValues('recovery_wave', { labelFormatter: (v: any) => catalogLabel('wave', v) }) }, width: 160, defaultHidden: true, valueFormatter: (p: any) => catalogLabel('wave', p.value), cellRenderer: ClickToCompliance },
+    { headerName: 'RTO', field: 'rto_minutes', width: 110, defaultHidden: true, filter: 'agNumberColumnFilter', valueFormatter: (p: any) => formatDuration(p.value, ''), cellRenderer: ClickToCompliance },
+    { headerName: 'RPO', field: 'rpo_minutes', width: 110, defaultHidden: true, filter: 'agNumberColumnFilter', valueFormatter: (p: any) => formatDuration(p.value, ''), cellRenderer: ClickToCompliance },
+    { headerName: classificationText("Classification review"), field: 'classification_review_state', filter: CheckboxSetFilter, floatingFilterComponent: CheckboxSetFloatingFilter, filterParams: { getValues: getAppFilterValues('classification_review_state', { labelFormatter: (value: string) => ({ incomplete: classificationText('To complete'), stale: classificationText('Review needed'), reviewed: classificationText('Reviewed') }[value] || value) }) }, width: 170, defaultHidden: true, valueFormatter: (p: any) => ({ incomplete: classificationText("To complete"), stale: classificationText("Review needed"), reviewed: classificationText("Reviewed") }[String(p.value)] || classificationText("To complete")), cellRenderer: ClickToCompliance },
+    { headerName: classificationText("Classification reviewed"), field: 'classification_reviewed_at', filter: 'agDateColumnFilter', width: 180, defaultHidden: true, valueFormatter: (p: any) => p.value ? new Date(p.value).toLocaleDateString() : classificationText('Not set'), cellRenderer: ClickToCompliance },
     { headerName: t('pages.applications.columns.publisher'), field: 'editor', width: 160, cellRenderer: ClickToOverview },
     { headerName: t('pages.applications.columns.derivedUsers'), field: 'derived_total_users', width: 170, cellRenderer: ClickToOwnership },
     { headerName: t('pages.assets.columns.created'), field: 'created_at', width: 160, cellRenderer: ClickToOverview },
@@ -752,6 +772,7 @@ export default function ApplicationsPage() {
     ResidencyCell,
     SuitesSummaryCell,
     categoryLabel,
+    catalogLabel,
     criticalityLabel,
     dataClassLabel,
     environmentLabel,
@@ -801,32 +822,7 @@ export default function ApplicationsPage() {
         api.get(`/applications/${source.id}/support-contacts`).catch(() => ({ data: [] } as any)),
       ]);
       const a = res.data || {};
-      const payload: any = {
-        name: `${a.name || ''} (copy)`,
-        supplier_id: a.supplier_id ?? null,
-        category: a.category || undefined,
-        description: a.description ?? null,
-        editor: a.editor ?? null,
-        retired_date: a.retired_date || null,
-        lifecycle: a.lifecycle,
-        environment: a.environment || 'prod',
-        criticality: a.criticality,
-        hosting_model: a.hosting_model,
-        external_facing: !!a.external_facing,
-        is_suite: !!a.is_suite,
-        etl_enabled: !!a.etl_enabled,
-        sso_enabled: !!a.sso_enabled,
-        mfa_supported: !!a.mfa_supported,
-        contains_pii: !!a.contains_pii,
-        data_class: a.data_class,
-        licensing: a.licensing ?? null,
-        notes: a.notes ?? null,
-        support_notes: a.support_notes ?? null,
-        users_mode: a.users_mode,
-        users_year: a.users_year,
-        users_override: a.users_override ?? null,
-      };
-      const created = await api.post('/applications', payload);
+      const created = await api.post(`/applications/${source.id}/copy`, { name: `${a.name || ''} (copy)` });
       const newId = created?.data?.id as string | undefined;
       if (newId) {
         // Prepare relation payloads

@@ -41,13 +41,14 @@ Navegue a **Panorama IT > Aplicaciones** para ver su lista. Haga clic en **Nueva
 **Campos obligatorios**:
 - **Nombre**: Un nombre reconocible para la aplicación o servicio
 - **Categoría**: El propósito principal de esta aplicación (ver categorías arriba)
-- **Criticidad**: Importancia para su negocio (Crítica para el negocio, Alta, Media, Baja)
 - **Ciclo de vida**: Estado actual (Activo, Propuesto, Obsoleto, Retirado, o cualquier código personalizado definido en Configuración)
 
 **Muy recomendados**:
 - **Proveedor**: El proveedor que proporciona el software (vinculado a sus datos maestros de Proveedores)
 - **Editor**: El editor del software (p. ej., Microsoft, SAP, Oracle)
 - **Descripción**: Qué hace esta aplicación
+
+Los campos de clasificación son opcionales al crear una aplicación. Para la **MTD**, el editor y las escrituras nuevas o modificadas por API/CSV usan las duraciones permitidas configuradas por el tenant; la interfaz no permite introducir un valor libre. Una duración histórica fuera de las duraciones permitidas sigue visible, pero no puede elegirse como nueva opción y puede borrarse. Sigue siendo válida si no se modifica, incluso al recalcular el catálogo. Los demás valores permanecen sin definir hasta que usted los seleccione.
 
 **Opcionales pero útiles**:
 - **Versión**: Identificador de versión actual (texto libre, p. ej., "4.2.1", "2023", "T1 2024")
@@ -84,7 +85,7 @@ La cuadrícula de Aplicaciones proporciona una vista completa de su portafolio d
 - **Categoría**: El propósito principal de la aplicación
 - **Entornos**: Chips de colores que muestran entornos activos (Prod, Pre-prod, QA, Test, Dev, Sandbox). Pase el ratón para ver la URL base y el ciclo de vida.
 - **Ciclo de vida**: Estado actual
-- **Criticidad**: Nivel de importancia para el negocio
+- **Criticidad empresarial**: Nivel calculado a partir de la MTD
 - **Editor**: Editor del software
 - **Usuarios derivados (A)**: Conteo calculado de usuarios para el año actual (basado en la audiencia establecida en el panel de propiedades)
 - **Creado**: Cuándo se creó el registro
@@ -127,7 +128,7 @@ El encabezado muestra:
 - **Nombre de la aplicación** (editable en línea)
 - **Referencia**: identificador corto que puede copiar
 - Chip de **Ciclo de vida**: haga clic para cambiar
-- Chip de **Criticidad**: haga clic para cambiar
+- Chip de **Criticidad empresarial**: muestra el nivel calculado y abre el control MTD
 - Chip de **Versión** (si hay versión definida): haga clic para copiar
 - Fecha de **Puesta en marcha**
 - **Enviar enlace**: copiar un enlace compartible a este espacio de trabajo
@@ -235,7 +236,7 @@ La pestaña Operaciones captura cómo acceden los usuarios a la aplicación y qu
 La pestaña Conformidad captura información de protección de datos y normativa.
 
 **Qué puede editar**:
-- **Clase de datos** (obligatorio): nivel de sensibilidad (Público, Interno, Confidencial, Restringido, o cualquier código personalizado definido en Configuración)
+- **Clase de datos**: nivel de confidencialidad (Público, Interno, Confidencial, Restringido, o cualquier código personalizado definido en Configuración)
 - **Última prueba DR**: fecha de la prueba de recuperación ante desastres más reciente
 - **Contiene PII**: si la aplicación almacena información de identificación personal
 - **Residencia de datos**: países donde se almacenan los datos (selección múltiple, códigos ISO + nombres)
@@ -243,6 +244,26 @@ La pestaña Conformidad captura información de protección de datos y normativa
 **Consejo**: Las clases de datos son configurables en **Panorama IT > Configuración**. Personalícelas para que coincidan con la política de clasificación de datos de su organización.
 
 ---
+
+### Clasificación y continuidad
+
+El área de Conformidad también registra las decisiones de continuidad y clasificación de la aplicación. Los valores ausentes se muestran como **No definido**; KANAP no sustituye un nivel predeterminado.
+
+**Criticidad**:
+- La **duración máxima tolerable de interrupción (MTD)** se elige entre las duraciones permitidas configuradas por el tenant. Los valores nuevos o modificados deben usar una de ellas. La **criticidad empresarial**, de solo lectura, se calcula con los umbrales del tenant. Una duración histórica fuera de las duraciones permitidas se muestra como no disponible para nuevas selecciones y puede borrarse; si no se modifica, sigue siendo válida.
+- La **criticidad cibernética** se selecciona de forma independiente. El selector muestra la descripción de cada nivel del tenant; elija el nivel con las consecuencias plausibles más graves. No confunda la criticidad cibernética con el nivel de riesgo.
+- La **justificación** documenta las decisiones empresariales, cibernéticas y de recuperación.
+
+**Datos y recuperación**:
+- La **confidencialidad de datos** utiliza el catálogo de clases de datos del tenant.
+- La **ola de recuperación** indica el orden de restauración; no representa una duración ni una gravedad.
+- El **RTO** es el objetivo de tiempo de recuperación. El **RPO** es la pérdida de datos aceptable y puede ser cero. Si RTO es mayor o igual que MTD, KANAP muestra una advertencia y conserva ambos valores.
+- **Última prueba de recuperación** contiene la fecha de la prueba más reciente. Un enlace abierto desde esta zona utiliza la única sección **Base de conocimiento** de Visión general y no crea un registro duplicado. Las URL antiguas siguen disponibles en Relaciones.
+
+**Revisión**:
+- **Por completar** indica que falta MTD, criticidad cibernética, confidencialidad, ola de recuperación o justificación.
+- **Revisión necesaria** indica que cambió una clasificación, una referencia relevante o una versión del catálogo. El motivo se traduce en la interfaz; se muestran la fecha y el nombre del último revisor.
+- **Revisado** solo se establece mediante **Marcar como revisado**, cuando están presentes las cuatro dimensiones y una justificación. El botón se desactiva cuando la aplicación ya está revisada. Se guardan la revisión, las versiones del catálogo, el actor y la fecha del servidor. Cambiar el nombre o el editor no lo invalida.
 
 ### Relaciones
 
@@ -338,7 +359,7 @@ Utilice esto cuando desee crear un duplicado independiente de una aplicación --
 3. El sistema crea una copia con " (copia)" añadido al nombre
 4. Se le lleva a la nueva aplicación para hacer cambios
 
-**Qué se copia**: Todos los campos principales (excepto fecha de última prueba DR), responsables, empresas, departamentos, suites, partidas OPEX/CAPEX, contratos, enlaces, residencia de datos y contactos de soporte.
+**Qué se copia**: Todos los campos principales (excepto fecha de última prueba DR), incluidos los valores de clasificación y continuidad, responsables, empresas, departamentos, suites, partidas OPEX/CAPEX, contratos, enlaces, residencia de datos y contactos de soporte. La revisión de la copia se restablece.
 
 **Qué NO se copia**: Despliegues, interfaces, asignaciones de servidores, adjuntos, campos de versión (versión, fecha de puesta en marcha, fin de soporte).
 
@@ -419,7 +440,7 @@ Desde la lista de Aplicaciones:
 2. **Elija la configuración de importación**:
    - **Modo**:
      - `Enriquecer` (predeterminado): Las celdas vacías preservan los valores existentes -- solo actualiza lo que especifique
-     - `Reemplazar`: Las celdas vacías borran los valores existentes -- reemplazo completo de todos los campos
+     - `Reemplazar`: Se actualizan los campos proporcionados; las celdas de clasificación vacías conservan el valor existente y `__CLEAR__` lo borra explícitamente
    - **Operación**:
      - `Upsert` (predeterminado): Crear nuevas aplicaciones o actualizar las existentes
      - `Solo actualizar`: Solo modificar aplicaciones existentes, omitir nuevas
@@ -441,7 +462,7 @@ Desde la lista de Aplicaciones:
 | `category` | Propósito principal | No | Acepta código o etiqueta de Configuración |
 | `supplier_name` | Nombre del proveedor | No | Debe coincidir con un proveedor existente |
 | `editor` | Editor del software | No | Texto libre (p. ej., Microsoft, SAP) |
-| `criticality` | Importancia para el negocio | No | `business_critical`, `high`, `medium`, `low` |
+| `criticality` | Nivel empresarial calculado | Solo resultado/exportación | Derivado de `business_mtd_minutes` |
 | `lifecycle` | Estado actual | No | Acepta código o etiqueta de Configuración |
 | `is_suite` | Puede tener apps hijas | No | `true` o `false` |
 | `status` | Habilitado/deshabilitado | No | `enabled` o `disabled` |
@@ -474,6 +495,18 @@ Desde la lista de Aplicaciones:
 | `last_dr_test` | Fecha de última prueba DR | Formato de fecha: AAAA-MM-DD |
 | `contains_pii` | Almacena datos personales | `true` o `false` |
 | `data_residency` | Países de almacenamiento de datos | Solo exportación (códigos ISO) |
+
+**Campos de clasificación**:
+
+| Columna CSV | Descripción | Notas |
+|------------|-------------|-------|
+| `business_mtd_minutes` | MTD | Los valores nuevos o modificados deben usar una duración permitida configurada; calcula la `criticality` exportada |
+| `cyber_criticality` | Nivel de consecuencias cibernéticas | Código del tenant o etiqueta no ambigua |
+| `recovery_wave` | Orden de recuperación | Código del tenant o etiqueta no ambigua |
+| `rto_minutes` / `rpo_minutes` | Objetivos de recuperación | Minutos enteros; RPO puede ser cero |
+| `classification_justification` | Justificación | Texto libre |
+
+`criticality` es un resultado calculado de exportación y no puede establecer un nivel nuevo. Una celda de clasificación vacía conserva el valor existente en los modos Enriquecer y Reemplazar; use `__CLEAR__` para borrar una clasificación.
 
 **Campos de responsables**:
 
@@ -509,7 +542,7 @@ El sistema normaliza automáticamente los valores durante la importación, por l
 
 Las aplicaciones se emparejan por **nombre** (sin distinguir mayúsculas). Cuando se encuentra una coincidencia:
 - Con modo `Enriquecer`: Solo los valores CSV no vacíos actualizan la aplicación
-- Con modo `Reemplazar`: Todos los campos se actualizan, los valores vacíos borran datos existentes
+- Con modo `Reemplazar`: se actualizan los campos proporcionados; las celdas de clasificación vacías conservan el valor existente y `__CLEAR__` lo borra explícitamente
 
 Si incluye la columna `id` con un UUID válido, la coincidencia usa primero el ID, luego el nombre como respaldo.
 

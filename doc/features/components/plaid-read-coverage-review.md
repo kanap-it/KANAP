@@ -35,6 +35,8 @@ Plaid can now search, query, filter, sort, aggregate, and fetch detail for these
 
 The most important change is the new generic `get_entity_detail` tool. `query_entities` is used for list discovery and pagination; `get_entity_detail` is used when Plaid needs the full safe scalar payload for one item. Detail payloads strip `tenant_id`, storage/object keys, file paths, secrets, tokens, API keys, and encrypted secret fields. Attachments are metadata-only at this stage.
 
+Applications also have a dedicated `get_application_classification_catalog` read. It is available with the application reader scope and returns the tenant's business MTD thresholds/presets, cyber levels, data classes, recovery waves, ranks/orders, deprecation flags, and independent classification versions. It is the authority for interpreting classification labels and ranks; observed filter values are not a substitute for the catalog.
+
 ## Access Model
 
 Plaid read access depends on all of these gates:
@@ -85,12 +87,13 @@ Entity-to-resource mapping:
 | `get_entity_comments` | Paginated comments for projects and tasks. | Uses `offset` and `limit`; request comments are not exposed yet. |
 | `search_knowledge` | Searches readable knowledge documents. | Uses `offset` and `limit`; library permissions apply. |
 | `get_document` | Reads one knowledge document's markdown DTO. | Attachment binary content, versions, and workflow/activity are not exposed here. |
+| `get_application_classification_catalog` | Reads the complete tenant application classification catalog. | Application reader scope; includes deprecated values for historical reads and versions/settings revision. It never edits settings. |
 
 ## Coverage Matrix
 
 | Area | Current Plaid support | Notes and limits |
 | --- | --- | --- |
-| Applications | Search, query, aggregate, detail, relationship context. | Detail includes service-provided instances/deployments/support when requested by the AI executor. App instances and asset assignments are not separate AI entity families. |
+| Applications | Search, query, aggregate, detail, relationship context, classification catalog. | Classification filters/sorts/aggregates cover MTD, business rank, cyber, confidentiality, recovery, objectives, and review state. Create/update mutations remain preview and approval gated, carry expected revision/catalog versions, and support guarded undo; Plaid cannot edit catalogs or implicitly mark reviews. App instances and asset assignments are not separate AI entity families. |
 | Assets | Search, query, aggregate, detail, relationship context. | Detail includes support info, contacts, links, and attachment metadata where available. Binary content is not returned. |
 | Connections | Search, query, aggregate, detail. | Covers connection identity, topology, lifecycle, source/destination, protocols, risk fields, legs in detail. |
 | Interfaces | Search, query, aggregate, detail. | Covers source/target apps, business process, data class/category, lifecycle, criticality, bindings and attachment metadata in detail. |
@@ -127,6 +130,7 @@ These areas are still not separate AI entity families in this stage:
 - `get_entity_context` is only advertised when the user can read at least one context-capable family (`applications`, `assets`, `projects`, `requests`, `tasks`).
 - `search_all`, `query_entities`, `aggregate_entities`, `get_filter_values`, and `get_entity_detail` now share the same business/domain entity type list.
 - The system prompt now tells Plaid to use `query_entities` for exhaustive lists, later pages for incomplete results, and `get_entity_detail` for full item inspection.
+- Application classification discovery now uses `get_application_classification_catalog`; mutations use application services with expected revisions/versions, and catalog editing remains an administrative UI capability.
 
 ## Source Files Updated
 

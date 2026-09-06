@@ -239,6 +239,23 @@ Data classification levels for Applications and Interfaces.
 - Interfaces workspace → Overview tab → **Data Class** field
 - Applications list → **Data Class** column
 
+### Classifications and continuity
+
+This specialized editor configures the catalogs used by application classification and continuity. It is available to `settings:admin` users from the **Apps, Services & Interfaces** section.
+
+**Catalogs**:
+- **Business criticality and MTD thresholds**: levels with stable codes, labels, descriptions, unique severity ranks, and an optional maximum MTD in minutes. The last active level must be unbounded.
+- **Allowed MTD durations in minutes**: the choices offered by the application editor. The editor does not offer free MTD entry; a historical non-allowed value remains readable and can be cleared. New or changed values must use one of these durations, and the catalog must contain at least one distinct positive integer minute value. The API field remains `businessMtdPresets`; allowed durations do not change the classification method.
+- **Cyber criticality**: independent consequence levels with explicit ranks.
+- **Data confidentiality**: the existing Data Classes catalog, enriched with descriptions and ranks.
+- **Recovery waves**: ordered restoration stages. The order does not represent severity or a time estimate.
+
+Codes are stable identifiers. A used value can be deprecated so it remains visible on existing applications while no longer being assignable to new records. Labels and descriptions may be edited without changing codes.
+
+Business catalog edits use **Preview impact** before **Publish changes**. The preview reports affected applications and old-to-new transitions. Publication requires the current settings revision; a concurrent change requires reloading the settings. Classification versions are exposed to application edits so stale reviews can be identified. The settings **Reset** action follows the same reference and revision protections and does not silently remove codes used by applications, interfaces, or connections.
+
+The business levels also power operational criticality on interfaces and connections. MTD thresholds apply only to applications. Missing derived inputs are marked incomplete; they are not treated as the lowest level.
+
 ### Integration Patterns
 
 Integration patterns for Interface legs (e.g., REST API, File batch, Queue, DB staging).

@@ -1,9 +1,11 @@
+import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
 import React from 'react';
 import { Box, Checkbox, ListItemText, MenuItem, Popover, Typography } from '@mui/material';
 import { PortfolioMetadataItem } from '../../portfolio/workspace/PortfolioMetadataBar';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import { drawerMenuItemSx } from '../../../theme/formSx';
 import { StatusDot } from '../../../components/design';
+import { classificationText } from '../../../utils/applicationClassification';
 
 type Props = {
   lifecycle: string;
@@ -12,6 +14,7 @@ type Props = {
   effectiveCriticality: string;
   riskMode: 'manual' | 'derived';
   derivedInterfaceCount: number;
+  classificationIncomplete?: boolean;
   protocolCodes: string[] | undefined;
   protocolLabels: string[] | undefined;
   topologyDisabled?: boolean;
@@ -24,12 +27,6 @@ type Props = {
   onProtocolCodesChange: (next: string[]) => void;
 };
 
-const CRITICALITIES = [
-  { code: 'low', label: 'Low' },
-  { code: 'medium', label: 'Medium' },
-  { code: 'high', label: 'High' },
-  { code: 'business_critical', label: 'Business critical' },
-];
 
 export default function ConnectionMetadataBar({
   lifecycle,
@@ -38,6 +35,7 @@ export default function ConnectionMetadataBar({
   effectiveCriticality,
   riskMode,
   derivedInterfaceCount,
+  classificationIncomplete = false,
   protocolCodes,
   protocolLabels,
   topologyDisabled = false,
@@ -48,6 +46,8 @@ export default function ConnectionMetadataBar({
   onCriticalityChange,
   onProtocolCodesChange,
 }: Props) {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
+  const CRITICALITIES = [{ code: '', label: 'Not set' }, ...(classificationCatalog?.businessCriticalityLevels || [])];
   const { byField, labelFor, settings } = useItOpsEnumOptions();
   const lifecycleOptions = byField.lifecycleStatus || [];
   const connectionTypes = settings?.connectionTypes || [];
@@ -121,6 +121,11 @@ export default function ConnectionMetadataBar({
         {riskMode === 'derived' && (
           <Typography component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary', ml: 0.5 }}>
             (derived from {derivedInterfaceCount})
+          </Typography>
+        )}
+        {classificationIncomplete && (
+          <Typography component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary', ml: 0.5 }}>
+            ({classificationText('Incomplete inheritance')})
           </Typography>
         )}
       </PortfolioMetadataItem>

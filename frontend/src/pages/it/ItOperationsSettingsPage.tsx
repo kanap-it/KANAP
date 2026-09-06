@@ -40,6 +40,7 @@ import {
   updateItOpsSettings,
 } from '../../services/itOpsSettings';
 import { useTranslation } from 'react-i18next';
+import ClassificationCatalogSettings from './components/ClassificationCatalogSettings';
 
 type LocationOption = { id: string; location_reference: string; name: string };
 
@@ -199,7 +200,6 @@ type EnumSectionConfig = {
 const enumSections: EnumSectionConfig[] = [
   { id: 'accessMethods', title: 'Access Methods', description: 'Methods by which users access applications (e.g., Web, Mobile, VDI).', group: 'appsInterfaces' },
   { id: 'applicationCategories', title: 'Application Categories', description: 'Categories that describe the primary purpose of each application or service.', group: 'appsInterfaces' },
-  { id: 'dataClasses', title: 'Data Classes', description: 'Tenant-wide data classification levels used by Applications and Interfaces.', group: 'appsInterfaces' },
   { id: 'networkSegments', title: 'Network Zones', description: 'Network zones used to categorize subnets and describe connectivity.', group: 'serversConnections' },
   { id: 'entities', title: 'Entities', description: 'Source/target entities for flows or access.', group: 'serversConnections', kind: 'entity' },
   { id: 'ipAddressTypes', title: 'IP Address Types', description: 'Types of IP addresses for assets.', group: 'serversConnections' },
@@ -944,6 +944,7 @@ export default function ItOperationsSettingsPage() {
       {isError && <Alert severity="error">Failed to load IT Landscape settings.</Alert>}
       {state.successMessage && <Alert severity="success">{state.successMessage}</Alert>}
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+      {data && <ClassificationCatalogSettings settings={data} />}
       <Stack spacing={3}>
         {listGroups.map((group, groupIndex) => {
           const groupEnumSections = enumSections.filter((section) => section.group === group.id);

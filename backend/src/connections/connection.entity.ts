@@ -37,11 +37,11 @@ export class Connection {
   @Column('text', { default: 'active' })
   lifecycle!: string;
 
-  @Column('text', { default: 'medium' })
-  criticality!: string;
+  @Column('text', { nullable: true })
+  criticality!: string | null;
 
-  @Column('text', { default: 'internal' })
-  data_class!: string;
+  @Column('text', { nullable: true })
+  data_class!: string | null;
 
   @Column('boolean', { default: false })
   contains_pii!: boolean;

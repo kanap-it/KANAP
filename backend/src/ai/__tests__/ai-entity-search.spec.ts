@@ -182,7 +182,7 @@ async function testIndexedSearchAllAppliesDocumentLibraryAcl() {
   assert.equal(searchSql!.includes('d_acl.library_id = ANY'), true);
 }
 
-async function testIndexedRowsMapToLegacyDtoShape() {
+async function testIndexedRowsMapToLegacyDtoShape(applicationClassifications: Record<string, string | number> = {}) {
   const updatedAt = new Date('2026-06-01T08:00:00.000Z');
   const service = createService();
   const context = createContext(async (sql) => {
@@ -209,7 +209,7 @@ async function testIndexedRowsMapToLegacyDtoShape() {
         label: 'Billing App',
         summary: null,
         status: 'active',
-        extra_json: { item_ref: 'APP-7', lifecycle: 'production', criticality: null },
+        extra_json: { item_ref: 'APP-7', lifecycle: 'production', criticality: null, ...applicationClassifications },
         source_updated_at: updatedAt,
         total_count: 3,
         score: 3,
@@ -252,6 +252,11 @@ async function testIndexedRowsMapToLegacyDtoShape() {
   assert.deepEqual(app.metadata, {
     lifecycle: 'production',
     criticality: null,
+    cyber_criticality: null,
+    recovery_wave: null,
+    business_mtd_minutes: null,
+    rto_minutes: null,
+    rpo_minutes: null,
     category: null,
     hosting_model: null,
     data_class: null,
@@ -259,6 +264,7 @@ async function testIndexedRowsMapToLegacyDtoShape() {
     supplier: null,
     business_owner: null,
     it_owner: null,
+    ...applicationClassifications,
   });
 
   // …while spend items keep ref=null exactly like the legacy DTO.
@@ -278,6 +284,15 @@ async function run() {
   await testIndexedSearchAllAppliesParticipationScope();
   await testIndexedSearchAllAppliesDocumentLibraryAcl();
   await testIndexedRowsMapToLegacyDtoShape();
+  await testIndexedRowsMapToLegacyDtoShape({
+    criticality: 'business_custom',
+    cyber_criticality: 'cyber_custom',
+    recovery_wave: 'wave_custom',
+    data_class: 'confidentiality_custom',
+    business_mtd_minutes: 240,
+    rto_minutes: 60,
+    rpo_minutes: 0,
+  });
 }
 
 void run();
