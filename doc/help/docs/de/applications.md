@@ -41,13 +41,14 @@ Navigieren Sie zu **IT-Landschaft > Anwendungen**, um Ihre Liste zu sehen. Klick
 **Pflichtfelder**:
 - **Name**: Ein wiedererkennbarer Name für die Anwendung oder den Dienst
 - **Kategorie**: Der Hauptzweck dieser Anwendung (siehe Kategorien oben)
-- **Kritikalität**: Wie wichtig dies für Ihr Unternehmen ist (Geschäftskritisch, Hoch, Mittel, Niedrig)
 - **Lebenszyklus**: Aktueller Status (Aktiv, Vorgeschlagen, Veraltet, Außer Betrieb oder ein in den Einstellungen definierter benutzerdefinierter Code)
 
 **Dringend empfohlen**:
 - **Lieferant**: Der Lieferant, der die Software bereitstellt (verknüpft mit Ihren Lieferanten-Stammdaten)
 - **Herausgeber**: Der Software-Herausgeber (z. B. Microsoft, SAP, Oracle)
 - **Beschreibung**: Was diese Anwendung tut
+
+Klassifizierungsfelder sind beim Anlegen optional. Für die **MTD** verwenden der Editor sowie neue oder geänderte API-/CSV-Schreibvorgänge die vom Mandanten konfigurierten zulässigen Dauern; eine freie Eingabe ist in der Oberfläche nicht möglich. Eine historische Dauer außerhalb der zulässigen Dauern bleibt sichtbar, kann aber nicht als neue Option gewählt und gelöscht werden. Sie bleibt unverändert gültig, auch bei einer Katalogneuberechnung. Andere Werte bleiben offen, bis Sie sie auswählen.
 
 **Optional aber nützlich**:
 - **Version**: Aktuelle Versionskennung (Freitext, z. B. „4.2.1", „2023", „Q1 2024")
@@ -84,7 +85,7 @@ Das Anwendungsraster bietet eine umfassende Ansicht Ihres Anwendungsportfolios.
 - **Kategorie**: Der Hauptzweck der Anwendung
 - **Umgebungen**: Farbige Chips, die aktive Umgebungen zeigen (Prod, Pre-prod, QA, Test, Dev, Sandbox). Bewegen Sie den Mauszeiger darüber für Basis-URL und Lebenszyklus.
 - **Lebenszyklus**: Aktueller Status
-- **Kritikalität**: Stufe der geschäftlichen Bedeutung
+- **Business-Kritikalität**: Aus der MTD berechnete Stufe
 - **Herausgeber**: Software-Herausgeber
 - **Abgeleitete Benutzer (J)**: Berechnete Benutzeranzahl für das aktuelle Jahr (basierend auf der in der Eigenschaftsleiste festgelegten Zielgruppe)
 - **Erstellt**: Wann der Datensatz erstellt wurde
@@ -127,7 +128,7 @@ Die Kopfzeile zeigt:
 - **Anwendungsname** (an Ort und Stelle bearbeitbar)
 - **Referenz**: kurze Kennung, die Sie kopieren können
 - **Lebenszyklus**-Chip: klicken zum Ändern
-- **Kritikalitäts**-Chip: klicken zum Ändern
+- **Business-Kritikalitäts**-Chip: zeigt die berechnete Stufe und öffnet die MTD-Steuerung
 - **Versions**-Chip (wenn eine Version festgelegt ist): klicken zum Kopieren
 - **Go-Live**-Datum
 - **Link senden**: Einen teilbaren Link zu diesem Arbeitsbereich kopieren
@@ -235,7 +236,7 @@ Der Reiter Betrieb erfasst, wie Benutzer auf die Anwendung zugreifen und wer sie
 Der Reiter Compliance erfasst Datenschutz- und regulatorische Informationen.
 
 **Was Sie bearbeiten können**:
-- **Datenklasse** (erforderlich): Sensibilitätsstufe (Öffentlich, Intern, Vertraulich, Eingeschränkt oder ein in den Einstellungen definierter benutzerdefinierter Code)
+- **Datenklasse**: Vertraulichkeitsstufe (Öffentlich, Intern, Vertraulich, Eingeschränkt oder ein in den Einstellungen definierter benutzerdefinierter Code)
 - **Letzter DR-Test**: Datum des letzten Disaster-Recovery-Tests
 - **Enthält PII**: Ob die Anwendung personenbezogene Daten speichert
 - **Datenhaltung**: Länder, in denen Daten gespeichert werden (Mehrfachauswahl, ISO-Codes + Namen)
@@ -243,6 +244,26 @@ Der Reiter Compliance erfasst Datenschutz- und regulatorische Informationen.
 **Tipp**: Datenklassen sind in **IT-Landschaft > Einstellungen** konfigurierbar. Passen Sie sie an die Datenklassifizierungsrichtlinie Ihrer Organisation an.
 
 ---
+
+### Klassifizierung und Kontinuität
+
+Der Bereich Compliance erfasst auch die Entscheidungen zu Kontinuität und Klassifizierung der Anwendung. Fehlende Werte werden als **Nicht festgelegt** angezeigt; KANAP ersetzt sie nicht durch eine Standardstufe.
+
+**Kritikalität**:
+- Die **maximal tolerierbare Ausfallzeit (MTD)** wird aus den konfigurierten zulässigen Dauern des Mandanten gewählt. Neue oder geänderte Werte müssen eine dieser Dauern verwenden. Die schreibgeschützte **Business-Kritikalität** wird aus den Schwellenwerten berechnet. Eine historische Dauer außerhalb der zulässigen Dauern bleibt als nicht neu wählbar sichtbar und kann gelöscht werden; unverändert bleibt sie gültig.
+- Die **Cyber-Kritikalität** wird unabhängig gewählt. Das Auswahlmenü zeigt die Beschreibung jeder Mandantenstufe; wählen Sie die Stufe mit den höchsten plausiblen Folgen. Verwechseln Sie Cyberkritikalität nicht mit dem Risikoniveau!
+- Die **Begründung** dokumentiert die fachlichen, Cyber- und Wiederherstellungsentscheidungen.
+
+**Daten und Wiederherstellung**:
+- **Datenvertraulichkeit** verwendet den Datenklassenkatalog des Mandanten.
+- Die **Wiederherstellungswelle** bezeichnet die Reihenfolge der Wiederherstellung, keine Dauer und keinen Schweregrad.
+- Das **RTO** ist das Ziel für die Wiederherstellungszeit. Das **RPO** ist der zulässige Datenverlust und darf null sein. Wenn RTO größer oder gleich MTD ist, zeigt KANAP einen Hinweis, behält aber beide Werte.
+- **Letzter Wiederherstellungstest** enthält das Datum des letzten Tests. Ein Link aus diesem Bereich verwendet die einzige **Wissensdatenbank** im Reiter Übersicht und erzeugt keinen doppelten Datensatz. Ältere URL-Links bleiben unter Verknüpfungen verfügbar.
+
+**Review**:
+- **Zu vervollständigen** bedeutet, dass MTD, Cyber-Kritikalität, Datenvertraulichkeit, Wiederherstellungswelle oder Begründung fehlt.
+- **Review erforderlich** bedeutet, dass eine Klassifizierung, eine relevante Referenz oder eine Katalogversion geändert wurde. Der Grund wird übersetzt angezeigt; Datum und Name des letzten Prüfers werden eingeblendet.
+- **Geprüft** wird nur mit **Als geprüft markieren** gesetzt, wenn alle vier Dimensionen und eine Begründung vorhanden sind. Die Schaltfläche ist deaktiviert, sobald die Anwendung bereits geprüft ist. Revision, Katalogversionen, Benutzer und Serverdatum werden gespeichert. Eine Änderung von Name oder Herausgeber macht das Review nicht ungültig.
 
 ### Verknüpfungen
 
@@ -338,7 +359,7 @@ Verwenden Sie dies, wenn Sie ein unabhängiges Duplikat einer Anwendung erstelle
 3. Das System erstellt eine Kopie mit „ (Kopie)" angehängt an den Namen
 4. Sie werden zur neuen Anwendung navigiert, um Änderungen vorzunehmen
 
-**Was kopiert wird**: Alle Kernfelder (außer dem Datum des letzten DR-Tests), Verantwortliche, Unternehmen, Abteilungen, Suites, OPEX/CAPEX-Positionen, Verträge, Verknüpfungen, Datenhaltung und Supportkontakte.
+**Was kopiert wird**: Alle Kernfelder (außer dem Datum des letzten DR-Tests), einschließlich Klassifizierungs- und Kontinuitätswerten, Verantwortliche, Unternehmen, Abteilungen, Suites, OPEX/CAPEX-Positionen, Verträge, Verknüpfungen, Datenhaltung und Supportkontakte. Das Review der Kopie wird zurückgesetzt.
 
 **Was NICHT kopiert wird**: Bereitstellungen, Schnittstellen, Server-Zuweisungen, Anhänge, Versionsfelder (Version, Go-Live-Datum, Support-Ende).
 
@@ -419,7 +440,7 @@ Aus der Anwendungsliste:
 2. **Importeinstellungen wählen**:
    - **Modus**:
      - `Anreichern` (Standard): Leere Zellen erhalten vorhandene Werte -- nur aktualisieren, was Sie angeben
-     - `Ersetzen`: Leere Zellen löschen vorhandene Werte -- vollständiger Ersatz aller Felder
+     - `Ersetzen`: Angegebene Felder werden aktualisiert; leere Klassifizierungszellen behalten den vorhandenen Wert, `__CLEAR__` löscht ihn ausdrücklich
    - **Operation**:
      - `Upsert` (Standard): Neue Anwendungen erstellen oder vorhandene aktualisieren
      - `Nur aktualisieren`: Nur vorhandene Anwendungen ändern, neue überspringen
@@ -441,7 +462,7 @@ Aus der Anwendungsliste:
 | `category` | Hauptzweck | Nein | Akzeptiert Code oder Bezeichnung aus den Einstellungen |
 | `supplier_name` | Lieferantenname | Nein | Muss mit vorhandenem Lieferanten übereinstimmen |
 | `editor` | Software-Herausgeber | Nein | Freitext (z. B. Microsoft, SAP) |
-| `criticality` | Geschäftliche Bedeutung | Nein | `business_critical`, `high`, `medium`, `low` |
+| `criticality` | Berechnete Business-Stufe | Nur Ergebnis/Export | Aus `business_mtd_minutes` abgeleitet |
 | `lifecycle` | Aktueller Status | Nein | Akzeptiert Code oder Bezeichnung aus den Einstellungen |
 | `is_suite` | Kann Unteranwendungen haben | Nein | `true` oder `false` |
 | `status` | Aktiviert/deaktiviert | Nein | `enabled` oder `disabled` |
@@ -474,6 +495,18 @@ Aus der Anwendungsliste:
 | `last_dr_test` | Datum des letzten DR-Tests | Datumsformat: YYYY-MM-DD |
 | `contains_pii` | Speichert personenbezogene Daten | `true` oder `false` |
 | `data_residency` | Datenspeicherländer | Nur Export (ISO-Codes) |
+
+**Klassifizierungsfelder**:
+
+| CSV-Spalte | Beschreibung | Hinweise |
+|------------|-------------|---------|
+| `business_mtd_minutes` | MTD | Neue oder geänderte Werte müssen eine konfigurierte zulässige Dauer verwenden; berechnet die exportierte `criticality` |
+| `cyber_criticality` | Cyber-Folgenstufe | Mandantencode oder eindeutige Bezeichnung |
+| `recovery_wave` | Wiederherstellungsreihenfolge | Mandantencode oder eindeutige Bezeichnung |
+| `rto_minutes` / `rpo_minutes` | Wiederherstellungsziele | Ganze Minuten; RPO darf null sein |
+| `classification_justification` | Begründung | Freitext |
+
+`criticality` ist ein berechnetes Exportergebnis und kann keine neue Stufe setzen. Eine leere Klassifizierungszelle behält im Modus Anreichern und Ersetzen den vorhandenen Wert; verwenden Sie `__CLEAR__`, um eine Klassifizierung zu löschen.
 
 **Verantwortlichen-Felder**:
 
@@ -509,7 +542,7 @@ Das System normalisiert Werte automatisch beim Import, sodass `Line-of-business`
 
 Anwendungen werden nach **Name** (Groß-/Kleinschreibung ignorierend) abgeglichen. Wenn ein Treffer gefunden wird:
 - Mit `Anreichern`-Modus: Nur nicht-leere CSV-Werte aktualisieren die Anwendung
-- Mit `Ersetzen`-Modus: Alle Felder werden aktualisiert, leere Werte löschen vorhandene Daten
+- Mit `Ersetzen`-Modus: Angegebene Felder werden aktualisiert; leere Klassifizierungszellen behalten den vorhandenen Wert, `__CLEAR__` löscht ihn ausdrücklich
 
 Wenn Sie die Spalte `id` mit einer gültigen UUID einschließen, verwendet der Abgleich zuerst die ID und greift dann auf den Namen zurück.
 

@@ -109,6 +109,22 @@ Kategorien, die den Hauptzweck jeder Anwendung oder jedes Dienstes beschreiben. 
 
 Datenklassifizierungsstufen für Anwendungen und Schnittstellen. Gesperrte Codes: Öffentlich, Intern, Vertraulich, Eingeschränkt.
 
+### Klassifizierungen und Kontinuität
+
+Dieser spezialisierte Editor konfiguriert die Kataloge für Anwendungs-Klassifizierung und Kontinuität. Er steht Benutzern mit `settings:admin` im Bereich **Apps, Services & Schnittstellen** zur Verfügung.
+
+- **Business-Kritikalität und MTD-Schwellenwerte**: stabile Codes, Bezeichnungen, Beschreibungen, eindeutige Ränge und ein maximales MTD in Minuten; die letzte aktive Stufe ist unbegrenzt.
+- **Zulässige MTD-Dauern in Minuten**: Auswahlmöglichkeiten im Anwendungseditor. Der Editor bietet keine freie MTD-Eingabe; ein historischer Wert außerhalb der zulässigen Dauern bleibt lesbar und kann gelöscht werden. Neue oder geänderte Werte über API/CSV/Plaid müssen eine konfigurierte zulässige Dauer verwenden; ein unveränderter historischer Wert bleibt gültig. Die Liste muss mindestens einen unterschiedlichen positiven ganzzahligen Minutenwert enthalten. Das API-Feld bleibt `businessMtdPresets`; die zulässigen Dauern ändern die Klassifizierungsmethode nicht.
+- **Cyber-Kritikalität**: unabhängige Folgenstufen mit expliziten Rängen.
+- **Datenvertraulichkeit**: Datenklassenkatalog mit Beschreibungen und Rängen.
+- **Wiederherstellungswellen**: geordnete Wiederherstellungsstufen; die Reihenfolge ist weder Schweregrad noch Zeitangabe.
+
+Codes sind stabile Kennungen. Ein verwendeter Wert kann als veraltet markiert werden: Er bleibt bei bestehenden Anwendungen sichtbar, kann aber neuen Datensätzen nicht zugewiesen werden. Bezeichnungen und Beschreibungen können geändert werden.
+
+Business-Änderungen verwenden **Auswirkungen anzeigen** vor **Änderungen veröffentlichen**. Die Vorschau zeigt betroffene Anwendungen und Übergänge. Die Veröffentlichung erfordert die aktuelle Einstellungsrevision; bei einer parallelen Änderung muss neu geladen werden. **Zurücksetzen** folgt denselben Schutzmechanismen und entfernt verwendete Codes aus Anwendungen, Schnittstellen oder Verbindungen nicht stillschweigend.
+
+Die Business-Stufen liefern auch die operative Kritikalität für Schnittstellen und Verbindungen. MTD-Schwellenwerte gelten nur für Anwendungen; unvollständige Ableitungen werden gekennzeichnet und Nullwerte nicht als niedrig behandelt.
+
 ### Integrationsmuster
 
 Integrationsmuster für Schnittstellenabschnitte (z. B. REST API, Datei-Batch, Queue, DB-Staging).
@@ -146,6 +162,32 @@ Gemeinsame Lebenszyklus-Zustände für Anwendungen, App-Instanzen, Schnittstelle
 - **Neue Werte** werden sofort in den relevanten Dropdowns verfügbar und serverseitig validiert.
 
 ---
+
+## Schnellreferenz: Welche Liste speist welches Feld?
+
+| Liste | Verwendung |
+|------|------------|
+| **Zugriffsmethoden** | Anwendungen (Reiter Technik und Support → Zugriffsmethoden) |
+| **Anwendungskategorien** | Anwendungen (Kategorie) |
+| **Cloud-Anbieter** | Assets (Anbieter), Standorte (Cloud-Anbieter) |
+| **Verbindungstypen** | Verbindungen (Verbindungstyp) |
+| **Datenklassen** | Anwendungen (Compliance), Schnittstellen (Übersicht), Anwendungsliste |
+| **Domänen** | Assets (Technik → Domäne, FQDN) |
+| **Entitäten** | Verbindungen (Quell-/Zielentität), Verbindungsübersicht (Graph-Ebene) |
+| **Hosting-Typen** | Standorte (Übersicht) |
+| **Integrationsmuster** | Schnittstellenabschnitte (Muster) |
+| **Schnittstellen-Authentifizierungsmodi** | Schnittstellenbindungen (Authentifizierungsmodus) |
+| **Schnittstellen-Datenkategorien** | Schnittstellen (Datenkategorie) |
+| **Schnittstellen-Datenformate** | Schnittstellenabschnitte (Format) |
+| **Schnittstellen-Protokolle** | Schnittstellenbindungen (Protokoll) |
+| **Schnittstellen-Auslösertypen** | Schnittstellenabschnitte (Auslöser) |
+| **IP-Adresstypen** | Assets (Technik → IP-Adressen → Typ) |
+| **Lebenszyklus-Status** | Anwendungen, App-Instanzen, Schnittstellen, Bindungen, Assets |
+| **Netzwerkzonen** | Subnetze (Netzwerkzone), Assets (automatisch aus Subnetz) |
+| **Betriebssysteme** | Assets (Technik) |
+| **Subnetze** | Assets (Technik → IP-Adressen → Subnetzauswahl) |
+| **Serverrollen** | Anwendungen → Reiter Server (Rolle beim Verknüpfen), Verbindungsübersicht (Graph-Ebene) |
+| **Asset-Typen** | Assets (Übersicht → Typ) |
 
 ## Tipps
 

@@ -432,6 +432,7 @@ export class InterfacesListService extends InterfacesBaseService {
          i.name AS interface_name,
          i.lifecycle AS interface_lifecycle,
          i.criticality AS interface_criticality,
+         i.classification_incomplete,
          i.data_category,
          i.contains_pii,
          i.integration_route_type,
@@ -464,7 +465,8 @@ export class InterfacesListService extends InterfacesBaseService {
       interface_reference: string;
       name: string;
       lifecycle: string;
-      criticality: string;
+      criticality: string | null;
+      classification_incomplete: boolean;
       data_category: string;
       contains_pii: boolean;
       integration_route_type: RouteType;
@@ -488,6 +490,7 @@ export class InterfacesListService extends InterfacesBaseService {
           name: row.interface_name,
           lifecycle: row.interface_lifecycle,
           criticality: row.interface_criticality,
+          classification_incomplete: !!row.classification_incomplete,
           data_category: row.data_category,
           contains_pii: !!row.contains_pii,
           integration_route_type: row.integration_route_type as RouteType,
@@ -574,6 +577,7 @@ export class InterfacesListService extends InterfacesBaseService {
       target_application_id: acc.target_application_id,
       lifecycle: acc.lifecycle,
       criticality: acc.criticality,
+      classification_incomplete: acc.classification_incomplete,
       data_category: acc.data_category,
       contains_pii: acc.contains_pii,
       integration_route_type: acc.integration_route_type,
@@ -596,7 +600,7 @@ export class InterfacesListService extends InterfacesBaseService {
       id: string;
       name: string;
       lifecycle: string;
-      criticality: string;
+      criticality: string | null;
       external_facing: boolean;
       is_middleware: boolean;
       in_degree: number;

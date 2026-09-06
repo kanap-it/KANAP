@@ -9,7 +9,10 @@
     "SSO": { "fr": "SSO", "de": "SSO", "es": "SSO", "note": "Single Sign-On" },
     "MFA": { "fr": "MFA", "de": "MFA", "es": "MFA", "note": "Multi-Factor Authentication" },
     "PII": { "fr": "PII", "de": "PII", "es": "PII", "note": "Personally Identifiable Information" },
-    "CoA": { "fr": "CoA", "de": "CoA", "es": "CoA", "note": "Chart of Accounts (abbreviation)" }
+    "CoA": { "fr": "CoA", "de": "CoA", "es": "CoA", "note": "Chart of Accounts (abbreviation)" },
+    "MTD": { "fr": "DMIA", "de": "MTD", "es": "MTD", "note": "Maximum tolerable downtime / durée maximale tolérable d’interruption" },
+    "RTO": { "fr": "RTO", "de": "RTO", "es": "RTO", "note": "Recovery time objective" },
+    "RPO": { "fr": "RPO", "de": "RPO", "es": "RPO", "note": "Recovery point objective" }
   },
 
   "entities": {

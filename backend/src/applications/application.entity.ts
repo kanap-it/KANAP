@@ -1,3 +1,4 @@
+import { ClassificationReview } from './services/application-classification';
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('applications')
@@ -5,6 +6,8 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 @Index(['tenant_id', 'lifecycle'])
 @Index(['tenant_id', 'criticality'])
 @Index(['tenant_id', 'category'])
+@Index(['tenant_id', 'cyber_criticality'])
+@Index(['tenant_id', 'recovery_wave'])
 export class Application {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -54,8 +57,38 @@ export class Application {
   @Column('text', { default: 'prod' })
   environment!: 'prod' | 'dev' | 'test' | 'qa' | 'pre_prod' | 'sandbox';
 
-  @Column('text', { default: 'medium' })
-  criticality!: 'business_critical' | 'high' | 'medium' | 'low';
+  @Column('text', { nullable: true })
+  criticality!: string | null;
+
+  @Column('integer', { nullable: true })
+  business_mtd_minutes!: number | null;
+
+  @Column('text', { nullable: true })
+  legacy_criticality!: string | null;
+
+  @Column('text', { nullable: true })
+  cyber_criticality!: string | null;
+
+  @Column('text', { nullable: true })
+  recovery_wave!: string | null;
+
+  @Column('integer', { nullable: true })
+  rto_minutes!: number | null;
+
+  @Column('integer', { nullable: true })
+  rpo_minutes!: number | null;
+
+  @Column('text', { nullable: true })
+  classification_justification!: string | null;
+
+  @Column('jsonb', { nullable: true })
+  classification_review!: ClassificationReview | null;
+
+  @Column('text', { default: 'unset' })
+  business_criticality_origin!: 'unset' | 'legacy' | 'derived';
+
+  @Column('integer', { default: 0 })
+  classification_revision!: number;
 
   @Column('text', { nullable: true })
   data_class!: string | null;

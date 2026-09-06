@@ -6,7 +6,6 @@ export {
   LegInput,
   ENVIRONMENTS,
   EnvironmentValue,
-  CONNECTION_CRITICALITIES,
 } from './connections-base.service';
 
 // Specialized sub-services

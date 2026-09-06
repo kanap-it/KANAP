@@ -1,4 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { ApplicationsListService } from './services/applications-list.service';
+import { catalogFromMetadata } from '../it-ops-settings/classification-catalog';
+import { classificationReadState } from './services/application-classification';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager, In } from 'typeorm';
 import { Application } from './application.entity';
@@ -34,6 +37,7 @@ export class ApplicationsCsvService {
     private readonly importSvc: CsvImportService,
     private readonly resolver: CsvResolverService,
     private readonly audit: AuditService,
+    private readonly listService: ApplicationsListService,
   ) {}
 
   /**
@@ -48,6 +52,7 @@ export class ApplicationsCsvService {
     lifecycle?: string;
     criticality?: string;
     status?: string;
+    query?: Record<string, unknown>;
   }): Promise<CsvExportResult> {
     const { manager, tenantId, scope, fields, preset, lifecycle, criticality, status } = opts;
 
@@ -82,7 +87,15 @@ export class ApplicationsCsvService {
 
     queryBuilder = queryBuilder.orderBy('app.name', 'ASC');
 
+    const filters = typeof opts.query?.filters === 'string' ? JSON.parse(opts.query.filters) : { ...(opts.query?.filters as any || {}) };
+    for (const [field, value] of Object.entries({ lifecycle, criticality, status })) if (value) filters[field] = { filterType: 'set', values: [value] };
+    const matching = await this.listService.listIds({ ...opts.query, filters: JSON.stringify(filters), __classificationExport: true }, { manager, tenantId });
+    if (!matching.ids.length) queryBuilder.andWhere('FALSE');
+    else queryBuilder.andWhere('app.id = ANY(:ids)', { ids: matching.ids });
     const applications = await queryBuilder.getMany();
+    const tenants = await manager.query('SELECT metadata FROM tenants WHERE id = $1', [tenantId]);
+    const catalog = catalogFromMetadata(tenants[0]?.metadata?.it_ops);
+    for (const app of applications) Object.assign(app, classificationReadState(app, catalog));
 
     // Load related data for export
     if (applications.length > 0) {
@@ -181,6 +194,15 @@ export class ApplicationsCsvService {
       userId?: string | null;
     },
   ): Promise<CsvImportResult> {
+    return opts.manager.transaction(async (manager) => {
+      await manager.query('SELECT id FROM tenants WHERE id = $1 FOR UPDATE', [opts.tenantId]);
+      const result = await this.importLocked(file, params, { ...opts, manager });
+      if (!params.dryRun && !result.ok && result.errors.some((error) => error.row === 0)) throw new BadRequestException(result);
+      return result;
+    });
+  }
+
+  private async importLocked(file: Express.Multer.File, params: CsvImportParams, opts: { manager: EntityManager; tenantId: string; userId?: string | null }): Promise<CsvImportResult> {
     // First run the base import
     const result = await this.importSvc.import(applicationCsvConfig, file, params, opts);
 
@@ -223,6 +245,7 @@ export class ApplicationsCsvService {
     // Process each row
     for (const row of rows) {
       const appName = (row['name'] || '').trim();
+      if (!Object.keys(row).some((key) => /^(business|it)_owner_email_/.test(key))) continue;
       if (!appName) continue;
 
       // Find application
@@ -339,18 +362,22 @@ export class ApplicationsCsvService {
       const residencyRepo = manager.getRepository(ApplicationDataResidency);
       const beforeRows = await residencyRepo.find({ where: { application_id: appId } as any });
 
+      const beforeState = [...new Set(beforeRows.map((row) => row.country_iso.trim().toUpperCase()))].sort();
+      const requestedState = [...new Set(codes)].sort();
+      if (JSON.stringify(beforeState) === JSON.stringify(requestedState)) continue;
+
       // Clear existing residency
       await manager.query(`DELETE FROM application_data_residency WHERE application_id = $1`, [appId]);
 
       // Insert new residency
       const afterRows = await residencyRepo.save(
-        [...new Set(codes)].map((iso) => residencyRepo.create({
+        requestedState.map((iso) => residencyRepo.create({
           application_id: appId,
+          tenant_id: tenantId,
           country_iso: iso,
         })),
       );
 
-      const beforeState = beforeRows.map((r) => r.country_iso).sort();
       const afterState = afterRows.map((r) => r.country_iso).sort();
       if (JSON.stringify(beforeState) !== JSON.stringify(afterState)) {
         await this.audit.log(

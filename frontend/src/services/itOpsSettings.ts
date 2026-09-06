@@ -9,6 +9,36 @@ export type ItOpsEnumOption = {
   localId?: string;
 };
 
+export type ClassificationLevel = ItOpsEnumOption & {
+  description: string;
+  rank: number;
+};
+
+export type BusinessCriticalityLevel = ClassificationLevel & {
+  maxMtdMinutes: number | null;
+};
+
+export type RecoveryWave = Omit<ClassificationLevel, 'rank'> & {
+  order: number;
+};
+
+export type ClassificationVersions = {
+  business: number;
+  cyber: number;
+  confidentiality: number;
+  recovery: number;
+};
+
+export type ApplicationClassificationCatalog = {
+  businessCriticalityLevels: BusinessCriticalityLevel[];
+  businessMtdPresets: number[];
+  cyberCriticalityLevels: ClassificationLevel[];
+  dataClasses: ClassificationLevel[];
+  recoveryWaves: RecoveryWave[];
+  classificationVersions: ClassificationVersions;
+  classificationSettingsRevision: number;
+};
+
 export type OperatingSystemOption = ItOpsEnumOption & {
   standardSupportEnd?: string; // YYYY-MM-DD
   extendedSupportEnd?: string; // YYYY-MM-DD
@@ -76,6 +106,23 @@ export type ItOpsSettings = {
   ipAddressTypes: ItOpsEnumOption[];
   accessMethods: ItOpsEnumOption[];
   incidentCategories: ItOpsEnumOption[];
+  businessCriticalityLevels: BusinessCriticalityLevel[];
+  businessMtdPresets: number[];
+  cyberCriticalityLevels: ClassificationLevel[];
+  recoveryWaves: RecoveryWave[];
+  classificationVersions: ClassificationVersions;
+  classificationSettingsRevision: number;
+};
+
+export type ClassificationSettingsPatch = Pick<ApplicationClassificationCatalog,
+  'businessCriticalityLevels' | 'businessMtdPresets' | 'cyberCriticalityLevels' | 'dataClasses' | 'recoveryWaves'
+> & { expectedClassificationSettingsRevision: number };
+
+export type ClassificationPreview = {
+  affectedApplications: number;
+  transitions: Array<{ from: string | null; to: string | null; count: number }>;
+  classificationVersions: ClassificationVersions;
+  classificationSettingsRevision: number;
 };
 
 export async function fetchItOpsSettings(): Promise<ItOpsSettings> {
@@ -88,7 +135,18 @@ export async function updateItOpsSettings(payload: Partial<ItOpsSettings>): Prom
   return res.data as ItOpsSettings;
 }
 
+export async function fetchApplicationClassificationCatalog(): Promise<ApplicationClassificationCatalog> {
+  const res = await api.get('/applications/classification-catalog');
+  return res.data as ApplicationClassificationCatalog;
+}
+
+export async function previewClassificationSettings(payload: ClassificationSettingsPatch): Promise<ClassificationPreview> {
+  const res = await api.post('/it-ops/settings/classification-preview', payload);
+  return res.data as ClassificationPreview;
+}
+
 export async function resetItOpsSettingsToDefaults(): Promise<ItOpsSettings> {
-  const res = await api.post('/it-ops/settings/reset');
+  const current = await fetchItOpsSettings();
+  const res = await api.post('/it-ops/settings/reset', { expectedClassificationSettingsRevision: current.classificationSettingsRevision });
   return res.data as ItOpsSettings;
 }

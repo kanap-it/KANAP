@@ -85,14 +85,14 @@ function createInitialForm(): Partial<InterfaceDetail> {
     integration_route_type: 'direct',
     lifecycle: 'active',
     overview_notes: null,
-    criticality: 'medium',
+    criticality: '',
     impact_of_failure: null,
     business_objects: null,
     main_use_cases: null,
     functional_rules: null,
     core_transformations_summary: null,
     error_handling_summary: null,
-    data_class: 'internal',
+    data_class: '',
     contains_pii: false,
     pii_description: null,
     typical_data: null,
@@ -123,14 +123,14 @@ function buildCreatePayload(current: Partial<InterfaceDetail>) {
     integration_route_type: current.integration_route_type || 'direct',
     lifecycle: current.lifecycle || 'active',
     overview_notes: current.overview_notes ?? null,
-    criticality: current.criticality || 'medium',
+    criticality: current.criticality || null,
     impact_of_failure: current.impact_of_failure ?? null,
     business_objects: current.business_objects ?? null,
     main_use_cases: current.main_use_cases ?? null,
     functional_rules: current.functional_rules ?? null,
     core_transformations_summary: current.core_transformations_summary ?? null,
     error_handling_summary: current.error_handling_summary ?? null,
-    data_class: current.data_class || 'internal',
+    data_class: current.data_class || null,
     contains_pii: !!current.contains_pii,
     pii_description: current.pii_description ?? null,
     typical_data: current.typical_data ?? null,
@@ -704,15 +704,16 @@ export default function InterfaceWorkspacePage() {
   const metadata = !isCreate && current ? (
     <InterfaceMetadataBar
       lifecycle={current.lifecycle || 'active'}
-      criticality={current.criticality || 'medium'}
+      criticality={current.criticality || ''}
+      classificationIncomplete={!!current.classification_incomplete}
       sourceName={current.source_application_name}
       targetName={current.target_application_name}
       routeType={current.integration_route_type || 'direct'}
-      dataClass={current.data_class || 'internal'}
+      dataClass={current.data_class || ''}
       containsPii={!!current.contains_pii}
       disabled={!canManage}
       onLifecycleChange={(value) => { void persistPatch({ lifecycle: value }); }}
-      onCriticalityChange={(value) => { void persistPatch({ criticality: value as InterfaceDetail['criticality'] }); }}
+      onCriticalityChange={(value) => { void persistPatch({ criticality: (value || null) as InterfaceDetail['criticality'] }); }}
       onDataClassChange={(value) => { void persistPatch({ data_class: value }); }}
       onFlowClick={() => handleTabChange('flow')}
     />

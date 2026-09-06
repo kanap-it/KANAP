@@ -29,6 +29,14 @@ IT Landscape Settings let each tenant configure the enum-like values used across
 
 These settings are stored in `tenants.metadata.it_ops` and drive both frontend dropdowns and backend validation. They are tenant-scoped and respect the existing RLS and tenant-deletion patterns.
 
+### Application classification catalog (V1)
+
+The same tenant metadata also contains `businessCriticalityLevels`, `businessMtdPresets`, `cyberCriticalityLevels`, `dataClasses`, `recoveryWaves`, `classificationVersions` (`business`, `cyber`, `confidentiality`, `recovery`), and `classificationSettingsRevision`. Level entries contain `code`, `label`, `description`, `rank`, and `deprecated`; business entries add nullable `maxMtdMinutes`, while recovery waves use `order`.
+
+`GET /applications/classification-catalog` exposes this catalog to application readers. IT Ops settings reads include it. PATCH publication accepts `expectedClassificationSettingsRevision`; `POST /it-ops/settings/classification-preview` returns affected application count, transitions, versions, and the new settings revision. Business publication previews and recalculates applications with an MTD in a tenant transaction. Existing values without an MTD remain legacy; manual decisions are not rewritten by catalog changes. Used codes cannot be silently removed, and deprecated options remain readable but cannot be newly assigned.
+
+Application classification writes may carry expected application revision and catalog versions for concurrency. The UI, API, CSV, and Plaid require a configured MTD preset for a new or changed MTD; existing non-preset durations remain valid when unchanged, including catalog recalculation. RTO/RPO remain free integer-minute fields. A review is an explicit action requiring MTD/business, cyber, confidentiality, recovery wave, and justification; it stores server actor/date and the matching revision/versions. Recovery references use the existing Knowledge section and existing Relations links; no duplicate recovery-link store is created.
+
 ## Data Model
 
 Settings are kept inside `Tenant.metadata` rather than a separate table:

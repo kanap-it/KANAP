@@ -41,13 +41,14 @@ Rendez-vous dans **Cartographie SI > Applications** pour voir votre liste. Cliqu
 **Champs obligatoires** :
 - **Nom** : Un nom reconnaissable pour l'application ou le service
 - **Catégorie** : L'objectif principal de cette application (voir les catégories ci-dessus)
-- **Criticité** : Importance pour votre métier (Critique métier, Haute, Moyenne, Basse)
 - **Cycle de vie** : Statut actuel (Actif, Proposé, Obsolète, Retiré, ou tout code personnalisé défini dans les Paramètres)
 
 **Fortement recommandé** :
 - **Fournisseur** : Le fournisseur du logiciel (lié à vos données de référence Fournisseurs)
 - **Éditeur** : L'éditeur du logiciel (ex. : Microsoft, SAP, Oracle)
 - **Description** : Ce que fait cette application
+
+Les champs de classification sont facultatifs à la création. Pour la **DMIA**, l'éditeur et les nouvelles modifications API/CSV utilisent les durées autorisées configurées par le tenant ; l'interface ne permet pas la saisie libre. Une durée historique hors durées autorisées reste visible mais indisponible comme nouvelle option et peut être effacée. Elle reste valide si elle n'est pas modifiée, y compris lors d'un reclassement du catalogue. Les autres valeurs restent non définies tant que vous ne les choisissez pas.
 
 **Optionnel mais utile** :
 - **Version** : Numéro de version actuel (texte libre, ex. : « 4.2.1 », « 2023 », « Q1 2024 »)
@@ -84,7 +85,7 @@ La grille Applications offre une vue complète de votre portefeuille applicatif.
 - **Catégorie** : L'objectif principal de l'application
 - **Environnements** : Pastilles colorées montrant les environnements actifs (Prod, Pré-prod, QA, Test, Dev, Sandbox). Survolez pour voir l'URL de base et le cycle de vie.
 - **Cycle de vie** : Statut actuel
-- **Criticité** : Niveau d'importance métier
+- **Criticité métier** : Niveau calculé à partir de la DMIA
 - **Éditeur** : Éditeur du logiciel
 - **Utilisateurs dérivés (A)** : Nombre d'utilisateurs calculé pour l'année en cours (basé sur l'audience définie dans le tiroir des propriétés)
 - **Créé** : Quand l'enregistrement a été créé
@@ -127,7 +128,7 @@ L'en-tête affiche :
 - **Nom de l'application** (modifiable sur place)
 - **Référence** : court identifiant copiable
 - Pastille **Cycle de vie** : cliquez pour modifier
-- Pastille **Criticité** : cliquez pour modifier
+- Pastille **Criticité métier** : affiche le niveau calculé et ouvre le contrôle DMIA
 - Pastille **Version** (si une version est définie) : cliquez pour copier
 - Date de **Mise en production**
 - **Envoyer le lien** : copier un lien partageable vers cet espace de travail
@@ -235,7 +236,7 @@ L'onglet Exploitation capture comment les utilisateurs accèdent à l'applicatio
 L'onglet Conformité capture les informations de protection des données et de réglementation.
 
 **Ce que vous pouvez modifier** :
-- **Classification données** (obligatoire) : niveau de sensibilité (Public, Interne, Confidentiel, Restreint, ou tout code personnalisé défini dans les Paramètres)
+- **Classification données** : niveau de confidentialité (Public, Interne, Confidentiel, Restreint, ou tout code personnalisé défini dans les Paramètres)
 - **Dernier test PRA** : date du test de reprise d'activité le plus récent
 - **Contient des PII** : si l'application stocke des données personnelles identifiables
 - **Résidence des données** : pays où les données sont stockées (multi-sélection, codes ISO + noms)
@@ -243,6 +244,26 @@ L'onglet Conformité capture les informations de protection des données et de r
 **Conseil** : Les classifications de données sont configurables dans **Cartographie SI > Paramètres**. Personnalisez-les pour correspondre à la politique de classification des données de votre organisation.
 
 ---
+
+### Classification et continuité
+
+La zone Conformité enregistre également les décisions de continuité et de classification de l'application. Les valeurs absentes apparaissent comme **Non défini** ; KANAP ne remplace pas une valeur manquante par un niveau par défaut.
+
+**Criticité** :
+- La **DMIA (durée maximale tolérable d'interruption)** se choisit parmi les durées autorisées configurées par le tenant. Toute nouvelle valeur ou modification doit utiliser l'une de ces durées. La **Criticité métier**, en lecture seule, est calculée à partir des seuils du tenant. Une durée historique hors durées autorisées reste affichée comme indisponible à la nouvelle sélection et peut être effacée ; elle reste valide si elle n'est pas modifiée.
+- La **Criticité cyber** est choisie indépendamment. Le menu affiche la description de chaque niveau du tenant ; retenez le niveau correspondant aux conséquences plausibles les plus élevées. Attention à ne pas confondre la criticité cyber avec le niveau de risque !
+- La **Justification** décrit les décisions métier, cyber et de reprise.
+
+**Données et reprise** :
+- La **Confidentialité des données** utilise le catalogue des classes du tenant.
+- La **Vague de reprise** indique l'ordre de restauration et ne représente ni une durée ni une gravité.
+- Le **RTO** est l'objectif de délai de reprise. Le **RPO** est la perte de données acceptable et peut être égal à zéro. Si le RTO est supérieur ou égal à la DMIA, KANAP affiche un avertissement mais conserve les deux valeurs.
+- Le **Dernier test de reprise** contient la date du test le plus récent. Un lien ouvert depuis cette zone utilise l'unique section **Base de connaissances** de la Vue d'ensemble et ne crée pas de doublon. Les anciennes URL restent accessibles dans Relations.
+
+**Revue** :
+- **À compléter** signifie qu'une des quatre dimensions (DMIA, cyber, confidentialité, vague) ou la justification manque.
+- **À revoir** indique une modification de classification, de référence pertinente ou de version du catalogue. La cause est traduite dans l'interface ; la date et le nom du dernier relecteur sont affichés.
+- **Revu** est défini uniquement par **Marquer comme revu**, lorsque les quatre dimensions et la justification sont présentes. Le bouton est désactivé lorsque l'application est déjà revue. L'action enregistre la révision, les versions du catalogue, l'acteur et la date serveur. Un changement de nom ou d'éditeur ne l'invalide pas.
 
 ### Relations
 
@@ -338,7 +359,7 @@ Utilisez cela lorsque vous souhaitez créer un duplicata indépendant d'une appl
 3. Le système crée une copie avec « (copie) » ajouté au nom
 4. Vous êtes redirigé vers la nouvelle application pour effectuer des modifications
 
-**Ce qui est copié** : Tous les champs principaux (sauf la date du dernier test PRA), responsables, sociétés, départements, suites, postes OPEX/CAPEX, contrats, liens, résidence des données et contacts de support.
+**Ce qui est copié** : Tous les champs principaux (sauf la date du dernier test PRA), y compris les valeurs de classification et de continuité, responsables, sociétés, départements, suites, postes OPEX/CAPEX, contrats, liens, résidence des données et contacts de support. La revue de la copie est réinitialisée.
 
 **Ce qui N'est PAS copié** : Déploiements, interfaces, assignations d'actifs, pièces jointes, champs de version (version, date de mise en production, fin de support).
 
@@ -419,7 +440,7 @@ Depuis la liste des Applications :
 2. **Choisissez les paramètres d'import** :
    - **Mode** :
      - `Enrichir` (par défaut) : Les cellules vides conservent les valeurs existantes -- ne mettez à jour que ce que vous spécifiez
-     - `Remplacer` : Les cellules vides effacent les valeurs existantes -- remplacement complet de tous les champs
+     - `Remplacer` : Les champs fournis sont mis à jour ; les cellules de classification vides conservent la valeur existante et `__CLEAR__` l'efface explicitement
    - **Opération** :
      - `Upsert` (par défaut) : Créer de nouvelles applications ou mettre à jour les existantes
      - `Mise à jour uniquement` : Ne modifier que les applications existantes, ignorer les nouvelles
@@ -441,7 +462,7 @@ Depuis la liste des Applications :
 | `category` | Objectif principal | Non | Accepte un code ou un libellé depuis les Paramètres |
 | `supplier_name` | Nom du fournisseur | Non | Doit correspondre à un fournisseur existant |
 | `editor` | Éditeur du logiciel | Non | Texte libre (ex. : Microsoft, SAP) |
-| `criticality` | Importance métier | Non | `business_critical`, `high`, `medium`, `low` |
+| `criticality` | Niveau métier calculé | Résultat/export | Calculé à partir de `business_mtd_minutes` |
 | `lifecycle` | Statut actuel | Non | Accepte un code ou un libellé depuis les Paramètres |
 | `is_suite` | Peut avoir des apps enfants | Non | `true` ou `false` |
 | `status` | Activé/désactivé | Non | `enabled` ou `disabled` |
@@ -474,6 +495,18 @@ Depuis la liste des Applications :
 | `last_dr_test` | Date du dernier test PRA | Format de date : YYYY-MM-DD |
 | `contains_pii` | Stocke des données personnelles | `true` ou `false` |
 | `data_residency` | Pays de stockage des données | Export uniquement (codes ISO) |
+
+**Champs de classification** :
+
+| Colonne CSV | Description | Notes |
+|------------|-------------|-------|
+| `business_mtd_minutes` | DMIA | Une nouvelle valeur ou modification doit utiliser un raccourci configuré ; calcule la `criticality` exportée |
+| `cyber_criticality` | Niveau de conséquence cyber | Code ou libellé non ambigu du catalogue |
+| `recovery_wave` | Ordre de reprise | Code ou libellé non ambigu du catalogue |
+| `rto_minutes` / `rpo_minutes` | Objectifs de reprise | Minutes entières ; le RPO peut être zéro |
+| `classification_justification` | Justification | Texte libre |
+
+`criticality` est un résultat calculé exporté et ne permet pas de définir un niveau. Une cellule de classification vide conserve la valeur existante dans les modes Enrichir et Remplacer ; utilisez `__CLEAR__` pour effacer une classification.
 
 **Champs Responsables** :
 
@@ -509,7 +542,7 @@ Le système normalise automatiquement les valeurs lors de l'import, donc `Métie
 
 Les applications sont identifiées par **nom** (insensible à la casse). Lorsqu'une correspondance est trouvée :
 - En mode `Enrichir` : Seules les valeurs CSV non vides mettent à jour l'application
-- En mode `Remplacer` : Tous les champs sont mis à jour, les valeurs vides effacent les données existantes
+- En mode `Remplacer` : les champs fournis sont mis à jour ; les cellules de classification vides conservent la valeur existante et `__CLEAR__` l'efface explicitement
 
 Si vous incluez la colonne `id` avec un UUID valide, la correspondance utilise d'abord l'ID, puis se rabat sur le nom.
 

@@ -11,16 +11,6 @@ export const IntegrationRouteTypes = ['direct', 'via_middleware'] as const;
 export const InterfaceLifecycles = ['proposed', 'planned', 'active', 'deprecated', 'retired'] as const;
 
 /**
- * Valid criticality levels.
- */
-export const CriticalityLevels = ['business_critical', 'high', 'medium', 'low'] as const;
-
-/**
- * Valid data classification levels.
- */
-export const DataClassifications = ['public', 'internal', 'confidential', 'restricted'] as const;
-
-/**
  * Zod schema for creating an interface.
  */
 export const CreateInterfaceSchema = z.object({
@@ -55,7 +45,7 @@ export const CreateInterfaceSchema = z.object({
   overview_notes: z.string().nullable().optional(),
 
   /** Criticality level */
-  criticality: z.enum(CriticalityLevels).optional().default('medium'),
+  criticality: z.string().trim().min(1).nullable().optional(),
 
   /** Impact of failure description (optional) */
   impact_of_failure: z.string().nullable().optional(),
@@ -76,7 +66,7 @@ export const CreateInterfaceSchema = z.object({
   error_handling_summary: z.string().nullable().optional(),
 
   /** Data classification level */
-  data_class: z.string().optional().default('internal'),
+  data_class: z.string().trim().min(1).nullable().optional(),
 
   /** Contains personally identifiable information */
   contains_pii: z.boolean().optional().default(false),

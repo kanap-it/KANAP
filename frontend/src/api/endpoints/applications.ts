@@ -11,7 +11,7 @@ export interface Application {
   supplier_id: string | null;
   editor: string | null;
   lifecycle: string;
-  criticality: string;
+  criticality: string | null;
   environment?: string;
   etl_enabled?: boolean;
   derived_total_users?: number;
@@ -23,7 +23,7 @@ export interface Application {
   sso_enabled?: boolean;
   mfa_supported?: boolean;
   contains_pii?: boolean;
-  data_class?: 'public' | 'internal' | 'confidential' | 'restricted';
+  data_class?: string | null;
   licensing?: string | null;
   notes?: string | null;
   support_notes?: string | null;
@@ -83,7 +83,12 @@ export interface CreateApplicationInput {
   supplier_id?: string | null;
   editor?: string | null;
   lifecycle?: string;
-  criticality?: string;
+  business_mtd_minutes?: number | null;
+  cyber_criticality?: string | null;
+  recovery_wave?: string | null;
+  rto_minutes?: number | null;
+  rpo_minutes?: number | null;
+  classification_justification?: string | null;
   environment?: string;
   description?: string | null;
   hosting_model?: 'on_premise' | 'saas' | 'public_cloud' | 'private_cloud';
@@ -93,7 +98,7 @@ export interface CreateApplicationInput {
   sso_enabled?: boolean;
   mfa_supported?: boolean;
   contains_pii?: boolean;
-  data_class?: 'public' | 'internal' | 'confidential' | 'restricted';
+  data_class?: string | null;
   licensing?: string | null;
   notes?: string | null;
   support_notes?: string | null;

@@ -30,9 +30,11 @@ export class ApplicationsResidencyService extends ApplicationsBaseService {
     const repo = mg.getRepository(ApplicationDataResidency);
     const existing = await repo.find({ where: { application_id: resolvedAppId } as any });
     const beforeState = existing.map((r) => r.country_iso).sort();
-    if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
+
     const clean = (countryCodes || []).map((c) => String(c || '').trim().toUpperCase()).filter((c) => !!c && c.length === 2);
     const unique = Array.from(new Set(clean));
+    if (JSON.stringify(beforeState) === JSON.stringify([...unique].sort())) return existing;
+    if (existing.length) await repo.delete({ id: In(existing.map((x) => x.id)) as any });
     let afterRows: ApplicationDataResidency[] = [];
     if (unique.length) {
       const rows = unique.map((iso) => repo.create({ application_id: resolvedAppId, country_iso: iso }));

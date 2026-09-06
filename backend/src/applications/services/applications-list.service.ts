@@ -1,3 +1,6 @@
+import { classificationSqlExpressions } from '../../it-ops-settings/classification-sql';
+import { catalogFromMetadata } from '../../it-ops-settings/classification-catalog';
+import { classificationReadState } from './application-classification';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, Repository, SelectQueryBuilder } from 'typeorm';
@@ -16,6 +19,14 @@ import {
   normalizeAgFilterModel,
 } from '../../common/ag-grid-filtering';
 import { ApplicationsBaseService, ServiceOpts } from './applications-base.service';
+
+const classificationSql = classificationSqlExpressions('a');
+const classificationTargets: Record<string, FilterTargetConfig> = {
+  ...Object.fromEntries(['business_mtd_minutes', 'rto_minutes', 'rpo_minutes'].map((field) => [field, { expression: `a.${field}`, numericExpression: `a.${field}`, dataType: 'number' as const }])),
+  ...Object.fromEntries(['cyber_criticality', 'recovery_wave', 'business_criticality_origin', 'classification_justification'].map((field) => [field, { expression: `a.${field}`, dataType: 'string' as const }])),
+  ...Object.fromEntries(Object.entries(classificationSql).map(([field, expression]) => [field, { expression, numericExpression: expression, dataType: field.includes('rank') || field.endsWith('_order') ? 'number' as const : 'string' as const }])),
+};
+const classificationSort: Record<string, string> = { ...classificationSql, criticality: classificationSql.criticality_rank, cyber_criticality: classificationSql.cyber_criticality_rank, data_class: classificationSql.data_class_rank, recovery_wave: classificationSql.recovery_wave_order };
 
 type ParamNameFactory = () => string;
 type SetFilterModel = { filterType: 'set'; values: any[] };
@@ -319,6 +330,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     // Define filter targets for AG Grid model -> SQL translation
     type Target = FilterTargetConfig;
     const targets: Record<string, Target> = {
+      ...classificationTargets,
       id: { expression: 'a.id', dataType: 'string' },
       sequential_id: { expression: 'a.sequential_id', dataType: 'string' },
       name: { expression: 'a.name', dataType: 'string' },
@@ -481,13 +493,17 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     // Sorting
     const appFields = new Set([
+      ...Object.keys(classificationTargets),
       'id', 'name', 'supplier_id', 'category', 'editor', 'environment', 'lifecycle', 'criticality',
       'data_class', 'hosting_model', 'external_facing', 'is_suite', 'last_dr_test', 'sso_enabled',
       'mfa_supported', 'etl_enabled', 'contains_pii', 'users_mode', 'users_year', 'users_override',
       'status', 'disabled_at', 'created_at', 'updated_at',
     ]);
     const direction: 'ASC' | 'DESC' = (String(sort.direction).toUpperCase() === 'ASC' ? 'ASC' : 'DESC');
-    if (sort.field === 'supplier_name' && needsSupplierJoin) {
+    if (classificationSort[sort.field]) {
+      qb.addSelect(classificationSort[sort.field], 'classification_sort_value');
+      qb.orderBy('classification_sort_value', direction, 'NULLS LAST');
+    } else if (sort.field === 'supplier_name' && needsSupplierJoin) {
       qb.addOrderBy('s.name', direction);
     } else if (include.has('counts') && sort.field === 'spend_count') {
       qb.addOrderBy(`(SELECT COUNT(*) FROM application_spend_items l WHERE l.application_id = a.id AND l.tenant_id = a.tenant_id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
@@ -500,10 +516,11 @@ export class ApplicationsListService extends ApplicationsBaseService {
     } else if (include.has('structure') && sort.field === 'components_count') {
       qb.addOrderBy(`(SELECT COUNT(*) FROM application_suites l WHERE l.suite_id = a.id AND l.tenant_id = a.tenant_id)`, direction, direction === 'DESC' ? 'NULLS LAST' : 'NULLS FIRST');
     } else if (appFields.has(sort.field)) {
-      qb.orderBy(`a.${sort.field}`, direction);
+      qb.orderBy(classificationTargets[sort.field]?.expression ?? `a.${sort.field}`, direction, 'NULLS LAST');
     } else {
       qb.orderBy('a.created_at', 'DESC');
     }
+    qb.addOrderBy('a.id', 'ASC');
     qb.skip(skip).take(limit);
 
     const { raw, entities } = await qb.getRawAndEntities();
@@ -512,10 +529,22 @@ export class ApplicationsListService extends ApplicationsBaseService {
     // Prepare expansions
     const expansions = await this.buildExpansions(pageIds, include, mg);
 
+    const tenantRows = await mg.query('SELECT metadata FROM tenants WHERE id = app_current_tenant()');
+    const catalog = catalogFromMetadata(tenantRows[0]?.metadata?.it_ops);
     // Compute derived users per row and attach expansions
     const items = await Promise.all(
       entities.map(async (app, idx) => {
-        const base: any = { ...app };
+        const base: any = { ...app, ...classificationReadState(app, catalog) };
+        for (const [field, options, output, rankField] of [
+          ['criticality', catalog.businessCriticalityLevels, 'business_criticality_label', 'business_criticality_rank'],
+          ['cyber_criticality', catalog.cyberCriticalityLevels, 'cyber_criticality_label', 'cyber_criticality_rank'],
+          ['data_class', catalog.dataClasses, 'data_class_label', 'data_class_rank'],
+          ['recovery_wave', catalog.recoveryWaves, 'recovery_wave_label', 'recovery_wave_order'],
+        ] as const) {
+          const option = options.find((item) => item.code === base[field]);
+          base[output] = option?.label ?? base[field] ?? null;
+          base[rankField] = option ? ('rank' in option ? option.rank : option.order) : null;
+        }
         if (include.has('supplier')) {
           const r = (raw[idx] || {}) as any;
           base.supplier_name = r.s_name || null;
@@ -580,6 +609,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     // Define filter targets for AG Grid model -> SQL translation
     type Target = FilterTargetConfig;
     const targets: Record<string, Target> = {
+      ...classificationTargets,
       id: { expression: 'a.id', dataType: 'string' },
       sequential_id: { expression: 'a.sequential_id', dataType: 'string' },
       name: { expression: 'a.name', dataType: 'string' },
@@ -698,20 +728,25 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     // Sorting
     const appFields = new Set([
+      ...Object.keys(classificationTargets),
       'id', 'name', 'supplier_id', 'category', 'editor', 'environment', 'lifecycle', 'criticality',
       'data_class', 'hosting_model', 'external_facing', 'is_suite', 'sso_enabled', 'mfa_supported',
       'etl_enabled', 'contains_pii', 'users_mode', 'users_year', 'users_override', 'status',
       'created_at', 'updated_at',
     ]);
     const direction: 'ASC' | 'DESC' = (String(sort.direction).toUpperCase() === 'ASC' ? 'ASC' : 'DESC');
-    if (appFields.has(sort.field)) {
-      qb.orderBy(`a.${sort.field}`, direction);
+    if (classificationSort[sort.field]) {
+      qb.addSelect(classificationSort[sort.field], 'classification_sort_value');
+      qb.orderBy('classification_sort_value', direction, 'NULLS LAST');
+    } else if (appFields.has(sort.field)) {
+      qb.orderBy(classificationTargets[sort.field]?.expression ?? `a.${sort.field}`, direction, 'NULLS LAST');
     } else {
       qb.orderBy('a.created_at', 'DESC');
     }
 
+    qb.addOrderBy('a.id', 'ASC');
     const total = await qb.clone().getCount();
-    const limit = Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
+    const limit = query?.__classificationExport === true ? undefined : Math.min(Math.max(Number(query?.limit) || 10000, 1), 10000);
     const rows: Array<{ a_id: string; ref: string | null }> = await qb.take(limit).getRawMany();
     const ids = rows.map((r) => r.a_id);
     const refs = rows.map((r) => r.ref || r.a_id);
@@ -733,6 +768,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
 
     const rawFields = String(query?.fields || query?.field || '').split(',').map((f) => f.trim()).filter(Boolean);
     const allowed = new Set([
+      ...Object.keys(classificationTargets),
       'category',
       'editor',
       'environment',
@@ -761,6 +797,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     const results: Record<string, Array<string | boolean | null>> = {};
 
     const baseTargets: Record<string, FilterTargetConfig> = {
+      ...classificationTargets,
       id: { expression: 'a.id', dataType: 'string' },
       name: { expression: 'a.name', dataType: 'string' },
       supplier_id: { expression: 'a.supplier_id', dataType: 'string' },
@@ -1011,7 +1048,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
             WHERE dr.application_id = a.id AND dr.tenant_id = a.tenant_id)`;
           break;
         default:
-          expression = '';
+          expression = classificationTargets[field]?.expression ?? '';
       }
 
       if (!expression) {
@@ -1298,12 +1335,27 @@ export class ApplicationsListService extends ApplicationsBaseService {
       environment: row.environment,
     }));
 
+    const tenantRows = await mg.query('SELECT metadata FROM tenants WHERE id = app_current_tenant()');
+    const catalog = catalogFromMetadata(tenantRows[0]?.metadata?.it_ops);
+    const reviewState = classificationReadState(app, catalog);
+
     return {
       id: app.id,
       name: app.name,
       description: app.description,
       editor: app.editor,
       criticality: app.criticality,
+      business_mtd_minutes: app.business_mtd_minutes,
+      business_criticality_origin: app.business_criticality_origin,
+      cyber_criticality: app.cyber_criticality,
+      recovery_wave: app.recovery_wave,
+      rto_minutes: app.rto_minutes,
+      rpo_minutes: app.rpo_minutes,
+      classification_justification: app.classification_justification,
+      classification_revision: app.classification_revision,
+      classification_review: app.classification_review,
+      classification_review_state: reviewState.classification_review_state,
+      classification_reviewed_at: reviewState.classification_reviewed_at,
       assigned_servers,
       business_owners: owners.filter((o) => o.owner_type === 'business'),
       it_owners: owners.filter((o) => o.owner_type === 'it'),

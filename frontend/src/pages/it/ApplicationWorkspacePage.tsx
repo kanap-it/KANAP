@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { classificationText } from '../../utils/applicationClassification';
 import React from 'react';
 import {
   Alert,
@@ -49,6 +51,8 @@ import CreateVersionDialog from './components/CreateVersionDialog';
 import { formatShortDate } from '../../lib/dateFormat';
 import { fetchApplicationIncidentsCount } from '../../utils/workspaceTabCounts';
 import { useLocale } from '../../i18n/useLocale';
+import ApplicationClassificationPanel from './components/ApplicationClassificationPanel';
+import ApplicationMtdMetadata from './components/ApplicationMtdMetadata';
 
 type TabKey = 'overview' | 'deployments' | 'interfaces' | 'operations' | 'compliance' | 'relations';
 
@@ -60,7 +64,19 @@ type ApplicationDetail = {
   supplier_id: string | null;
   editor: string | null;
   lifecycle: string;
-  criticality: 'business_critical' | 'high' | 'medium' | 'low' | string;
+  criticality: string | null;
+  business_mtd_minutes: number | null;
+  business_criticality_origin?: 'unset' | 'legacy' | 'derived';
+  cyber_criticality: string | null;
+  recovery_wave: string | null;
+  rto_minutes: number | null;
+  rpo_minutes: number | null;
+  classification_justification: string | null;
+  classification_revision: number;
+  classification_review_state?: 'incomplete' | 'stale' | 'reviewed';
+  classification_review_reason?: string | null;
+  classification_reviewed_at?: string | null;
+  classification_catalog_versions?: { business: number; cyber: number; confidentiality: number; recovery: number };
   version: string | null;
   go_live_date: string | null;
   end_of_support_date: string | null;
@@ -709,7 +725,7 @@ function OverviewTab({
           </Stack>
         </Box>
       )}
-      <Box>
+      <Box id="application-knowledge" tabIndex={-1}>
         <EntityKnowledgePanel entityType="applications" entityId={app.id} canCreate={canCreateKnowledge} />
       </Box>
     </Stack>
@@ -1110,11 +1126,19 @@ function ComplianceTab({
   canManage,
   onPatch,
   onRefresh,
+  onReview,
+  onOpenKnowledge,
+  saving,
+  error,
 }: {
   app: ApplicationDetail;
   canManage: boolean;
   onPatch: (patch: Partial<ApplicationDetail>) => Promise<void>;
   onRefresh: () => Promise<void>;
+  onReview: () => Promise<void>;
+  onOpenKnowledge: () => void;
+  saving: boolean;
+  error: string | null;
 }) {
   const { byField } = useItOpsEnumOptions();
   const residencyCodes = (app.data_residency || []).map((row) => row.country_iso);
@@ -1124,37 +1148,16 @@ function ComplianceTab({
   const compactValueSx = { maxWidth: 360 } as const;
 
   return (
-    <Box>
-      <Stack spacing={1.35}>
-        <PropertyRow label="Data class" required sx={horizontalRowSx} labelSx={horizontalLabelSx} valueSx={compactValueSx}>
-          <Select
-            value={app.data_class || 'internal'}
-            onChange={(event) => { void onPatch({ data_class: event.target.value }); }}
-            variant="standard"
-            disableUnderline
-            disabled={!canManage}
-            sx={drawerSelectSx}
-          >
-            {(byField.dataClass || []).map((option) => (
-              <MenuItem key={option.code} value={option.code} sx={drawerMenuItemSx}>{option.label}</MenuItem>
-            ))}
-          </Select>
-        </PropertyRow>
-        <PropertyRow label="Last DR test" sx={horizontalRowSx} labelSx={horizontalLabelSx} valueSx={compactValueSx}>
-          <DateEUField label="" valueYmd={app.last_dr_test || ''} onChangeYmd={(value) => { void onPatch({ last_dr_test: value || null }); }} size="small" disabled={!canManage} hideLabel textFieldSx={drawerFieldValueSx} />
-        </PropertyRow>
-        <PropertyRow label="Contains PII" sx={horizontalRowSx} labelSx={horizontalLabelSx} valueSx={compactValueSx}>
-          <Box component="label" sx={{ display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
-            <input
-              type="checkbox"
-              checked={!!app.contains_pii}
-              disabled={!canManage}
-              onChange={(event) => { void onPatch({ contains_pii: event.target.checked }); }}
-              style={{ accentColor: 'var(--kanap-teal)' }}
-            />
-          </Box>
-        </PropertyRow>
-        <PropertyRow label="Data residency" sx={horizontalRowSx} labelSx={horizontalLabelSx} valueSx={compactValueSx}>
+    <ApplicationClassificationPanel
+      app={app}
+      canManage={canManage}
+      onPatch={onPatch as any}
+      onReview={onReview}
+      recoveryLinks={<Button variant="text" onClick={onOpenKnowledge} sx={{ alignSelf: 'flex-start' }}>{classificationText("View linked knowledge documents")}</Button>}
+      saving={saving}
+      error={error}
+    >
+        <PropertyRow label={classificationText("Data residency")} sx={horizontalRowSx} labelSx={horizontalLabelSx} valueSx={compactValueSx}>
           <Autocomplete
             multiple
             options={COUNTRY_OPTIONS}
@@ -1180,22 +1183,12 @@ function ComplianceTab({
             sx={[drawerFieldValueSx, { width: '100%' }]}
           />
         </PropertyRow>
-      </Stack>
-      {/*
-        TODO(NIS2): extend this tab with:
-          - Risk register (collection of related Risks)
-          - Audit log (last 5 audit events with date + actor + outcome)
-          - Certifications (chips: ISO 27001, SOC 2, HDS, etc. with expiry date)
-          - Exemption documentation (rich text + linked managed docs)
-          - DPIA reference (link to managed doc)
-          - Last NIS2 self-assessment date
-        Keep the section structure flat — divider-separated sub-sections, no accordions.
-      */}
-    </Box>
+    </ApplicationClassificationPanel>
   );
 }
 
 export default function ApplicationWorkspacePage() {
+  const { t } = useTranslation('it');
   const theme = useTheme();
   const locale = useLocale();
   const navigate = useNavigate();
@@ -1301,18 +1294,37 @@ export default function ApplicationWorkspacePage() {
     });
   }, [app?.id, app?.name, app?.sequential_id, queryClient, routeId]);
 
+  const saveQueue = React.useRef<Promise<void>>(Promise.resolve());
+  const classificationSaveFailed = React.useRef(false);
+  const currentApp = React.useRef(app);
+  React.useEffect(() => { currentApp.current = app; }, [app]);
+  const [classificationSaving, setClassificationSaving] = React.useState(false);
   const patchApplication = React.useCallback(async (patch: Partial<ApplicationDetail>) => {
-    if (!app) return;
-    updateApplicationCache((prev) => ({ ...prev, ...patch }));
-    try {
-      const res = await api.patch<Partial<ApplicationDetail>>(`/applications/${app.id}`, patch);
-      updateApplicationCache((prev) => ({ ...prev, ...res.data }));
-    } catch (err) {
-      const res = await api.get<ApplicationDetail>(`/applications/${app.id}`, { params: { include: 'deployments,support' } });
-      updateApplicationCache(() => res.data);
-      throw err;
-    }
-  }, [app, updateApplicationCache]);
+    const work = saveQueue.current.then(async () => {
+      const current = currentApp.current;
+      if (!current) return;
+      setClassificationSaving(true);
+      classificationSaveFailed.current = false;
+      setError(null);
+      try {
+        const res = await api.patch<Partial<ApplicationDetail>>(`/applications/${current.id}`, {
+          ...patch, expected_classification_revision: current.classification_revision,
+          expected_classification_versions: current.classification_catalog_versions,
+        });
+        currentApp.current = { ...current, ...res.data };
+        updateApplicationCache((prev) => ({ ...prev, ...res.data }));
+        await queryClient.invalidateQueries({ predicate: (query) => ['applications', 'app-filter-values', 'applications-filter-values'].some((key) => String(query.queryKey[0]).startsWith(key)) });
+      } catch (err: any) {
+        classificationSaveFailed.current = true;
+        setError(err?.response?.data?.message || err?.message || 'Classification could not be saved');
+        throw err;
+      } finally { setClassificationSaving(false); }
+    });
+    saveQueue.current = work;
+    // Keep failed saves visible and block review; a subsequent edit can retry.
+    void work.catch(() => { saveQueue.current = Promise.resolve(); });
+    return work;
+  }, [queryClient, updateApplicationCache]);
 
   const handleCreate = React.useCallback(async () => {
     setSavingCreate(true);
@@ -1338,16 +1350,6 @@ export default function ApplicationWorkspacePage() {
     }));
   }, [byField.lifecycleStatus, theme.palette.mode]);
 
-  const criticalityOptions = React.useMemo(() => [
-    { value: 'low', label: 'Low' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' },
-    { value: 'business_critical', label: 'Business critical' },
-  ].map((option) => ({
-    ...option,
-    color: getDotColor(CRITICALITY_COLORS[option.value] || 'default', theme.palette.mode),
-  })), [theme.palette.mode]);
-
   if (!isCreate && appQuery.isLoading && !app) {
     return (
       <Box sx={{ p: 2 }}>
@@ -1372,12 +1374,12 @@ export default function ApplicationWorkspacePage() {
   const relationCount = (relationsCountQuery.data?.total ?? ((app?.links?.length || 0) + (app?.attachments?.length || 0)))
     + (incidentsCountQuery.data || 0);
   const tabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'deployments', label: 'Deployments', badge: deploymentCount, disabled: isCreate },
-    { key: 'interfaces', label: 'Interfaces', badge: interfaceCount, disabled: isCreate },
-    { key: 'operations', label: 'Operations', disabled: isCreate },
-    { key: 'compliance', label: 'Compliance', disabled: isCreate },
-    { key: 'relations', label: 'Relations', badge: relationCount, disabled: isCreate },
+    { key: 'overview', label: t('workspace.application.tabs.overview') },
+    { key: 'deployments', label: t('workspace.application.tabs.deployments'), badge: deploymentCount, disabled: isCreate },
+    { key: 'interfaces', label: t('workspace.application.tabs.interfaces'), badge: interfaceCount, disabled: isCreate },
+    { key: 'operations', label: t('workspace.application.tabs.operations'), disabled: isCreate },
+    { key: 'compliance', label: t('workspace.application.tabs.compliance'), disabled: isCreate },
+    { key: 'relations', label: t('workspace.application.tabs.relations'), badge: relationCount, disabled: isCreate },
   ];
 
   return (
@@ -1419,14 +1421,7 @@ export default function ApplicationWorkspacePage() {
               onChange={(value) => { void patchApplication({ lifecycle: value }); }}
               disabled={!canManage}
             />
-            <PortfolioStatusMetadata
-              value={app.criticality || 'medium'}
-              label={humanize(app.criticality)}
-              color={getDotColor(CRITICALITY_COLORS[app.criticality] || 'default', theme.palette.mode)}
-              options={criticalityOptions}
-              onChange={(value) => { void patchApplication({ criticality: value }); }}
-              disabled={!canManage}
-            />
+            <ApplicationMtdMetadata criticality={app.criticality} minutes={app.business_mtd_minutes} disabled={!canManage} onCommit={(value) => patchApplication({ business_mtd_minutes: value })} />
             {app.version && (
               <PortfolioMetadataItem mono onClick={() => { void navigator.clipboard?.writeText(app.version || ''); }}>
                 v{app.version}
@@ -1519,6 +1514,27 @@ export default function ApplicationWorkspacePage() {
           <ComplianceTab
             app={app}
             canManage={canManage}
+            onOpenKnowledge={() => {
+              handleTabChange('overview');
+              requestAnimationFrame(() => {
+                const section = document.getElementById('application-knowledge');
+                section?.scrollIntoView({ block: 'start' });
+                section?.focus({ preventScroll: true });
+              });
+            }}
+            saving={classificationSaving}
+            error={error}
+            onReview={async () => {
+              try {
+                await saveQueue.current;
+                if (classificationSaveFailed.current || !currentApp.current) return;
+                setClassificationSaving(true);
+                await api.post(`/applications/${currentApp.current.id}/classification-review`, { expected_revision: currentApp.current.classification_revision, expected_classification_versions: currentApp.current.classification_catalog_versions });
+                await appQuery.refetch();
+                await queryClient.invalidateQueries({ queryKey: ['applications'] });
+              } catch (err: any) { setError(err?.response?.data?.message || err?.message || 'Review failed'); }
+              finally { setClassificationSaving(false); }
+            }}
             onPatch={patchApplication}
             onRefresh={async () => { await appQuery.refetch(); }}
           />

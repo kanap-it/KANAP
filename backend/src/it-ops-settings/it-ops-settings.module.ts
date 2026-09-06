@@ -1,3 +1,4 @@
+import { AuditModule } from '../audit/audit.module';
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Tenant } from '../tenants/tenant.entity';
@@ -8,7 +9,7 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tenant, Location]), PermissionsModule, forwardRef(() => UsersModule)],
+  imports: [AuditModule, TypeOrmModule.forFeature([Tenant, Location]), PermissionsModule, forwardRef(() => UsersModule)],
   controllers: [ItOpsSettingsController],
   providers: [ItOpsSettingsService],
   exports: [ItOpsSettingsService],

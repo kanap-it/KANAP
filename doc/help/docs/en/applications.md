@@ -41,13 +41,14 @@ Navigate to **IT Landscape > Applications** to see your list. Click **New App / 
 **Required fields**:
 - **Name**: A recognizable name for the application or service
 - **Category**: The primary purpose of this application (see categories above)
-- **Criticality**: How important this is to your business (Business critical, High, Medium, Low)
 - **Lifecycle**: Current status (Active, Proposed, Deprecated, Retired, or any custom code defined in Settings)
 
 **Strongly recommended**:
 - **Supplier**: The supplier providing the software (links to your Suppliers master data)
 - **Publisher**: The software publisher (e.g., Microsoft, SAP, Oracle)
 - **Description**: What this application does
+
+Classification fields are optional when you create an application. For **MTD**, the editor and new or changed API/CSV writes use the tenant's configured allowed durations; there is no free-entry control in the UI. A historical non-allowed duration remains visible but cannot be selected as a new option, and you can clear it. Existing non-preset durations remain valid when unchanged, including during catalog recalculation. Other classification values remain unset until you choose them.
 
 **Optional but useful**:
 - **Version**: Current version identifier (free text, e.g., "4.2.1", "2023", "Q1 2024")
@@ -102,6 +103,7 @@ The Applications grid provides a comprehensive view of your application portfoli
 - **OPEX Items** / **CAPEX Items** / **Contracts**: Linked spend and contracts
 - **Components**: Child applications (if this is a suite)
 - **Data Class** / **Contains PII** / **Data Residency**: Compliance information
+- **Business MTD**, **Cyber criticality**, **Recovery wave**, **RTO**, **RPO**, **Review state/date**: Classification and continuity fields
 
 **Filtering**:
 - Quick search: matches name and editor/publisher
@@ -127,7 +129,7 @@ The header shows:
 - **Application name** (editable in place)
 - **Reference**: short identifier you can copy
 - **Lifecycle** chip: click to change
-- **Criticality** chip: click to change
+- **Business criticality** chip: shows the calculated level and opens the MTD control
 - **Version** chip (if a version is set): click to copy
 - **Go live** date
 - **Send link**: copy a shareable link to this workspace
@@ -235,12 +237,32 @@ The Operations tab captures how users access the application and who supports it
 The Compliance tab captures data protection and regulatory information.
 
 **What you can edit**:
-- **Data class** (required): sensitivity level (Public, Internal, Confidential, Restricted, or any custom code defined in Settings)
+- **Data class**: confidentiality level (Public, Internal, Confidential, Restricted, or any custom code defined in Settings)
 - **Last DR test**: date of the most recent disaster recovery test
 - **Contains PII**: whether the application stores personally identifiable information
 - **Data residency**: countries where data is stored (multi-select, ISO codes + names)
 
 **Tip**: Data Classes are configurable in **IT Landscape > Settings**. Customize them to match your organization's data classification policy.
+
+### Classification and continuity
+
+The Compliance area also records the application's continuity and classification decisions. Missing values are shown as **Not set**; KANAP does not substitute a default level.
+
+**Criticality**:
+- **Maximum tolerable downtime (MTD)** is chosen from the tenant's configured allowed durations. New or changed writes must use one of those configured durations. The read-only **Business criticality** is calculated from the tenant's thresholds. A historical duration outside the allowed durations is displayed as unavailable for new selection and can be cleared; it remains valid when unchanged.
+- **Cyber criticality** is selected independently. The picker shows each tenant level's description; use the level whose plausible consequences are highest. Do not confuse cyber criticality with the level of risk.
+- **Justification** records the business, cyber, and recovery reasoning.
+
+**Data and recovery**:
+- **Data confidentiality** uses the tenant's data-class catalog.
+- **Recovery wave** identifies the order in which the application is restored. It does not imply a duration or severity.
+- **RTO** is the target time to restore service. **RPO** is the acceptable data-loss duration and may be zero. If RTO is greater than or equal to MTD, KANAP shows a warning but keeps both values.
+- **Last recovery test** records the most recent test date. A link opened from this area uses the single existing **Knowledge** section in Overview; it does not create a duplicate record. Older URL links remain available under Relations.
+
+**Review**:
+- **To complete** means one of MTD, cyber criticality, data confidentiality, recovery wave, or the justification is missing.
+- **Review needed** means a classification or relevant reference changed, or the catalog version changed. The reason is translated in the UI and the last review date and named reviewer are shown.
+- **Reviewed** is set only by **Mark as reviewed**, after all four core axes and a justification are present. The button is disabled once the application is already reviewed. The action records the current revision, catalog versions, actor, and server date. Editing the application name or publisher does not invalidate it.
 
 ---
 
@@ -296,6 +318,8 @@ The new version is created as a separate application with:
 - Copied data based on your selections
 - Duplicated interfaces pointing to the new version
 
+Classification and continuity values are copied when their source values are copied, but the new version starts with a reset review and no copied last recovery test. A legacy classification without an MTD remains legacy; KANAP does not invent a duration.
+
 ### What gets copied
 
 | Option | Default |
@@ -338,7 +362,7 @@ Use this when you want to create an independent duplicate of an application -- t
 3. The system creates a copy with " (copy)" appended to the name
 4. You're navigated to the new application to make changes
 
-**What gets copied**: All core fields (except last DR test date), owners, companies, departments, suites, OPEX/CAPEX items, contracts, links, data residency, and support contacts.
+**What gets copied**: All core fields (except last DR test date), including classification and continuity values, owners, companies, departments, suites, OPEX/CAPEX items, contracts, links, data residency, and support contacts. The copied application's review is reset.
 
 **What does NOT get copied**: Deployments, interfaces, server assignments, attachments, version fields (version, go-live date, end of support).
 
@@ -419,7 +443,7 @@ From the Applications list:
 2. **Choose import settings**:
    - **Mode**:
      - `Enrich` (default): Empty cells preserve existing values -- only update what you specify
-     - `Replace`: Empty cells clear existing values -- full replacement of all fields
+     - `Replace`: Supplied fields are replaced; blank classification cells preserve their values and `__CLEAR__` explicitly clears them
    - **Operation**:
      - `Upsert` (default): Create new applications or update existing ones
      - `Update only`: Only modify existing applications, skip new ones
@@ -441,7 +465,7 @@ From the Applications list:
 | `category` | Primary purpose | No | Accepts code or label from Settings |
 | `supplier_name` | Vendor name | No | Must match existing supplier |
 | `editor` | Software publisher | No | Free text (e.g., Microsoft, SAP) |
-| `criticality` | Business importance | No | `business_critical`, `high`, `medium`, `low` |
+| `criticality` | Calculated business level | Export/result only | Derived from `business_mtd_minutes` |
 | `lifecycle` | Current status | No | Accepts code or label from Settings |
 | `is_suite` | Can have child apps | No | `true` or `false` |
 | `status` | Enabled/disabled | No | `enabled` or `disabled` |
@@ -474,6 +498,18 @@ From the Applications list:
 | `last_dr_test` | Last DR test date | Date format: YYYY-MM-DD |
 | `contains_pii` | Stores personal data | `true` or `false` |
 | `data_residency` | Data storage countries | Export only (ISO codes) |
+
+**Classification fields**:
+
+| CSV Column | Description | Notes |
+|------------|-------------|-------|
+| `business_mtd_minutes` | Maximum tolerable downtime | New or changed values must use a configured allowed duration; calculates the exported `criticality` |
+| `cyber_criticality` | Cyber consequence level | Tenant catalog code or unambiguous label |
+| `recovery_wave` | Recovery order | Tenant catalog code or unambiguous label |
+| `rto_minutes` / `rpo_minutes` | Recovery objectives | Whole minutes; RPO may be zero |
+| `classification_justification` | Classification reasoning | Free text |
+
+`criticality` is a calculated export value and cannot set a new level. A blank classification cell preserves the existing value in both Enrich and Replace modes; use the literal `__CLEAR__` to clear a classification.
 
 **Owner fields**:
 
@@ -509,7 +545,7 @@ The system automatically normalizes values during import, so `Line-of-business`,
 
 Applications are matched by **name** (case-insensitive). When a match is found:
 - With `Enrich` mode: Only non-empty CSV values update the application
-- With `Replace` mode: All fields are updated, empty values clear existing data
+- With `Replace` mode: All supplied fields are updated; blank classification cells preserve existing classifications, and `__CLEAR__` explicitly clears them
 
 If you include the `id` column with a valid UUID, matching uses ID first, then falls back to name.
 
@@ -533,10 +569,10 @@ If you include the `id` column with a valid UUID, matching uses ID first, then f
 ### Example CSV
 
 ```csv
-name;category;supplier_name;criticality;lifecycle;go_live_date;external_facing
-Salesforce CRM;Line-of-business;Salesforce Inc;business_critical;Active;2020-01-15;true
-Microsoft 365;Productivity;Microsoft;high;active;2019-06-01;false
-Custom ERP;lob;;medium;Active;2018-03-20;false
+name;category;supplier_name;business_mtd_minutes;lifecycle;go_live_date;external_facing
+Salesforce CRM;Line-of-business;Salesforce Inc;240;Active;2020-01-15;true
+Microsoft 365;Productivity;Microsoft;1440;active;2019-06-01;false
+Custom ERP;lob;;4320;Active;2018-03-20;false
 ```
 
 ---

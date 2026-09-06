@@ -1,3 +1,4 @@
+import { classificationText } from '../../../utils/applicationClassification';
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Alert, Box, Stack, TextField, Divider, Typography } from '@mui/material';
 import SupplierSelect from '../../../components/fields/SupplierSelect';
@@ -10,6 +11,8 @@ import { drawerFieldValueSx } from '../../../theme/formSx';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import ApplicationMtdSelect from '../components/ApplicationMtdSelect';
+import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
 export type ApplicationCreateEditorHandle = {
   isDirty: () => boolean;
   save: () => Promise<string | null>;
@@ -31,12 +34,16 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
   const [editor, setEditor] = React.useState('');
   const [retiredDate, setRetiredDate] = React.useState('');
   const [lifecycle, setLifecycle] = React.useState<string>('active');
-  const [criticality, setCriticality] = React.useState<'business_critical' | 'high' | 'medium' | 'low'>('medium');
+  const [businessMtdMinutes, setBusinessMtdMinutes] = React.useState<number | null>(null);
+  const [cyberCriticality, setCyberCriticality] = React.useState<string | null>(null);
+  const [recoveryWave, setRecoveryWave] = React.useState<string | null>(null);
+  const [dataClass, setDataClass] = React.useState<string | null>(null);
   const [isSuite, setIsSuite] = React.useState(false);
   const [version, setVersion] = React.useState('');
   const [goLiveDate, setGoLiveDate] = React.useState('');
   const [endOfSupportDate, setEndOfSupportDate] = React.useState('');
   const { byField } = useItOpsEnumOptions();
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
   const categoryOptions = React.useMemo(
     () => byField.applicationCategory
       .filter((option) => !option.deprecated)
@@ -75,7 +82,10 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
     setEditor('');
     setRetiredDate('');
     setLifecycle('active');
-    setCriticality('medium');
+    setBusinessMtdMinutes(null);
+    setCyberCriticality(null);
+    setRecoveryWave(null);
+    setDataClass(null);
     setIsSuite(false);
     setVersion('');
     setGoLiveDate('');
@@ -100,13 +110,15 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
         editor: editor || null,
         retired_date: retiredDate || null,
         lifecycle,
-        criticality,
+        business_mtd_minutes: businessMtdMinutes,
+        cyber_criticality: cyberCriticality,
+        recovery_wave: recoveryWave,
         external_facing: false,
         is_suite: isSuite,
         last_dr_test: null,
         etl_enabled: false,
         contains_pii: false,
-        data_class: 'internal' as const,
+        data_class: dataClass,
         version: version || null,
         go_live_date: goLiveDate || null,
         end_of_support_date: endOfSupportDate || null,
@@ -123,7 +135,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
     } finally {
       setSaving(false);
     }
-  }, [saving, name, supplierId, description, category, editor, retiredDate, lifecycle, criticality, version, goLiveDate, endOfSupportDate, isSuite]);
+  }, [saving, name, supplierId, description, category, editor, retiredDate, lifecycle, businessMtdMinutes, cyberCriticality, recoveryWave, dataClass, version, goLiveDate, endOfSupportDate, isSuite]);
 
   useImperativeHandle(ref, () => ({ isDirty: () => dirty, save, reset }), [dirty, save, reset]);
 
@@ -153,8 +165,17 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
       <PropertyRow label="Publisher">
         <TextField value={editor} onChange={(e) => { setEditor(e.target.value); markDirty(); }} fullWidth variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
       </PropertyRow>
-      <PropertyRow label="Criticality" required>
-        <EnumAutocomplete label="Criticality" value={criticality} onChange={(v) => { setCriticality(v as any); markDirty(); }} options={[{ label: 'Business critical', value: 'business_critical' }, { label: 'High', value: 'high' }, { label: 'Medium', value: 'medium' }, { label: 'Low', value: 'low' }]} required hideLabel textFieldSx={drawerFieldValueSx} />
+      <PropertyRow label={classificationText("Maximum tolerable downtime (MTD)")}>
+        <ApplicationMtdSelect value={businessMtdMinutes} onCommit={(value) => { setBusinessMtdMinutes(value); markDirty(); }} />
+      </PropertyRow>
+      <PropertyRow label={classificationText("Cyber criticality")}>
+        <EnumAutocomplete label={classificationText("Cyber criticality")} value={cyberCriticality || ''} onChange={(v) => { setCyberCriticality(v || null); markDirty(); }} options={(classificationCatalog?.cyberCriticalityLevels || []).filter((item) => !item.deprecated).map((item) => ({ label: item.label, value: item.code }))} hideLabel textFieldSx={drawerFieldValueSx} />
+      </PropertyRow>
+      <PropertyRow label={classificationText("Data confidentiality")}>
+        <EnumAutocomplete label={classificationText("Data confidentiality")} value={dataClass || ''} onChange={(v) => { setDataClass(v || null); markDirty(); }} options={(classificationCatalog?.dataClasses || []).filter((item) => !item.deprecated).map((item) => ({ label: item.label, value: item.code }))} hideLabel textFieldSx={drawerFieldValueSx} />
+      </PropertyRow>
+      <PropertyRow label={classificationText("Recovery wave")}>
+        <EnumAutocomplete label={classificationText("Recovery wave")} value={recoveryWave || ''} onChange={(v) => { setRecoveryWave(v || null); markDirty(); }} options={(classificationCatalog?.recoveryWaves || []).filter((item) => !item.deprecated).sort((a, b) => a.order - b.order).map((item) => ({ label: item.label, value: item.code }))} hideLabel textFieldSx={drawerFieldValueSx} />
       </PropertyRow>
       <PropertyRow label="Lifecycle" required>
         <EnumAutocomplete label="Lifecycle" value={lifecycle} onChange={(v) => { setLifecycle(v as any); markDirty(); }} options={lifecycleOptions} required hideLabel textFieldSx={drawerFieldValueSx} />

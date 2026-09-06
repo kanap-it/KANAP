@@ -1,3 +1,4 @@
+import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
 import React from 'react';
 import {
   Alert,
@@ -68,6 +69,7 @@ export default function InterfacePropertyPanel({
   onReplaceDataResidency,
   onReplaceOwners,
 }: Props) {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
   const { t } = useTranslation(['it', 'common']);
   const locale = useLocale();
   const { byField } = useItOpsEnumOptions();
@@ -150,13 +152,13 @@ export default function InterfacePropertyPanel({
   }, [owners, userById]);
 
   const dataClassOptions = React.useMemo(() => {
-    const list = byField.dataClass || [];
+    const list = classificationCatalog?.dataClasses || [];
     const base = list.filter((item) => !item.deprecated).map((item) => ({ label: item.label, value: item.code }));
-    const current = data?.data_class || 'internal';
+    const current = data?.data_class || '';
     return list.some((item) => item.code === current) || !current
       ? base
       : [...base, { label: current, value: current }];
-  }, [byField.dataClass, data?.data_class]);
+  }, [classificationCatalog?.dataClasses, data?.data_class]);
 
   const dataCategoryOptions = React.useMemo(() => {
     const list = byField.interfaceDataCategory || [];
@@ -181,12 +183,7 @@ export default function InterfacePropertyPanel({
     return options.filter((item) => !item.deprecated || item.value === current);
   }, [byField.lifecycleStatus, data?.lifecycle]);
 
-  const criticalityOptions = React.useMemo(() => [
-    { label: t('enums.criticality.businessCritical'), value: 'business_critical' },
-    { label: t('enums.criticality.high'), value: 'high' },
-    { label: t('enums.criticality.medium'), value: 'medium' },
-    { label: t('enums.criticality.low'), value: 'low' },
-  ], [t]);
+  const criticalityOptions = [{ value: '', label: 'Not set' }, ...(classificationCatalog?.businessCriticalityLevels || []).filter((item) => !item.deprecated || item.code === data?.criticality).map((item) => ({ value: item.code, label: item.label }))];
 
   const residencyCodes = React.useMemo(
     () => residency.map((item) => String(item.country_iso || '').toUpperCase()).filter((item) => item.length === 2),
@@ -339,7 +336,7 @@ export default function InterfacePropertyPanel({
         <PropertyRow label="Criticality">
           <EnumAutocomplete
             label="Criticality"
-            value={data?.criticality || 'medium'}
+            value={data?.criticality || ''}
             onChange={(value) => {
               void runPersist(() => onPatch({ criticality: value as InterfaceDetail['criticality'] }));
             }}
@@ -367,7 +364,7 @@ export default function InterfacePropertyPanel({
         <PropertyRow label="Data class">
           <EnumAutocomplete
             label="Data class"
-            value={data?.data_class || 'internal'}
+            value={data?.data_class || ''}
             onChange={(value) => {
               void runPersist(() => onPatch({ data_class: value }));
             }}

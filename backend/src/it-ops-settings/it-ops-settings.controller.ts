@@ -1,3 +1,5 @@
+import { resolveBusinessContributorScope } from '../auth/business-contributor-scope';
+import { CLASSIFICATION_CATALOG_KEYS } from './classification-catalog';
 import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
@@ -41,14 +43,6 @@ export class ItOpsSettingsController {
 
     if (Array.isArray(body?.applicationCategories)) {
       patch.applicationCategories = body.applicationCategories.map((row: any) => ({
-        code: String(row?.code ?? '').trim().toLowerCase(),
-        label: String(row?.label ?? '').trim(),
-        deprecated: !!row?.deprecated,
-      }));
-    }
-
-    if (Array.isArray(body?.dataClasses)) {
-      patch.dataClasses = body.dataClasses.map((row: any) => ({
         code: String(row?.code ?? '').trim().toLowerCase(),
         label: String(row?.label ?? '').trim(),
         deprecated: !!row?.deprecated,
@@ -219,14 +213,22 @@ export class ItOpsSettingsController {
       }));
     }
 
-    return this.settings.updateSettings(tenantId, patch, { manager: req?.queryRunner?.manager });
+    for (const key of CLASSIFICATION_CATALOG_KEYS) if (body?.[key] !== undefined) (patch as any)[key] = body[key];
+    return this.settings.updateSettings(tenantId, { ...patch, expectedClassificationSettingsRevision: body?.expectedClassificationSettingsRevision }, { manager: req?.queryRunner?.manager, userId: req.user?.sub ?? req.user?.id });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('settings', 'admin')
+  @Post('settings/classification-preview')
+  async previewClassifications(@Body() body: any, @Req() req: any) {
+    return this.settings.previewClassificationSettings(this.requireTenantId(req), body, { manager: req?.queryRunner?.manager, accessScope: await resolveBusinessContributorScope(req, 'applications') });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('settings', 'admin')
   @Post('settings/reset')
-  async resetSettings(@Req() req: any): Promise<ItOpsSettings> {
+  async resetSettings(@Body() body: any, @Req() req: any): Promise<ItOpsSettings> {
     const tenantId = this.requireTenantId(req);
-    return this.settings.resetToDefaults(tenantId, { manager: req?.queryRunner?.manager });
+    return this.settings.resetToDefaults(tenantId, { manager: req?.queryRunner?.manager, userId: req.user?.sub ?? req.user?.id, expectedClassificationSettingsRevision: body?.expectedClassificationSettingsRevision });
   }
 }

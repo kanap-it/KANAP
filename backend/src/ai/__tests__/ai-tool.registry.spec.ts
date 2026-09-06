@@ -462,7 +462,7 @@ async function testListAvailableTools() {
   const tools = await registry.listAvailableTools(createContext());
   assert.deepEqual(
     tools.map((tool) => tool.name),
-    ['search_all', 'describe_entity_filters', 'query_entities', 'aggregate_entities', 'get_filter_values', 'get_entity_detail', 'get_entity_context', 'search_knowledge', 'get_document'],
+    ['search_all', 'describe_entity_filters', 'query_entities', 'aggregate_entities', 'get_filter_values', 'get_application_classification_catalog', 'get_entity_detail', 'get_entity_context', 'search_knowledge', 'get_document'],
   );
   assert.match(
     tools.find((tool) => tool.name === 'describe_entity_filters')?.description || '',
@@ -512,6 +512,7 @@ async function testListRegisteredToolsExposesRuntimeRegistry() {
       'query_entities',
       'aggregate_entities',
       'get_filter_values',
+      'get_application_classification_catalog',
       'get_entity_detail',
       'get_entity_context',
       'get_entity_comments',

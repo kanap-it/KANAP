@@ -14,6 +14,9 @@ export class ApplicationLink {
   @Column('text', { nullable: true })
   description!: string | null;
 
+  @Column('text', { default: 'general' })
+  purpose!: 'general' | 'recovery_plan' | 'recovery_test';
+
   @Column('text')
   url!: string;
 

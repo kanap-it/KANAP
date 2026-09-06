@@ -6,6 +6,7 @@ import { ConnectionProtocol } from '../connection-protocol.entity';
 import { ConnectionLeg } from '../connection-leg.entity';
 import { Asset } from '../../assets/asset.entity';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
+import { highestClassification, resolveClassificationOption } from '../../it-ops-settings/classification-catalog';
 
 /**
  * Topology types for connections.
@@ -15,8 +16,6 @@ export type Topology = 'server_to_server' | 'multi_server';
 /**
  * Connection criticality levels.
  */
-export const CONNECTION_CRITICALITIES = ['business_critical', 'high', 'medium', 'low'] as const;
-
 /**
  * Environment values for connections.
  */
@@ -176,25 +175,32 @@ export abstract class ConnectionsBaseService {
     return allowed.length > 0 ? [allowed[0]] : ['active'];
   }
 
-  protected normalizeCriticality(value: unknown): string {
-    const normalized = String(value ?? '').trim().toLowerCase();
-    if (!normalized) return 'medium';
-    if (!(CONNECTION_CRITICALITIES as readonly string[]).includes(normalized)) {
+  protected async normalizeCriticality(
+    value: unknown,
+    tenantId: string,
+    manager?: EntityManager,
+    existing?: string | null,
+  ): Promise<string | null> {
+    const catalog = await this.itOpsSettings.getClassificationCatalog(tenantId, { manager });
+    const code = resolveClassificationOption(value, catalog.businessCriticalityLevels, existing);
+    if (value != null && String(value).trim() && code === null) {
       throw new BadRequestException(`Invalid criticality "${value}"`);
     }
-    return normalized;
+    return code;
   }
 
-  protected async normalizeDataClass(value: unknown, tenantId: string, manager?: EntityManager): Promise<string> {
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
-    const allowed = new Set((settings.dataClasses || []).map((o: any) => String(o.code || '').trim().toLowerCase()));
-    const fallback = allowed.has('internal') ? 'internal' : Array.from(allowed)[0] || 'internal';
-    const normalized = String(value ?? '').trim().toLowerCase();
-    if (!normalized) return fallback;
-    if (!allowed.has(normalized)) {
+  protected async normalizeDataClass(
+    value: unknown,
+    tenantId: string,
+    manager?: EntityManager,
+    existing?: string | null,
+  ): Promise<string | null> {
+    const catalog = await this.itOpsSettings.getClassificationCatalog(tenantId, { manager });
+    const code = resolveClassificationOption(value, catalog.dataClasses, existing);
+    if (value != null && String(value).trim() && code === null) {
       throw new BadRequestException(`Invalid data_class "${value}"`);
     }
-    return normalized;
+    return code;
   }
 
   protected normalizeContainsPii(value: unknown): boolean {
@@ -380,8 +386,8 @@ export abstract class ConnectionsBaseService {
     bases: Array<{
       id: string;
       risk_mode: 'manual' | 'derived';
-      criticality: string;
-      data_class: string;
+      criticality: string | null;
+      data_class: string | null;
       contains_pii: boolean;
     }>,
     mg: EntityManager,
@@ -389,10 +395,11 @@ export abstract class ConnectionsBaseService {
     Map<
       string,
       {
-        effective_criticality: string;
-        effective_data_class: string;
+        effective_criticality: string | null;
+        effective_data_class: string | null;
         effective_contains_pii: boolean;
         derived_interface_count: number;
+        classification_incomplete: boolean;
       }
     >
   > {
@@ -404,23 +411,13 @@ export abstract class ConnectionsBaseService {
       return new Map();
     }
 
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager: mg });
-    const dataClassOrder = new Map<string, number>();
-    (settings.dataClasses || []).forEach((dc, index) => {
-      const code = String(dc.code || '').trim().toLowerCase();
-      if (code) dataClassOrder.set(code, index);
-    });
-
-    const criticalityOrder = new Map<string, number>();
-    CONNECTION_CRITICALITIES.forEach((code, index) => {
-      criticalityOrder.set(code, CONNECTION_CRITICALITIES.length - index);
-    });
+    const catalog = await this.itOpsSettings.getClassificationCatalog(tenantId, { manager: mg });
 
     const rows: Array<{
       connection_id: string;
       interface_id: string;
-      criticality: string;
-      data_class: string;
+      criticality: string | null;
+      data_class: string | null;
       contains_pii: boolean;
     }> = await mg.query(
       `SELECT
@@ -437,10 +434,8 @@ export abstract class ConnectionsBaseService {
     );
 
     type Accumulator = {
-      worstCritScore: number | null;
-      worstCritCode: string | null;
-      worstDataScore: number | null;
-      worstDataCode: string | null;
+      criticalities: Array<string | null>;
+      dataClasses: Array<string | null>;
       containsPii: boolean;
       interfaceIds: Set<string>;
     };
@@ -452,28 +447,15 @@ export abstract class ConnectionsBaseService {
       let acc = aggregated.get(cid);
       if (!acc) {
         acc = {
-          worstCritScore: null,
-          worstCritCode: null,
-          worstDataScore: null,
-          worstDataCode: null,
+          criticalities: [],
+          dataClasses: [],
           containsPii: false,
           interfaceIds: new Set<string>(),
         };
         aggregated.set(cid, acc);
       }
-      const critCode = String(row.criticality || '').trim().toLowerCase();
-      const critScore = criticalityOrder.get(critCode);
-      if (critScore !== undefined && (acc.worstCritScore === null || critScore > acc.worstCritScore)) {
-        acc.worstCritScore = critScore;
-        acc.worstCritCode = critCode;
-      }
-
-      const dataCode = String(row.data_class || '').trim().toLowerCase();
-      const dataScore = dataClassOrder.get(dataCode);
-      if (dataScore !== undefined && (acc.worstDataScore === null || dataScore > acc.worstDataScore)) {
-        acc.worstDataScore = dataScore;
-        acc.worstDataCode = dataCode;
-      }
+      acc.criticalities.push(row.criticality);
+      acc.dataClasses.push(row.data_class);
 
       if (row.contains_pii) {
         acc.containsPii = true;
@@ -485,10 +467,11 @@ export abstract class ConnectionsBaseService {
     const result = new Map<
       string,
       {
-        effective_criticality: string;
-        effective_data_class: string;
+        effective_criticality: string | null;
+        effective_data_class: string | null;
         effective_contains_pii: boolean;
         derived_interface_count: number;
+        classification_incomplete: boolean;
       }
     >();
 
@@ -498,15 +481,19 @@ export abstract class ConnectionsBaseService {
       let effective_criticality = base.criticality;
       let effective_data_class = base.data_class;
       let effective_contains_pii = base.contains_pii;
+      let classification_incomplete = false;
 
       if (base.risk_mode === 'derived' && acc && derivedCount > 0) {
-        if (acc.worstCritCode) {
-          effective_criticality = acc.worstCritCode;
-        }
-        if (acc.worstDataCode) {
-          effective_data_class = acc.worstDataCode;
-        }
+        const criticality = highestClassification(acc.criticalities, catalog.businessCriticalityLevels);
+        const dataClass = highestClassification(acc.dataClasses, catalog.dataClasses);
+        effective_criticality = criticality.code;
+        effective_data_class = dataClass.code;
+        classification_incomplete = criticality.incomplete || dataClass.incomplete;
         effective_contains_pii = acc.containsPii;
+      } else if (base.risk_mode === 'derived') {
+        effective_criticality = null;
+        effective_data_class = null;
+        classification_incomplete = true;
       }
 
       result.set(base.id, {
@@ -514,6 +501,7 @@ export abstract class ConnectionsBaseService {
         effective_data_class,
         effective_contains_pii,
         derived_interface_count: derivedCount,
+        classification_incomplete,
       });
     }
 

@@ -55,6 +55,7 @@ export class CsvImportService {
   private readonly AUDITED_IMPORT_TABLES = new Set<string>([
     'tasks',
     'incidents',
+    'applications',
     'portfolio_requests',
     'portfolio_projects',
   ]);
@@ -119,6 +120,8 @@ export class CsvImportService {
 
     // Phase 1: Validate and parse all rows
     const parsedRows = await this.validateAndParseRows(config, rows, importFields, context);
+
+    if (config.afterValidate) await config.afterValidate(parsedRows, context);
 
     // Check for duplicate upsert keys within the file
     const duplicateErrors = this.checkDuplicateKeys(config, parsedRows);

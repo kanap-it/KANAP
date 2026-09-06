@@ -395,7 +395,7 @@ const PARTICIPATION_SCOPE_SOURCE_TABLE: Record<ParticipationScopedAiEntityType, 
 const SEARCH_INDEX_METADATA_KEYS: Partial<Record<AiSearchEntityType, string[]>> = {
   accounts: ['coa_code'],
   applications: [
-    'lifecycle', 'criticality', 'category', 'hosting_model', 'data_class',
+    'lifecycle', 'criticality', 'cyber_criticality', 'recovery_wave', 'business_mtd_minutes', 'rto_minutes', 'rpo_minutes', 'category', 'hosting_model', 'data_class',
     'version', 'supplier', 'business_owner', 'it_owner',
   ],
   business_processes: ['primary_category'],
@@ -584,7 +584,7 @@ export class AiEntityService {
               a.status,
               a.updated_at,
               a.lifecycle,
-              a.criticality,
+              a.criticality, a.business_mtd_minutes, a.business_criticality_origin, a.cyber_criticality, a.recovery_wave, a.rto_minutes, a.rpo_minutes,
               a.category,
               a.hosting_model,
               a.data_class,
@@ -646,6 +646,12 @@ export class AiEntityService {
           metadata: {
             lifecycle: row.lifecycle ?? null,
             criticality: row.criticality ?? null,
+            business_mtd_minutes: row.business_mtd_minutes ?? null,
+            business_criticality_origin: row.business_criticality_origin ?? null,
+            cyber_criticality: row.cyber_criticality ?? null,
+            recovery_wave: row.recovery_wave ?? null,
+            rto_minutes: row.rto_minutes ?? null,
+            rpo_minutes: row.rpo_minutes ?? null,
             category: row.category ?? null,
             hosting_model: row.hosting_model ?? null,
             data_class: row.data_class ?? null,
@@ -1901,7 +1907,7 @@ export class AiEntityService {
     const accessScopeSql = appendParticipationScopeSql('applications', 'a', params, accessScope);
     const rows = await context.manager.query<any[]>(
       `SELECT a.id, a.sequential_id AS item_ref, NULL::int AS item_number, a.name AS label, a.description AS summary, a.status, a.updated_at,
-              a.lifecycle, a.criticality, a.category, a.hosting_model, a.data_class, a.version,
+              a.lifecycle, a.criticality, a.business_mtd_minutes, a.business_criticality_origin, a.cyber_criticality, a.recovery_wave, a.rto_minutes, a.rpo_minutes, a.category, a.hosting_model, a.data_class, a.version,
               s.name AS supplier_name,
               ${itOwnerNamesSql} AS it_owner_names
        FROM applications a
@@ -1916,6 +1922,12 @@ export class AiEntityService {
       metadata: {
         lifecycle: row.lifecycle ?? null,
         criticality: row.criticality ?? null,
+        business_mtd_minutes: row.business_mtd_minutes ?? null,
+        business_criticality_origin: row.business_criticality_origin ?? null,
+        cyber_criticality: row.cyber_criticality ?? null,
+        recovery_wave: row.recovery_wave ?? null,
+        rto_minutes: row.rto_minutes ?? null,
+        rpo_minutes: row.rpo_minutes ?? null,
         category: row.category ?? null,
         hosting_model: row.hosting_model ?? null,
         data_class: row.data_class ?? null,

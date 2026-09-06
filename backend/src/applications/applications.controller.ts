@@ -124,6 +124,7 @@ export class ApplicationsController {
   @RequireLevel('applications', 'admin')
   @Get('export')
   async export(
+    @Query() query: Record<string, unknown>,
     @Query('scope') scope: 'template' | 'data' = 'data',
     @Query('fields') fields: string | undefined,
     @Query('preset') preset: string | undefined,
@@ -136,6 +137,7 @@ export class ApplicationsController {
     const result = await this.csvSvc.export({
       manager: ctx.manager,
       tenantId: ctx.tenantId,
+      query,
       scope,
       fields: fields ? fields.split(',').map((f) => f.trim()) : undefined,
       preset,
@@ -205,6 +207,20 @@ export class ApplicationsController {
   @Get('csv-fields')
   getCsvFields() {
     return this.csvSvc.getFieldInfo();
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get('classification-catalog')
+  classificationCatalog(@Tenant() ctx: TenantRequest) {
+    return this.svc.getClassificationCatalog({ manager: ctx.manager });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/classification-review')
+  reviewClassification(@Param('id') id: string, @Body() body: { expected_revision: number; expected_classification_versions?: import('../it-ops-settings/classification-catalog').ClassificationVersions }, @Tenant() ctx: TenantRequest) {
+    return this.svc.reviewClassification(id, body?.expected_revision, ctx.userId || null, { manager: ctx.manager }, body?.expected_classification_versions);
   }
 
   @UseGuards(PermissionGuard)
@@ -509,6 +525,13 @@ export class ApplicationsController {
     return this.svc.update(id, body as Record<string, unknown>, ctx.userId || null, { manager: ctx.manager });
   }
 
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'member')
+  @Post(':id/copy')
+  copyApplication(@Param('id') id: string, @Body() body: { name?: string }, @Tenant() ctx: TenantRequest) {
+    return this.svc.copyApplication(id, body?.name || '', ctx.userId || null, { manager: ctx.manager });
+  }
+
   // Import - uses V2 CSV service
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'admin')
@@ -660,7 +683,7 @@ export class ApplicationsController {
   @Post(':id/links')
   createLink(
     @Param('id') id: string,
-    @Body() body: { description?: string; url: string },
+    @Body() body: { description?: string; url: string; purpose?: 'general' | 'recovery_plan' | 'recovery_test' },
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationLink> {
     return this.svc.createLink(id, body, ctx.userId || null, { manager: ctx.manager });
@@ -672,7 +695,7 @@ export class ApplicationsController {
   updateLink(
     @Param('id') id: string,
     @Param('linkId') linkId: string,
-    @Body() body: { description?: string; url?: string },
+    @Body() body: { description?: string; url?: string; purpose?: 'general' | 'recovery_plan' | 'recovery_test' },
     @Tenant() ctx: TenantRequest,
   ): Promise<ApplicationLink> {
     return this.svc.updateLink(id, linkId, body, ctx.userId || null, { manager: ctx.manager });

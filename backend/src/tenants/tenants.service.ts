@@ -1,3 +1,4 @@
+import { catalogToMetadata, DEFAULT_CLASSIFICATION_CATALOG } from '../it-ops-settings/classification-catalog';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
@@ -301,7 +302,7 @@ export class TenantsService {
       await this.seedDefaultDocumentLibraries(manager, existing.id);
       return existing;
     }
-    const tenant = repo.create({ slug, name: params.name, status: TenantStatus.ACTIVE });
+    const tenant = repo.create({ slug, name: params.name, status: TenantStatus.ACTIVE, metadata: { it_ops: catalogToMetadata(DEFAULT_CLASSIFICATION_CATALOG) } });
     const saved = await repo.save(tenant);
     await this.ensureSystemRoles(manager, saved.id);
     await this.seedDefaultTaskTypes(manager, saved.id);

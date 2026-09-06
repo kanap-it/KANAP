@@ -40,7 +40,11 @@
     "test:incident-review-access": "ts-node src/knowledge/__tests__/incident-review-access.integration.spec.ts && ts-node src/incidents/__tests__/incident-review-csv.integration.spec.ts",
     "test:incident-review-migration": "ts-node src/incidents/__tests__/incident-review-migration.spec.ts",
     "test:csv": "ts-node src/common/csv/__tests__/csv-import.service.spec.ts && ts-node src/common/csv/__tests__/csv-export.service.spec.ts && ts-node src/common/csv/__tests__/csv-resolver.service.spec.ts && ts-node src/common/csv/__tests__/entity-csv-configs.spec.ts && ts-node src/contracts/__tests__/contracts.service.csv.spec.ts",
-    "stripe:migrate": "typeorm-ts-node-commonjs -d src/data-source.ts migration:generate --dr --pretty"
+    "stripe:migrate": "typeorm-ts-node-commonjs -d src/data-source.ts migration:generate --dr --pretty",
+    "test:application-classification": "ts-node src/applications/__tests__/application-classification.spec.ts && ts-node src/connections/__tests__/classification-consumers.spec.ts && ts-node src/applications/__tests__/application-classification-review.spec.ts",
+    "test:application-classification:ai": "ts-node src/ai/__tests__/ai-application-classification.spec.ts && ts-node src/ai/__tests__/ai-tool.registry.spec.ts && ts-node src/ai/__tests__/ai-business-record-mutation-support.service.spec.ts",
+    "test:application-classification:integration": "ts-node src/applications/__tests__/application-classification.integration.spec.ts && ts-node src/applications/__tests__/application-classification-concurrency.integration.spec.ts",
+    "test:application-classification:http": "ts-node src/applications/__tests__/application-classification-http-permissions.integration.spec.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

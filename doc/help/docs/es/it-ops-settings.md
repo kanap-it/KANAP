@@ -239,6 +239,22 @@ Niveles de clasificación de datos para Aplicaciones e Interfaces.
 - Espacio de trabajo de Interfaces → pestaña Visión general → campo **Clase de datos**
 - Lista de Aplicaciones → columna **Clase de datos**
 
+### Clasificaciones y continuidad
+
+Este editor especializado configura los catálogos utilizados por la clasificación y la continuidad de las aplicaciones. Está disponible para usuarios `settings:admin` en la sección **Aplicaciones, servicios e interfaces**.
+
+- **Criticidad empresarial y umbrales MTD**: códigos estables, etiquetas, descripciones, rangos únicos y un máximo MTD en minutos; el último nivel activo no tiene límite.
+- **Duraciones MTD permitidas en minutos**: opciones que ofrece el editor de aplicaciones. El editor no permite introducir una MTD libre; un valor histórico fuera de las duraciones permitidas sigue siendo visible y puede borrarse. Los valores nuevos o modificados mediante API/CSV/Plaid deben usar una duración permitida configurada; un valor histórico sin cambios sigue siendo válido. La lista debe contener al menos un valor entero positivo distinto. El campo API sigue siendo `businessMtdPresets`; las duraciones permitidas no cambian el método de clasificación.
+- **Criticidad cibernética**: niveles de consecuencias con rangos explícitos.
+- **Confidencialidad de datos**: catálogo de clases de datos con descripciones y rangos.
+- **Olas de recuperación**: etapas ordenadas de restauración; el orden no representa gravedad ni duración.
+
+Los códigos son identificadores estables. Un valor utilizado puede marcarse como obsoleto: seguirá visible en las aplicaciones existentes, pero no podrá asignarse a nuevos registros. Las etiquetas y descripciones pueden editarse.
+
+Los cambios empresariales usan **Previsualizar impacto** antes de **Publicar cambios**. La previsualización muestra las aplicaciones afectadas y las transiciones. La publicación requiere la revisión actual de ajustes; un cambio concurrente exige recargar. Restablecer respeta las mismas protecciones y no elimina silenciosamente códigos usados por aplicaciones, interfaces o conexiones.
+
+Los niveles empresariales también alimentan la criticidad operativa de interfaces y conexiones. Los umbrales MTD solo se aplican a aplicaciones; las derivaciones incompletas se señalan y los valores nulos no se tratan como bajos.
+
 ### Patrones de integración
 
 Patrones de integración para rutas de Interfaz (p. ej., REST API, Lote de archivos, Cola, Staging BD).

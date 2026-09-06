@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ApplicationsCsvService } from '../applications-csv.service';
+import { copyClassification } from './application-classification';
+import { classificationPatch, classificationReadState, versionsEqual } from './application-classification';
+import { ClassificationVersions } from '../../it-ops-settings/classification-catalog';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { format } from '@fast-csv/format';
@@ -41,6 +45,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     private readonly storage: StorageService,
     private readonly itOpsSettings: ItOpsSettingsService,
     private readonly notifications: NotificationsService,
+    private readonly csvService: ApplicationsCsvService,
   ) {
     super(appRepo);
   }
@@ -94,7 +99,9 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
         [appId],
       );
     }
-    const result: any = { ...app, owners, companies, departments, links, attachments, data_residency, derived_total_users };
+    const catalog = await this.itOpsSettings.getClassificationCatalog(app.tenant_id, { manager: mg });
+    const classification_reviewer_name = await this.classificationReviewerName(app, mg);
+    const result: any = { ...app, ...classificationReadState(app, catalog), classification_reviewer_name, owners, companies, departments, links, attachments, data_residency, derived_total_users };
     if (includeSupport) {
       result.support_contacts = support_contacts;
     }
@@ -161,13 +168,63 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     return { ok: true };
   }
 
+  async getClassificationCatalog(opts?: ServiceOpts) {
+    const manager = this.getManager(opts);
+    return this.itOpsSettings.getClassificationCatalog(await this.getCurrentTenantId(manager), { manager });
+  }
+
+  async create(body: Partial<Application>, userId?: string | null, opts?: ServiceOpts) {
+    return this.getManager(opts).transaction((manager) => this.createLocked(body, userId, { ...opts, manager }));
+  }
+
+  async update(id: string, body: Partial<Application>, userId?: string | null, opts?: ServiceOpts) {
+    return this.getManager(opts).transaction((manager) => this.updateLocked(id, body, userId, { ...opts, manager }));
+  }
+
+  async reviewClassification(id: string, expectedRevision: number, userId: string | null, opts?: ServiceOpts, expectedVersions?: ClassificationVersions) {
+    if (!userId) throw new ForbiddenException('A signed-in reviewer is required');
+    return this.getManager(opts).transaction(async (manager) => {
+      const tenantId = await this.getCurrentTenantId(manager);
+      const catalog = await this.itOpsSettings.lockClassificationCatalog(tenantId, manager);
+      const appId = await this.resolveApplicationIdentifier(id, manager);
+      await this.assertVisible(appId, opts?.accessScope, manager);
+      await manager.query('SELECT id FROM applications WHERE id = $1 AND tenant_id = $2 FOR UPDATE', [appId, tenantId]);
+      const repo = manager.getRepository(Application);
+      const app = await repo.findOne({ where: { id: appId, tenant_id: tenantId } });
+      if (!app) throw new NotFoundException('Application not found');
+      if (!Number.isInteger(expectedRevision) || app.classification_revision !== expectedRevision) throw new ConflictException('Classification changed; reload before marking as reviewed');
+      if (expectedVersions !== undefined && !versionsEqual(expectedVersions, catalog.classificationVersions)) throw new ConflictException('Classification methodology changed; reload before marking as reviewed');
+      if (classificationReadState(app, catalog).classification_review_state === 'incomplete') throw new BadRequestException('Set MTD, cyber criticality, data confidentiality, recovery wave and a brief justification before review');
+      const actor = await manager.query('SELECT id FROM users WHERE id = $1 AND tenant_id = $2', [userId, tenantId]);
+      if (!actor.length) throw new ForbiddenException('Reviewer must belong to this tenant');
+      const before = { ...app };
+      app.classification_review = { user_id: userId, reviewed_at: new Date().toISOString(), revision: app.classification_revision, versions: catalog.classificationVersions };
+      await repo.save(app);
+      await this.audit.log({ table: 'applications', recordId: app.id, action: 'update', before, after: app, userId }, { manager });
+      return Object.assign(app, classificationReadState(app, catalog));
+    });
+  }
+
+  private async classificationReviewerName(app: Pick<Application, 'tenant_id' | 'classification_review'>, manager: any): Promise<string | null> {
+    const reviewerId = app.classification_review?.user_id;
+    if (!reviewerId) return null;
+    const rows = await manager.query(
+      `SELECT first_name, last_name FROM users WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
+      [reviewerId, app.tenant_id],
+    );
+    if (!rows.length) return null;
+    return [rows[0].first_name, rows[0].last_name].filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim()).join(' ') || null;
+  }
+
   /**
    * Create a new application.
    */
-  async create(body: Partial<Application>, userId?: string | null, opts?: ServiceOpts) {
+  private async createLocked(body: Partial<Application>, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
     const tenantId = await this.getCurrentTenantId(mg);
+    const catalog = await this.itOpsSettings.lockClassificationCatalog(tenantId, mg);
+    const classification = classificationPatch(body, null, catalog);
     const nowYear = new Date().getFullYear();
     const lifecycle = await this.normalizeLifecycle(body.lifecycle, tenantId, mg, 'active');
     const category = await this.normalizeCategory((body as any).category, tenantId, mg, { useDefaultForEmpty: true });
@@ -179,8 +236,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
       environment: ((body as any).environment || 'prod') as any,
       category,
       lifecycle,
-      criticality: (body.criticality || 'medium') as any,
-      data_class: (body.data_class ?? null) as any,
+      ...classification,
       hosting_model: (body.hosting_model ?? null) as any,
       external_facing: !!body.external_facing,
       is_suite: !!(body as any).is_suite,
@@ -206,19 +262,25 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     if (!entity.name) throw new BadRequestException('name is required');
     const saved = (await repo.save(entity as any)) as Application;
     await this.audit.log({ table: 'applications', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager: mg });
-    return saved;
+    return Object.assign(saved, classificationReadState(saved, catalog));
   }
 
   /**
    * Update an existing application.
    */
-  async update(id: string, body: Partial<Application>, userId?: string | null, opts?: ServiceOpts) {
+  private async updateLocked(id: string, body: Partial<Application>, userId?: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
     const appId = await this.resolveApplicationIdentifier(id, mg);
-    const existing = await this.get(appId, { manager: mg });
+    const tenantId = await this.getCurrentTenantId(mg);
+    const catalog = await this.itOpsSettings.lockClassificationCatalog(tenantId, mg);
+    await mg.query('SELECT id FROM applications WHERE id = $1 AND tenant_id = $2 FOR UPDATE', [appId, tenantId]);
+    const existing = await repo.findOne({ where: { id: appId, tenant_id: tenantId } });
+    if (!existing) throw new NotFoundException('Application not found');
     const before = { ...existing };
-    const patch: any = { ...body };
+    const classification = classificationPatch(body, existing, catalog);
+    const patch: any = { ...body, ...classification };
+    for (const key of ['id', 'tenant_id', 'created_at', 'sequential_id', 'expected_classification_revision', 'expected_classification_versions']) delete patch[key];
     if (patch.last_dr_test !== undefined) patch.last_dr_test = patch.last_dr_test ? new Date(patch.last_dr_test as any) : null;
     if (patch.retired_date !== undefined) patch.retired_date = patch.retired_date ? new Date(patch.retired_date as any) : null;
     if (patch.end_of_support_date !== undefined) patch.end_of_support_date = patch.end_of_support_date ? new Date(patch.end_of_support_date as any) : null;
@@ -229,10 +291,10 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     if (patch.category !== undefined) {
       patch.category = await this.normalizeCategory(patch.category, existing.tenant_id, mg);
     }
-    Object.assign(existing, patch);
+    Object.assign(existing, patch, { updated_at: new Date() });
     const saved = (await repo.save(existing as any)) as Application;
     await this.audit.log({ table: 'applications', recordId: saved.id, action: 'update', before, after: saved, userId }, { manager: mg });
-    return saved;
+    return Object.assign(saved, classificationReadState(saved, catalog));
   }
 
   /**
@@ -313,7 +375,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     const mg = this.getManager(opts);
     const resolvedAppId = await this.resolveApplicationIdentifier(appId, mg);
     const repo = mg.getRepository(ApplicationLink);
-    const entity = repo.create({ application_id: resolvedAppId, description: body.description ?? null, url: String(body.url || '').trim() });
+    const entity = repo.create({ application_id: resolvedAppId, description: body.description ?? null, purpose: body.purpose ?? 'general', url: String(body.url || '').trim() });
     if (!entity.url) throw new BadRequestException('url is required');
     const saved = await repo.save(entity);
     await this.audit.log({ table: 'application_links', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager: mg });
@@ -327,6 +389,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     const existing = await repo.findOne({ where: { id: linkId } });
     if (!existing || existing.application_id !== resolvedAppId) throw new NotFoundException('Link not found');
     const before = { ...existing };
+    if (body.purpose !== undefined) existing.purpose = body.purpose;
     if (body.description !== undefined) existing.description = body.description as any;
     if (body.url !== undefined) existing.url = String(body.url || '').trim();
     const saved = await repo.save(existing);
@@ -398,230 +461,30 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   }
 
   // CSV Export/Import
-  private csvHeaders(): string[] {
-    return [
-      'id', 'name', 'supplier_id', 'supplier_name', 'category', 'editor', 'lifecycle', 'criticality',
-      'data_class', 'hosting_model', 'external_facing', 'last_dr_test', 'sso_enabled', 'mfa_supported',
-      'contains_pii', 'licensing', 'notes', 'users_mode', 'users_year', 'users_override', 'status',
-      'disabled_at', 'created_at', 'updated_at', 'business_owner_emails', 'it_owner_emails', 'data_residency',
-    ];
-  }
-
   async exportCsv(scope: 'template' | 'data' = 'data', opts?: ServiceOpts) {
-    const mg = this.getManager(opts);
-    const headers = this.csvHeaders();
-    const delimiter = ';';
-    const rows: any[] = [];
-    if (scope === 'data') {
-      const apps = await mg.getRepository(Application).find({ order: { created_at: 'DESC' as any } });
-      if (apps.length) {
-        const supplierIds = Array.from(new Set(apps.map((a) => a.supplier_id).filter(Boolean))) as string[];
-        const sRows = supplierIds.length ? await mg.query(`SELECT id, name FROM suppliers WHERE id = ANY($1)`, [supplierIds]) : [];
-        const sMap = new Map<string, any>(sRows.map((r: any) => [r.id, r]));
-        const appIds = apps.map((a) => a.id);
-        const ownerRows = appIds.length ? await mg.query(
-          `SELECT o.application_id, u.email, o.owner_type FROM application_owners o LEFT JOIN users u ON u.id = o.user_id WHERE o.application_id = ANY($1)`, [appIds],
-        ) : [];
-        const ownersMap = new Map<string, { business: string[]; it: string[] }>();
-        for (const r of ownerRows) {
-          const key = r.application_id;
-          if (!ownersMap.has(key)) ownersMap.set(key, { business: [], it: [] });
-          if (r.owner_type === 'business') ownersMap.get(key)!.business.push(r.email || '');
-          else ownersMap.get(key)!.it.push(r.email || '');
-        }
-        const resRows = appIds.length ? await mg.query(`SELECT application_id, country_iso FROM application_data_residency WHERE application_id = ANY($1)`, [appIds]) : [];
-        const resMap = new Map<string, string[]>();
-        for (const r of resRows) {
-          const key = r.application_id;
-          if (!resMap.has(key)) resMap.set(key, []);
-          resMap.get(key)!.push((r.country_iso || '').toUpperCase());
-        }
-        for (const a of apps) {
-          const owners = ownersMap.get(a.id) || { business: [], it: [] };
-          const residency = resMap.get(a.id) || [];
-          rows.push({
-            id: a.id, name: a.name, supplier_id: a.supplier_id ?? '', supplier_name: a.supplier_id ? (sMap.get(a.supplier_id)?.name ?? '') : '',
-            category: a.category, editor: a.editor ?? '', lifecycle: a.lifecycle, criticality: a.criticality, data_class: a.data_class,
-            hosting_model: a.hosting_model, external_facing: a.external_facing ? 'yes' : 'no', last_dr_test: a.last_dr_test ?? '',
-            sso_enabled: a.sso_enabled ? 'yes' : 'no', mfa_supported: a.mfa_supported ? 'yes' : 'no', contains_pii: a.contains_pii ? 'yes' : 'no',
-            licensing: a.licensing ?? '', notes: a.notes ?? '', users_mode: a.users_mode, users_year: a.users_year, users_override: a.users_override ?? '',
-            status: a.status, disabled_at: a.disabled_at ?? '', created_at: a.created_at ?? '', updated_at: a.updated_at ?? '',
-            business_owner_emails: owners.business.join(','), it_owner_emails: owners.it.join(','), data_residency: residency.join(','),
-          });
-        }
-      }
-    }
-    const filename = scope === 'template' ? 'applications_template.csv' : 'applications.csv';
-    const chunks: string[] = [];
-    await new Promise<void>((resolve, reject) => {
-      const stream = format({ headers, delimiter });
-      stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
-      stream.on('end', () => resolve());
-      stream.on('error', (err) => reject(err));
-      for (const row of rows) stream.write(row);
-      stream.end();
-    });
-    const BOM = '\uFEFF';
-    return { filename, content: BOM + chunks.join('') };
+    const manager = this.getManager(opts);
+    const result = await this.csvService.export({ manager, tenantId: await this.getCurrentTenantId(manager), scope });
+    return result.content;
   }
 
-  async importCsv(
-    { file, dryRun, userId }: { file: Express.Multer.File; dryRun: boolean; userId?: string | null },
-    opts?: ServiceOpts,
-  ) {
-    const mg = this.getManager(opts);
-    if (!file) throw new BadRequestException('No file uploaded');
-    const buf = file.buffer || null;
-    if (!buf) throw new BadRequestException('Empty upload');
-    const text = decodeCsvBufferUtf8OrThrow(buf);
-    const rows = await new Promise<any[]>((resolve, reject) => {
-      const out: any[] = [];
-      parseString(text, { headers: true, delimiter: ';', ignoreEmpty: true })
-        .on('error', (e) => reject(e))
-        .on('data', (r) => out.push(r))
-        .on('end', () => resolve(out));
-    });
-    const errors: { row: number; message: string }[] = [];
-    if (rows.length === 0) return { ok: false, dryRun, total: 0, inserted: 0, updated: 0, errors: [{ row: 0, message: 'Empty CSV' }] };
-
-    const allSuppliers = await mg.query(`SELECT id, name FROM suppliers`);
-    const sByName = new Map<string, any>(allSuppliers.map((r: any) => [String(r.name || ''), r]));
-    const sById = new Map<string, any>(allSuppliers.map((r: any) => [String(r.id || ''), r]));
-    const allUsers = await mg.query(`SELECT id, email FROM users`);
-    const uByEmail = new Map<string, any>(allUsers.map((r: any) => [String(r.email || '').toLowerCase(), r]));
-
-    let line = 1;
-    type Parsed = Partial<Application> & { id?: string | null; business_owner_emails?: string[]; it_owner_emails?: string[]; data_residency?: string[]; supplier_name?: string; supplier_id?: string | null; __row: number };
-    const parsed: Parsed[] = [];
-    for (const r of rows) {
-      line += 1;
-      const id = ((r['id'] ?? '').toString().trim() || null);
-      const name = (r['name'] ?? '').toString().trim();
-      if (!name) errors.push({ row: line, message: 'name is required' });
-      const supplier_name = (r['supplier_name'] ?? '').toString().trim() || undefined;
-      const supplier_id_raw = (r['supplier_id'] ?? '').toString().trim() || undefined;
-      const supplier_id_input = supplier_id_raw && sById.has(supplier_id_raw) ? supplier_id_raw : undefined;
-      const category = (r['category'] ?? '').toString().trim();
-      const editor = (r['editor'] ?? '').toString().trim() || null;
-      const lifecycle = (r['lifecycle'] ?? 'active').toString().trim() as any;
-      const criticality = (r['criticality'] ?? 'medium').toString().trim() as any;
-      const data_class = ((r['data_class'] ?? '').toString().trim() || null) as any;
-      const hosting_model = ((r['hosting_model'] ?? '').toString().trim() || null) as any;
-      const last_dr_test = ((r['last_dr_test'] ?? '').toString().trim() || null) as any;
-      const licensing = ((r['licensing'] ?? '').toString().trim() || null) as any;
-      const notes = ((r['notes'] ?? '').toString().trim() || null) as any;
-      const external_facing = this.parseBool(r['external_facing']);
-      const sso_enabled = this.parseBool(r['sso_enabled']);
-      const mfa_supported = this.parseBool(r['mfa_supported']);
-      const contains_pii = this.parseBool(r['contains_pii']);
-      const users_mode = ((r['users_mode'] ?? '').toString().trim() || undefined) as any;
-      const users_year = (() => { const n = Number((r['users_year'] ?? '').toString()); return Number.isFinite(n) ? n : undefined; })();
-      const users_override = (() => { const n = Number((r['users_override'] ?? '').toString()); return Number.isFinite(n) ? n : undefined; })();
-      const status = ((r['status'] ?? '').toString().trim().toLowerCase() === 'disabled') ? 'disabled' : 'enabled';
-      const disabled_at = ((r['disabled_at'] ?? '').toString().trim() || null) as any;
-      const business_owner_emails = (r['business_owner_emails'] ?? '').toString().split(',').map((s: string) => s.trim()).filter(Boolean);
-      const it_owner_emails = (r['it_owner_emails'] ?? '').toString().split(',').map((s: string) => s.trim()).filter(Boolean);
-      const data_residency = (r['data_residency'] ?? '').toString().split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean);
-      parsed.push({
-        id, name, supplier_name, supplier_id: supplier_id_input ?? null, category, editor, lifecycle, criticality, data_class, hosting_model, last_dr_test, licensing, notes,
-        external_facing, sso_enabled, mfa_supported, contains_pii, users_mode, users_year, users_override, status, disabled_at,
-        business_owner_emails, it_owner_emails, data_residency, __row: line,
-      } as any);
-    }
-    const tenantId = await this.getCurrentTenantId(mg);
-    for (const entry of parsed) {
-      try {
-        entry.lifecycle = await this.normalizeLifecycle(entry.lifecycle, tenantId, mg, 'active') as any;
-      } catch (e: any) {
-        const message = e?.message || 'Invalid lifecycle value';
-        errors.push({ row: entry.__row, message });
-      }
-      try {
-        (entry as any).category = await this.normalizeCategory((entry as any).category, tenantId, mg, { useDefaultForEmpty: true }) as any;
-      } catch (e: any) {
-        const message = e?.message || 'Invalid application category';
-        errors.push({ row: entry.__row, message });
-      }
-    }
-    if (errors.length > 0) return { ok: false, dryRun, total: rows.length, inserted: 0, updated: 0, errors };
-
-    let inserted = 0; let updated = 0; let processed = 0;
-    if (!dryRun) {
-      for (const p of parsed) {
-        processed += 1;
-        let supplier_id: string | null = p.supplier_id ?? null;
-        if (!supplier_id && p.supplier_name) {
-          const s = sByName.get(p.supplier_name);
-          if (!s) { errors.push({ row: processed + 1, message: `supplier not found: '${p.supplier_name}'` }); continue; }
-          supplier_id = s.id;
-        }
-        const repo = mg.getRepository(Application);
-        let existing: Application | null = null;
-        if (p.id) existing = await repo.findOne({ where: { id: p.id } });
-        if (!existing) existing = await repo.findOne({ where: { name: p.name! } });
-        if (!existing) {
-          const nowYear = new Date().getFullYear();
-          const entity = repo.create({
-            name: p.name!, supplier_id, category: (p as any).category, editor: p.editor ?? null, lifecycle: (p.lifecycle as any) ?? 'active', criticality: (p.criticality as any) ?? 'medium',
-            data_class: (p.data_class as any) ?? null, hosting_model: (p.hosting_model as any) ?? null, external_facing: !!p.external_facing,
-            last_dr_test: (p.last_dr_test as any) ?? null, sso_enabled: !!p.sso_enabled, mfa_supported: !!p.mfa_supported, contains_pii: !!p.contains_pii,
-            licensing: p.licensing ?? null, notes: p.notes ?? null,
-            users_mode: (p.users_mode as any) ?? 'it_users', users_year: p.users_year ?? nowYear, users_override: (p.users_override as any) ?? null,
-            status: (p.status as any) ?? 'enabled', disabled_at: (p.disabled_at as any) ?? null,
-          } as Partial<Application>);
-          const saved = await repo.save(entity);
-          existing = saved;
-          inserted += 1;
-        } else {
-          Object.assign(existing, {
-            supplier_id: supplier_id ?? existing.supplier_id, category: (p as any).category ?? existing.category,
-            editor: p.editor ?? existing.editor, lifecycle: (p.lifecycle as any) ?? existing.lifecycle,
-            criticality: (p.criticality as any) ?? existing.criticality, data_class: (p.data_class as any) ?? existing.data_class,
-            hosting_model: (p.hosting_model as any) ?? existing.hosting_model, external_facing: p.external_facing ?? existing.external_facing,
-            last_dr_test: (p.last_dr_test as any) ?? existing.last_dr_test, sso_enabled: p.sso_enabled ?? existing.sso_enabled, mfa_supported: p.mfa_supported ?? existing.mfa_supported,
-            contains_pii: p.contains_pii ?? existing.contains_pii,
-            licensing: (p.licensing !== undefined ? p.licensing : existing.licensing), notes: (p.notes !== undefined ? p.notes : existing.notes),
-            users_mode: (p.users_mode as any) ?? existing.users_mode, users_year: p.users_year ?? existing.users_year, users_override: (p.users_override as any) ?? existing.users_override,
-            status: (p.status as any) ?? existing.status, disabled_at: (p.disabled_at as any) ?? existing.disabled_at,
-          } as any);
-          await repo.save(existing);
-          updated += 1;
-        }
-        const appId = existing.id;
-        const ownerRepo = mg.getRepository(ApplicationOwner);
-        const existingOwners = await ownerRepo.find({ where: { application_id: appId } as any });
-        if (existingOwners.length) await ownerRepo.delete({ id: In(existingOwners.map((x) => x.id)) as any });
-        const biz = (p as any).business_owner_emails as string[];
-        const it = (p as any).it_owner_emails as string[];
-        const ownerRows: Array<Partial<ApplicationOwner>> = [];
-        const ownerKeys = new Set<string>();
-        for (const email of biz) {
-          const u = uByEmail.get(String(email || '').toLowerCase()); if (!u) continue;
-          const key = `business:${u.id}`;
-          if (ownerKeys.has(key)) continue;
-          ownerKeys.add(key);
-          ownerRows.push(ownerRepo.create({ application_id: appId, user_id: u.id, owner_type: 'business' } as Partial<ApplicationOwner>));
-        }
-        for (const email of it) {
-          const u = uByEmail.get(String(email || '').toLowerCase()); if (!u) continue;
-          const key = `it:${u.id}`;
-          if (ownerKeys.has(key)) continue;
-          ownerKeys.add(key);
-          ownerRows.push(ownerRepo.create({ application_id: appId, user_id: u.id, owner_type: 'it' } as Partial<ApplicationOwner>));
-        }
-        if (ownerRows.length) await ownerRepo.save(ownerRows as any);
-        const resRepo = mg.getRepository(ApplicationDataResidency);
-        const existingRes = await resRepo.find({ where: { application_id: appId } as any });
-        if (existingRes.length) await resRepo.delete({ id: In(existingRes.map((x) => x.id)) as any });
-        const codes = ((p as any).data_residency as string[]).map((c) => String(c || '').toUpperCase()).filter((c) => !!c && c.length === 2);
-        const unique = Array.from(new Set(codes));
-        if (unique.length) await resRepo.save(unique.map((iso) => ({ application_id: appId, country_iso: iso } as Partial<ApplicationDataResidency>)) as any);
-      }
-    }
-    return { ok: errors.length === 0, dryRun, total: rows.length, inserted, updated, processed, errors };
+  async importCsv({ file, dryRun, userId }: { file: Express.Multer.File; dryRun: boolean; userId?: string | null }, opts?: ServiceOpts) {
+    const manager = this.getManager(opts);
+    return this.csvService.import(file, { dryRun, mode: 'enrich', operation: 'upsert' }, { manager, tenantId: await this.getCurrentTenantId(manager), userId });
   }
 
-  // Helper methods
+  async copyApplication(id: string, name: string, userId: string | null, opts?: ServiceOpts) {
+    return this.getManager(opts).transaction(async (manager) => {
+      const tenantId = await this.getCurrentTenantId(manager);
+      const catalog = await this.itOpsSettings.lockClassificationCatalog(tenantId, manager);
+      const source = await this.ensureApp(id, manager, opts?.accessScope);
+      const { id: sourceId, sequential_id, created_at, updated_at, ...properties } = source;
+      const entity = manager.getRepository(Application).create({ ...properties, ...copyClassification(source, catalog), name: name?.trim() || `${source.name} (copy)` });
+      const saved = await manager.getRepository(Application).save(entity);
+      await this.audit.log({ table: 'applications', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager });
+      return saved;
+    });
+  }
+
   async normalizeLifecycle(
     value: unknown,
     tenantId: string,
