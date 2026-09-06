@@ -45,7 +45,9 @@ Der **Melder** sind standardmäßig Sie. Beide Daten akzeptieren Werte in der Ve
 - Anlegen, bearbeiten, Journal, Verknüpfungen, Anhänge: `incidents:contributor`
 - Wieder öffnen, abbrechen und eine Einschränkung aufheben: `incidents:admin`
 
-Ein eingeschränkter Vorfall ist für alle unsichtbar außer den Registeradministratoren, dem Meldenden und dem Verantwortlichen. Auf einem Standard-Mandanten sind das Administrator und IT-Landschaft-Administrator, plus wer den Vorfall erfasst hat oder dafür verantwortlich ist. Leser und Mitwirkende, die weder Meldender noch Verantwortlicher sind, sehen ihn weder in der Liste, in der Suche, im Chat noch im CSV-Export. Das Öffnen über die Referenz liefert dieselbe „nicht gefunden“-Antwort wie eine fehlende Nummer. Verknüpfte Aufgaben behalten die Referenz `INC-N`, aber ohne Titel.
+Diese Berechtigungen decken auch die Vorfallanalyse und den PDF-Export ab. Wer an Vorfällen arbeitet, braucht also keine Berechtigung für die Wissensdatenbank, um die Analyse zu schreiben. Siehe [Übersicht](#ubersicht).
+
+Ein eingeschränkter Vorfall ist für alle unsichtbar außer den Registeradministratoren, dem Meldenden und dem Verantwortlichen. Auf einem Standard-Mandanten sind das Administrator und IT-Landschaft-Administrator, plus wer den Vorfall erfasst hat oder dafür verantwortlich ist. Leser und Mitwirkende, die weder Meldender noch Verantwortlicher sind, sehen ihn weder in der Liste, in der Suche, im Chat noch im CSV-Export. Das Öffnen über die Referenz liefert dieselbe „nicht gefunden“-Antwort wie eine fehlende Nummer. Verknüpfte Aufgaben behalten die Referenz `INC-N`, aber ohne Titel. Die Vorfallanalyse unterliegt derselben Einschränkung, ganz gleich, von wo aus sie erreicht wird: Wissensdatenbank, Suche, Assistent, Exporte und die darin eingefügten Bilder.
 
 **Auf Registeradministratoren beschränken** steht in der Eigenschaftenleiste unter Klassifizierung. Ein Mitwirkender kann es einschalten, solange er den Datensatz noch sieht; nur ein Administrator kann es ausschalten, auch nach dem Schließen. Die Änderung wird ins Journal geschrieben. Das Prüfprotokoll, Dokument-Beziehungschips und „Kürzlich angesehen“ zeigen den Titel weiterhin denjenigen, die diese Bildschirme schon haben.
 
@@ -74,7 +76,7 @@ Die Liste ist das Register selbst: alle Vorfälle, die zuletzt erkannten zuerst.
 
 **Zusätzliche Spalten** (standardmäßig ausgeblendet, über die Spaltenauswahl verfügbar): **Geschlossen**, **Anwendungen**, **Erstellt**.
 
-**Filtern**: Kategorie, Schweregrad, Status und Verantwortlicher bieten Kontrollkästchenfilter, deren Optionen aus den aktuell angezeigten Vorfällen berechnet werden, Sie sehen also nur Werte, die in der Ergebnismenge vorkommen. Datumsspalten bieten Datumsfilter, auch als Bereich: Filtern Sie **Erkannt** zwischen zwei Daten, um einen Quartals- oder Jahresauszug zu erzeugen. Die Suche erfasst Titel, Beschreibung, Referenz (`INC-14`) sowie Namen und Referenzen verknüpfter Assets und Anwendungen: Eine Suche nach einem Hostnamen wie `PAR-ESX-01` listet die Vorfälle zu diesem Asset.
+**Filtern**: Kategorie, Schweregrad, Status und Verantwortlicher bieten Kontrollkästchenfilter, deren Optionen aus den aktuell angezeigten Vorfällen berechnet werden, Sie sehen also nur Werte, die in der Ergebnismenge vorkommen. Datumsspalten bieten Datumsfilter, auch als Bereich: Filtern Sie **Erkannt** zwischen zwei Daten, um einen Quartals- oder Jahresauszug zu erzeugen. Die Suche erfasst Titel, Beschreibung, Referenz (`INC-14`) sowie Namen und Referenzen verknüpfter Assets und Anwendungen: Eine Suche nach einem Hostnamen wie `PAR-ESX-01` listet die Vorfälle zu diesem Asset. Wörter, die nur in der Vorfallanalyse vorkommen, findet die globale Suche oder der Assistent, nicht dieses Feld.
 
 **Tipp**: Kombinieren Sie Schweregrad = Kritisch, Schwerwiegend mit einem Bereich für **Erkannt**, um die Auswahlliste zu erstellen, die die meisten Steuerungsgremien und Prüfungen verlangen.
 
@@ -122,15 +124,27 @@ Die Leiste bleibt auf jedem Tab sichtbar und speichert während der Bearbeitung.
 
 ### Übersicht
 
-Fünf Abschnitte erzählen den Vorfall, in der Reihenfolge, in der ein Vorfallsbericht üblicherweise gelesen wird. Jeder speichert automatisch während der Eingabe.
+Die Übersicht erzählt den Vorfall in zwei Teilen: eine kurze Beschreibung, dann die Vorfallanalyse. Beide speichern automatisch während der Eingabe.
 
-- **Beschreibung**: was passiert ist, wie beobachtet
+**Beschreibung** sind ein bis zwei Sätze dazu, was passiert ist, wie beobachtet. Es ist die Zusammenfassung, die in der Liste, in den Suchergebnissen und oben im PDF-Bericht erscheint.
+
+**Vorfallanalyse** ist die vollständige Schilderung, geschrieben in einem Dokument statt in einfachen Textfeldern. Sie nimmt Überschriften, Listen, Tabellen, Links und Bilder auf, die Sie direkt in den Text einfügen.
+
+Ein neuer Vorfall startet aus der Vorlage **Vorfallanalyse**, die die fünf Teile vorschlägt, in deren Reihenfolge ein Vorfallsbericht üblicherweise gelesen wird:
+
+- **Ausführliche Beschreibung**: was passiert ist, im Detail
 - **Auswirkung**: betroffene Dienste, Standorte und Benutzer
 - **Ursache**: warum es passiert ist
 - **Korrekturmaßnahmen**: was zur Behebung und zur Vorbeugung getan wurde. Die eigentliche Folgearbeit verfolgen Sie als verknüpfte Aufgaben
 - **Erkenntnisse**: was aus diesem Vorfall mitzunehmen ist
 
-Bei einem geringfügigen Vorfall genügt die Beschreibung. Bei einem schwerwiegenden bilden die fünf Abschnitte den Post-Mortem-Bericht.
+Schreiben Sie sie um, entfernen Sie, was Sie nicht brauchen, ergänzen Sie Eigenes. Bei einem geringfügigen Vorfall genügt die kurze Beschreibung. Bei einem schwerwiegenden ist die Analyse der Post-Mortem-Bericht.
+
+Die Vorlage ist ein gewöhnliches Dokument der Wissensdatenbank, gespeichert in der Bibliothek **Vorlagen** unter dem Dokumenttyp **Vorfallanalyse**. Ein Administrator der Wissensdatenbank kann sie also an Ihr eigenes Post-Mortem-Format anpassen. Eine neue Vorlage gilt für die danach erfassten Vorfälle und schreibt eine bereits vorhandene Analyse nie um.
+
+Jedes Speichern, das die Analyse verändert, hält eine Version fest. Der Text lässt sich damit so nachlesen, wie er zu jedem Zeitpunkt stand, auch beim Schließen des Vorfalls. Siehe [Journal](#journal).
+
+Die Analyse ist selbst ein Dokument der Wissensdatenbank, mit eigener Referenz `DOC-N`, abgelegt im Ordner **Vorfälle** der Bibliothek **Verwaltete Dokumente**. Das Schreiben aus dem Vorfall heraus und der PDF-Export nutzen allein die Berechtigungen des Registers. Wer dasselbe Dokument direkt in der Wissensdatenbank öffnet, braucht zusätzlich die Berechtigungen der Wissensdatenbank für diese Bibliothek. In beiden Fällen bleibt sie an den Vorfall gebunden: Sie wird gesperrt, sobald der Vorfall geschlossen oder abgebrochen ist, und bleibt für alle unsichtbar, die einen eingeschränkten Vorfall nicht sehen dürfen.
 
 ---
 
@@ -152,7 +166,11 @@ Das Journal macht daraus ein Register statt eines Formulars. Es listet alles auf
 
 Jede Zeile zeigt den Autor, die Zeit, auf die sie sich bezieht (für „vor 3 Tagen" darüberfahren), und die Art des Eintrags für alles, was keine einfache Notiz ist.
 
-Das Eingabefeld verschwindet, sobald der Vorfall geschlossen oder abgebrochen ist. Feldänderungen außerhalb des Journals, etwa die Korrektur des Auswirkungstexts, werden im Audit-Protokoll der Plattform festgehalten, nicht im Journal.
+Das Eingabefeld verschwindet, sobald der Vorfall geschlossen oder abgebrochen ist. Feldänderungen außerhalb des Journals, etwa die Korrektur der Beschreibung, werden im Audit-Protokoll der Plattform festgehalten, nicht im Journal.
+
+Die Vorfallanalyse führt ihre eigene Historie. Jedes Speichern, das sie verändert, erzeugt eine Version, und die Versionen bleiben dauerhaft erhalten. Gewöhnliches Bearbeiten erzeugt keine Journaleinträge: Das Schreiben der Analyse ist kein Ereignis des Vorfalls, und das Audit-Protokoll hält fest, wer was geändert hat. Schließen, Abbrechen und CSV-Importe schreiben dagegen einen Journaleintrag, und dieser Eintrag nennt die Version der Analyse, auf die er sich bezieht, dargestellt als „Vorfallanalyse, Version 4 (DOC-12)".
+
+Das Wiederöffnen eines Vorfalls ändert daran nichts. Die Versionen bleiben, der Eintrag zum Schließen verweist weiterhin auf die Version, die beim Schließen des Datensatzes aktuell war, und dieser Text lässt sich später weiterhin mit den enthaltenen Bildern lesen, unter den Zugriffsregeln, die für den Vorfall dann gelten.
 
 ---
 
@@ -168,7 +186,9 @@ Verknüpft wird ausschließlich von der Vorfallsseite aus. Ein verknüpftes Asse
 
 ### Dokumente
 
-Mit diesem Vorfall verknüpfte Dokumente der Wissensdatenbank: der Post-Mortem-Bericht, der Bericht des Lieferanten, die befolgte Prozedur. Mit `knowledge:member` können Sie ein Dokument direkt aus diesem Tab heraus anlegen.
+Mit diesem Vorfall verknüpfte Dokumente der Wissensdatenbank: der Bericht des Lieferanten, die befolgte Prozedur, die Notiz des Netzwerkteams. Mit `knowledge:member` können Sie ein Dokument direkt aus diesem Tab heraus anlegen.
+
+Die Vorfallanalyse steht hier nicht. Sie gehört zum Vorfall selbst und wird auf dem Tab Übersicht bearbeitet.
 
 ---
 
@@ -182,7 +202,7 @@ Ziehen Sie Dateien per Drag-and-drop hierher oder klicken Sie, um sie auszuwähl
 
 **Behoben** bedeutet, dass der Dienst wiederhergestellt ist. **Geschlossen** bedeutet, dass der Datensatz endgültig ist.
 
-Das Schließen sperrt den Vorfall. Felder, Journalnotizen, Verknüpfungen, Anhänge und das Anlegen von Aufgaben werden abgewiesen, in der Oberfläche wie über die API. Die Übersicht zeigt einen einzeiligen Hinweis: „Geschlossen am 12. März 2026. Öffnen Sie ihn wieder, um Änderungen vorzunehmen."
+Das Schließen sperrt den Vorfall. Felder, die Vorfallanalyse, Journalnotizen, Verknüpfungen, Anhänge und das Anlegen von Aufgaben werden abgewiesen, in der Oberfläche, in der Wissensdatenbank, im Assistenten wie über die API. Die Übersicht zeigt einen einzeiligen Hinweis: „Geschlossen am 12. März 2026. Öffnen Sie ihn wieder, um Änderungen vorzunehmen." Die Analyse wird auf der Version eingefroren, die der Journaleintrag nennt, gleich ob der Vorfall aus dem Arbeitsbereich heraus oder durch einen CSV-Import geschlossen wurde.
 
 **Wieder öffnen** (`incidents:admin`) setzt einen behobenen, geschlossenen oder abgebrochenen Vorfall zurück auf In Bearbeitung und löscht die Behebungs- und Schließdaten. Ein Grund ist erforderlich und wird ins Journal geschrieben, der Datensatz zeigt also, warum er erneut angefasst wurde.
 
@@ -207,12 +227,16 @@ Fristen und Schwellenwerte hängen von Ihrer Rechtsordnung und Ihrer Branche ab.
 - Für jeden Vorfall: wann er begann, wann er bemerkt wurde, wann er behoben und geschlossen wurde und wer verantwortlich war
 - Ein Journal, das nicht umgeschrieben werden kann, mit jeder Status- und Schweregradänderung datiert und einer Person zugeordnet
 - Die Nachweise selbst, als Anhänge und verknüpfte Dokumente
-- Die Korrekturmaßnahmen und die Folgeaufgaben, die deren Umsetzung belegen
+- Die Vorfallanalyse mit der Ursache, den Korrekturmaßnahmen und den Erkenntnissen, Version für Version aufbewahrt, und die Folgeaufgaben, die die Umsetzung der Maßnahmen belegen
 - Gefilterte Sichten nach Zeitraum, Schweregrad, Kategorie oder Compliance-Merkmal, direkt aus der Liste
 - Ein CSV-Export des Registers (**CSV exportieren** in der Liste), für Prüfer und für Ihr eigenes Archiv. Eingeschränkte Vorfälle entfallen, es sei denn, Sie dürfen sie sehen; die Datei enthält eine importierbare Spalte **Auf Registeradministratoren beschränken**
 - Ein PDF-Bericht zu einem einzelnen Vorfall (**PDF exportieren** im Arbeitsbereich), für den Prüfer, der eine Akte statt des gesamten Registers möchte
 
 **Ein bestehendes Register importieren**: **CSV importieren** in der Liste nimmt eine CSV-Datei entgegen. Lassen Sie die Referenzspalte leer, um Vorfälle anzulegen (KANAP vergibt die nächsten INC-Nummern), oder behalten Sie die Referenz INC-N bei, um die passenden Datensätze zu aktualisieren. Jeder importierte Vorfall erhält einen Journaleintrag, der auf die Herkunft aus einer Datei hinweist. Exportieren Sie zuerst, wenn Sie das exakte Spaltenlayout möchten.
+
+Die Datei führt die kurze **Beschreibung** in einer Spalte und die gesamte **Vorfallanalyse** in einer anderen, als formatierten Text. Diese eine Analysespalte ersetzt die früheren Spalten Auswirkung, Ursache, Korrekturmaßnahmen und Erkenntnisse. Überschriften, Listen und Links überstehen den Hin- und Rückweg; eingefügte Bilder nicht, denn sie liegen im Dokument. Eine leere Analysezelle lässt den vorhandenen Text unverändert.
+
+Der Import ist der einzige Vorgang, der noch in einen geschlossenen oder abgebrochenen Vorfall schreibt. Eine Korrektur, die Monate später eintrifft, lässt sich also festhalten, ohne den Datensatz wieder zu öffnen. Er erzeugt eine neue Version der Analyse und einen Journaleintrag, der darauf verweist, und er schreibt die Version, auf die sich das Schließen bezieht, nie um. Sonst wird nichts gelockert: Die Berechtigungen des Registers gelten, und ein eingeschränkter Vorfall, den Sie nicht sehen dürfen, wird abgewiesen.
 
 ---
 
@@ -220,7 +244,17 @@ Fristen und Schwellenwerte hängen von Ihrer Rechtsordnung und Ihrer Branche ab.
 
 Öffnen Sie einen Vorfall und klicken Sie in den Aktionen der Kopfzeile auf **PDF exportieren**. KANAP lädt ein PDF dieses Datensatzes herunter: `INC-12-incident-report.pdf`. Der Download verwendet Ihre angemeldete Sitzung; es ist kein öffentlicher Link.
 
-Der Bericht folgt der Sprache der Oberfläche (Englisch, Französisch, Deutsch oder Spanisch). Er enthält Kopfzeile und Eigenschaften, die ausgefüllten Übersichtstexte, den Verlauf in chronologischer Reihenfolge, verknüpfte Assets, Anwendungen, Aufgaben und Dokumente, die Compliance-Felder sowie die Anhänge (Dateiname, Größe und Datum). Leere Abschnitte entfallen.
+Der Bericht folgt der Sprache der Oberfläche (Englisch, Französisch, Deutsch oder Spanisch). Er ist in dieser Reihenfolge aufgebaut:
+
+1. Kopfzeile und Eigenschaften des Vorfalls
+2. Die kurze Beschreibung
+3. Die Vorfallanalyse in ihrem aktuellen Stand, mit ihrer Formatierung und ihren Bildern
+4. Das Journal in chronologischer Reihenfolge, einschließlich der Analyseversionen, auf die die Einträge verweisen
+5. Verknüpfte Assets, Anwendungen, Aufgaben und Dokumente
+6. Die Compliance-Felder
+7. Die Anhänge (Dateiname, Größe und Datum)
+
+Leere Abschnitte entfallen, und eine Analyse, die nur die unveränderten Überschriften der Vorlage enthält, gilt als leer.
 
 Der Export ist ein Lesevorgang. Er funktioniert bei einem geschlossenen oder abgebrochenen Vorfall; der Datensatz bleibt gesperrt. Die Schaltfläche wird auf **Neuer Vorfall** nicht angezeigt.
 
@@ -236,7 +270,7 @@ Halten Sie die Liste kurz. Kategorien sind das, wonach Sie ein Jahr an Vorfälle
 
 ## Den Assistenten fragen
 
-Plaid kann das Register im Chat abfragen, mit denselben Berechtigungen wie im Rest der Anwendung. Bitten Sie um eine Zählung („Wie viele kritische Vorfälle in diesem Quartal?“), eine gefilterte Liste („Offene Vorfälle auf PAR-ESX-01“) oder einen vollständigen Datensatz („Zusammenfassung von INC-2“). Letzteres enthält das Journal. Vorfallsreferenzen wie `INC-12` in der Antwort sind Links zum Arbeitsbereich.
+Plaid kann das Register im Chat abfragen, mit denselben Berechtigungen wie im Rest der Anwendung. Bitten Sie um eine Zählung („Wie viele kritische Vorfälle in diesem Quartal?“), eine gefilterte Liste („Offene Vorfälle auf PAR-ESX-01“) oder einen vollständigen Datensatz („Zusammenfassung von INC-2“). Letzteres enthält das Journal und die Vorfallanalyse, eine Frage lässt sich also aus der Ursache oder den Erkenntnissen beantworten. Ein eingeschränkter Vorfall bleibt aus den Antworten, den Zählungen und den Quellen heraus, samt seiner Analyse. Vorfallsreferenzen wie `INC-12` in der Antwort sind Links zum Arbeitsbereich.
 
 ---
 
@@ -246,6 +280,6 @@ Plaid kann das Register im Chat abfragen, mit denselben Berechtigungen wie im Re
 - **Notizen als Fakten schreiben, mit Uhrzeit**: „13:05 Umschaltung auf den Zweitstandort, Mail für 40 Benutzer wieder verfügbar". Setzen Sie Datum und Uhrzeit, damit die Chronologie den Vorfall abbildet und nicht Ihr Tipptempo
 - **Ehrlich rückdatieren**: Begonnen und Erkannt sollen die tatsächlichen Zeiten tragen. Der Erfassungszeitpunkt jedes Journaleintrags wird getrennt gespeichert und lässt sich nicht ändern
 - **Ein Vorfall, nicht einer pro Ticket**: Ein einzelner Ausfall, der vierzig Tickets erzeugt hat, ist ein Vorfall, verknüpft mit den betroffenen Assets
-- **Maßnahmen in Aufgaben überführen**: Text unter Korrekturmaßnahmen beschreibt die Absicht; eine Aufgabe mit zuständiger Person und Fälligkeitsdatum ist das, was tatsächlich erledigt wird
-- **Bewusst schließen**: Mit dem Schließen wird der Datensatz zum Nachweis. Tragen Sie Ursache und Erkenntnisse ein, bevor Sie schließen, denn danach braucht es einen Administrator zum Wiederöffnen
+- **Maßnahmen in Aufgaben überführen**: Der Abschnitt Korrekturmaßnahmen der Analyse beschreibt die Absicht; eine Aufgabe mit zuständiger Person und Fälligkeitsdatum ist das, was tatsächlich erledigt wird
+- **Bewusst schließen**: Mit dem Schließen wird der Datensatz zum Nachweis. Stellen Sie die Analyse fertig, bevor Sie schließen, denn die dabei festgehaltene Version ist die, die ein Prüfer lesen wird, und danach braucht es einen Administrator, um den Vorfall wieder zu öffnen
 - **Das Register quartalsweise durchsehen**: Filtern Sie nach Zeitraum und Schweregrad, achten Sie auf wiederkehrende Kategorien und auf Assets, die mehr als einmal auftauchen. Von dort kommt die nächste Budgetanforderung

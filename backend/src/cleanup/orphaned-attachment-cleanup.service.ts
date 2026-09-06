@@ -8,11 +8,16 @@ import { isStoragePathReferencedInAnyTable, ATTACHMENT_TABLES } from '../common/
 const DRY_RUN = (process.env.ATTACHMENT_CLEANUP_DRY_RUN || '').toLowerCase() === 'true';
 
 /** Content tables with columns that may contain inline images */
-const CONTENT_SOURCES = [
+export const CONTENT_SOURCES = [
   { table: 'portfolio_requests', columns: ['current_situation', 'expected_benefits'] },
   { table: 'portfolio_activities', columns: ['content'] },
   { table: 'tasks', columns: ['description'] },
   { table: 'documents', columns: ['content_markdown'] },
+  // Stored versions render their own images: an attachment dropped from the
+  // current body but still present in a kept version is alive, not an orphan.
+  // Without this the cron would delete the illustrations of a frozen incident
+  // review the moment the body moved on.
+  { table: 'document_versions', columns: ['content_markdown'] },
   { table: 'document_activities', columns: ['content'] },
 ] as const;
 
@@ -36,6 +41,33 @@ function extractAttachmentId(url: string): string | null {
     if (match) return match[1];
   }
   return null;
+}
+
+/**
+ * Every inline attachment id still referenced by a content field of the current
+ * tenant. Exported so the "an attachment kept only by a stored version is not an
+ * orphan" rule can be asserted without running the whole cron.
+ */
+export async function collectAliveInlineAttachmentIds(
+  manager: { query: (sql: string, params?: any[]) => Promise<any> },
+): Promise<Set<string>> {
+  const aliveIds = new Set<string>();
+  for (const src of CONTENT_SOURCES) {
+    for (const col of src.columns) {
+      const rows: Array<Record<string, string>> = await manager.query(
+        `SELECT ${col} FROM ${src.table} WHERE ${col} LIKE '%/inline%'`,
+      );
+      for (const row of rows) {
+        const content = row[col];
+        if (!content) continue;
+        for (const url of extractInlineImageUrls(content)) {
+          const id = extractAttachmentId(url);
+          if (id) aliveIds.add(id);
+        }
+      }
+    }
+  }
+  return aliveIds;
 }
 
 @Injectable()
@@ -91,23 +123,7 @@ export class OrphanedAttachmentCleanupService implements OnModuleInit {
         const mg = runner.manager;
 
         // Step 1: Build alive set of attachment IDs referenced in content
-        const aliveIds = new Set<string>();
-        for (const src of CONTENT_SOURCES) {
-          for (const col of src.columns) {
-            const rows: Array<Record<string, string>> = await mg.query(
-              `SELECT ${col} FROM ${src.table} WHERE ${col} LIKE '%/inline%'`,
-            );
-            for (const row of rows) {
-              const content = row[col];
-              if (!content) continue;
-              const urls = extractInlineImageUrls(content);
-              for (const url of urls) {
-                const id = extractAttachmentId(url);
-                if (id) aliveIds.add(id);
-              }
-            }
-          }
-        }
+        const aliveIds = await collectAliveInlineAttachmentIds(mg);
 
         // Step 2: Find orphaned inline attachments (older than 24h, not in alive set)
         const aliveArray = [...aliveIds];

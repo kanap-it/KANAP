@@ -98,7 +98,11 @@ export class KnowledgeController {
     @Query() query: any,
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.docs.listRelationOptions(entity as any, query, { manager: ctx.manager });
+    return this.docs.listRelationOptions(entity as any, query, {
+      manager: ctx.manager,
+      userId: ctx.userId || null,
+      tenantId: ctx.tenantId || null,
+    });
   }
 
   @UseGuards(PermissionGuard)

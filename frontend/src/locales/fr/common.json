@@ -341,6 +341,7 @@
     "contentUnavailable": "Le contenu du document géré est indisponible jusqu'à la résolution de l'erreur de chargement.",
     "lockedBy": "Ce document géré est verrouillé par {{name}}",
     "lockedByUntil": "Ce document géré est verrouillé par {{name}} jusqu'au {{expires}}. Vous pouvez le lire tant que le verrou est actif.",
+    "lockedByReadOnly": "Ce document géré est verrouillé par {{name}}. Vous pouvez le lire tant que le verrou est actif.",
     "importFailed": "Échec de l'importation du document"
   },
   "knowledgePanel": {

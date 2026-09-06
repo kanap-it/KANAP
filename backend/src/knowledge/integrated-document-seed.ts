@@ -4,7 +4,9 @@ import {
   MANAGED_DOCS_LIBRARY_DISPLAY_ORDER,
   MANAGED_DOCS_LIBRARY_NAME,
   MANAGED_DOCS_LIBRARY_SLUG,
+  type IntegratedDocumentSlotDefinition,
   type IntegratedDocumentSourceEntityType,
+  type ManagedDocsFolderDefinition,
   ManagedDocsFolderSystemKey,
 } from './integrated-document.constants';
 
@@ -12,11 +14,28 @@ type SqlExecutor = {
   query<T = any>(query: string, parameters?: any[]): Promise<T[]>;
 };
 
-export type SeedManagedDocsKnowledgeAssetsOptions = {
-  supportedSourceEntityTypes?: readonly IntegratedDocumentSourceEntityType[];
+export type ManagedDocsSeedDefinitions = {
+  folderDefinitions: readonly ManagedDocsFolderDefinition[];
+  slotDefinitions: readonly IntegratedDocumentSlotDefinition[];
 };
 
-export function getManagedDocsSeedDefinitions(options: SeedManagedDocsKnowledgeAssetsOptions = {}) {
+export type SeedManagedDocsKnowledgeAssetsOptions = {
+  supportedSourceEntityTypes?: readonly IntegratedDocumentSourceEntityType[];
+  /**
+   * Frozen definitions supplied by the caller. A migration passes its own literal
+   * copy so a later edit of the shared constants cannot change what that migration
+   * seeded. When set, `supportedSourceEntityTypes` is ignored.
+   */
+  definitions?: ManagedDocsSeedDefinitions;
+};
+
+export function getManagedDocsSeedDefinitions(
+  options: SeedManagedDocsKnowledgeAssetsOptions = {},
+): ManagedDocsSeedDefinitions {
+  if (options.definitions) {
+    return options.definitions;
+  }
+
   if (!options.supportedSourceEntityTypes?.length) {
     return {
       folderDefinitions: MANAGED_DOCS_FOLDER_DEFINITIONS,
@@ -399,7 +418,7 @@ export async function seedManagedDocsKnowledgeAssets(
       name: slotDefinition.documentTypeName,
       systemKey: slotDefinition.documentTypeSystemKey,
       description: slotDefinition.documentTypeDescription,
-      displayOrder: 100 + index,
+      displayOrder: slotDefinition.documentTypeDisplayOrder ?? 100 + index,
     });
     documentTypeIds.set(slotDefinition.documentTypeSystemKey, documentTypeId);
   }

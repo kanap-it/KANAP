@@ -341,6 +341,7 @@
     "contentUnavailable": "Der Inhalt des verwalteten Dokuments ist nicht verfügbar, bis der Ladefehler behoben ist.",
     "lockedBy": "Dieses verwaltete Dokument ist von {{name}} gesperrt",
     "lockedByUntil": "Dieses verwaltete Dokument ist von {{name}} bis {{expires}} gesperrt. Sie können es lesen, solange die Sperre aktiv ist.",
+    "lockedByReadOnly": "Dieses verwaltete Dokument ist von {{name}} gesperrt. Sie können es lesen, solange die Sperre aktiv ist.",
     "importFailed": "Dokumentimport fehlgeschlagen"
   },
   "knowledgePanel": {

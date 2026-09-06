@@ -15,6 +15,9 @@ import { IncidentRecordService, IncidentsService } from '../../incidents/service
 import { incidentVisibilitySql, resolveIncidentViewer } from '../../incidents/incident-visibility';
 import { InterfacesService } from '../../interfaces/services';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
+import {
+  documentIncidentVisibilitySql,
+} from '../../knowledge/document-entity-visibility';
 import { LocationsService } from '../../locations/locations.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
@@ -39,6 +42,7 @@ import {
   applyScopeToAiQuery,
   isParticipationScopedAiEntityType,
   participantConditionForAiEntity,
+  resolveAiDocumentIncidentViewer,
   resolveAiParticipationAccessScope,
 } from './ai-query-scope.util';
 import {
@@ -2123,8 +2127,16 @@ export class AiQueryExecutor {
         userId: context.userId,
         viewer,
       });
+      // The four narrative columns are gone: the review document carries them
+      // now (planning/incident-review-document.md §3.6). The record service
+      // already applied the incident permissions and row visibility, and the
+      // business reference is exposed, never the document UUID.
       return this.toDetailResult(this.mapIncident(record.incident), {
         ...record.incident,
+        review_markdown: record.review?.content_markdown ?? null,
+        review_document_ref: record.review?.item_number != null
+          ? `DOC-${Number(record.review.item_number)}`
+          : null,
         entries: record.entries,
         assets: record.assets,
         applications: record.applications,
@@ -2145,6 +2157,18 @@ export class AiQueryExecutor {
     const registry = getAiEntityRegistry(entityType);
     const values: Record<string, Array<string | boolean | null>> = {};
 
+    // Resolved once for the whole call: the viewers and the readable library set
+    // depend on the user and the tenant only, never on the field being listed.
+    const incidentViewer = entityType === 'incidents'
+      ? await resolveIncidentViewer(context.manager, context.userId, context.tenantId)
+      : null;
+    const accessibleLibraries = entityType === 'documents'
+      ? await this.knowledge.listReadableLibraryIdsForUser(context.manager, context.userId ?? null)
+      : null;
+    const documentIncidentViewer = entityType === 'documents'
+      ? await resolveAiDocumentIncidentViewer(context)
+      : null;
+
     for (const aiField of aiFields) {
       const groupField = registry.aggregate.groupFields[aiField];
       if (!groupField) continue;
@@ -2156,9 +2180,24 @@ export class AiQueryExecutor {
         ? `AND ${participantConditionForAiEntity(entityType, alias, `$${params.length + 1}`)}`
         : '';
       if (accessScopeSql) params.push(accessScope!.userId);
-      const incidentVisibility = entityType === 'incidents'
-        ? incidentVisibilitySql(alias, await resolveIncidentViewer(context.manager, context.userId, context.tenantId), params)
+      const incidentVisibility = incidentViewer
+        ? incidentVisibilitySql(alias, incidentViewer, params)
         : '';
+      // Documents fall through to this registry path for dynamic fields; without
+      // the two clauses below it would be a tenant-wide oracle on library and
+      // incident-review metadata.
+      let documentAclSql = '';
+      if (entityType === 'documents') {
+        if (accessibleLibraries) {
+          if (accessibleLibraries.length === 0) {
+            values[aiField] = [];
+            continue;
+          }
+          params.push(accessibleLibraries);
+          documentAclSql += ` AND ${alias}.library_id = ANY($${params.length}::uuid[])`;
+        }
+        documentAclSql += documentIncidentVisibilitySql(alias, documentIncidentViewer, params);
+      }
       const rows = await context.manager.query(
         `SELECT DISTINCT ${groupField.expression} AS value
          FROM ${registry.aggregate.baseTable} ${alias}
@@ -2166,6 +2205,7 @@ export class AiQueryExecutor {
          WHERE ${alias}.tenant_id = $1
            ${accessScopeSql}
            ${incidentVisibility}
+           ${documentAclSql}
          ORDER BY value ASC NULLS LAST
          LIMIT 5000`,
         params,
@@ -2311,6 +2351,8 @@ export class AiQueryExecutor {
       raw = await this.knowledge.listFilterValues(query, {
         manager: context.manager,
         tenantId: context.tenantId,
+        // Without the real userId the library ACL degrades to "unrestricted".
+        userId: context.userId ?? null,
       }) as any;
     } else if (input.entity_type === 'locations') {
       raw = await this.locations.listFilterValues(query, { manager: context.manager, tenantId: context.tenantId }) as any;

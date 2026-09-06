@@ -89,7 +89,7 @@ Beim Durchsuchen der Bibliothek **Vorlagen** können Administratoren das Panel *
 
 ### Verwaltete Dokumente
 
-Einige Wissensartikel werden aus Anfragen, Projekten, Anwendungen, Assets oder Aufgaben erstellt. Diese erscheinen als **Integrierte** Dokumente.
+Einige Wissensartikel werden aus Anfragen, Projekten, Anwendungen, Assets, Aufgaben oder Vorfällen erstellt. Diese erscheinen als **Integrierte** Dokumente, in der Bibliothek **Verwaltete Dokumente** nach dem Arbeitsbereich gruppiert, aus dem sie stammen.
 
 Verwaltete Dokumente halten das Schreiberlebnis innerhalb der Wissensdatenbank, aber der Quell-Arbeitsbereich kontrolliert weiterhin einen Teil ihrer Metadaten. In der Praxis bedeutet das:
 - Status kann vom Quellobjekt gesteuert werden
@@ -100,6 +100,8 @@ Verwaltete Dokumente halten das Schreiberlebnis innerhalb der Wissensdatenbank, 
 - Verwaltete Dokumente können nicht aus der Wissensdatenbank verschoben oder aus der Wissensliste gelöscht werden
 
 Dies schützt die Verknüpfung zwischen dem Dokument und dem operativen Datensatz, dem es gehört.
+
+Auch der Zugriff folgt dem Quellobjekt. Der deutlichste Fall ist der Ordner **Vorfälle**: Eine Vorfallanalyse kann nur öffnen, wer den zugehörigen Vorfall sehen darf, unabhängig von seinen Berechtigungen in der Wissensdatenbank. Sie wird schreibgeschützt, sobald der Vorfall geschlossen oder abgebrochen ist, und sie verschwindet aus Listen, Suche, Exporten und dem Assistenten für alle, die von einem eingeschränkten Vorfall ausgeschlossen sind. Siehe [Vorfälle](incidents.md).
 
 ## Arbeiten mit der Wissensliste
 

@@ -21,11 +21,8 @@ export const IncidentFieldsSchema = z.object({
   closed_at: DateTimeString.nullable(),
   reporter_user_id: z.string().uuid().nullable(),
   owner_user_id: z.string().uuid().nullable(),
+  /** Short summary; the full review is the `incidents:review` integrated document. */
   description: nullableText,
-  impact: nullableText,
-  root_cause: nullableText,
-  corrective_actions: nullableText,
-  lessons_learned: nullableText,
   source_ref: nullableText,
   personal_data_affected: z.boolean(),
   authority_notification_required: z.boolean(),

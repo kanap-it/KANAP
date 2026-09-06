@@ -18,12 +18,20 @@ import { Document } from './document.entity';
 import { DocumentAttachment } from './document-attachment.entity';
 import { IntegratedDocumentBinding } from './integrated-document-binding.entity';
 import {
+  INCIDENT_REVIEW_SLOT,
   INTEGRATED_DOCUMENT_SLOT_DEFINITIONS,
   IntegratedDocumentSlotKey,
 } from './integrated-document.constants';
 import { KnowledgeService, RelationEntityType } from './knowledge.service';
+import {
+  DocumentSourceAccessContext,
+  buildIncidentReviewImportContext,
+  buildIncidentReviewSourceContext,
+  resolveCurrentTenantId,
+} from './document-entity-visibility';
+import { incidentVisibilitySql, resolveIncidentViewer } from '../incidents/incident-visibility';
 
-type SourceScopedEntityType = 'requests' | 'projects' | 'interfaces' | 'applications';
+type SourceScopedEntityType = 'requests' | 'projects' | 'interfaces' | 'applications' | 'incidents';
 type SourceAccessMode = 'read' | 'edit';
 type SourceDescriptor = {
   id: string;
@@ -162,11 +170,11 @@ const PERMISSION_RANK: Record<PermissionLevel, number> = {
 const SOURCE_ENTITY_CONFIG: Record<
   SourceScopedEntityType,
   {
-    sourceTable: 'portfolio_requests' | 'portfolio_projects' | 'interfaces' | 'applications';
-    relationTable: 'document_requests' | 'document_projects' | null;
-    relationIdColumn: 'request_id' | 'project_id' | null;
-    permissionResource: 'portfolio_requests' | 'portfolio_projects' | 'applications';
-    referencePrefix: 'REQ' | 'PRJ' | null;
+    sourceTable: 'portfolio_requests' | 'portfolio_projects' | 'interfaces' | 'applications' | 'incidents';
+    relationTable: 'document_requests' | 'document_projects' | 'document_incidents' | null;
+    relationIdColumn: 'request_id' | 'project_id' | 'incident_id' | null;
+    permissionResource: 'portfolio_requests' | 'portfolio_projects' | 'applications' | 'incidents';
+    referencePrefix: 'REQ' | 'PRJ' | 'INC' | null;
     readLevel: PermissionLevel;
     editLevel: PermissionLevel;
   }
@@ -207,6 +215,17 @@ const SOURCE_ENTITY_CONFIG: Record<
     readLevel: 'reader',
     editLevel: 'member',
   },
+  // Same levels as PATCH /incidents/:id. Row visibility (confidential incidents) is
+  // enforced on top of the permission, in assertSourceEntityExists.
+  incidents: {
+    sourceTable: 'incidents',
+    relationTable: 'document_incidents',
+    relationIdColumn: 'incident_id',
+    permissionResource: 'incidents',
+    referencePrefix: 'INC',
+    readLevel: 'reader',
+    editLevel: 'contributor',
+  },
 };
 
 const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<SourceScopedEntityType, Set<string>>>(
@@ -216,6 +235,7 @@ const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<S
       || definition.sourceEntityType === 'projects'
       || definition.sourceEntityType === 'interfaces'
       || definition.sourceEntityType === 'applications'
+      || definition.sourceEntityType === 'incidents'
     ) {
       acc[definition.sourceEntityType].add(definition.slotKey);
     }
@@ -226,6 +246,7 @@ const SUPPORTED_SLOT_KEYS = INTEGRATED_DOCUMENT_SLOT_DEFINITIONS.reduce<Record<S
     projects: new Set<string>(),
     interfaces: new Set<string>(),
     applications: new Set<string>(),
+    incidents: new Set<string>(),
   },
 );
 
@@ -251,6 +272,34 @@ export class IntegratedDocumentsService {
       throw new ForbiddenException('Authenticated user is required');
     }
     return normalized;
+  }
+
+  /**
+   * The §3.7 "source" access context, for incidents only.
+   *
+   * It travels with every Knowledge call made on behalf of an incident route so
+   * the incident's own permissions and visibility replace the Knowledge library
+   * ACL for that exact document — a reporter without Knowledge rights can read,
+   * edit, version and illustrate the review of an incident they can see. The
+   * other integrated types keep their historical behaviour (null context).
+   */
+  private async buildSourceAccessContext(
+    sourceEntityType: SourceScopedEntityType,
+    sourceEntityId: string,
+    slotKey: string,
+    userId: string | null | undefined,
+    manager: EntityManager,
+    opts?: { allowFrozenIncident?: boolean },
+  ): Promise<DocumentSourceAccessContext | null> {
+    if (
+      sourceEntityType !== INCIDENT_REVIEW_SLOT.sourceEntityType
+      || slotKey !== INCIDENT_REVIEW_SLOT.slotKey
+    ) return null;
+    const tenantId = await resolveCurrentTenantId(manager, null);
+    const params = { userId, tenantId, incidentId: sourceEntityId };
+    return opts?.allowFrozenIncident
+      ? buildIncidentReviewImportContext(params)
+      : buildIncidentReviewSourceContext(params);
   }
 
   private assertSupportedSlot(sourceEntityType: SourceScopedEntityType, slotKey: string): asserts slotKey is IntegratedDocumentSlotKey {
@@ -304,6 +353,8 @@ export class IntegratedDocumentsService {
         ? 'Imported from legacy interface fields'
       : sourceEntityType === 'applications'
         ? 'Imported from legacy application description'
+      : sourceEntityType === 'incidents'
+        ? 'Imported from legacy incident fields'
       : 'Imported from legacy project field';
   }
 
@@ -413,6 +464,10 @@ export class IntegratedDocumentsService {
     sourceEntityType: SourceScopedEntityType,
     slotKey: IntegratedDocumentSlotKey,
   ): 'purpose' | 'risks' | 'description' {
+    if (sourceEntityType === 'incidents') {
+      // The review has never had a mirror column on `incidents`.
+      throw new BadRequestException(`Legacy source field not defined for ${sourceEntityType}:${slotKey}`);
+    }
     if (sourceEntityType === 'applications' && slotKey === 'overview') {
       return 'description';
     }
@@ -430,6 +485,11 @@ export class IntegratedDocumentsService {
     relationIdColumn: 'request_id' | 'project_id';
     routePrefix: '/portfolio/requests/inline/' | '/portfolio/projects/inline/';
   } {
+    if (sourceEntityType === 'incidents') {
+      // Incidents never had portfolio inline attachments; falling through to the
+      // project table would read another entity's rows.
+      throw new BadRequestException(`Legacy inline attachments are not defined for ${sourceEntityType}`);
+    }
     if (sourceEntityType === 'requests') {
       return {
         tableName: 'portfolio_request_attachments',
@@ -513,6 +573,31 @@ export class IntegratedDocumentsService {
         [sourceEntityId],
       );
       return this.normalizeOptionalUserId(rows[0]?.user_id);
+    }
+
+    if (sourceEntityType === 'incidents') {
+      const rows = await manager.query<Array<{
+        owner_user_id: string | null;
+        reporter_user_id: string | null;
+        created_by: string | null;
+      }>>(
+        `SELECT owner_user_id::text AS owner_user_id,
+                reporter_user_id::text AS reporter_user_id,
+                created_by::text AS created_by
+         FROM incidents
+         WHERE id = $1
+           AND tenant_id = app_current_tenant()
+         LIMIT 1`,
+        [sourceEntityId],
+      );
+      if (!rows.length) {
+        return null;
+      }
+      return this.firstNonEmpty([
+        rows[0].owner_user_id,
+        rows[0].reporter_user_id,
+        rows[0].created_by,
+      ]);
     }
 
     if (sourceEntityType === 'requests') {
@@ -648,6 +733,41 @@ export class IntegratedDocumentsService {
           reference_label: String(row.interface_reference || row.interface_id || '').trim() || row.id,
         },
         ownerUserId: await this.loadPreferredOwnerUserId('interfaces', row.id, manager),
+        tenantSlug: await this.loadTenantSlug(row.tenant_id, manager),
+      };
+    }
+
+    if (sourceEntityType === 'incidents') {
+      const rows = await manager.query<Array<{
+        id: string;
+        tenant_id: string;
+        item_number: number | null;
+        name: string;
+      }>>(
+        `SELECT id::text AS id,
+                tenant_id::text AS tenant_id,
+                item_number,
+                title AS name
+         FROM incidents
+         WHERE id = $1
+           AND tenant_id = app_current_tenant()
+         LIMIT 1`,
+        [sourceEntityId],
+      );
+      if (!rows.length) {
+        throw new NotFoundException('incident not found');
+      }
+
+      const row = rows[0];
+      return {
+        source: {
+          id: row.id,
+          tenant_id: row.tenant_id,
+          item_number: row.item_number,
+          name: row.name,
+          reference_label: row.item_number ? `INC-${row.item_number}` : row.id,
+        },
+        ownerUserId: await this.loadPreferredOwnerUserId('incidents', row.id, manager),
         tenantSlug: await this.loadTenantSlug(row.tenant_id, manager),
       };
     }
@@ -941,6 +1061,33 @@ export class IntegratedDocumentsService {
       const row = await this.loadInterfaceBackfillRow(sourceEntityId, manager);
       return {
         content: this.buildInterfaceSpecificationMarkdown(row),
+        source: 'legacy',
+        unresolvedLegacyInlineAttachmentIds: [],
+      };
+    }
+
+    if (sourceEntityType === 'incidents') {
+      const rows = await manager.query<Array<{ status: string }>>(
+        `SELECT status
+         FROM incidents
+         WHERE id = $1
+           AND tenant_id = app_current_tenant()
+         LIMIT 1`,
+        [sourceEntityId],
+      );
+      if (!rows.length) {
+        throw new NotFoundException('incident not found');
+      }
+      // A closed or cancelled incident whose review is missing is an integrity fault.
+      // A read, a PDF export or the chat must never mint a fresh review from today's
+      // template for a frozen record; run `npm run integrated-docs:backfill` instead.
+      if (rows[0].status === 'closed' || rows[0].status === 'cancelled') {
+        throw new NotFoundException(
+          `Integrated document missing for a ${rows[0].status} incident and cannot be recreated automatically (${sourceEntityType}:${slotKey}:${sourceEntityId})`,
+        );
+      }
+      return {
+        content: null,
         source: 'legacy',
         unresolvedLegacyInlineAttachmentIds: [],
       };
@@ -1448,7 +1595,13 @@ export class IntegratedDocumentsService {
     userId: string | null | undefined,
     manager: EntityManager,
   ): Promise<void> {
-    if (sourceEntityType === 'interfaces' || sourceEntityType === 'applications') {
+    // Interfaces, applications and incidents keep no per-edit entry: the incident
+    // journal records lifecycle events, not review content edits.
+    if (
+      sourceEntityType === 'interfaces'
+      || sourceEntityType === 'applications'
+      || sourceEntityType === 'incidents'
+    ) {
       return;
     }
 
@@ -2008,12 +2161,41 @@ export class IntegratedDocumentsService {
     }
   }
 
+  /**
+   * Existence plus, for incidents, row visibility: a confidential incident the caller
+   * cannot see is a 404 here, not only in the controller. The service never relies on
+   * the controller having resolved a visible id first.
+   */
   private async assertSourceEntityExists(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
     manager: EntityManager,
+    userId?: string | null,
   ): Promise<void> {
     const config = SOURCE_ENTITY_CONFIG[sourceEntityType];
+
+    if (sourceEntityType === 'incidents') {
+      const tenantRows = await manager.query<Array<{ tenant_id: string | null }>>(
+        `SELECT app_current_tenant()::text AS tenant_id`,
+      );
+      const viewer = await resolveIncidentViewer(manager, userId ?? null, tenantRows[0]?.tenant_id ?? null);
+      const params: unknown[] = [sourceEntityId];
+      const visibility = incidentVisibilitySql('i', viewer, params);
+      const rows = await manager.query(
+        `SELECT i.id
+         FROM incidents i
+         WHERE i.id = $1
+           AND i.tenant_id = app_current_tenant()
+           ${visibility}
+         LIMIT 1`,
+        params,
+      );
+      if (!rows.length) {
+        throw new NotFoundException('incident not found');
+      }
+      return;
+    }
+
     const rows = await manager.query(
       `SELECT id
        FROM ${config.sourceTable}
@@ -2037,7 +2219,7 @@ export class IntegratedDocumentsService {
   ): Promise<string> {
     this.assertSupportedSlot(sourceEntityType, slotKey);
     await this.assertSourcePermission(sourceEntityType, accessMode, userId, manager);
-    await this.assertSourceEntityExists(sourceEntityType, sourceEntityId, manager);
+    await this.assertSourceEntityExists(sourceEntityType, sourceEntityId, manager, userId);
 
     let binding = await this.findBinding(
       sourceEntityType,
@@ -2107,6 +2289,13 @@ export class IntegratedDocumentsService {
       { useTemplateWhenBlank: opts?.useTemplateWhenBlank },
     );
 
+    const provisioningContext = await this.buildSourceAccessContext(
+      sourceEntityType,
+      source.id,
+      slotKey,
+      userId,
+      manager,
+    );
     const created = await this.knowledge.createManagedDocument(
       {
         tenantId: source.tenant_id,
@@ -2118,10 +2307,10 @@ export class IntegratedDocumentsService {
         document_type_id: slotSetting.document_type_id,
         template_document_id: slotSetting.template_document_id,
         status: 'published',
-        relationEntityType: sourceEntityType === 'projects' || sourceEntityType === 'requests'
-          ? sourceEntityType as Extract<RelationEntityType, 'projects' | 'requests'>
+        relationEntityType: SOURCE_ENTITY_CONFIG[sourceEntityType].relationTable
+          ? sourceEntityType as Extract<RelationEntityType, 'projects' | 'requests' | 'incidents'>
           : undefined,
-        relationIds: sourceEntityType === 'projects' || sourceEntityType === 'requests'
+        relationIds: SOURCE_ENTITY_CONFIG[sourceEntityType].relationTable
           ? [source.id]
           : undefined,
         change_note: opts?.changeNote ?? null,
@@ -2131,6 +2320,7 @@ export class IntegratedDocumentsService {
       {
         manager,
         initializer: opts?.initializer,
+        sourceContext: provisioningContext,
       },
     );
     await this.ensurePrimaryOwnerContributor(created.id, opts?.ownerUserId ?? null, manager);
@@ -2216,6 +2406,153 @@ export class IntegratedDocumentsService {
     });
   }
 
+  /**
+   * Eager provisioning of the `incidents:review` document, from the configured
+   * template. Called inside the incident create transaction and by the CSV import
+   * create path, so a review always exists before anything tries to read it.
+   *
+   * Takes the incident id (not a descriptor) because the CSV commit path only has
+   * the id at hand; the reference and title are read back here.
+   */
+  async provisionForIncident(
+    incidentId: string,
+    userId: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ): Promise<void> {
+    const manager = this.getManager(opts);
+    const context = await this.loadSourceRecoveryContext('incidents', incidentId, manager);
+    await this.ensureBoundDocument('incidents', context.source, 'review', null, userId, manager, {
+      ownerUserId: context.ownerUserId,
+    });
+  }
+
+  /**
+   * §3.3 closure snapshot primitive, called by `IncidentsService` from the
+   * close/cancel transaction (phase A3).
+   *
+   * **Lock ordering contract**: the caller MUST already hold the incident row
+   * lock (`SELECT ... FROM incidents WHERE id = $1 FOR UPDATE`) in the same
+   * transaction. This method then takes the document row lock. Incident first,
+   * document second, on every path that serializes review mutations, status
+   * transitions and confidentiality/owner/reporter changes.
+   *
+   * It refuses with 423 when another user holds an edit lock on the review, and
+   * returns the reference to store in `incident_entries.changed_fields.review_version`.
+   */
+  async snapshotReviewForIncidentTransition(
+    incidentId: string,
+    userId: string | null | undefined,
+    opts?: { manager?: EntityManager; changeNote?: string | null },
+  ): Promise<{ document_id: string; version_number: number; revision: number }> {
+    const manager = this.getManager(opts);
+    const slotKey: IntegratedDocumentSlotKey = 'review';
+
+    let binding = await this.findBinding('incidents', incidentId, slotKey, manager);
+    if (!binding) {
+      // Eager provisioning happens at create; a missing binding here is an
+      // integrity gap and is repaired explicitly rather than silently skipped.
+      await this.provisionForIncident(incidentId, userId, { manager });
+      binding = await this.findBinding('incidents', incidentId, slotKey, manager);
+    }
+    if (!binding) {
+      throw new NotFoundException('Integrated document not found');
+    }
+
+    const documentId = String(binding.document_id);
+    await manager.query('SELECT id FROM documents WHERE id = $1 FOR UPDATE', [documentId]);
+    await this.knowledge.assertDocumentUnlockedForUser(documentId, userId ?? null, manager);
+
+    const document = await this.getDocumentOrThrow(documentId, manager);
+    const snapshot = await this.knowledge.ensureCurrentVersionSnapshot(
+      document,
+      opts?.changeNote ?? null,
+      String(userId || '').trim() || null,
+      manager,
+    );
+
+    return {
+      document_id: documentId,
+      version_number: Number(snapshot.version.version_number),
+      revision: Number(document.revision),
+    };
+  }
+
+  /**
+   * §3.8 CSV-import write path for `incidents:review`, and the only place that
+   * may write the review of a closed or cancelled incident.
+   *
+   * It still enforces the tenant, `incidents:contributor`, the incident's row
+   * visibility (404 when invisible) and another user's edit lock (423). It is
+   * not reachable from any document route: no DTO, header or AI tool can build
+   * the exemption. Must run inside the CSV commit transaction so a failure rolls
+   * the incident upsert back with it.
+   */
+  async writeIncidentReviewForImport(
+    incidentId: string,
+    content: string | null | undefined,
+    userId: string | null | undefined,
+    opts?: { manager?: EntityManager; changeNote?: string | null; activityContent?: string | null },
+  ): Promise<{ document_id: string; changed: boolean; version_number: number | null; revision: number | null }> {
+    const manager = this.getManager(opts);
+    const normalizedUserId = this.normalizeUserId(userId);
+    const slotKey: IntegratedDocumentSlotKey = 'review';
+
+    this.assertSupportedSlot('incidents', slotKey);
+    await this.assertSourcePermission('incidents', 'edit', normalizedUserId, manager);
+    await this.assertSourceEntityExists('incidents', incidentId, manager, normalizedUserId);
+
+    let binding = await this.findBinding('incidents', incidentId, slotKey, manager);
+    if (!binding) {
+      // An imported incident may already be closed: provision explicitly rather
+      // than going through the lazy repair, which refuses frozen incidents.
+      await this.provisionForIncident(incidentId, normalizedUserId, { manager });
+      binding = await this.findBinding('incidents', incidentId, slotKey, manager);
+    }
+    if (!binding) {
+      throw new NotFoundException('Integrated document not found');
+    }
+
+    const documentId = String(binding.document_id);
+    await this.ensureOwningRelationRow('incidents', incidentId, documentId, manager);
+    await this.knowledge.assertDocumentUnlockedForUser(documentId, normalizedUserId, manager);
+
+    const existing = await this.getDocumentOrThrow(documentId, manager);
+    const nextContent = normalizeMarkdownRichText(content, { fieldName: 'content_markdown' }) || '';
+    if (existing.content_markdown === nextContent) {
+      return { document_id: documentId, changed: false, version_number: null, revision: null };
+    }
+
+    const importContext = await this.buildSourceAccessContext(
+      'incidents',
+      incidentId,
+      slotKey,
+      normalizedUserId,
+      manager,
+      { allowFrozenIncident: true },
+    );
+    await this.knowledge.updateManagedDocument(
+      documentId,
+      {
+        content_markdown: nextContent,
+        create_version: true,
+        change_note: opts?.changeNote ?? this.getImportChangeNote('incidents'),
+        activity_content: opts?.activityContent ?? 'Document updated',
+      },
+      normalizedUserId,
+      { manager, sourceContext: importContext },
+    );
+
+    const saved = await this.getDocumentOrThrow(documentId, manager);
+    // `revision` completes the `changed_fields.review_version` shape the CSV
+    // import journals (phase A3, §3.8) — same object as the closure snapshot.
+    return {
+      document_id: documentId,
+      changed: true,
+      version_number: Number(saved.current_version_number) || null,
+      revision: Number(saved.revision) || null,
+    };
+  }
+
   async writeSourceSlotContent(
     sourceEntityType: SourceScopedEntityType,
     source: SourceDescriptor,
@@ -2266,7 +2603,11 @@ export class IntegratedDocumentsService {
         activity_content: 'Document updated',
       },
       userId || null,
-      { manager },
+      {
+        manager,
+        sourceContext: await this.buildSourceAccessContext(sourceEntityType, source.id, slotKey, userId, manager),
+        systemOperation: !String(userId || '').trim(),
+      },
     );
 
     if (opts?.logSourceActivity !== false) {
@@ -2280,11 +2621,18 @@ export class IntegratedDocumentsService {
     };
   }
 
+  /**
+   * Realign the managed titles of one source entity after a rename.
+   *
+   * `allowFrozenIncident` is the §3.8 CSV-import exemption: only the incident CSV
+   * import passes it, so an imported line may rename a closed incident's review
+   * exactly as it may rewrite its body. Every request-driven caller leaves it off.
+   */
   async syncTitles(
     sourceEntityType: SourceScopedEntityType,
     source: SourceDescriptor,
     userId: string | null | undefined,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; allowFrozenIncident?: boolean },
   ): Promise<number> {
     const manager = this.getManager(opts);
     const bindings = await manager.getRepository(IntegratedDocumentBinding).find({
@@ -2313,7 +2661,14 @@ export class IntegratedDocumentsService {
           create_version: false,
         },
         userId || null,
-        { manager },
+        {
+          manager,
+          sourceContext: await this.buildSourceAccessContext(
+            sourceEntityType, source.id, slotKey, userId, manager,
+            { allowFrozenIncident: opts?.allowFrozenIncident === true },
+          ),
+          systemOperation: !String(userId || '').trim(),
+        },
       );
       updatedCount += 1;
     }
@@ -2496,11 +2851,18 @@ export class IntegratedDocumentsService {
     };
   }
 
+  /**
+   * `allowFrozenIncident` is the operator escape hatch for `incidents:review`
+   * (§3.2): only `npm run integrated-docs:backfill` passes it, and it is the
+   * one way a closed or cancelled incident whose review is missing gets one.
+   * Every lazy read path leaves it off, so a frozen record can never gain a
+   * brand-new review from today's template just because someone opened it.
+   */
   async repairSourceSlot(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
     slotKey: IntegratedDocumentSlotKey,
-    opts?: { manager?: EntityManager; actorUserId?: string | null },
+    opts?: { manager?: EntityManager; actorUserId?: string | null; allowFrozenIncident?: boolean },
   ): Promise<RepairSourceSlotResult> {
     const manager = this.getManager(opts);
     const actorUserId = this.normalizeOptionalUserId(opts?.actorUserId);
@@ -2522,6 +2884,12 @@ export class IntegratedDocumentsService {
         recoveredFrom: null,
         unresolvedLegacyInlineAttachmentIds: [],
       };
+    }
+
+    if (sourceEntityType === 'incidents') {
+      return this.repairIncidentReviewSlot(sourceEntityId, slotKey, actorUserId, manager, {
+        allowFrozenIncident: opts?.allowFrozenIncident === true,
+      });
     }
 
     const context = await this.loadSourceRecoveryContext(sourceEntityType, sourceEntityId, manager);
@@ -2598,10 +2966,105 @@ export class IntegratedDocumentsService {
     };
   }
 
+  /**
+   * A review document that lost its binding but is still reachable through
+   * `document_incidents` — same folder, same managed type, not bound elsewhere.
+   */
+  private async findUnboundIncidentReviewDocumentId(
+    incidentId: string,
+    slotKey: IntegratedDocumentSlotKey,
+    manager: EntityManager,
+  ): Promise<string | null> {
+    const slotSetting = await this.getSlotSetting('incidents', slotKey, manager);
+    const rows = await manager.query<Array<{ id: string }>>(
+      `SELECT d.id::text AS id
+       FROM document_incidents di
+       JOIN documents d ON d.id = di.document_id AND d.tenant_id = di.tenant_id
+       WHERE di.tenant_id = app_current_tenant()
+         AND di.incident_id = $1
+         AND d.folder_id = $2
+         AND d.document_type_id = $3
+         AND NOT EXISTS (
+           SELECT 1 FROM integrated_document_bindings b
+           WHERE b.document_id = d.id
+             AND b.tenant_id = d.tenant_id
+         )
+       ORDER BY d.created_at ASC, d.id ASC
+       LIMIT 1`,
+      [incidentId, slotSetting.folder_id, slotSetting.document_type_id],
+    );
+    return rows[0]?.id ? String(rows[0].id) : null;
+  }
+
+  /**
+   * Lazy repair for `incidents:review`.
+   *
+   * Recovering the document through the owning relation comes first and never
+   * replaces its content. Otherwise only an open incident gets a fresh document from
+   * the template: for a closed or cancelled one, `loadRecoveredSlotContent` raises,
+   * because a frozen record must not gain a brand-new review on a mere read.
+   *
+   * `allowFrozenIncident` skips that refusal, and only the backfill script sets
+   * it — otherwise a closed incident whose binding is missing would be a dead
+   * end with no repair path at all.
+   */
+  private async repairIncidentReviewSlot(
+    incidentId: string,
+    slotKey: IntegratedDocumentSlotKey,
+    actorUserId: string | null,
+    manager: EntityManager,
+    opts?: { allowFrozenIncident?: boolean },
+  ): Promise<RepairSourceSlotResult> {
+    const context = await this.loadSourceRecoveryContext('incidents', incidentId, manager);
+
+    const recoveredDocumentId = await this.findUnboundIncidentReviewDocumentId(incidentId, slotKey, manager);
+    if (recoveredDocumentId) {
+      const bindingsRepo = manager.getRepository(IntegratedDocumentBinding);
+      await bindingsRepo.save(bindingsRepo.create({
+        tenant_id: context.source.tenant_id,
+        source_entity_type: 'incidents',
+        source_entity_id: incidentId,
+        slot_key: slotKey,
+        document_id: recoveredDocumentId,
+        hidden_from_entity_knowledge: true,
+      }));
+      return {
+        slotKey,
+        documentId: recoveredDocumentId,
+        created: false,
+        repairedRelation: false,
+        recoveredFrom: null,
+        unresolvedLegacyInlineAttachmentIds: [],
+      };
+    }
+
+    if (!opts?.allowFrozenIncident) {
+      await this.loadRecoveredSlotContent('incidents', incidentId, slotKey, manager);
+    }
+    await this.ensureBoundDocument('incidents', context.source, slotKey, null, actorUserId, manager, {
+      ownerUserId: context.ownerUserId,
+      useTemplateWhenBlank: true,
+    });
+
+    const binding = await this.findBinding('incidents', incidentId, slotKey, manager);
+    if (!binding) {
+      throw new NotFoundException(`Integrated document repair failed for incidents:${slotKey}:${incidentId}`);
+    }
+    const repairedRelation = await this.ensureOwningRelationRow('incidents', incidentId, binding.document_id, manager);
+    return {
+      slotKey,
+      documentId: binding.document_id,
+      created: true,
+      repairedRelation,
+      recoveredFrom: null,
+      unresolvedLegacyInlineAttachmentIds: [],
+    };
+  }
+
   async repairSourceEntity(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
-    opts?: { manager?: EntityManager; actorUserId?: string | null },
+    opts?: { manager?: EntityManager; actorUserId?: string | null; allowFrozenIncident?: boolean },
   ): Promise<RepairSourceEntityResult> {
     const slots: RepairSourceSlotResult[] = [];
     for (const definition of this.getSlotDefinitionsForSource(sourceEntityType)) {
@@ -2727,6 +3190,12 @@ export class IntegratedDocumentsService {
       if (!matchingOwner) {
         throw new Error(`Managed document owner contributor mismatch for ${sourceEntityType}:${slotKey}:${context.source.id}`);
       }
+    }
+
+    // Incidents have no legacy column to compare against: the review document is the
+    // only source of truth, so the structural checks above are the whole contract.
+    if (sourceEntityType === 'incidents') {
+      return;
     }
 
     const recovered = await this.loadRecoveredSlotContent(sourceEntityType, context.source.id, slotKey, manager);
@@ -3017,7 +3486,18 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.get(documentId, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
+    // Only the incident source path needs an identity here: `resolveManagedDocumentId`
+    // already applied the source entity's own permissions. Passing a userId for the
+    // other source types would newly enforce the Knowledge library ACL on routes that
+    // never required it (a Portfolio member with no `knowledge` permission).
+    return this.knowledge.get(documentId, {
+      manager,
+      userId: sourceContext ? normalizedUserId : null,
+      sourceContext,
+    });
   }
 
   async acquireLockBySource(
@@ -3038,7 +3518,10 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.acquireLock(documentId, normalizedUserId, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.acquireLock(documentId, normalizedUserId, { manager, sourceContext });
   }
 
   async heartbeatLockBySource(
@@ -3060,7 +3543,10 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.heartbeatLock(documentId, normalizedUserId, lockToken, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.heartbeatLock(documentId, normalizedUserId, lockToken, { manager, sourceContext });
   }
 
   async releaseLockBySource(
@@ -3082,7 +3568,41 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.releaseLock(documentId, normalizedUserId, lockToken, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.releaseLock(documentId, normalizedUserId, lockToken, { manager, sourceContext });
+  }
+
+  /**
+   * Administrative unlock from the entity route (phase A3, §3.4).
+   *
+   * Resolved as a read so it still works on a closed incident; the entry route
+   * carries its own level (`incidents:admin`) and `KnowledgeService.forceReleaseLock`
+   * additionally requires `incidents:admin` for a review.
+   */
+  async forceReleaseLockBySource(
+    sourceEntityType: SourceScopedEntityType,
+    sourceEntityId: string,
+    slotKey: string,
+    userId: string | null | undefined,
+    opts?: { manager?: EntityManager },
+  ) {
+    const manager = this.getManager(opts);
+    const normalizedUserId = this.normalizeUserId(userId);
+    const managedSlotKey = slotKey as IntegratedDocumentSlotKey;
+    const documentId = await this.resolveManagedDocumentId(
+      sourceEntityType,
+      sourceEntityId,
+      managedSlotKey,
+      'read',
+      normalizedUserId,
+      manager,
+    );
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.forceReleaseLock(documentId, { manager, userId: normalizedUserId, sourceContext });
   }
 
   async updateBySource(
@@ -3110,6 +3630,9 @@ export class IntegratedDocumentsService {
       ? existing.content_markdown
       : (normalizeMarkdownRichText(body?.content_markdown, { fieldName: 'content_markdown' }) || '');
 
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
     const result = await this.knowledge.update(
       documentId,
       {
@@ -3120,7 +3643,7 @@ export class IntegratedDocumentsService {
       },
       normalizedUserId,
       lockToken,
-      { manager },
+      { manager, sourceContext },
     );
 
     if (
@@ -3167,9 +3690,13 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
     return this.knowledge.uploadAttachment(documentId, file, normalizedUserId, {
       manager,
       sourceField: 'content_markdown',
+      sourceContext,
     });
   }
 
@@ -3193,14 +3720,17 @@ export class IntegratedDocumentsService {
         normalizedUserId,
         manager,
       );
-      return this.knowledge.importDocument(documentId, file, normalizedUserId, lockToken, { manager });
+      const sourceContext = await this.buildSourceAccessContext(
+        sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+      );
+      return this.knowledge.importDocument(documentId, file, normalizedUserId, lockToken, { manager, sourceContext });
     }
 
     let manager = this.getManager(opts);
     const normalizedUserId = this.normalizeUserId(userId);
     this.assertSupportedSlot(sourceEntityType, slotKey);
     await this.assertSourcePermission(sourceEntityType, 'edit', normalizedUserId, manager);
-    await this.assertSourceEntityExists(sourceEntityType, sourceEntityId, manager);
+    await this.assertSourceEntityExists(sourceEntityType, sourceEntityId, manager, normalizedUserId);
 
     const buffer = readUploadedFileBuffer(file);
     const released = await opts.releaseConnection(
@@ -3216,7 +3746,12 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.finalizeImportedDocument(documentId, released.result, normalizedUserId, lockToken, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
+    return this.knowledge.finalizeImportedDocument(
+      documentId, released.result, normalizedUserId, lockToken, { manager, sourceContext },
+    );
   }
 
   async importInlineAttachmentBySourceUrl(
@@ -3237,9 +3772,13 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
     return this.knowledge.importInlineAttachmentFromUrl(documentId, sourceUrl, normalizedUserId, {
       manager,
       sourceField: 'content_markdown',
+      sourceContext,
     });
   }
 
@@ -3260,7 +3799,15 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    return this.knowledge.listVersions(documentId, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
+    );
+    // Same as `getBySource`: an identity is only passed on the incident source path.
+    return this.knowledge.listVersions(documentId, {
+      manager,
+      userId: sourceContext ? normalizedUserId : null,
+      sourceContext,
+    });
   }
 
   async revertBySource(
@@ -3283,7 +3830,12 @@ export class IntegratedDocumentsService {
       normalizedUserId,
       manager,
     );
-    const result = await this.knowledge.revert(documentId, versionNumber, normalizedUserId, lockToken, { manager });
+    const sourceContext = await this.buildSourceAccessContext(
+      sourceEntityType, sourceEntityId, managedSlotKey, normalizedUserId, manager,
+    );
+    const result = await this.knowledge.revert(
+      documentId, versionNumber, normalizedUserId, lockToken, { manager, sourceContext },
+    );
     const sourceRows = await manager.query<Array<{ tenant_id: string }>>(
       `SELECT tenant_id
        FROM ${SOURCE_ENTITY_CONFIG[sourceEntityType].sourceTable}

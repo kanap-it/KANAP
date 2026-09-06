@@ -15,6 +15,10 @@ import {
 import { useAuth } from '../../auth/AuthContext';
 import { PropertyRow, StatusDot, useKanapDialogs } from '../../components/design';
 import EntityKnowledgePanel from '../../components/EntityKnowledgePanel';
+import type {
+  IntegratedDocumentEditorHandle,
+  IntegratedDocumentSaveStatus,
+} from '../../components/IntegratedDocumentEditor';
 import useAutosave from '../../hooks/useAutosave';
 import { useIncidentItemNav } from '../../hooks/useModuleItemNav';
 import { useLocale } from '../../i18n/useLocale';
@@ -52,6 +56,18 @@ type TabKey = (typeof TAB_KEYS)[number];
 type CreateForm = IncidentDrawerValues & { title: string; description: string };
 
 const UUID_ROUTE_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
+
+/** Fields that freeze the review or can take the viewer's access away. */
+const ACCESS_SENSITIVE_FIELDS: Array<keyof UpdateIncidentInput> = [
+  'status',
+  'confidential',
+  'owner_user_id',
+  'reporter_user_id',
+];
+
+function patchNeedsFlush(patch: UpdateIncidentInput): boolean {
+  return ACCESS_SENSITIVE_FIELDS.some((field) => field in patch);
+}
 
 export function IncidentWorkspacePage() {
   const { t } = useTranslation(['it', 'common']);
@@ -110,6 +126,16 @@ export function IncidentWorkspacePage() {
   const [createSubmitting, setCreateSubmitting] = React.useState(false);
   const [createError, setCreateError] = React.useState<string | null>(null);
   const [exportingPdf, setExportingPdf] = React.useState(false);
+  // The incident review is an integrated document: its draft lives in the
+  // editor, so every controlled transition has to drain it through this handle.
+  const reviewEditorRef = React.useRef<IntegratedDocumentEditorHandle>(null);
+  const [reviewSaveStatus, setReviewSaveStatus] = React.useState<IntegratedDocumentSaveStatus>('idle');
+  const handleReviewSaveStateChange = React.useCallback((status: IntegratedDocumentSaveStatus) => {
+    setReviewSaveStatus(status);
+  }, []);
+  // The editor remounts with the incident (key={data.id}); its hint must not
+  // carry over to the next one.
+  React.useEffect(() => { setReviewSaveStatus('idle'); }, [routeId]);
 
   // Normalise a uuid route to the business ref once the incident is known.
   React.useEffect(() => {
@@ -167,23 +193,6 @@ export function IncidentWorkspacePage() {
     navigate(`/it/incidents${qs ? `?${qs}` : ''}`, { replace: true });
   }, [listContextParams, navigate, queryClient]);
 
-  const patchNow = React.useCallback(async (patch: UpdateIncidentInput) => {
-    if (!data || stale) return;
-    if (viewerLosesAccess(patch) && !(await confirmLoseAccess())) return;
-    const previous = data;
-    setIncidentCache((current) => ({ ...current, ...patch }));
-    setError(null);
-    try {
-      const saved = await incidentsApi.update(previous.id, patch);
-      setIncidentCache(() => saved);
-      if ('status' in patch || 'severity' in patch) invalidateEntries(previous.id);
-      if (viewerLosesAccess(saved)) leaveRegister();
-    } catch (e) {
-      setIncidentCache(() => previous);
-      setError(getApiErrorMessage(e, t, t('workspace.incident.messages.saveFailed')));
-    }
-  }, [confirmLoseAccess, data, invalidateEntries, leaveRegister, setIncidentCache, stale, t, viewerLosesAccess]);
-
   // Debounced autosave for long-form text: the cache is patched immediately so
   // the page never redraws from a server round-trip.
   const pendingPatchRef = React.useRef<UpdateIncidentInput>({});
@@ -213,19 +222,77 @@ export function IncidentWorkspacePage() {
     scheduleSave(flushPending);
   }, [editable, flushPending, scheduleSave, setIncidentCache]);
 
+  /**
+   * Drains both drafts of the overview tab — the debounced property autosave and
+   * the incident review document, including a request already in flight — before
+   * a transition. Returns false when anything failed: the caller then aborts and
+   * the draft stays in place.
+   */
+  const flushAll = React.useCallback(async (): Promise<boolean> => {
+    const propertiesSaved = await flushSave();
+    const reviewSaved = reviewEditorRef.current ? await reviewEditorRef.current.save() : true;
+    if (propertiesSaved && reviewSaved) return true;
+    if (!reviewSaved) setError(t('workspace.incident.messages.reviewSaveFailed'));
+    // Some failures never clear on a retry: the incident was closed elsewhere,
+    // the edit lock was taken over. Without a way out the user is stuck on this
+    // incident, unable to close it, change tab or navigate away.
+    const discard = await dialogs.confirm({
+      title: t('workspace.incident.dialogs.discardReviewTitle'),
+      message: t('workspace.incident.dialogs.discardReviewMessage'),
+      confirmLabel: t('workspace.incident.dialogs.discardReviewConfirm'),
+      intent: 'danger',
+    });
+    if (!discard) return false;
+    await reviewEditorRef.current?.reset();
+    setError(null);
+    return true;
+  }, [dialogs, flushSave, t]);
+
+  /**
+   * The row the optimistic update rolls back to. Read after the flush, never
+   * from the render that started the transition: flushing writes the saved
+   * review and the drained property patch into the cache, so the render-time
+   * `data` is already one revision behind by the time a rollback would use it.
+   */
+  const rollbackSnapshot = React.useCallback(
+    () => queryClient.getQueryData<Incident>(queryKey) ?? data,
+    [data, queryClient, queryKey],
+  );
+
+  const patchNow = React.useCallback(async (patch: UpdateIncidentInput) => {
+    if (!data || stale) return;
+    // A status/access change freezes or hides the review: persist the draft
+    // before the PATCH and the optimistic update, and abort when it fails.
+    if (patchNeedsFlush(patch) && !(await flushAll())) return;
+    if (viewerLosesAccess(patch) && !(await confirmLoseAccess())) return;
+    const previous = rollbackSnapshot();
+    if (!previous) return;
+    setIncidentCache((current) => ({ ...current, ...patch }));
+    setError(null);
+    try {
+      const saved = await incidentsApi.update(previous.id, patch);
+      setIncidentCache(() => saved);
+      if ('status' in patch || 'severity' in patch) invalidateEntries(previous.id);
+      if (viewerLosesAccess(saved)) leaveRegister();
+    } catch (e) {
+      setIncidentCache(() => previous);
+      setError(getApiErrorMessage(e, t, t('workspace.incident.messages.saveFailed')));
+    }
+  }, [confirmLoseAccess, data, flushAll, invalidateEntries, leaveRegister, rollbackSnapshot, setIncidentCache, stale, t, viewerLosesAccess]);
+
   const handleClose = React.useCallback(async () => {
-    if (!(await flushSave())) return;
+    if (!(await flushAll())) return;
     const qs = listContextParams.toString();
     navigate(`/it/incidents${qs ? `?${qs}` : ''}`);
-  }, [flushSave, listContextParams, navigate]);
+  }, [flushAll, listContextParams, navigate]);
 
   const handleTabChange = React.useCallback(async (nextTab: string) => {
     if (nextTab === validTab) return;
-    if (!(await flushSave())) return;
+    if (!(await flushAll())) return;
     if (validTab === 'documents') void queryClient.invalidateQueries({ queryKey });
     const qs = searchParams.toString();
     navigate(`/it/incidents/${workspaceRouteId}/${nextTab}${qs ? `?${qs}` : ''}`);
-  }, [flushSave, navigate, queryClient, queryKey, searchParams, validTab, workspaceRouteId]);
+  }, [flushAll, navigate, queryClient, queryKey, searchParams, validTab, workspaceRouteId]);
 
   const navState = useIncidentItemNav({
     id: data && !stale ? data.id : '',
@@ -236,10 +303,10 @@ export function IncidentWorkspacePage() {
   });
   const goToIncident = React.useCallback(async (target: string | null) => {
     if (!target) return;
-    if (!(await flushSave())) return;
+    if (!(await flushAll())) return;
     const qs = searchParams.toString();
     navigate(`/it/incidents/${target}/${validTab}${qs ? `?${qs}` : ''}`);
-  }, [flushSave, navigate, searchParams, validTab]);
+  }, [flushAll, navigate, searchParams, validTab]);
 
   const handleTitleSave = React.useCallback((next: string) => {
     const trimmed = next.trim();
@@ -249,8 +316,10 @@ export function IncidentWorkspacePage() {
 
   const handleConfidentiality = React.useCallback(async (confidential: boolean) => {
     if (!data || stale) return;
+    if (!(await flushAll())) return;
     if (viewerLosesAccess({ confidential }) && !(await confirmLoseAccess())) return;
-    const previous = data;
+    const previous = rollbackSnapshot();
+    if (!previous) return;
     setIncidentCache((current) => ({ ...current, confidential }));
     setError(null);
     try {
@@ -264,7 +333,7 @@ export function IncidentWorkspacePage() {
       setIncidentCache(() => previous);
       setError(getApiErrorMessage(e, t, t('workspace.incident.messages.confidentialityFailed')));
     }
-  }, [confirmLoseAccess, data, invalidateEntries, leaveRegister, locked, setIncidentCache, stale, t, viewerLosesAccess]);
+  }, [confirmLoseAccess, data, flushAll, invalidateEntries, leaveRegister, locked, rollbackSnapshot, setIncidentCache, stale, t, viewerLosesAccess]);
 
   const handleDrawerChange = React.useCallback((patch: IncidentDrawerPatch) => {
     if (patch.confidential !== undefined) {
@@ -305,6 +374,8 @@ export function IncidentWorkspacePage() {
 
   const handleCancel = React.useCallback(async () => {
     if (!data) return;
+    // The prompt comes first: cancelling out of it must not have cost the user
+    // their review draft (the flush can end in a discard).
     const reason = await dialogs.prompt({
       title: t('workspace.incident.dialogs.cancelTitle'),
       message: t('workspace.incident.dialogs.cancelMessage'),
@@ -314,6 +385,8 @@ export function IncidentWorkspacePage() {
       intent: 'danger',
     });
     if (!reason?.trim()) return;
+    // Cancelling freezes the review: persist the draft before the transition.
+    if (!(await flushAll())) return;
     try {
       const saved = await incidentsApi.cancel(data.id, reason.trim());
       setIncidentCache(() => saved);
@@ -321,7 +394,7 @@ export function IncidentWorkspacePage() {
     } catch (e) {
       setError(getApiErrorMessage(e, t, t('workspace.incident.messages.saveFailed')));
     }
-  }, [data, dialogs, invalidateEntries, setIncidentCache, t]);
+  }, [data, dialogs, flushAll, invalidateEntries, setIncidentCache, t]);
 
   const handleCreate = React.useCallback(async () => {
     if (!canEdit || createSubmitting) return;
@@ -385,6 +458,8 @@ export function IncidentWorkspacePage() {
 
   const handleExportPdf = React.useCallback(async () => {
     if (!data || isCreate || exportingPdf) return;
+    // The report renders the review document: export what the user just typed.
+    if (!(await flushAll())) return;
     setExportingPdf(true);
     try {
       const result = await incidentsApi.exportReport(routeId, locale);
@@ -407,7 +482,7 @@ export function IncidentWorkspacePage() {
     } finally {
       setExportingPdf(false);
     }
-  }, [data, dialogs, exportingPdf, isCreate, locale, routeId, t]);
+  }, [data, dialogs, exportingPdf, flushAll, isCreate, locale, routeId, t]);
 
   if (!canView) return <ForbiddenPage />;
 
@@ -426,11 +501,15 @@ export function IncidentWorkspacePage() {
     { key: 'attachments', label: t('workspace.incident.tabs.attachments'), badge: counts?.attachments || undefined, disabled: isCreate },
   ];
 
-  const savingHint = autosaveStatus === 'saving' || autosaveStatus === 'pending'
-    ? t('common:status.saving')
-    : autosaveStatus === 'saved'
-      ? t('common:status.saved')
-      : null;
+  const saveHint = (status: IntegratedDocumentSaveStatus) => (
+    status === 'saving' || status === 'pending'
+      ? t('common:status.saving')
+      : status === 'saved'
+        ? t('common:status.saved')
+        : null
+  );
+  const savingHint = saveHint(autosaveStatus);
+  const reviewHint = saveHint(reviewSaveStatus);
   const lockedBanner = data && locked
     ? t(data.status === 'cancelled' ? 'workspace.incident.overview.cancelledBanner' : 'workspace.incident.overview.closedBanner', {
       date: formatShortDate(data.closed_at || data.updated_at, locale, { year: 'always' }),
@@ -566,7 +645,7 @@ export function IncidentWorkspacePage() {
         onTitleSave={handleTitleSave}
         isCreate={isCreate}
         forceDrawerOpen={isCreate}
-        onSaveShortcut={() => { void flushSave(); }}
+        onSaveShortcut={() => { void flushAll(); }}
         nav={!isCreate && total > 0 ? {
           currentIndex: index + 1,
           totalCount: total,
@@ -583,12 +662,15 @@ export function IncidentWorkspacePage() {
       >
         {isCreate ? (
           <Box sx={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
-            <PropertyRow label={t('workspace.incident.create.title')} required valueSx={{ maxWidth: 560 }}>
+            {/* The TextField sizes to the value column: without `fullWidth` it kept the
+                browser's intrinsic ~160px input width, far too short for an incident title. */}
+            <PropertyRow label={t('workspace.incident.create.title')} required valueSx={{ maxWidth: 340 }}>
               <TextField
                 value={createForm.title}
                 onChange={(event) => setCreateForm((previous) => ({ ...previous, title: event.target.value }))}
                 placeholder={t('workspace.incident.create.titlePlaceholder')}
                 required
+                fullWidth
                 size="small"
                 variant="standard"
                 InputProps={{ disableUnderline: true }}
@@ -624,6 +706,9 @@ export function IncidentWorkspacePage() {
                 readOnly={!editable}
                 lockedBanner={lockedBanner}
                 savingHint={savingHint}
+                reviewHint={reviewHint}
+                reviewEditorRef={reviewEditorRef}
+                onReviewSaveStateChange={handleReviewSaveStateChange}
                 onPatchDebounced={patchDebounced}
               />
             )}

@@ -15,6 +15,17 @@ type EntityIdRow = {
   id: string;
 };
 
+/** Entity families this script verifies, in processing order. */
+const SUPPORTED_SOURCE_ENTITY_TYPES = ['requests', 'projects', 'incidents'] as const;
+type SupportedSourceEntityType = (typeof SUPPORTED_SOURCE_ENTITY_TYPES)[number];
+type SourceTableName = 'portfolio_requests' | 'portfolio_projects' | 'incidents';
+
+const SOURCE_TABLES: Record<SupportedSourceEntityType, SourceTableName> = {
+  requests: 'portfolio_requests',
+  projects: 'portfolio_projects',
+  incidents: 'incidents',
+};
+
 const DEFAULT_BATCH_SIZE = 200;
 
 function readPositiveInt(value: string | undefined, fallback: number): number {
@@ -61,7 +72,7 @@ async function resolveTenants(dataSource: DataSource): Promise<TenantRow[]> {
 
 async function loadEntityIdBatch(
   manager: EntityManager,
-  tableName: 'portfolio_requests' | 'portfolio_projects',
+  tableName: SourceTableName,
   batchSize: number,
   cursorId: string | null,
 ): Promise<EntityIdRow[]> {
@@ -110,12 +121,26 @@ async function verifyStructuralCounts(manager: EntityManager, tenantLabel: strin
        AND source_entity_type = 'projects'
        AND slot_key = 'purpose'`,
   );
+  const [incidentCountRow] = await manager.query<Array<{ count: string }>>(
+    `SELECT COUNT(*)::text AS count
+     FROM incidents
+     WHERE tenant_id = app_current_tenant()`,
+  );
+  const [incidentReviewBindingCountRow] = await manager.query<Array<{ count: string }>>(
+    `SELECT COUNT(*)::text AS count
+     FROM integrated_document_bindings
+     WHERE tenant_id = app_current_tenant()
+       AND source_entity_type = 'incidents'
+       AND slot_key = 'review'`,
+  );
 
   const requestCount = Number(requestCountRow?.count || 0);
   const projectCount = Number(projectCountRow?.count || 0);
   const requestPurposeBindings = Number(requestPurposeBindingCountRow?.count || 0);
   const requestRisksBindings = Number(requestRisksBindingCountRow?.count || 0);
   const projectPurposeBindings = Number(projectPurposeBindingCountRow?.count || 0);
+  const incidentCount = Number(incidentCountRow?.count || 0);
+  const incidentReviewBindings = Number(incidentReviewBindingCountRow?.count || 0);
 
   if (requestCount !== requestPurposeBindings) {
     throw new Error(`Tenant ${tenantLabel}: request-purpose bindings ${requestPurposeBindings} != requests ${requestCount}`);
@@ -125,6 +150,9 @@ async function verifyStructuralCounts(manager: EntityManager, tenantLabel: strin
   }
   if (projectCount !== projectPurposeBindings) {
     throw new Error(`Tenant ${tenantLabel}: project-purpose bindings ${projectPurposeBindings} != projects ${projectCount}`);
+  }
+  if (incidentCount !== incidentReviewBindings) {
+    throw new Error(`Tenant ${tenantLabel}: incident-review bindings ${incidentReviewBindings} != incidents ${incidentCount}`);
   }
 
   const duplicateBindingRows = await manager.query<Array<{
@@ -170,10 +198,10 @@ async function verifyEntityBatch(
   tenantId: string,
   batchSize: number,
   cursorId: string | null,
-  sourceEntityType: 'requests' | 'projects',
+  sourceEntityType: SupportedSourceEntityType,
   integratedDocs: IntegratedDocumentsService,
 ): Promise<{ rowsVerified: number; lastCursor: string | null }> {
-  const tableName = sourceEntityType === 'requests' ? 'portfolio_requests' : 'portfolio_projects';
+  const tableName = SOURCE_TABLES[sourceEntityType];
   const ids = await withTenant(dataSource, tenantId, async (manager) => (
     loadEntityIdBatch(manager, tableName, batchSize, cursorId)
   ));
@@ -208,8 +236,11 @@ async function main() {
     console.log(`Verifying integrated docs for tenants: ${tenants.map((tenant) => tenant.slug || tenant.id).join(', ')}`);
     console.log(`Batch size: ${batchSize}`);
 
-    let totalRequestsVerified = 0;
-    let totalProjectsVerified = 0;
+    const totalVerifiedByType: Record<SupportedSourceEntityType, number> = {
+      requests: 0,
+      projects: 0,
+      incidents: 0,
+    };
 
     for (const tenant of tenants) {
       const tenantLabel = tenant.slug || tenant.id;
@@ -220,48 +251,32 @@ async function main() {
       });
       console.log('  structural counts: OK');
 
-      let requestCursor: string | null = null;
-      while (true) {
-        const batchResult = await verifyEntityBatch(
-          dataSource,
-          tenant.id,
-          batchSize,
-          requestCursor,
-          'requests',
-          integratedDocs,
-        );
-        if (batchResult.rowsVerified === 0) {
-          break;
+      for (const sourceEntityType of SUPPORTED_SOURCE_ENTITY_TYPES) {
+        let cursor: string | null = null;
+        while (true) {
+          const batchResult = await verifyEntityBatch(
+            dataSource,
+            tenant.id,
+            batchSize,
+            cursor,
+            sourceEntityType,
+            integratedDocs,
+          );
+          if (batchResult.rowsVerified === 0) {
+            break;
+          }
+
+          totalVerifiedByType[sourceEntityType] += batchResult.rowsVerified;
+          cursor = batchResult.lastCursor;
+          console.log(`  verified ${sourceEntityType} batch: rows=${batchResult.rowsVerified}`);
         }
-
-        totalRequestsVerified += batchResult.rowsVerified;
-        requestCursor = batchResult.lastCursor;
-        console.log(`  verified request batch: rows=${batchResult.rowsVerified}`);
-      }
-
-      let projectCursor: string | null = null;
-      while (true) {
-        const batchResult = await verifyEntityBatch(
-          dataSource,
-          tenant.id,
-          batchSize,
-          projectCursor,
-          'projects',
-          integratedDocs,
-        );
-        if (batchResult.rowsVerified === 0) {
-          break;
-        }
-
-        totalProjectsVerified += batchResult.rowsVerified;
-        projectCursor = batchResult.lastCursor;
-        console.log(`  verified project batch: rows=${batchResult.rowsVerified}`);
       }
     }
 
     console.log('\nVerification complete.');
-    console.log(`  request rows verified: ${totalRequestsVerified}`);
-    console.log(`  project rows verified: ${totalProjectsVerified}`);
+    for (const sourceEntityType of SUPPORTED_SOURCE_ENTITY_TYPES) {
+      console.log(`  ${sourceEntityType} rows verified: ${totalVerifiedByType[sourceEntityType]}`);
+    }
   } finally {
     await app.close();
   }

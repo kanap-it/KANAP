@@ -2,7 +2,11 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { validate as isUuid } from 'uuid';
 import { incidentVisibilitySql, resolveIncidentViewer } from '../../incidents/incident-visibility';
 import { KnowledgeService, RelationEntityType } from '../../knowledge/knowledge.service';
+import {
+  documentIncidentVisibilitySql,
+} from '../../knowledge/document-entity-visibility';
 import { AiExecutionContextWithManager } from '../ai.types';
+import { resolveAiDocumentIncidentViewer } from '../query/ai-query-scope.util';
 import {
   AI_DOCUMENT_RELATION_ENTITY_TYPES,
   AiDocumentRelationInput,
@@ -608,6 +612,13 @@ export class AiDocumentMutationSupportService {
     }
     params.push(accessibleLibraryIds);
     const libraryAccessClause = `AND d.library_id = ANY($${params.length}::uuid[])`;
+    // Resolving a document by title must not surface an incident review the
+    // caller cannot see (the managed title carries "INC-N - <incident title>").
+    const incidentAccessClause = documentIncidentVisibilitySql(
+      'd',
+      await resolveAiDocumentIncidentViewer(context),
+      params,
+    );
     params.push(limit);
 
     const rows = await context.manager.query(
@@ -624,6 +635,7 @@ export class AiDocumentMutationSupportService {
        WHERE d.tenant_id = $1
          ${templateClause}
          ${libraryAccessClause}
+         ${incidentAccessClause}
          AND (
            d.title ILIKE $2
            OR COALESCE(d.summary, '') ILIKE $2
@@ -989,10 +1001,18 @@ export class AiDocumentMutationSupportService {
     }
   }
 
+  /**
+   * The preview of an AI document mutation must refuse exactly what the write
+   * would refuse — write access first (library ACL, and for an incident review
+   * `incidents:contributor` plus the closure freeze), then the workflow state
+   * and another user's edit lock. Without the write check the preview would
+   * disclose that a document the caller cannot write exists and is editable.
+   */
   async assertUpdatePreviewAllowed(
     context: AiExecutionContextWithManager,
     documentId: string,
   ): Promise<void> {
+    await this.knowledge.assertDocumentWritable(documentId, context.manager, context.userId);
     await this.knowledge.assertWorkflowAllowsEditing(documentId, context.manager);
     await this.knowledge.assertDocumentUnlockedForUser(documentId, context.userId, context.manager);
   }

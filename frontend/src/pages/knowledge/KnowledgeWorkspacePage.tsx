@@ -40,6 +40,7 @@ import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { getDotColor, KNOWLEDGE_STATUS_COLORS } from '../../utils/statusColors';
 import { normalizeMarkdownForRichTextEditor } from '../../lib/markdownEditorNormalization';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
+import { classifyKnowledgeLoadError } from './knowledgeLoadError';
 
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 
@@ -370,11 +371,40 @@ export default function KnowledgeWorkspacePage() {
   }, [isCreate, templateDoc, templateDocumentIdParam]);
 
   // Data queries
-  const { data: doc, isLoading, refetch } = useQuery({
+  const { data: doc, isLoading, error: documentLoadError, refetch } = useQuery({
     queryKey: ['knowledge', id],
     queryFn: async () => (await api.get(`/knowledge/${id}`)).data,
     enabled: !isCreate,
+    // A 404/403 is a final answer: retrying only delays the "not found" screen.
+    retry: (failureCount, err) => classifyKnowledgeLoadError(err) === 'failure' && failureCount < 2,
   });
+  const documentLoadErrorKind = isCreate ? null : classifyKnowledgeLoadError(documentLoadError);
+  const documentAccessDenied = documentLoadErrorKind === 'access';
+
+  // A document the viewer may not read must leave no trace on screen or in the
+  // cache: its detail, versions and activities are dropped when the workspace
+  // is left (the back action below, or any route change).
+  const dropCachedDocument = React.useCallback((documentId: string) => {
+    qc.removeQueries({ queryKey: ['knowledge', documentId] });
+    qc.removeQueries({ queryKey: ['knowledge-versions', documentId] });
+    qc.removeQueries({ queryKey: ['knowledge-activities', documentId] });
+  }, [qc]);
+  // Which document was refused, not "is the current one refused": the cleanup
+  // below runs after the next document has already rendered, so reading a
+  // render-time value there would drop the wrong id (leaving DOC-9's cache
+  // behind and evicting DOC-3's instead).
+  const deniedDocumentIdRef = React.useRef<string | null>(null);
+  if (documentAccessDenied) deniedDocumentIdRef.current = id;
+  const dropCachedDocumentRef = React.useRef(dropCachedDocument);
+  dropCachedDocumentRef.current = dropCachedDocument;
+  React.useEffect(() => {
+    const leavingId = id;
+    return () => {
+      if (deniedDocumentIdRef.current !== leavingId) return;
+      deniedDocumentIdRef.current = null;
+      dropCachedDocumentRef.current(leavingId);
+    };
+  }, [id]);
 
   React.useEffect(() => {
     if (isCreate || !doc?.id) return;
@@ -1645,6 +1675,38 @@ export default function KnowledgeWorkspacePage() {
     );
   }
 
+  if (documentLoadErrorKind) {
+    const backToLibrary = () => {
+      deniedDocumentIdRef.current = null;
+      dropCachedDocument(id);
+      navigate('/knowledge');
+    };
+    return (
+      <Stack spacing="10px" sx={{ maxWidth: 520, py: 8, mx: 'auto', textAlign: 'center', alignItems: 'center' }}>
+        <Typography sx={{ fontSize: 16, fontWeight: 500, color: 'kanap.text.primary' }}>
+          {documentAccessDenied
+            ? t('workspace.errors.notFoundTitle')
+            : t('workspace.errors.loadFailedTitle')}
+        </Typography>
+        <Typography sx={{ fontSize: 13, color: 'kanap.text.secondary' }}>
+          {documentAccessDenied
+            ? t('workspace.errors.notFoundBody')
+            : t('workspace.errors.loadFailedBody')}
+        </Typography>
+        <Stack direction="row" spacing={1} sx={{ pt: '6px' }}>
+          {!documentAccessDenied && (
+            <Button variant="action" size="small" onClick={() => { void refetch(); }}>
+              {t('common:buttons.retry')}
+            </Button>
+          )}
+          <Button variant="action" size="small" onClick={backToLibrary}>
+            {t('workspace.errors.backToLibrary')}
+          </Button>
+        </Stack>
+      </Stack>
+    );
+  }
+
   const isTitleMissing = !form.title?.trim();
   const titleBarSx = {
     px: '6px',
@@ -1836,7 +1898,15 @@ export default function KnowledgeWorkspacePage() {
 
       {showReadOnlyAccessNotice && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          {t('workspace.messages.readOnlyAccess')}
+          {/*
+            `can_write` is the capability the backend returns for this document;
+            for a managed integrated document it follows the source item (its
+            status and its own permissions), so the edit actions above stay
+            hidden instead of failing on click.
+          */}
+          {isManagedIntegratedDocument
+            ? t('workspace.messages.managedReadOnly')
+            : t('workspace.messages.readOnlyAccess')}
         </Alert>
       )}
 

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Alert, Avatar, Box, Button, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Alert, Avatar, Box, Button, Link as MLink, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { incidentsApi, type IncidentEntry } from '../../../api/endpoints/incidents';
 import { useLocale } from '../../../i18n/useLocale';
 import { formatShortDateTime } from '../../../lib/dateFormat';
@@ -78,6 +79,37 @@ export default function IncidentJournalTab({ incidentId, canAdd, onEntryAdded }:
     } finally {
       setSubmitting(false);
     }
+  };
+
+  /**
+   * Closure/cancellation entries carry the review snapshot the server kept:
+   * `{ from: null, to: { document_id, version_number, revision } }`. The document
+   * reference is optional, so the line degrades to a plain version number.
+   */
+  const renderReviewVersion = (change: { from: unknown; to: unknown }) => {
+    const value = change.to;
+    if (!value || typeof value !== 'object') return null;
+    const row = value as Record<string, unknown>;
+    const version = Number(row.version_number);
+    if (!Number.isFinite(version) || version <= 0) return null;
+    const itemNumber = Number(row.item_number);
+    const reference = typeof row.item_ref === 'string' && row.item_ref
+      ? row.item_ref
+      : (Number.isFinite(itemNumber) && itemNumber > 0 ? `DOC-${itemNumber}` : null);
+    const target = reference || (typeof row.document_id === 'string' ? row.document_id : null);
+    const label = t('workspace.incident.journal.reviewVersion', { version });
+    return (
+      <Typography sx={{ fontSize: 13, lineHeight: 1.55 }}>
+        {label}
+        {reference && target && (
+          <>
+            {' ('}
+            <MLink component={Link} to={`/knowledge/${target}`} underline="hover">{reference}</MLink>
+            {')'}
+          </>
+        )}
+      </Typography>
+    );
   };
 
   const describeChange = (field: string, change: { from: unknown; to: unknown }) => {
@@ -164,6 +196,19 @@ export default function IncidentJournalTab({ incidentId, canAdd, onEntryAdded }:
           const name = authorName(entry);
           // Link changes carry a ready-made sentence; showing the raw before/after lists as well would duplicate it.
           const changes = entry.changed_fields && entry.kind !== 'link_change' ? Object.entries(entry.changed_fields) : [];
+          // `renderReviewVersion` returns null for a malformed snapshot, so the
+          // nodes are built first: an entry whose only change renders to nothing
+          // must not leave an empty spacer block behind.
+          const changeNodes = changes
+            .map(([field, change]) => {
+              const node = field === 'review_version' ? renderReviewVersion(change) : (
+                <Typography sx={{ fontSize: 13, lineHeight: 1.55 }}>
+                  {describeChange(field, change)}
+                </Typography>
+              );
+              return node ? <React.Fragment key={field}>{node}</React.Fragment> : null;
+            })
+            .filter(Boolean);
           return (
             <Box key={entry.id} sx={{ display: 'flex', gap: '12px' }}>
               <Avatar sx={{ width: 26, height: 26, fontSize: '10px', fontWeight: 500, bgcolor: 'kanap.teal', color: 'kanap.tealForeground', flexShrink: 0 }}>
@@ -183,13 +228,9 @@ export default function IncidentJournalTab({ incidentId, canAdd, onEntryAdded }:
                     </Typography>
                   )}
                 </Stack>
-                {changes.length > 0 && (
+                {changeNodes.length > 0 && (
                   <Box sx={{ mt: '4px' }}>
-                    {changes.map(([field, change]) => (
-                      <Typography key={field} sx={{ fontSize: 13, lineHeight: 1.55 }}>
-                        {describeChange(field, change)}
-                      </Typography>
-                    ))}
+                    {changeNodes}
                   </Box>
                 )}
                 {entry.content && (

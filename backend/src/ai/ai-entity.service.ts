@@ -3,6 +3,10 @@ import { bilingualDocumentTsQuerySql } from '../common/document-search-tsquery';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import {
+  documentIncidentVisibilitySql,
+  resolveDocumentIncidentViewer,
+} from '../knowledge/document-entity-visibility';
+import {
   AI_SEARCH_ENTITY_TYPES,
   AiEntityCommentDto,
   AiEntityCommentsDto,
@@ -17,10 +21,12 @@ import {
   AiSearchEntityType,
 } from './ai.types';
 import { incidentRelatedLabelSql, incidentRelatedTitleSql, incidentVisibilitySql, resolveIncidentViewer } from '../incidents/incident-visibility';
+import { INCIDENT_REVIEW_SLOT } from '../knowledge/integrated-document.constants';
 import { AiPolicyService } from './ai-policy.service';
 import {
   participantConditionForAiEntity,
   ParticipationScopedAiEntityType,
+  resolveAiDocumentIncidentViewer,
   resolveAiParticipationAccessScope,
 } from './query/ai-query-scope.util';
 
@@ -506,8 +512,30 @@ export class AiEntityService {
       tenantId: string;
       sourceEntityType: 'projects';
       sourceEntityId: string;
+      userId: string | null;
     },
   ): Promise<AiEntitySummaryDto[]> {
+    // §3.7 point 6: the entity-context tool applies the same document filter as
+    // the Knowledge lists — library ACL plus the incident rules for bound reviews.
+    const accessibleLibraries = await this.knowledge.listReadableLibraryIdsForUser(
+      manager,
+      params.userId,
+    );
+    if (accessibleLibraries && accessibleLibraries.length === 0) {
+      return [];
+    }
+    const queryParams: unknown[] = [params.sourceEntityType, params.sourceEntityId, params.tenantId];
+    let libraryClause = '';
+    if (accessibleLibraries) {
+      queryParams.push(accessibleLibraries);
+      libraryClause = ` AND d.library_id = ANY($${queryParams.length}::uuid[])`;
+    }
+    const incidentClause = documentIncidentVisibilitySql(
+      'd',
+      await resolveDocumentIncidentViewer(manager, params.userId, params.tenantId),
+      queryParams,
+    );
+
     const rows = await manager.query<SearchRow[]>(
       `SELECT d.id,
               d.item_number,
@@ -526,8 +554,10 @@ export class AiEntityService {
        WHERE b.source_entity_type = $1
          AND b.source_entity_id = $2
          AND b.tenant_id = $3
+         ${libraryClause}
+         ${incidentClause}
        ORDER BY b.slot_key ASC, d.updated_at DESC`,
-      [params.sourceEntityType, params.sourceEntityId, params.tenantId],
+      queryParams,
     );
 
     return rows.map((row) => toIntegratedDocumentSummary(row));
@@ -1464,6 +1494,14 @@ export class AiEntityService {
                 ELSE 1
               END AS score
        FROM incidents i
+       LEFT JOIN integrated_document_bindings review_b
+         ON review_b.tenant_id = i.tenant_id
+        AND review_b.source_entity_type = '${INCIDENT_REVIEW_SLOT.sourceEntityType}'
+        AND review_b.source_entity_id = i.id
+        AND review_b.slot_key = '${INCIDENT_REVIEW_SLOT.slotKey}'
+       LEFT JOIN documents review_d
+         ON review_d.id = review_b.document_id
+        AND review_d.tenant_id = review_b.tenant_id
        WHERE i.tenant_id = $4
          ${visibility}
          AND (
@@ -1471,10 +1509,7 @@ export class AiEntityService {
            OR ($2::text IS NOT NULL AND i.item_number::text LIKE $2 || '%')
            OR i.title ILIKE $3
            OR COALESCE(i.description, '') ILIKE $3
-           OR COALESCE(i.impact, '') ILIKE $3
-           OR COALESCE(i.root_cause, '') ILIKE $3
-           OR COALESCE(i.corrective_actions, '') ILIKE $3
-           OR COALESCE(i.lessons_learned, '') ILIKE $3
+           OR COALESCE(review_d.content_plain, '') ILIKE $3
            OR COALESCE(i.source_ref, '') ILIKE $3
            OR COALESCE(i.severity, '') ILIKE $3
            OR COALESCE(i.status, '') ILIKE $3
@@ -2164,6 +2199,23 @@ export class AiEntityService {
             AND d_acl.library_id = ANY(${librariesRef}::uuid[])
         ))`);
       }
+
+      // §3.7 point 4: a document bound to an incident also follows the incident's
+      // permissions and row visibility. Resolved as soon as `documents` is among
+      // the searched types — never gated on `incidents` being searched too, and
+      // never inside the library branch (which is skipped for unrestricted
+      // Knowledge access).
+      const documentIncidentViewer = await resolveAiDocumentIncidentViewer(context);
+      // Built straight onto the shared parameter array, so the placeholders it
+      // emits are the real positions in this query: no `$1` rewriting, and no
+      // assumption about how many parameters the fragment needs.
+      const incidentAclClause = documentIncidentVisibilitySql('d_acl', documentIncidentViewer, params);
+      scopeClauses.push(`AND (search_index.entity_type <> 'documents' OR EXISTS (
+        SELECT 1 FROM documents d_acl
+        WHERE d_acl.id = search_index.entity_id
+          AND d_acl.tenant_id = search_index.tenant_id
+          ${incidentAclClause}
+      ))`);
     }
 
     if (entityTypes.includes('incidents')) {
@@ -3201,6 +3253,7 @@ export class AiEntityService {
           tenantId,
           sourceEntityType: 'projects',
           sourceEntityId: projectId,
+          userId: context.userId ?? null,
         })
         : Promise.resolve([]),
       this.listRecentActivity(manager, { tenantId, projectId }),

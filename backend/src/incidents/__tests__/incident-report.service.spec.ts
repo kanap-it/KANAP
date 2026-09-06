@@ -2,6 +2,7 @@ import * as assert from 'node:assert/strict';
 import {
   buildMarkdown,
   escapeMd,
+  isSystemTemplateOnlyReview,
   formatDateTime,
   IncidentReportService,
   labelsFor,
@@ -13,6 +14,21 @@ import {
 } from '../services/incident-report.service';
 
 const UUID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+const REVIEW_DOC_ID = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff';
+
+/** The five system H2 headings of the §3.2 template, verbatim. */
+const SYSTEM_TEMPLATE = [
+  '## Detailed description',
+  '',
+  '## Impact',
+  '',
+  '## Root cause',
+  '',
+  '## Corrective actions',
+  '',
+  '## Lessons learned',
+  '',
+].join('\n');
 
 function fixture(overrides: Partial<IncidentReportRecord> = {}): IncidentReportRecord {
   return {
@@ -31,10 +47,6 @@ function fixture(overrides: Partial<IncidentReportRecord> = {}): IncidentReportR
       owner_name: 'Thomas Berger',
       source_ref: 'GLPI-4821',
       description: 'Mail stopped for the Lyon office.',
-      impact: '',
-      root_cause: null,
-      corrective_actions: null,
-      lessons_learned: null,
       personal_data_affected: true,
       authority_notification_required: false,
       authority_notified_at: null,
@@ -43,6 +55,11 @@ function fixture(overrides: Partial<IncidentReportRecord> = {}): IncidentReportR
       updated_at: '2026-03-10T11:00:00.000Z',
     },
     categoryLabel: 'Infrastructure',
+    review: {
+      document_id: REVIEW_DOC_ID,
+      item_number: 44,
+      content_markdown: '## Impact\n\n**Lyon** offline.\n\n![shot](https://cdn.example/a.png)',
+    },
     entries: [
       {
         kind: 'system',
@@ -113,6 +130,8 @@ function testSectionOrder() {
     markdown.indexOf('**Severity:**'),
     headingIndex(markdown, labels.properties),
     headingIndex(markdown, labels.description),
+    // The review document sits between the short description and the journal.
+    headingIndex(markdown, 'Impact'),
     headingIndex(markdown, labels.journal),
     headingIndex(markdown, labels.linkedObjects),
     headingIndex(markdown, labels.compliance),
@@ -137,10 +156,6 @@ function testJournalChronologicalAndChangeRendering() {
 function testEmptySectionsOmitted() {
   const labels = labelsFor('en');
   const markdown = buildMarkdown(fixture(), 'en', labels);
-  assert.equal(markdown.includes(`## ${labels.impact}`), false);
-  assert.equal(markdown.includes(`## ${labels.rootCause}`), false);
-  assert.equal(markdown.includes(`## ${labels.correctiveActions}`), false);
-  assert.equal(markdown.includes(`## ${labels.lessonsLearned}`), false);
   assert.equal(markdown.includes(`### ${labels.assets}`), false);
   assert.equal(markdown.includes(`### ${labels.applications}`), false);
   assert.equal(markdown.includes(`### ${labels.documents}`), false);
@@ -156,6 +171,7 @@ function testEmptySectionsOmitted() {
         authority_notification_required: false,
         notified_parties: null,
       },
+      review: { document_id: REVIEW_DOC_ID, item_number: 44, content_markdown: '   \n\n  ' },
       tasks: [],
       attachments: [],
       entries: [],
@@ -164,6 +180,7 @@ function testEmptySectionsOmitted() {
     labels,
   );
   assert.equal(empty.includes(`## ${labels.description}`), false);
+  assert.equal(empty.includes('## Impact'), false, 'a blank review body is omitted');
   assert.equal(empty.includes(`## ${labels.journal}`), false);
   assert.equal(empty.includes(`## ${labels.linkedObjects}`), false);
   assert.equal(empty.includes(`## ${labels.compliance}`), false);
@@ -264,8 +281,111 @@ function testLinkChangeUsesContentOnly() {
   assert.equal(markdown.includes(UUID), false);
 }
 
-async function testExportPdfForwardsViewer() {
+/**
+ * §3.5: the review is inserted as Markdown, never escaped — bold, headings and
+ * images must survive intact — while the short description stays escaped.
+ */
+function testReviewMarkdownIsNotEscaped() {
+  const markdown = buildMarkdown(fixture(), 'en', labelsFor('en'));
+  assert.ok(markdown.includes('**Lyon** offline.'), 'bold must survive');
+  assert.ok(markdown.includes('![shot](https://cdn.example/a.png)'), 'the image must survive');
+  assert.equal(markdown.includes('\\*\\*Lyon\\*\\*'), false);
+  assert.equal(markdown.includes('!\\[shot\\]'), false);
+  // No wrapping heading is added and the author's headings keep their level.
+  assert.match(markdown, /^## Impact$/m);
+}
+
+/** Only a blank body or exactly the five system headings are omitted. */
+function testReviewOmissionIsConservative() {
+  const labels = labelsFor('en');
+  const only = (content: string) =>
+    buildMarkdown(fixture({ review: { document_id: REVIEW_DOC_ID, item_number: 44, content_markdown: content } }), 'en', labels);
+
+  assert.equal(isSystemTemplateOnlyReview(SYSTEM_TEMPLATE), true);
+  assert.equal(isSystemTemplateOnlyReview(SYSTEM_TEMPLATE.replace(/\n/g, '\r\n')), true);
+  assert.equal(isSystemTemplateOnlyReview('\n\n' + SYSTEM_TEMPLATE + '\n\n\n'), true);
+  assert.equal(isSystemTemplateOnlyReview(''), true);
+  assert.equal(isSystemTemplateOnlyReview('   \n  '), true);
+  assert.equal(only(SYSTEM_TEMPLATE).includes('## Root cause'), false, 'the untouched template is omitted');
+
+  // A free heading is real content: never stripped to decide emptiness.
+  const freeHeading = only('## Main router outage');
+  assert.ok(freeHeading.includes('## Main router outage'));
+  assert.equal(isSystemTemplateOnlyReview('## Main router outage'), false);
+
+  // One of the five sections filled in: kept.
+  const filled = SYSTEM_TEMPLATE.replace('## Impact\n', '## Impact\n\nMail down for 2 h\n');
+  assert.equal(isSystemTemplateOnlyReview(filled), false);
+  assert.ok(only(filled).includes('Mail down for 2 h'));
+
+  // A customised template (extra prose or extra headings) is kept as it is,
+  // even untouched by the author.
+  const custom = `${SYSTEM_TEMPLATE}\n## Timeline\n`;
+  assert.equal(isSystemTemplateOnlyReview(custom), false);
+  assert.ok(only(custom).includes('## Timeline'));
+
+  // Reordering or dropping a heading is content too.
+  assert.equal(isSystemTemplateOnlyReview('## Impact\n\n## Detailed description'), false);
+  assert.equal(isSystemTemplateOnlyReview('## Detailed description\n\n## Impact'), false);
+}
+
+/**
+ * The omission never consults the current library template: changing it later
+ * cannot make an already stored body disappear from an older report.
+ */
+function testTemplateChangeDoesNotAffectOmission() {
+  const labels = labelsFor('en');
+  const changedTemplate = '## Summary\n\n## What happened\n';
+  const markdown = buildMarkdown(
+    fixture({ review: { document_id: REVIEW_DOC_ID, item_number: 44, content_markdown: changedTemplate } }),
+    'en',
+    labels,
+  );
+  assert.ok(markdown.includes('## What happened'), 'a body matching a NEW template is still rendered');
+  assert.equal(isSystemTemplateOnlyReview(changedTemplate), false);
+}
+
+/** The closure entry shows the version and the DOC-N reference, in each language. */
+function testClosureVersionReferenceInJournal() {
+  const record = fixture({
+    entries: [
+      {
+        kind: 'status_change',
+        content: null,
+        changed_fields: {
+          status: { from: 'in_progress', to: 'closed' },
+          review_version: { from: null, to: { document_id: REVIEW_DOC_ID, version_number: 3, revision: 5 } },
+        },
+        occurred_at: '2026-03-11T11:00:00.000Z',
+        created_at: '2026-03-11T11:00:00.000Z',
+        author_name: 'Thomas Berger',
+      },
+    ],
+  });
+
+  const expected: Record<string, string> = {
+    en: 'Incident review version 3 (DOC-44)',
+    fr: "Revue d'incident version 3 (DOC-44)",
+    de: 'Vorfallanalyse Version 3 (DOC-44)',
+    es: 'Revisión del incidente versión 3 (DOC-44)',
+  };
+  for (const [lang, text] of Object.entries(expected)) {
+    const markdown = buildMarkdown(record, lang as any, labelsFor(lang as any));
+    assert.ok(markdown.includes(text), `${lang}: missing "${text}"`);
+    assert.equal(markdown.includes(REVIEW_DOC_ID), false, `${lang}: the document UUID must never be printed`);
+    assert.equal(markdown.includes('[object Object]'), false, `${lang}: raw object rendering`);
+  }
+
+  // No review loaded (or another document): the version alone, still no UUID.
+  const orphan = buildMarkdown({ ...record, review: null }, 'en', labelsFor('en'));
+  assert.ok(orphan.includes('Incident review version 3'));
+  assert.equal(orphan.includes('DOC-44'), false);
+  assert.equal(orphan.includes(REVIEW_DOC_ID), false);
+}
+
+async function testExportPdfForwardsViewerAndCookie() {
   const captured: Array<{ viewer?: unknown }> = [];
+  const exportCalls: any[][] = [];
   const records = {
     load: async (_id: string, opts: { viewer?: unknown }) => {
       captured.push(opts);
@@ -273,7 +393,10 @@ async function testExportPdfForwardsViewer() {
     },
   };
   const documentExport = {
-    exportMarkdown: async () => ({ buffer: Buffer.from('pdf'), contentType: 'application/pdf' }),
+    exportMarkdown: async (...args: any[]) => {
+      exportCalls.push(args);
+      return { buffer: Buffer.from('pdf'), contentType: 'application/pdf' };
+    },
   };
   const itOps = {
     getSettings: async () => ({ incidentCategories: [] }),
@@ -285,9 +408,16 @@ async function testExportPdfForwardsViewer() {
     tenantId: 'tenant-1',
     userId: 'u1',
     viewer,
+    imageFetchCookie: 'refresh_token=abc',
   });
   assert.equal(captured.length, 1);
   assert.equal(captured[0].viewer, viewer);
+  // Inline images of the review are behind an authenticated route.
+  assert.deepEqual(exportCalls[0][3], { imageFetchHeaders: { Cookie: 'refresh_token=abc' } });
+
+  // No cookie on the request: no forged header.
+  await service.exportPdf(UUID, 'en', { manager: {} as any, tenantId: 'tenant-1', userId: 'u1', viewer });
+  assert.equal(exportCalls[1][3], undefined);
 }
 
 async function run() {
@@ -302,7 +432,11 @@ async function run() {
   testRestrictedDocumentsOmitted();
   testFrenchChangeLabels();
   testLinkChangeUsesContentOnly();
-  await testExportPdfForwardsViewer();
+  testReviewMarkdownIsNotEscaped();
+  testReviewOmissionIsConservative();
+  testTemplateChangeDoesNotAffectOmission();
+  testClosureVersionReferenceInJournal();
+  await testExportPdfForwardsViewerAndCookie();
   console.log('incident-report.service.spec.ts: ok');
 }
 

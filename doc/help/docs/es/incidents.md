@@ -45,7 +45,9 @@ El **Declarante** es usted por defecto. Ambas fechas admiten valores pasados: un
 - Creación, edición, diario, enlaces, archivos adjuntos: `incidents:contributor`
 - Reabrir, cancelar y levantar una restricción: `incidents:admin`
 
-Un incidente restringido queda oculto para todos excepto los administradores del registro, el declarante y el responsable. En un espacio de trabajo de fábrica eso equivale a Administrador y Administrador de panorama IT, más quien lo registró o es responsable de la ficha. Un lector o colaborador que no sea el declarante ni el responsable no lo ve en la lista, en la búsqueda, en el chat ni en la exportación CSV: abrirlo por su referencia devuelve el mismo «no encontrado» que un número inexistente. Las tareas vinculadas conservan la referencia `INC-N` pero sin el título.
+Estos permisos cubren también la revisión del incidente y la exportación PDF: quien trabaja con incidentes no necesita ningún permiso sobre la base de conocimiento para redactar la revisión. Consulte [Vista general](#vista-general).
+
+Un incidente restringido queda oculto para todos excepto los administradores del registro, el declarante y el responsable. En un espacio de trabajo de fábrica eso equivale a Administrador y Administrador de panorama IT, más quien lo registró o es responsable de la ficha. Un lector o colaborador que no sea el declarante ni el responsable no lo ve en la lista, en la búsqueda, en el chat ni en la exportación CSV: abrirlo por su referencia devuelve el mismo «no encontrado» que un número inexistente. Las tareas vinculadas conservan la referencia `INC-N` pero sin el título. La revisión del incidente está sujeta a la misma restricción, se llegue a ella por donde se llegue: base de conocimiento, búsqueda, asistente, exportaciones e imágenes pegadas en el texto.
 
 **Restringir a los administradores del registro** está en el cajón de propiedades, bajo Clasificación. Un colaborador puede activarlo mientras aún vea la ficha; solo un administrador puede desactivarlo, también después del cierre. El cambio se escribe en el diario. El registro de auditoría, las pastillas de relación documental y «vistos recientemente» siguen mostrando el título a quienes ya tienen esas pantallas.
 
@@ -74,7 +76,7 @@ La lista es el registro en sí: todos los incidentes, con la detección más rec
 
 **Columnas adicionales** (ocultas por defecto, disponibles en el selector de columnas): **Cerrado**, **Aplicaciones**, **Creado**.
 
-**Filtrado**: Categoría, Gravedad, Estado y Responsable ofrecen filtros de casillas cuyas opciones se calculan a partir de los incidentes visibles, por lo que solo verá valores presentes en el conjunto de resultados. Las columnas de fecha ofrecen filtros de fecha, incluido un rango: filtre **Detectado** entre dos fechas para obtener un extracto trimestral o anual. La búsqueda cubre el título, la descripción, la referencia (`INC-14`) y los nombres y referencias de los activos y aplicaciones vinculados, de modo que una búsqueda por un nombre de host como `PAR-ESX-01` lista los incidentes de ese activo.
+**Filtrado**: Categoría, Gravedad, Estado y Responsable ofrecen filtros de casillas cuyas opciones se calculan a partir de los incidentes visibles, por lo que solo verá valores presentes en el conjunto de resultados. Las columnas de fecha ofrecen filtros de fecha, incluido un rango: filtre **Detectado** entre dos fechas para obtener un extracto trimestral o anual. La búsqueda cubre el título, la descripción, la referencia (`INC-14`) y los nombres y referencias de los activos y aplicaciones vinculados, de modo que una búsqueda por un nombre de host como `PAR-ESX-01` lista los incidentes de ese activo. Las palabras que solo aparecen en la revisión del incidente se encuentran mediante la búsqueda global y el asistente, no mediante este cuadro.
 
 **Consejo**: combine Gravedad = Crítica, Mayor con un rango de **Detectado** para construir la lista corta que piden la mayoría de los comités de dirección y las auditorías.
 
@@ -122,15 +124,27 @@ El cajón permanece visible en todas las pestañas y guarda a medida que edita.
 
 ### Vista general
 
-Cinco secciones cuentan el incidente, en el orden en que se lee normalmente un informe de incidente. Cada una guarda automáticamente mientras escribe.
+La vista general cuenta el incidente en dos partes: una descripción breve y, después, la revisión del incidente. Ambas se guardan automáticamente mientras escribe.
 
-- **Descripción**: qué ocurrió, tal como se observó
+La **Descripción** ocupa una o dos frases sobre qué ocurrió, tal como se observó. Es el resumen que aparece en la lista, en los resultados de búsqueda y al principio del informe PDF.
+
+La **Revisión del incidente** es el relato completo, redactado en un documento y no en cuadros de texto simple. Admite títulos, listas, tablas, enlaces e imágenes pegadas directamente en el texto.
+
+Un incidente nuevo parte de la plantilla **Revisión del incidente**, que propone las cinco partes en el orden en que se lee normalmente un informe de incidente:
+
+- **Descripción detallada**: qué ocurrió, en detalle
 - **Impacto**: servicios, ubicaciones y usuarios afectados
 - **Causa raíz**: por qué ocurrió
 - **Acciones correctivas**: qué se hizo para corregirlo y para prevenirlo. Haga el seguimiento del trabajo real como tareas enlazadas
 - **Lecciones aprendidas**: qué conviene retener de este incidente
 
-Para un incidente menor basta con la descripción. Para uno mayor, las cinco secciones son el post-mortem.
+Reescríbalas, elimine las que no necesite, añada las suyas. Para un incidente menor basta con la descripción breve. Para uno mayor, la revisión es el post-mortem.
+
+La plantilla es un documento ordinario de la base de conocimiento, almacenado en la biblioteca **Plantillas** bajo el tipo de documento **Revisión del incidente**, de modo que un administrador de la base de conocimiento puede reescribirla para adaptarla a su propio formato de post-mortem. Una plantilla nueva se aplica a los incidentes registrados después y nunca reescribe una revisión que ya existe.
+
+Cada guardado que modifica la revisión conserva una versión, así que el texto puede releerse tal como estaba en cualquier momento, incluido el cierre del incidente. Consulte [Diario](#diario).
+
+La revisión es en sí misma un documento de la base de conocimiento, con su propia referencia `DOC-N`, archivado en la carpeta **Incidentes** de la biblioteca **Documentos gestionados**. Redactarla desde el incidente y exportar el PDF solo usan los permisos de incidentes. Abrir ese mismo documento directamente en la base de conocimiento requiere además los permisos de la base de conocimiento sobre esa biblioteca. En ambos casos sigue ligada al incidente: se congela cuando el incidente se cierra o se cancela, y queda oculta para quien no pueda ver un incidente restringido.
 
 ---
 
@@ -152,7 +166,11 @@ El diario es lo que convierte esto en un registro y no en un formulario. Enumera
 
 Cada fila muestra el autor, la hora a la que se refiere (pase el cursor para ver «hace 3 días») y el tipo de entrada para todo lo que no sea una nota simple.
 
-El redactor desaparece en cuanto el incidente se cierra o se cancela. Las modificaciones de campos hechas fuera del diario, como corregir el texto de impacto, quedan en el registro de auditoría de la plataforma y no en el diario.
+El redactor desaparece en cuanto el incidente se cierra o se cancela. Las modificaciones de campos hechas fuera del diario, como corregir la descripción, quedan en el registro de auditoría de la plataforma y no en el diario.
+
+La revisión del incidente conserva su propio historial. Cada guardado que la modifica produce una versión, y las versiones se conservan para siempre. La edición corriente no añade entradas al diario: redactar la revisión no es un acontecimiento del incidente, y el registro de auditoría recoge quién cambió qué. El cierre, la cancelación y las importaciones CSV sí escriben una entrada de diario, y esa entrada nombra la versión de la revisión a la que se aplica, mostrada como «Versión 4 de la revisión del incidente (DOC-12)».
+
+Reabrir un incidente no cambia nada de eso. Las versiones se mantienen, la entrada de cierre sigue apuntando a la versión vigente cuando se cerró la ficha, y ese texto puede releerse más adelante con las imágenes que contenía, bajo las reglas de acceso que tenga el incidente en ese momento.
 
 ---
 
@@ -168,7 +186,9 @@ El enlace se hace únicamente desde el lado del incidente. Un activo o una aplic
 
 ### Documentos
 
-Documentos de la base de conocimiento enlazados a este incidente: el post-mortem, el informe del proveedor, el procedimiento seguido. Con `knowledge:member` puede crear un documento directamente desde esta pestaña.
+Documentos de la base de conocimiento enlazados a este incidente: el informe del proveedor, el procedimiento seguido, la nota que redactó el equipo de red. Con `knowledge:member` puede crear un documento directamente desde esta pestaña.
+
+La revisión del incidente no aparece aquí. Pertenece al incidente en sí y se edita en la pestaña Vista general.
 
 ---
 
@@ -182,7 +202,7 @@ Arrastre y suelte archivos o haga clic para seleccionarlos: capturas de pantalla
 
 **Resuelto** significa que el servicio está restablecido. **Cerrado** significa que el registro es definitivo.
 
-Cerrar bloquea el incidente. Campos, notas del diario, enlaces, archivos adjuntos y creación de tareas se rechazan, tanto en la interfaz como a través de la API. La Vista general muestra un aviso de una línea: «Cerrado el 12 de marzo de 2026. Reábralo para hacer cambios.»
+Cerrar bloquea el incidente. Campos, revisión del incidente, notas del diario, enlaces, archivos adjuntos y creación de tareas se rechazan, en la interfaz, en la base de conocimiento, en el asistente y a través de la API. La Vista general muestra un aviso de una línea: «Cerrado el 12 de marzo de 2026. Reábralo para hacer cambios.» La revisión se congela en la versión que nombra la entrada del diario, tanto si el cierre se hizo desde el incidente como por una importación CSV.
 
 **Reabrir** (`incidents:admin`) devuelve un incidente resuelto, cerrado o cancelado a En curso y borra las fechas de resolución y de cierre. El motivo es obligatorio y se escribe en el diario, de modo que el registro muestra por qué se volvió a tocar.
 
@@ -207,12 +227,16 @@ Los plazos y umbrales dependen de su jurisdicción y de su sector. KANAP registr
 - Para cada incidente: cuándo empezó, cuándo se advirtió, cuándo se resolvió y se cerró, y quién era el responsable
 - Un diario imposible de reescribir, con cada cambio de estado y de gravedad fechado y atribuido
 - La evidencia en sí, como archivos adjuntos y documentos enlazados
-- Las acciones correctivas y las tareas de seguimiento que demuestran que se llevaron a cabo
+- La revisión del incidente, con la causa raíz, las acciones correctivas y las lecciones aprendidas, conservada versión a versión, y las tareas de seguimiento que demuestran que las acciones se llevaron a cabo
 - Vistas filtradas por periodo, gravedad, categoría o indicador de conformidad, directamente desde la lista
 - Una exportación CSV del registro (**Exportar CSV** en la lista), para los auditores y para su propio archivo. Los incidentes restringidos se omiten salvo que tenga derecho a verlos; el archivo incluye una columna importable **Restringir a los administradores del registro**
 - Un informe PDF de un solo incidente (**Exportar PDF** en el espacio de trabajo), para el auditor que quiere una ficha en lugar de todo el registro
 
 **Importar un registro existente**: **Importar CSV** en la lista acepta un archivo CSV. Deje la columna de referencia vacía para crear incidentes (KANAP asigna los siguientes números INC), o conserve la referencia INC-N para actualizar los registros correspondientes. Cada incidente importado recibe una entrada de diario que indica que procede de un archivo. Exporte primero si quiere la disposición exacta de las columnas.
+
+El archivo lleva la **Descripción** breve en una columna y toda la **Revisión del incidente** en otra, como texto con formato. Esa única columna de revisión sustituye a las antiguas columnas Impacto, Causa raíz, Acciones correctivas y Lecciones aprendidas. Los títulos, las listas y los enlaces sobreviven al viaje de ida y vuelta; las imágenes pegadas no, porque viven en el documento. Una celda de revisión vacía deja intacto el texto existente.
+
+La importación es la única operación que sigue escribiendo en un incidente cerrado o cancelado, para que una corrección que llega meses después pueda archivarse sin reabrir la ficha. Crea una versión nueva de la revisión y una entrada de diario que apunta a ella, y nunca reescribe la versión a la que se refiere el cierre. Nada más se relaja: los permisos del registro se aplican, y un incidente restringido que usted no tenga derecho a ver se rechaza.
 
 ---
 
@@ -220,7 +244,17 @@ Los plazos y umbrales dependen de su jurisdicción y de su sector. KANAP registr
 
 Abra un incidente y haga clic en **Exportar PDF** en las acciones de la cabecera. KANAP descarga un PDF de ese registro: `INC-12-incident-report.pdf`. La descarga usa su sesión iniciada; no es un enlace público.
 
-El informe sigue el idioma de la interfaz (inglés, francés, alemán o español). Incluye la cabecera y las propiedades, los textos de la vista general que se hayan rellenado, el registro en orden cronológico, los activos, aplicaciones, tareas y documentos vinculados, los campos de conformidad y los adjuntos (nombre de archivo, tamaño y fecha). Las secciones vacías se omiten.
+El informe sigue el idioma de la interfaz (inglés, francés, alemán o español). Se compone en este orden:
+
+1. Cabecera y propiedades del incidente
+2. La descripción breve
+3. La revisión del incidente tal como está redactada en ese momento, con su formato y sus imágenes
+4. El diario en orden cronológico, incluidas las versiones de la revisión a las que remiten las entradas
+5. Los activos, aplicaciones, tareas y documentos vinculados
+6. Los campos de conformidad
+7. Los archivos adjuntos (nombre de archivo, tamaño y fecha)
+
+Las secciones vacías se omiten, y una revisión que solo contenga los títulos intactos de la plantilla cuenta como vacía.
 
 La exportación es una lectura. Funciona en un incidente cerrado o cancelado; el registro permanece bloqueado. El botón no aparece en **Nuevo incidente**.
 
@@ -236,7 +270,7 @@ Mantenga la lista corta. Las categorías son aquello por lo que agrupará un añ
 
 ## Preguntar al asistente
 
-Plaid puede consultar el registro en el chat, con los mismos permisos que en el resto de la aplicación. Pídale un recuento (« ¿Cuántos incidentes críticos este trimestre? »), una lista filtrada (« Lista de incidentes abiertos en PAR-ESX-01 ») o una ficha completa (« Resumen de INC-2 »). Esta última incluye el diario. Las referencias de incidente como `INC-12` en la respuesta son enlaces al espacio de trabajo.
+Plaid puede consultar el registro en el chat, con los mismos permisos que en el resto de la aplicación. Pídale un recuento (« ¿Cuántos incidentes críticos este trimestre? »), una lista filtrada (« Lista de incidentes abiertos en PAR-ESX-01 ») o una ficha completa (« Resumen de INC-2 »). Esta última incluye el diario y la revisión del incidente, de modo que una pregunta puede responderse a partir de la causa raíz o de las lecciones aprendidas. Un incidente restringido queda fuera de las respuestas, de los recuentos y de las fuentes, incluida su revisión. Las referencias de incidente como `INC-12` en la respuesta son enlaces al espacio de trabajo.
 
 ---
 
@@ -246,6 +280,6 @@ Plaid puede consultar el registro en el chat, con los mismos permisos que en el 
 - **Escriba notas objetivas, con horas**: «13:05 conmutación al sitio secundario, correo restablecido para 40 usuarios». Ajuste la fecha y la hora para que la cronología refleje el incidente y no su velocidad al teclear
 - **Feche hacia atrás con honestidad**: Inicio y Detectado están para contener las horas reales. La hora de grabación de cada entrada del diario se guarda aparte y no puede modificarse
 - **Un incidente, no uno por ticket**: una única caída que generó cuarenta tickets es un solo incidente, enlazado a los activos implicados
-- **Convierta las acciones en tareas**: el texto de Acciones correctivas describe la intención; una tarea con responsable y fecha de vencimiento es lo que se hace de verdad
-- **Cierre de forma deliberada**: el cierre es el momento en que el registro se convierte en evidencia. Rellene la causa raíz y las lecciones aprendidas antes de cerrar, porque después hará falta un administrador para reabrirlo
+- **Convierta las acciones en tareas**: la sección de acciones correctivas de la revisión describe la intención; una tarea con responsable y fecha de vencimiento es lo que se hace de verdad
+- **Cierre de forma deliberada**: el cierre es el momento en que el registro se convierte en evidencia. Termine la revisión antes de cerrar, porque la versión conservada en ese momento es la que leerá un auditor, y después hará falta un administrador para reabrir el incidente
 - **Revise el registro cada trimestre**: filtre por periodo y gravedad, observe las categorías recurrentes y los activos que aparecen más de una vez. De ahí sale la próxima solicitud de presupuesto

@@ -39,11 +39,8 @@ export interface IncidentRow {
  */
 export interface Incident extends IncidentRow {
   confidential: boolean;
+  /** Short summary. The full account lives in the `incidents:review` integrated document. */
   description: string | null;
-  impact: string | null;
-  root_cause: string | null;
-  corrective_actions: string | null;
-  lessons_learned: string | null;
   source_ref: string | null;
   personal_data_affected: boolean;
   authority_notification_required: boolean;
@@ -76,10 +73,6 @@ export type IncidentEditableFields = Pick<Incident,
   | 'reporter_user_id'
   | 'owner_user_id'
   | 'description'
-  | 'impact'
-  | 'root_cause'
-  | 'corrective_actions'
-  | 'lessons_learned'
   | 'source_ref'
   | 'personal_data_affected'
   | 'authority_notification_required'

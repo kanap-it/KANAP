@@ -89,7 +89,7 @@ When browsing the **Templates** library, administrators can open the **Manage Ty
 
 ### Managed documents
 
-Some Knowledge articles are created from Requests, Projects, Applications, Assets, or Tasks. These appear as **Integrated** documents.
+Some Knowledge articles are created from Requests, Projects, Applications, Assets, Tasks, or Incidents. These appear as **Integrated** documents, grouped in the **Managed Docs** library by the workspace they come from.
 
 Managed documents keep the writing experience inside Knowledge, but the source workspace continues to control part of their metadata. In practice, that means:
 - status may be controlled by the source object
@@ -100,6 +100,8 @@ Managed documents keep the writing experience inside Knowledge, but the source w
 - managed documents cannot be moved out of Knowledge or deleted from the Knowledge list
 
 This protects the link between the document and the operational record that owns it.
+
+Access follows the source object as well. The clearest case is the **Incidents** folder: an incident review can only be opened by someone who is allowed to see that incident, whatever their Knowledge permissions are, it becomes read-only once the incident is closed or cancelled, and it disappears from lists, search, exports and the assistant for anyone excluded from a restricted incident. See [Incidents](incidents.md).
 
 ## Working with the Knowledge list
 

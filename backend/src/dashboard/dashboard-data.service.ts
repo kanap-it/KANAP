@@ -543,6 +543,11 @@ export class DashboardDataService {
     const manager = opts?.manager;
     if (!manager) throw new Error('EntityManager required');
 
+    // Managed integrated documents (project purpose, incident review, …) never
+    // enter the Knowledge review workflow — assertIntegratedDocumentWorkflowRequestAllowed
+    // refuses it. The NOT EXISTS below is defence in depth so a binding created
+    // after a workflow was opened cannot surface an incident review (and its
+    // "INC-N - title" managed title) on someone else's dashboard.
     const rows = await manager.query(
       `
       SELECT
@@ -572,6 +577,12 @@ export class DashboardDataService {
         AND (
           (w.status = 'pending_review' AND p.stage = 'reviewer')
           OR (w.status = 'pending_approval' AND p.stage = 'approver')
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM integrated_document_bindings b
+          WHERE b.document_id = d.id
+            AND b.tenant_id = d.tenant_id
         )
       ORDER BY w.requested_at ASC, d.updated_at DESC
       LIMIT $2

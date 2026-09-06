@@ -45,7 +45,9 @@ Le **Déclarant** est vous par défaut. Les deux dates acceptent des valeurs pas
 - Création, modification, journal, liens, pièces jointes : `incidents:contributor`
 - Réouverture, annulation et levée d'une restriction : `incidents:admin`
 
-Un incident restreint est masqué pour tout le monde sauf les administrateurs du registre, le déclarant et le responsable. Sur un tenant standard, cela veut dire Administrateur et Administrateur cartographie SI, plus la personne qui a consigné l'incident ou qui en est responsable. Un lecteur ou un contributeur qui n'est ni le déclarant ni le responsable ne le voit pas dans la liste, la recherche, le chat ou l'export CSV. L'ouvrir par sa référence renvoie la même page « introuvable » qu'un numéro inexistant. Les tâches liées gardent la référence `INC-N` mais sans le titre.
+Ces autorisations couvrent aussi la revue d'incident et l'export PDF : celui qui traite les incidents n'a besoin d'aucune autorisation sur la base de connaissances pour rédiger la revue. Voir [Vue d'ensemble](#vue-densemble).
+
+Un incident restreint est masqué pour tout le monde sauf les administrateurs du registre, le déclarant et le responsable. Sur un tenant standard, cela veut dire Administrateur et Administrateur cartographie SI, plus la personne qui a consigné l'incident ou qui en est responsable. Un lecteur ou un contributeur qui n'est ni le déclarant ni le responsable ne le voit pas dans la liste, la recherche, le chat ou l'export CSV. L'ouvrir par sa référence renvoie la même page « introuvable » qu'un numéro inexistant. Les tâches liées gardent la référence `INC-N` mais sans le titre. La revue d'incident est soumise à la même restriction, quel que soit le chemin emprunté : base de connaissances, recherche, assistant, exports et images collées dans le texte.
 
 **Restreindre aux administrateurs du registre** se trouve dans le tiroir des propriétés, sous Classification. Un contributeur peut l'activer tant qu'il voit encore la fiche ; seul un administrateur peut la désactiver, y compris après clôture. Le changement est écrit dans le journal. Le journal d'audit, les pastilles de relation documentaire et « récemment consultés » continuent d'afficher le titre pour ceux qui ont déjà ces écrans.
 
@@ -74,7 +76,7 @@ La liste, c'est le registre lui-même : tous les incidents, détection la plus r
 
 **Colonnes supplémentaires** (masquées par défaut, disponibles via le sélecteur de colonnes) : **Clôturé**, **Applications**, **Créé**.
 
-**Filtrage** : Catégorie, Gravité, Statut et Responsable proposent des filtres à cases à cocher dont les options sont calculées à partir des incidents affichés, vous ne voyez donc que les valeurs présentes dans le jeu de résultats. Les colonnes de dates proposent des filtres de date, y compris par plage : filtrez **Détecté** entre deux dates pour produire un extrait trimestriel ou annuel. La recherche porte sur le titre, la description, la référence (`INC-14`), ainsi que sur les noms et références des actifs et applications liés : une recherche sur un nom d'hôte tel que `PAR-ESX-01` liste les incidents de cet actif.
+**Filtrage** : Catégorie, Gravité, Statut et Responsable proposent des filtres à cases à cocher dont les options sont calculées à partir des incidents affichés, vous ne voyez donc que les valeurs présentes dans le jeu de résultats. Les colonnes de dates proposent des filtres de date, y compris par plage : filtrez **Détecté** entre deux dates pour produire un extrait trimestriel ou annuel. La recherche porte sur le titre, la description, la référence (`INC-14`), ainsi que sur les noms et références des actifs et applications liés : une recherche sur un nom d'hôte tel que `PAR-ESX-01` liste les incidents de cet actif. Les mots qui n'apparaissent que dans la revue d'incident se retrouvent par la recherche globale et par l'assistant, pas par ce champ.
 
 **Conseil** : combinez Gravité = Critique, Majeur avec une plage **Détecté** pour construire la liste courte que réclament la plupart des comités de pilotage et des audits.
 
@@ -122,15 +124,27 @@ Le tiroir reste visible sur chaque onglet et enregistre au fur et à mesure.
 
 ### Vue d'ensemble
 
-Cinq sections racontent l'incident, dans l'ordre où se lit habituellement un rapport d'incident. Chacune enregistre automatiquement au fur et à mesure que vous tapez.
+La vue d'ensemble raconte l'incident en deux temps : une description courte, puis la revue d'incident. Les deux enregistrent automatiquement au fur et à mesure que vous tapez.
 
-- **Description** : ce qui s'est passé, tel qu'observé
+La **Description** tient en une ou deux phrases : ce qui s'est passé, tel qu'observé. C'est le résumé qui apparaît dans la liste, dans les résultats de recherche et en tête du rapport PDF.
+
+La **Revue d'incident** est le constat complet, rédigé dans un document plutôt que dans des champs de texte brut. Elle accepte des titres, des listes, des tableaux, des liens et des images collées directement dans le texte.
+
+Un nouvel incident démarre à partir du modèle **Revue d'incident**, qui propose les cinq parties dans l'ordre où se lit habituellement un rapport d'incident :
+
+- **Description détaillée** : ce qui s'est passé, en détail
 - **Impact** : services, sites et utilisateurs touchés
 - **Cause racine** : pourquoi c'est arrivé
 - **Actions correctives** : ce qui a été fait pour corriger et pour prévenir. Suivez le travail de fond sous forme de tâches liées
-- **Enseignements** : ce qu'il faut retenir de cet incident
+- **Retour d'expérience** : ce qu'il faut retenir de cet incident
 
-Pour un incident mineur, la description suffit. Pour un incident majeur, les cinq sections constituent le post-mortem.
+Réécrivez-les, retirez celles dont vous n'avez pas besoin, ajoutez les vôtres. Pour un incident mineur, la description courte suffit. Pour un incident majeur, la revue constitue le post-mortem.
+
+Le modèle est un document ordinaire de la base de connaissances, rangé dans la bibliothèque **Modèles** sous le type de document **Incident review** : un administrateur de la base de connaissances peut le réécrire pour coller à votre propre format de post-mortem. Un nouveau modèle s'applique aux incidents enregistrés ensuite et ne réécrit jamais une revue déjà existante.
+
+Chaque enregistrement qui modifie la revue conserve une version : le texte peut donc être relu tel qu'il était à n'importe quel moment, y compris à la clôture de l'incident. Voir [Journal](#journal).
+
+La revue est elle-même un document de la base de connaissances, avec sa propre référence `DOC-N`, rangé dans le dossier **Incidents** de la bibliothèque **Documents managés**. La rédiger depuis l'incident et exporter le PDF n'utilisent que les autorisations incidents. Ouvrir ce même document directement dans la base de connaissances demande en plus les autorisations documentaires de cette bibliothèque. Dans les deux cas, la revue reste liée à l'incident : elle est gelée dès que l'incident est clôturé ou annulé, et masquée à quiconque ne peut pas voir un incident restreint.
 
 ---
 
@@ -152,7 +166,11 @@ Le journal est ce qui fait de cet outil un registre plutôt qu'un formulaire. Il
 
 Chaque ligne affiche l'auteur, l'heure à laquelle elle se rapporte (survolez pour « il y a 3 jours ») et le type d'entrée pour tout ce qui n'est pas une simple note.
 
-Le composeur disparaît dès que l'incident est clôturé ou annulé. Les modifications de champs faites hors du journal, comme la correction du texte d'impact, sont consignées dans le journal d'audit de la plateforme plutôt que dans le journal de l'incident.
+Le composeur disparaît dès que l'incident est clôturé ou annulé. Les modifications de champs faites hors du journal, comme la correction de la description, sont consignées dans le journal d'audit de la plateforme plutôt que dans le journal de l'incident.
+
+La revue d'incident conserve son propre historique. Chaque enregistrement qui la modifie produit une version, et les versions sont conservées définitivement. La rédaction courante ne crée pas d'entrée de journal : écrire la revue n'est pas un événement de l'incident, et le journal d'audit garde la trace de qui a modifié quoi. En revanche, la clôture, l'annulation et les imports CSV écrivent une entrée de journal, et cette entrée nomme la version de la revue à laquelle elle se rapporte, affichée « Version 4 de la revue d'incident (DOC-12) ».
+
+La réouverture ne change rien à cela. Les versions restent, l'entrée de clôture continue de pointer vers la version qui était courante au moment de la clôture, et ce texte reste lisible plus tard avec les images qu'il contenait, selon les droits dont l'incident dispose à ce moment-là.
 
 ---
 
@@ -168,7 +186,9 @@ La liaison se fait uniquement depuis l'incident. Un actif ou une application li�
 
 ### Documents
 
-Les documents de la base de connaissances liés à cet incident : le post-mortem, le rapport du fournisseur, la procédure suivie. Avec `knowledge:member`, vous pouvez créer un document directement depuis cet onglet.
+Les documents de la base de connaissances liés à cet incident : le rapport du fournisseur, la procédure suivie, la note rédigée par l'équipe réseau. Avec `knowledge:member`, vous pouvez créer un document directement depuis cet onglet.
+
+La revue d'incident n'apparaît pas ici. Elle appartient à l'incident lui-même et se rédige dans l'onglet Vue d'ensemble.
 
 ---
 
@@ -182,7 +202,7 @@ Glissez-déposez des fichiers ou cliquez pour les sélectionner : captures d'éc
 
 **Résolu** signifie que le service est rétabli. **Clôturé** signifie que l'enregistrement est définitif.
 
-La clôture verrouille l'incident. Champs, notes de journal, liens, pièces jointes et création de tâches sont tous refusés, dans l'interface comme via l'API. La Vue d'ensemble affiche un bandeau d'une ligne : « Clôturé le 12 mars 2026. Rouvrez-le pour le modifier. »
+La clôture verrouille l'incident. Champs, revue d'incident, notes de journal, liens, pièces jointes et création de tâches sont tous refusés, dans l'interface, dans la base de connaissances, dans l'assistant comme via l'API. La Vue d'ensemble affiche un bandeau d'une ligne : « Clôturé le 12 mars 2026. Rouvrez-le pour le modifier. » La revue est gelée sur la version nommée par l'entrée de journal, que la clôture vienne de l'incident ou d'un import CSV.
 
 **Rouvrir** (`incidents:admin`) ramène un incident résolu, clôturé ou annulé à En cours et efface les dates de résolution et de clôture. Un motif est obligatoire et il est écrit dans le journal : l'enregistrement montre donc pourquoi on y est revenu.
 
@@ -207,12 +227,16 @@ Les délais et les seuils dépendent de votre juridiction et de votre secteur. K
 - Pour chaque incident : quand il a commencé, quand il a été remarqué, quand il a été résolu et clôturé, et qui en était responsable
 - Un journal impossible à réécrire, avec chaque changement de statut et de gravité daté et attribué
 - Les preuves elles-mêmes, sous forme de pièces jointes et de documents liés
-- Les actions correctives, et les tâches de suivi qui prouvent qu'elles ont été menées
+- La revue d'incident, avec la cause racine, les actions correctives et le retour d'expérience, conservée version par version, et les tâches de suivi qui prouvent que les actions ont été menées
 - Des vues filtrées par période, gravité, catégorie ou indicateur de conformité, directement depuis la liste
 - Un export CSV du registre (**Exporter CSV** dans la liste), pour les auditeurs et pour vos propres archives. Les incidents restreints sont omis sauf si vous avez le droit de les voir ; le fichier comporte une colonne **Restreindre aux administrateurs du registre**, importable
 - Un rapport PDF d'un incident (**Exporter en PDF** dans l'espace de travail), pour l'auditeur qui veut une fiche plutôt que tout le registre
 
 **Importer un registre existant** : **Importer CSV** dans la liste accepte un fichier CSV. Laissez la colonne référence vide pour créer des incidents (KANAP attribue les numéros INC suivants), ou conservez la référence INC-N pour mettre à jour les enregistrements correspondants. Chaque incident importé reçoit une entrée de journal indiquant qu'il provient d'un fichier. Exportez d'abord si vous voulez la disposition exacte des colonnes.
+
+Le fichier porte la **Description** courte dans une colonne et toute la **Revue d'incident** dans une autre, sous forme de texte mis en forme. Cette unique colonne de revue remplace les anciennes colonnes Impact, Cause racine, Actions correctives et Enseignements. Titres, listes et liens survivent à l'aller-retour ; les images collées, non, puisqu'elles vivent dans le document. Une cellule de revue vide laisse le texte existant intact.
+
+L'import est la seule opération qui écrit encore dans un incident clôturé ou annulé : une correction qui arrive des mois plus tard peut donc être déposée sans rouvrir l'enregistrement. Elle crée une nouvelle version de la revue et une entrée de journal qui la référence, et elle ne réécrit jamais la version à laquelle la clôture se rapporte. Rien d'autre n'est assoupli : les autorisations du registre s'appliquent, et un incident restreint que vous n'avez pas le droit de voir est refusé.
 
 ---
 
@@ -220,7 +244,17 @@ Les délais et les seuils dépendent de votre juridiction et de votre secteur. K
 
 Ouvrez un incident et cliquez sur **Exporter en PDF** dans les actions de l'en-tête. KANAP télécharge un PDF de cet enregistrement : `INC-12-incident-report.pdf`. Le téléchargement utilise votre session connectée ; ce n'est pas un lien public.
 
-Le rapport suit la langue de l'interface (anglais, français, allemand ou espagnol). Il reprend l'en-tête et les propriétés, les textes de la vue d'ensemble qui ont été renseignés, le journal dans l'ordre chronologique, les actifs, applications, tâches et documents liés, les champs de conformité, et les pièces jointes (nom du fichier, taille et date). Les sections vides sont omises.
+Le rapport suit la langue de l'interface (anglais, français, allemand ou espagnol). Il est assemblé dans cet ordre :
+
+1. En-tête et propriétés de l'incident
+2. La description courte
+3. La revue d'incident telle qu'elle se lit aujourd'hui, avec sa mise en forme et ses images
+4. Le journal dans l'ordre chronologique, avec les versions de revue auxquelles les entrées se rapportent
+5. Les actifs, applications, tâches et documents liés
+6. Les champs de conformité
+7. Les pièces jointes (nom du fichier, taille et date)
+
+Les sections vides sont omises, et une revue qui ne contient encore que les titres du modèle intacts compte comme vide.
 
 L'export est une lecture. Il fonctionne sur un incident clôturé ou annulé ; l'enregistrement reste verrouillé. Le bouton n'apparaît pas sur **Nouvel incident**.
 
@@ -236,7 +270,7 @@ Gardez la liste courte. Les catégories sont ce qui vous servira à regrouper un
 
 ## Demander à l'assistant
 
-Plaid peut interroger le registre dans le chat, avec les mêmes droits que dans le reste de l'application. Demandez-lui un décompte (« Combien d'incidents critiques ce trimestre ? »), une liste filtrée (« Liste des incidents ouverts sur PAR-ESX-01 ») ou une fiche complète (« Résumé de INC-2 »). Cette dernière inclut le journal. Les références d'incident telles que `INC-12` dans la réponse sont des liens vers l'espace de travail.
+Plaid peut interroger le registre dans le chat, avec les mêmes droits que dans le reste de l'application. Demandez-lui un décompte (« Combien d'incidents critiques ce trimestre ? »), une liste filtrée (« Liste des incidents ouverts sur PAR-ESX-01 ») ou une fiche complète (« Résumé de INC-2 »). Cette dernière inclut le journal et la revue d'incident : une question peut donc trouver sa réponse dans la cause racine ou le retour d'expérience. Un incident restreint reste hors des réponses, des décomptes et des sources, revue comprise. Les références d'incident telles que `INC-12` dans la réponse sont des liens vers l'espace de travail.
 
 ---
 
@@ -246,6 +280,6 @@ Plaid peut interroger le registre dans le chat, avec les mêmes droits que dans 
 - **Écrivez des notes factuelles, avec des heures** : « 13h05 bascule sur le site secondaire, messagerie rétablie pour 40 utilisateurs ». Réglez la date et l'heure pour que la chronologie reflète l'incident, pas votre vitesse de frappe
 - **Antidatez honnêtement** : Début et Détecté sont faits pour porter les heures réelles. L'heure d'enregistrement de chaque entrée de journal est conservée à part et ne peut pas être modifiée
 - **Un incident, pas un par ticket** : une panne unique qui a généré quarante tickets est un seul incident, lié aux actifs concernés
-- **Transformez les actions en tâches** : le texte des Actions correctives décrit l'intention ; une tâche avec un assigné et une échéance est ce qui se fait réellement
-- **Clôturez délibérément** : la clôture est le moment où l'enregistrement devient une preuve. Renseignez la cause racine et les enseignements avant de clôturer, car il faudra ensuite un administrateur pour rouvrir
+- **Transformez les actions en tâches** : la section Actions correctives de la revue décrit l'intention ; une tâche avec un assigné et une échéance est ce qui se fait réellement
+- **Clôturez délibérément** : la clôture est le moment où l'enregistrement devient une preuve. Terminez la revue avant de clôturer, car la version conservée à cet instant est celle que lira un auditeur, et il faudra ensuite un administrateur pour rouvrir l'incident
 - **Revoyez le registre chaque trimestre** : filtrez par période et par gravité, regardez les catégories récurrentes et les actifs qui apparaissent plus d'une fois. C'est de là que vient la prochaine demande de budget
