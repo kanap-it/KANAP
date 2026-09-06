@@ -496,6 +496,15 @@ export const IntegratedDocumentEditor = React.forwardRef<
     };
   }, [releaseLock]);
 
+  // The host can revoke editing under the user's feet (an incident closed in
+  // another tab freezes its review). Leaving edit mode is not enough: the edit
+  // lock would stay held until it expires, blocking everyone else.
+  React.useEffect(() => {
+    if (canEdit || isDraftMode || !editMode) return;
+    setEditMode(false);
+    void releaseLock();
+  }, [canEdit, editMode, isDraftMode, releaseLock]);
+
   const save = React.useCallback(async (): Promise<boolean> => {
     if (isDraftMode) return true;
     // An autosave may already be running: the caller must wait for it even when
@@ -750,7 +759,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
           rel="noreferrer"
           startIcon={<OpenInNewIcon fontSize="small" />}
         >
-          Open full document
+          {t('documentEditor.openFullDocument')}
         </Button>
       )}
       {showDocumentControls && !editMode && canEdit && (
@@ -817,7 +826,7 @@ export const IntegratedDocumentEditor = React.forwardRef<
           sx={{ mb: 1 }}
           action={(
             <Button size="small" onClick={() => { void refetch(); }}>
-              Retry
+              {t('buttons.retry')}
             </Button>
           )}
         >
@@ -832,11 +841,13 @@ export const IntegratedDocumentEditor = React.forwardRef<
           sx={{ mb: 1 }}
           action={canEdit ? (
             <Button size="small" onClick={handleEnterEdit}>
-              Retry lock
+              {t('documentEditor.retryLock')}
             </Button>
           ) : undefined}
         >
-          {lockExpiryLabel ? t('documentEditor.lockedByUntil', { name: lockHolderLabel, expires: lockExpiryLabel }) : t('documentEditor.lockedBy', { name: lockHolderLabel }) + '. You can read it while the lock is active.'}
+          {lockExpiryLabel
+            ? t('documentEditor.lockedByUntil', { name: lockHolderLabel, expires: lockExpiryLabel })
+            : t('documentEditor.lockedByReadOnly', { name: lockHolderLabel })}
         </Alert>
       )}
 

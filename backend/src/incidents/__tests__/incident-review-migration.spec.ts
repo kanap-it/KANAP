@@ -6,11 +6,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Client } from 'pg';
 import { DataSource, QueryRunner } from 'typeorm';
-import { IncidentReviewDocument1853480000000 } from '../../migrations/1853480000000-incident-review-document';
+import { IncidentReviewDocument1853490000000 } from '../../migrations/1853490000000-incident-review-document';
 import { provisionIncidentReviewDocuments } from '../../knowledge/incident-review-provisioning';
 
 /**
- * PostgreSQL harness for `1853480000000-incident-review-document` (plan:
+ * PostgreSQL harness for `1853490000000-incident-review-document` (plan:
  * planning/incident-review-document.md §3.1).
  *
  * MANUAL script: it creates and drops two scratch databases, which needs a superuser
@@ -30,7 +30,7 @@ const APP_URL = process.env.DATABASE_URL || 'postgres://app:app@localhost:5432/a
 const FULL_CHAIN_DB = 'appdb_migtest_full';
 const UPGRADE_DB = 'appdb_migtest_upgrade';
 const PREVIOUS_MIGRATION_TIMESTAMP = 1853470000000;
-const TARGET_MIGRATION_TIMESTAMP = 1853480000000;
+const TARGET_MIGRATION_TIMESTAMP = 1853490000000;
 
 type MigrationClass = { new (): any; name: string };
 
@@ -207,7 +207,7 @@ async function assertDownRefusesWithoutMutation(runner: QueryRunner, tenantId: s
   );
 
   await assert.rejects(
-    () => new IncidentReviewDocument1853480000000().down(),
+    () => new IncidentReviewDocument1853490000000().down(),
     /irreversible/i,
     'down() must refuse',
   );
@@ -234,7 +234,7 @@ async function testFullChainOnBlankDatabase(): Promise<void> {
   await withRunner(FULL_CHAIN_DB, async (runner) => {
     await assertTargetSchema(runner);
     const [applied] = await runner.query(
-      `SELECT COUNT(*)::int AS count FROM migrations WHERE name = 'IncidentReviewDocument1853480000000'`,
+      `SELECT COUNT(*)::int AS count FROM migrations WHERE name = 'IncidentReviewDocument1853490000000'`,
     );
     assert.equal(applied.count, 1, 'the migration must be recorded exactly once');
   });
@@ -267,6 +267,7 @@ const MARKUP_IMPACT = [
   '- not a bullet',
   '1. not a list',
   'snake_case_id | pipe',
+  'Ticket at http://intra.test/a_b/c_d?x=1&y=2 please',
 ];
 
 async function seedTenant(
@@ -492,10 +493,10 @@ async function testUpgradeFromIncidentMigrations(): Promise<void> {
     const openBody = String(openReview.content_markdown);
     assert.deepEqual(
       openBody.split('\n').filter((line) => line.startsWith('## ')),
-      ['## Description', '## Impact', '## Root cause', '## Corrective actions', '## Lessons learned'],
+      ['## Detailed description', '## Impact', '## Root cause', '## Corrective actions', '## Lessons learned'],
     );
-    // Description stays empty; the short column is untouched.
-    assert.match(openBody, /## Description\n\n## Impact/);
+    // Detailed description stays empty; the short column is untouched.
+    assert.match(openBody, /## Detailed description\n\n## Impact/);
     // Literal HTML and Markdown never reach the renderer as markup.
     assert.equal(openBody.includes('<b>'), false);
     assert.match(openBody, /&lt;b&gt;runbook&lt;\/b&gt;/);
@@ -505,6 +506,10 @@ async function testUpgradeFromIncidentMigrations(): Promise<void> {
     assert.match(openBody, /\\- not a bullet/);
     assert.match(openBody, /1\\\. not a list/);
     assert.match(openBody, /snake\\_case\\_id \\| pipe/);
+    // A bare URL keeps its underscores: `a\_b` would end up inside the autolinked
+    // destination. Its `&` still becomes an entity, which the renderer decodes.
+    assert.match(openBody, /http:\/\/intra\.test\/a_b\/c_d\?x=1&amp;y=2/);
+    assert.equal(openBody.includes('a\\_b'), false, 'a bare URL must not be backslash-escaped');
     // Line breaks survive as hard breaks (two trailing spaces).
     assert.match(openBody, /users {2}\n/);
     assert.match(openBody, /a\.png\) {2}\n/, 'a bare URL at end of line keeps its hard break');

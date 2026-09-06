@@ -341,6 +341,7 @@
     "contentUnavailable": "El contenido del documento gestionado no está disponible hasta que se resuelva el error de carga.",
     "lockedBy": "Este documento gestionado está bloqueado por {{name}}",
     "lockedByUntil": "Este documento gestionado está bloqueado por {{name}} hasta {{expires}}. Puede leerlo mientras el bloqueo esté activo.",
+    "lockedByReadOnly": "Este documento gestionado está bloqueado por {{name}}. Puede leerlo mientras el bloqueo esté activo.",
     "importFailed": "Error en la importación del documento"
   },
   "knowledgePanel": {

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { INCIDENT_REVIEW_SLOT } from '../../knowledge/integrated-document.constants';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
 import { TasksUnifiedService } from '../../tasks/tasks-unified.service';
 import { ServiceOpts } from './incidents-base.service';
@@ -83,9 +84,9 @@ export class IncidentRecordService {
        FROM integrated_document_bindings b
        JOIN documents d ON d.id = b.document_id AND d.tenant_id = b.tenant_id
        WHERE b.tenant_id = $1
-         AND b.source_entity_type = 'incidents'
+         AND b.source_entity_type = '${INCIDENT_REVIEW_SLOT.sourceEntityType}'
          AND b.source_entity_id = $2
-         AND b.slot_key = 'review'
+         AND b.slot_key = '${INCIDENT_REVIEW_SLOT.slotKey}'
        LIMIT 1`,
       [tenant, incidentId],
     );

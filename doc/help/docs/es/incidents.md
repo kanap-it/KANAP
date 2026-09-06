@@ -132,7 +132,7 @@ La **Revisión del incidente** es el relato completo, redactado en un documento 
 
 Un incidente nuevo parte de la plantilla **Revisión del incidente**, que propone las cinco partes en el orden en que se lee normalmente un informe de incidente:
 
-- **Descripción**: qué ocurrió, en detalle
+- **Descripción detallada**: qué ocurrió, en detalle
 - **Impacto**: servicios, ubicaciones y usuarios afectados
 - **Causa raíz**: por qué ocurrió
 - **Acciones correctivas**: qué se hizo para corregirlo y para prevenirlo. Haga el seguimiento del trabajo real como tareas enlazadas

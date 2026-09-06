@@ -132,7 +132,7 @@ Die Übersicht erzählt den Vorfall in zwei Teilen: eine kurze Beschreibung, dan
 
 Ein neuer Vorfall startet aus der Vorlage **Vorfallanalyse**, die die fünf Teile vorschlägt, in deren Reihenfolge ein Vorfallsbericht üblicherweise gelesen wird:
 
-- **Beschreibung**: was passiert ist, im Detail
+- **Ausführliche Beschreibung**: was passiert ist, im Detail
 - **Auswirkung**: betroffene Dienste, Standorte und Benutzer
 - **Ursache**: warum es passiert ist
 - **Korrekturmaßnahmen**: was zur Behebung und zur Vorbeugung getan wurde. Die eigentliche Folgearbeit verfolgen Sie als verknüpfte Aufgaben

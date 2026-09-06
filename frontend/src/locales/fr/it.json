@@ -241,7 +241,10 @@
         "cancelPlaceholder": "ex. saisi deux fois, voir INC-12",
         "cancelConfirm": "Annuler l'incident",
         "loseAccessTitle": "Vous ne verrez plus cet incident",
-        "loseAccessMessage": "Après cette modification, seuls les administrateurs du registre, le déclarant et le responsable pourront l'ouvrir. Vous serez renvoyé vers le registre."
+        "loseAccessMessage": "Après cette modification, seuls les administrateurs du registre, le déclarant et le responsable pourront l'ouvrir. Vous serez renvoyé vers le registre.",
+        "discardReviewTitle": "Impossible d'enregistrer l'analyse",
+        "discardReviewMessage": "L'analyse de l'incident n'a pas pu être enregistrée. Continuez en perdant vos modifications non enregistrées, ou restez sur la page pour réessayer.",
+        "discardReviewConfirm": "Abandonner et continuer"
       },
       "metadata": {
         "status": "Statut",

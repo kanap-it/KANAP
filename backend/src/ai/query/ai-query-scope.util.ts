@@ -7,6 +7,10 @@ import {
   resolveBusinessContributorScopeForUser,
   taskParticipantCondition,
 } from '../../auth/business-contributor-scope';
+import {
+  DocumentIncidentViewer,
+  resolveDocumentIncidentViewer,
+} from '../../knowledge/document-entity-visibility';
 import { AiExecutionContextWithManager, AiQueryScope } from '../ai.types';
 
 export type ScopedAiEntityType =
@@ -76,6 +80,29 @@ export async function resolveAiParticipationAccessScope(
   }, PARTICIPATION_SCOPE_RESOURCE[entityType], 'reader');
   cacheHost.__aiParticipationAccessScopeCache[entityType] = scope;
   return scope;
+}
+
+/**
+ * `resolveDocumentIncidentViewer`, memoized for the life of one AI execution
+ * context — the same request-scoped cache the participation scope already uses.
+ *
+ * Every documents-touching AI surface (search, list, aggregate, filter values,
+ * mutations) needs the same answer for the same user, and it costs one role
+ * query each time. The viewer only depends on the user and the tenant, both
+ * fixed for a context.
+ */
+export async function resolveAiDocumentIncidentViewer(
+  context: AiExecutionContextWithManager,
+): Promise<DocumentIncidentViewer> {
+  const cacheHost = context as AiExecutionContextWithManager & {
+    __aiDocumentIncidentViewer?: Promise<DocumentIncidentViewer>;
+  };
+  cacheHost.__aiDocumentIncidentViewer ??= resolveDocumentIncidentViewer(
+    context.manager,
+    context.userId ?? null,
+    context.tenantId,
+  );
+  return cacheHost.__aiDocumentIncidentViewer;
 }
 
 export function participantConditionForAiEntity(

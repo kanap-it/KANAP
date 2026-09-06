@@ -4,7 +4,7 @@ import { markdownToSearchText } from '../common/markdown-search-text';
  * Standalone provisioning primitive for the `incidents:review` integrated document.
  *
  * Deliberately free of Nest, TypeORM entities and `IntegratedDocumentsService`: the
- * `1853480000000-incident-review-document` migration runs it through its QueryRunner
+ * `1853490000000-incident-review-document` migration runs it through its QueryRunner
  * on a schema that still carries the four legacy narrative columns. Everything it
  * needs is passed explicitly, so a later change to the shared constants or to the
  * service cannot retroactively change what the migration wrote.
@@ -35,6 +35,8 @@ export type IncidentReviewLegacyFields = {
 const MARKDOWN_INLINE_SPECIALS = /([\\`*_[\]|~])/g;
 const LINE_START_BLOCK_MARKER = /^(\s*)([#+=-])/;
 const LINE_START_ORDERED_MARKER = /^(\s*)(\d+)([.)])/;
+/** Bare URLs, which the renderer autolinks; trailing punctuation is left outside. */
+const BARE_URL = /(?:https?:\/\/|www\.)[^\s<>"']*[^\s<>"'.,:;!?)\]}]/gi;
 
 /**
  * Renders a legacy plain-text value as Markdown that displays exactly what was typed.
@@ -47,6 +49,11 @@ const LINE_START_ORDERED_MARKER = /^(\s*)(\d+)([.)])/;
  * them into a space; two trailing spaces are used rather than a trailing backslash,
  * which GFM swallows into a bare URL sitting at the end of the line.
  *
+ * A bare URL is exempt from the inline escaping: `http://host/a_b` would
+ * otherwise become `http://host/a\_b`, and the backslash ends up inside the
+ * autolinked destination. Its `& < >` are still turned into entities, which the
+ * renderer decodes back when it builds the link.
+ *
  * Known limitation: a line indented by four or more spaces still renders as an
  * indented code block. The text is preserved verbatim, only its styling changes.
  */
@@ -54,12 +61,21 @@ export function escapePlainTextAsMarkdown(value: string | null | undefined): str
   const text = String(value ?? '').replace(/\r\n?/g, '\n');
   if (!text) return '';
 
+  const escapeHtml = (part: string): string => part
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
   const lines = text.split('\n').map((line) => {
-    const escaped = line
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(MARKDOWN_INLINE_SPECIALS, '\\$1');
+    let escaped = '';
+    let cursor = 0;
+    BARE_URL.lastIndex = 0;
+    for (let match = BARE_URL.exec(line); match; match = BARE_URL.exec(line)) {
+      escaped += escapeHtml(line.slice(cursor, match.index)).replace(MARKDOWN_INLINE_SPECIALS, '\\$1');
+      escaped += escapeHtml(match[0]);
+      cursor = match.index + match[0].length;
+    }
+    escaped += escapeHtml(line.slice(cursor)).replace(MARKDOWN_INLINE_SPECIALS, '\\$1');
     return escaped
       .replace(LINE_START_BLOCK_MARKER, '$1\\$2')
       .replace(LINE_START_ORDERED_MARKER, '$1$2\\$3');
@@ -84,7 +100,8 @@ export function hasIncidentReviewLegacyContent(fields: IncidentReviewLegacyField
 
 /**
  * The five system headings, with the four legacy narratives escaped under theirs and
- * Description left empty (the short `incidents.description` column stays where it is).
+ * Detailed description left empty (the short `incidents.description` column stays
+ * where it is).
  * Returns null when nothing was captured, so the caller can fall back to the template.
  */
 export function buildIncidentReviewMarkdownFromLegacyFields(
@@ -94,7 +111,7 @@ export function buildIncidentReviewMarkdownFromLegacyFields(
     return null;
   }
 
-  const blocks: string[] = ['## Description', ''];
+  const blocks: string[] = ['## Detailed description', ''];
   for (const section of INCIDENT_REVIEW_LEGACY_SECTIONS) {
     blocks.push(`## ${section.heading}`, '');
     if (hasContent(fields[section.column])) {

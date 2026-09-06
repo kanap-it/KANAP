@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { Incident } from '../incident.entity';
 import { parseCreateEntry } from '../dto';
+import { INCIDENT_REVIEW_SLOT } from '../../knowledge/integrated-document.constants';
 import { IncidentsBaseService, ServiceOpts, userNameSql } from './incidents-base.service';
 
 const ENTRY_COLUMNS = `
@@ -59,9 +60,9 @@ export class IncidentEntriesService extends IncidentsBaseService {
        FROM integrated_document_bindings b
        JOIN documents d ON d.id = b.document_id AND d.tenant_id = b.tenant_id
        WHERE b.tenant_id = $1
-         AND b.source_entity_type = 'incidents'
+         AND b.source_entity_type = '${INCIDENT_REVIEW_SLOT.sourceEntityType}'
          AND b.source_entity_id = $2
-         AND b.slot_key = 'review'
+         AND b.slot_key = '${INCIDENT_REVIEW_SLOT.slotKey}'
        LIMIT 1`,
       [tenantId, incidentId],
     );

@@ -161,7 +161,9 @@ async function processBatch(
   for (const row of ids) {
     try {
       const result = await withTenant(dataSource, tenant.id, async (manager) => (
-        integratedDocs.repairSourceEntity(sourceEntityType, row.id, { manager })
+        // The backfill is the only caller allowed to mint a missing review for a
+        // closed or cancelled incident; every lazy read path still refuses.
+        integratedDocs.repairSourceEntity(sourceEntityType, row.id, { manager, allowFrozenIncident: true })
       ));
       const summary = summarizeRepair(result);
       slotsCreated += summary.slotsCreated;

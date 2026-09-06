@@ -49,7 +49,7 @@ const FROZEN_INCIDENT_SEED_DEFINITIONS: ManagedDocsSeedDefinitions = {
       templateTitle: 'Incident Review Template',
       templateSummary: 'Managed template for incident review integrated documents',
       templateContentMarkdown: [
-        '## Description',
+        '## Detailed description',
         '',
         '## Impact',
         '',
@@ -271,7 +271,7 @@ const ASSERT_NO_LEGACY_COLUMN_DEPENDENCY = `
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public'
-      AND p.prosrc ~ '\\m(root_cause|corrective_actions|lessons_learned)\\M';
+      AND p.prosrc ~ '\\m(impact|root_cause|corrective_actions|lessons_learned)\\M';
     IF v_names IS NOT NULL THEN
       RAISE EXCEPTION 'stored routine(s) still reference dropped incident columns: %', v_names;
     END IF;
@@ -288,8 +288,8 @@ const ASSERT_NO_LEGACY_COLUMN_DEPENDENCY = `
   $do$
 `;
 
-export class IncidentReviewDocument1853480000000 implements MigrationInterface {
-  name = 'IncidentReviewDocument1853480000000';
+export class IncidentReviewDocument1853490000000 implements MigrationInterface {
+  name = 'IncidentReviewDocument1853490000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. CHECK constraints accept the new source entity type.
@@ -361,7 +361,7 @@ export class IncidentReviewDocument1853480000000 implements MigrationInterface {
    */
   public async down(): Promise<void> {
     throw new Error(
-      'IncidentReviewDocument1853480000000 is irreversible: the four incident narrative columns '
+      'IncidentReviewDocument1853490000000 is irreversible: the four incident narrative columns '
       + 'were folded into managed review documents. Fix forward with a new migration instead of '
       + 'reverting (see planning/incident-review-document.md §3.1).',
     );

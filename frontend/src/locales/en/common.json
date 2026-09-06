@@ -341,6 +341,7 @@
     "contentUnavailable": "Managed document content is unavailable until the load error is resolved.",
     "lockedBy": "This managed document is locked by {{name}}",
     "lockedByUntil": "This managed document is locked by {{name}} until {{expires}}. You can read it while the lock is active.",
+    "lockedByReadOnly": "This managed document is locked by {{name}}. You can read it while the lock is active.",
     "importFailed": "Document import failed"
   },
   "knowledgePanel": {

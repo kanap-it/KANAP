@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { EntityManager } from 'typeorm';
 import {
   CsvEntityConfig,
@@ -11,13 +12,15 @@ import {
   CsvImportService,
 } from '../common/csv';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
+import { INCIDENT_REVIEW_SLOT } from '../knowledge/integrated-document.constants';
 import {
   hasPendingIncidentReview,
   incidentCsvConfig,
   takePendingIncidentReview,
   takePreviousIncidentStatus,
+  wasInsertedByImport,
 } from './incident-csv.config';
-import { IncidentViewer, incidentVisibilitySql } from './incident-visibility';
+import { INCIDENT_FROZEN_STATUSES, IncidentViewer, incidentVisibilitySql } from './incident-visibility';
 
 /** Timestamps travel as unambiguous UTC ISO so an export re-imports without losing the time. */
 const isoUtc = (column: string) => `to_char(i.${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ${column}`;
@@ -35,10 +38,15 @@ const EXPORT_COLUMNS = `
   ${isoUtc('authority_notified_at')}, i.notified_parties`;
 
 const REVIEW_COLUMN = 'review';
-const SAVEPOINT = 'incident_csv_import';
 
-/** Statuses that freeze the record; a transition into one snapshots the review. */
-const FROZEN_STATUSES = new Set(['closed', 'cancelled']);
+/**
+ * Savepoint names are not scoped to a nesting level: a fixed name would be
+ * silently reused by a nested import on the same connection, and the inner
+ * `RELEASE` would drop the outer one. One fresh name per import instead.
+ */
+function newSavepointName(): string {
+  return `incident_csv_import_${randomUUID().replace(/-/g, '')}`;
+}
 
 const IMPORT_REVIEW_CHANGE_NOTE = 'Imported from CSV';
 const IMPORT_REVIEW_ENTRY_CONTENT = 'Incident review imported from CSV';
@@ -110,9 +118,9 @@ export class IncidentsCsvService {
        FROM integrated_document_bindings b
        JOIN documents d ON d.id = b.document_id AND d.tenant_id = b.tenant_id
        WHERE b.tenant_id = $1
-         AND b.source_entity_type = 'incidents'
+         AND b.source_entity_type = '${INCIDENT_REVIEW_SLOT.sourceEntityType}'
          AND b.source_entity_id = ANY($2::uuid[])
-         AND b.slot_key = 'review'`,
+         AND b.slot_key = '${INCIDENT_REVIEW_SLOT.slotKey}'`,
       [tenantId, ids],
     );
 
@@ -152,6 +160,7 @@ export class IncidentsCsvService {
           if (!entity?.id) continue;
           await this.writeReviewForRow(entity, context);
           await this.snapshotClosureForRow(entity, context);
+          await this.syncReviewTitleForRow(entity, context);
         }
         await base.afterCommit?.(entities, context);
       },
@@ -193,10 +202,30 @@ export class IncidentsCsvService {
     });
   }
 
+  /**
+   * The review is titled `INC-N - <title> - Incident review`, so an imported
+   * rename has to follow. Runs with the import exemption: a CSV line may rename
+   * a closed incident, exactly as it may rewrite its review (§3.8). A no-op when
+   * the title already matches, which covers every row the import did not rename.
+   */
+  private async syncReviewTitleForRow(entity: any, context: CsvImportContext): Promise<void> {
+    await this.integratedDocs.syncTitles(
+      INCIDENT_REVIEW_SLOT.sourceEntityType,
+      {
+        id: entity.id,
+        tenant_id: context.tenantId,
+        item_number: entity.item_number ?? null,
+        name: String(entity.title ?? ''),
+      },
+      context.userId ?? null,
+      { manager: context.manager, allowFrozenIncident: true },
+    );
+  }
+
   private async snapshotClosureForRow(entity: any, context: CsvImportContext): Promise<void> {
     const manager: EntityManager = context.manager;
     const previousStatus = takePreviousIncidentStatus(entity);
-    const isInsert = previousStatus === null;
+    const isInsert = wasInsertedByImport(entity);
 
     if (isInsert) {
       // An inserted row never went through IncidentsService.create, so the
@@ -206,7 +235,10 @@ export class IncidentsCsvService {
     }
 
     const nextStatus = String(entity.status ?? '');
-    if (!FROZEN_STATUSES.has(nextStatus) || FROZEN_STATUSES.has(String(previousStatus ?? ''))) return;
+    if (
+      !INCIDENT_FROZEN_STATUSES.has(nextStatus)
+      || INCIDENT_FROZEN_STATUSES.has(String(previousStatus ?? ''))
+    ) return;
 
     await manager.query(
       'SELECT id FROM incidents WHERE id = $1 AND tenant_id = $2 FOR UPDATE',
@@ -252,24 +284,29 @@ export class IncidentsCsvService {
     // partial import. A savepoint makes the upsert and the review writes one
     // unit: either both land, or neither does (§3.8).
     const runner = opts.manager.queryRunner;
-    const transactional = !!runner?.isTransactionActive;
-    if (!transactional) {
-      return this.importSvc.import(this.buildCsvConfig(), file, params, opts);
+    if (!runner?.isTransactionActive) {
+      // Without a transaction there is no savepoint to roll back to, so a failed
+      // commit would leave the incidents written and their reviews not (or the
+      // other way round). Refuse rather than import atomically-in-name-only.
+      throw new InternalServerErrorException(
+        'Incident CSV import requires a transactional request context.',
+      );
     }
 
-    await opts.manager.query(`SAVEPOINT ${SAVEPOINT}`);
+    const savepoint = newSavepointName();
+    await opts.manager.query(`SAVEPOINT ${savepoint}`);
     let result: CsvImportResult;
     try {
       result = await this.importSvc.import(this.buildCsvConfig(), file, params, opts);
     } catch (error) {
-      await opts.manager.query(`ROLLBACK TO SAVEPOINT ${SAVEPOINT}`);
-      await opts.manager.query(`RELEASE SAVEPOINT ${SAVEPOINT}`);
+      await opts.manager.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+      await opts.manager.query(`RELEASE SAVEPOINT ${savepoint}`);
       throw error;
     }
     if (!result.ok && !result.dryRun) {
-      await opts.manager.query(`ROLLBACK TO SAVEPOINT ${SAVEPOINT}`);
+      await opts.manager.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);
     }
-    await opts.manager.query(`RELEASE SAVEPOINT ${SAVEPOINT}`);
+    await opts.manager.query(`RELEASE SAVEPOINT ${savepoint}`);
     return result;
   }
 

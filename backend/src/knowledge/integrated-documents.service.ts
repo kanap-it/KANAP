@@ -18,6 +18,7 @@ import { Document } from './document.entity';
 import { DocumentAttachment } from './document-attachment.entity';
 import { IntegratedDocumentBinding } from './integrated-document-binding.entity';
 import {
+  INCIDENT_REVIEW_SLOT,
   INTEGRATED_DOCUMENT_SLOT_DEFINITIONS,
   IntegratedDocumentSlotKey,
 } from './integrated-document.constants';
@@ -290,7 +291,10 @@ export class IntegratedDocumentsService {
     manager: EntityManager,
     opts?: { allowFrozenIncident?: boolean },
   ): Promise<DocumentSourceAccessContext | null> {
-    if (sourceEntityType !== 'incidents' || slotKey !== 'review') return null;
+    if (
+      sourceEntityType !== INCIDENT_REVIEW_SLOT.sourceEntityType
+      || slotKey !== INCIDENT_REVIEW_SLOT.slotKey
+    ) return null;
     const tenantId = await resolveCurrentTenantId(manager, null);
     const params = { userId, tenantId, incidentId: sourceEntityId };
     return opts?.allowFrozenIncident
@@ -2617,11 +2621,18 @@ export class IntegratedDocumentsService {
     };
   }
 
+  /**
+   * Realign the managed titles of one source entity after a rename.
+   *
+   * `allowFrozenIncident` is the §3.8 CSV-import exemption: only the incident CSV
+   * import passes it, so an imported line may rename a closed incident's review
+   * exactly as it may rewrite its body. Every request-driven caller leaves it off.
+   */
   async syncTitles(
     sourceEntityType: SourceScopedEntityType,
     source: SourceDescriptor,
     userId: string | null | undefined,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; allowFrozenIncident?: boolean },
   ): Promise<number> {
     const manager = this.getManager(opts);
     const bindings = await manager.getRepository(IntegratedDocumentBinding).find({
@@ -2652,7 +2663,10 @@ export class IntegratedDocumentsService {
         userId || null,
         {
           manager,
-          sourceContext: await this.buildSourceAccessContext(sourceEntityType, source.id, slotKey, userId, manager),
+          sourceContext: await this.buildSourceAccessContext(
+            sourceEntityType, source.id, slotKey, userId, manager,
+            { allowFrozenIncident: opts?.allowFrozenIncident === true },
+          ),
           systemOperation: !String(userId || '').trim(),
         },
       );
@@ -2837,11 +2851,18 @@ export class IntegratedDocumentsService {
     };
   }
 
+  /**
+   * `allowFrozenIncident` is the operator escape hatch for `incidents:review`
+   * (§3.2): only `npm run integrated-docs:backfill` passes it, and it is the
+   * one way a closed or cancelled incident whose review is missing gets one.
+   * Every lazy read path leaves it off, so a frozen record can never gain a
+   * brand-new review from today's template just because someone opened it.
+   */
   async repairSourceSlot(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
     slotKey: IntegratedDocumentSlotKey,
-    opts?: { manager?: EntityManager; actorUserId?: string | null },
+    opts?: { manager?: EntityManager; actorUserId?: string | null; allowFrozenIncident?: boolean },
   ): Promise<RepairSourceSlotResult> {
     const manager = this.getManager(opts);
     const actorUserId = this.normalizeOptionalUserId(opts?.actorUserId);
@@ -2866,7 +2887,9 @@ export class IntegratedDocumentsService {
     }
 
     if (sourceEntityType === 'incidents') {
-      return this.repairIncidentReviewSlot(sourceEntityId, slotKey, actorUserId, manager);
+      return this.repairIncidentReviewSlot(sourceEntityId, slotKey, actorUserId, manager, {
+        allowFrozenIncident: opts?.allowFrozenIncident === true,
+      });
     }
 
     const context = await this.loadSourceRecoveryContext(sourceEntityType, sourceEntityId, manager);
@@ -2980,12 +3003,17 @@ export class IntegratedDocumentsService {
    * replaces its content. Otherwise only an open incident gets a fresh document from
    * the template: for a closed or cancelled one, `loadRecoveredSlotContent` raises,
    * because a frozen record must not gain a brand-new review on a mere read.
+   *
+   * `allowFrozenIncident` skips that refusal, and only the backfill script sets
+   * it — otherwise a closed incident whose binding is missing would be a dead
+   * end with no repair path at all.
    */
   private async repairIncidentReviewSlot(
     incidentId: string,
     slotKey: IntegratedDocumentSlotKey,
     actorUserId: string | null,
     manager: EntityManager,
+    opts?: { allowFrozenIncident?: boolean },
   ): Promise<RepairSourceSlotResult> {
     const context = await this.loadSourceRecoveryContext('incidents', incidentId, manager);
 
@@ -3010,7 +3038,9 @@ export class IntegratedDocumentsService {
       };
     }
 
-    await this.loadRecoveredSlotContent('incidents', incidentId, slotKey, manager);
+    if (!opts?.allowFrozenIncident) {
+      await this.loadRecoveredSlotContent('incidents', incidentId, slotKey, manager);
+    }
     await this.ensureBoundDocument('incidents', context.source, slotKey, null, actorUserId, manager, {
       ownerUserId: context.ownerUserId,
       useTemplateWhenBlank: true,
@@ -3034,7 +3064,7 @@ export class IntegratedDocumentsService {
   async repairSourceEntity(
     sourceEntityType: SourceScopedEntityType,
     sourceEntityId: string,
-    opts?: { manager?: EntityManager; actorUserId?: string | null },
+    opts?: { manager?: EntityManager; actorUserId?: string | null; allowFrozenIncident?: boolean },
   ): Promise<RepairSourceEntityResult> {
     const slots: RepairSourceSlotResult[] = [];
     for (const definition of this.getSlotDefinitionsForSource(sourceEntityType)) {
@@ -3459,7 +3489,15 @@ export class IntegratedDocumentsService {
     const sourceContext = await this.buildSourceAccessContext(
       sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
     );
-    return this.knowledge.get(documentId, { manager, userId: normalizedUserId, sourceContext });
+    // Only the incident source path needs an identity here: `resolveManagedDocumentId`
+    // already applied the source entity's own permissions. Passing a userId for the
+    // other source types would newly enforce the Knowledge library ACL on routes that
+    // never required it (a Portfolio member with no `knowledge` permission).
+    return this.knowledge.get(documentId, {
+      manager,
+      userId: sourceContext ? normalizedUserId : null,
+      sourceContext,
+    });
   }
 
   async acquireLockBySource(
@@ -3764,7 +3802,12 @@ export class IntegratedDocumentsService {
     const sourceContext = await this.buildSourceAccessContext(
       sourceEntityType, sourceEntityId, slotKey, normalizedUserId, manager,
     );
-    return this.knowledge.listVersions(documentId, { manager, userId: normalizedUserId, sourceContext });
+    // Same as `getBySource`: an identity is only passed on the incident source path.
+    return this.knowledge.listVersions(documentId, {
+      manager,
+      userId: sourceContext ? normalizedUserId : null,
+      sourceContext,
+    });
   }
 
   async revertBySource(

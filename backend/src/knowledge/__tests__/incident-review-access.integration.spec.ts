@@ -40,6 +40,8 @@ import { User } from '../../users/user.entity';
 import { AiQueryExecutor } from '../../ai/query/ai-query.executor';
 import { AiAggregateExecutor } from '../../ai/query/ai-aggregate.executor';
 import { AiEntityService } from '../../ai/ai-entity.service';
+import { collectAliveInlineAttachmentIds } from '../../cleanup/orphaned-attachment-cleanup.service';
+import { resolveIncidentViewer } from '../../incidents/incident-visibility';
 
 type Fixture = Awaited<ReturnType<typeof seedFixture>>;
 
@@ -846,6 +848,109 @@ async function testSourceAccessContext() {
   });
 }
 
+/**
+ * S3: reached through the incident's own routes, the caller has no Knowledge
+ * right on the document. The review body is theirs; the document's Knowledge
+ * neighbourhood (linked applications/projects/…, the template it came from) is
+ * not, and must not leak just because the incident let them in.
+ */
+async function testSourceContextHidesKnowledgeNeighbourhood() {
+  await withFixture(async (runner, f) => {
+    const knowledge = createKnowledgeService(runner.manager);
+    const documentId = f.docs.confidential;
+
+    const applicationId = randomUUID();
+    await runner.manager.query(
+      `INSERT INTO applications (id, tenant_id, name) VALUES ($1, $2, $3)`,
+      [applicationId, f.tenantId, `Linked app ${f.tag}`],
+    );
+    await runner.manager.query(
+      `INSERT INTO document_applications (tenant_id, document_id, application_id, created_at)
+       VALUES ($1, $2, $3, now())`,
+      [f.tenantId, documentId, applicationId],
+    );
+    // The plain document stands in for the template this review was created from.
+    await runner.manager.query(
+      `UPDATE documents SET template_document_id = $1 WHERE id = $2`,
+      [f.docs.plain, documentId],
+    );
+
+    // Knowledge branch (registry admin who is also a Knowledge member): everything shows.
+    const viaKnowledge: any = await knowledge.get(documentId, {
+      manager: runner.manager, userId: f.users.incidentsAdmin,
+    });
+    assert.deepEqual(
+      viaKnowledge.relations.applications.map((row: any) => row.id),
+      [applicationId],
+      'the Knowledge branch still lists the linked applications',
+    );
+    assert.ok(viaKnowledge.template_document_title, 'the Knowledge branch still names the template');
+
+    // Source branch (reporter with no Knowledge permission at all).
+    const sourceContext = buildIncidentReviewSourceContext({
+      userId: f.users.reporter,
+      tenantId: f.tenantId,
+      incidentId: f.incidents.confidential,
+    })!;
+    const viaSource: any = await knowledge.get(documentId, {
+      manager: runner.manager, userId: f.users.reporter, sourceContext,
+    });
+    assert.equal(viaSource.id, documentId, 'the review itself is still readable');
+    for (const kind of ['applications', 'assets', 'projects', 'requests', 'tasks', 'interfaces']) {
+      assert.deepEqual(viaSource.relations[kind], [], `relations.${kind} must be empty on the source path`);
+    }
+    assert.deepEqual(
+      viaSource.relations.incidents.map((row: any) => row.id),
+      [f.incidents.confidential],
+      'the incident the caller can see stays, it is filtered on its own rights',
+    );
+    for (const field of [
+      'template_document_id',
+      'template_document_title',
+      'template_document_item_number',
+      'template_document_type_id',
+      'template_document_type_name',
+    ]) {
+      assert.equal(viaSource[field], null, `${field} must not leak on the source path`);
+    }
+  });
+}
+
+/**
+ * A3: the register viewer and the document viewer must agree on what a user is.
+ * A disabled account is nobody on both paths.
+ */
+async function testDisabledUserFailsClosedOnBothPaths() {
+  await withFixture(async (runner, f) => {
+    await runner.manager.query(
+      `UPDATE users SET status = 'disabled' WHERE id = $1`,
+      [f.users.incidentsAdmin],
+    );
+
+    const registerViewer = await resolveIncidentViewer(runner.manager, f.users.incidentsAdmin, f.tenantId);
+    assert.equal(registerViewer.isAdmin, false, 'a disabled registry admin is not an admin on the register path');
+
+    const documentViewer = await resolveDocumentIncidentViewer(
+      runner.manager, f.users.incidentsAdmin, f.tenantId,
+    );
+    assert.equal(documentViewer.isAdmin, false);
+    assert.equal(documentViewer.canReadIncidents, false);
+    assert.equal(documentViewer.canContributeIncidents, false);
+
+    assertSet(
+      await selectVisibleDocumentIds(runner, f, f.users.incidentsAdmin),
+      [f.docs.plain],
+      'a disabled user reaches no incident-bound document',
+    );
+
+    const knowledge = createKnowledgeService(runner.manager);
+    await expectNotFound(
+      knowledge.get(f.docs.open, { manager: runner.manager, userId: f.users.incidentsAdmin }),
+      'disabled registry admin on a review',
+    );
+  });
+}
+
 // ---------------------------------------------------------------------------
 // 7. Versioning policy (§3.3)
 // ---------------------------------------------------------------------------
@@ -937,6 +1042,15 @@ async function testInlineAttachments() {
       [attachmentId],
     );
     assert.equal(stillThere[0].total, 1, 'an image kept by an older version is not an orphan');
+
+    // Same rule for the nightly cron: `document_versions` is one of its content
+    // sources, so the attachment is in the alive set and never swept.
+    const alive = await collectAliveInlineAttachmentIds(runner.manager);
+    assert.equal(
+      alive.has(attachmentId),
+      true,
+      'the orphan-cleanup cron must treat an attachment kept by a version as alive',
+    );
 
     // ACL on the exact parent, from the cookie identity, with no knowledge:reader fallback.
     const parent = { documentId, integratedBinding: { source_entity_type: 'incidents' as const } };
@@ -1180,6 +1294,8 @@ async function run() {
     await testClosureFreeze();
     await testConfidentialityChangeRevokesImmediately();
     await testSourceAccessContext();
+    await testSourceContextHidesKnowledgeNeighbourhood();
+    await testDisabledUserFailsClosedOnBothPaths();
     await testVersioningPolicy();
     await testInlineAttachments();
     await testShareRecipients();

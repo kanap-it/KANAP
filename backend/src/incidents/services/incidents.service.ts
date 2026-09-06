@@ -9,7 +9,7 @@ import { IntegratedDocumentsService } from '../../knowledge/integrated-documents
 import { parsePagination, Sort } from '../../common/pagination';
 import { parseCreateIncident, parseListIncidentsQuery, parseUpdateIncident, UpdateIncidentDto } from '../dto';
 import { IncidentsBaseService, ServiceOpts, incidentRef, userNameSql } from './incidents-base.service';
-import { IncidentViewer, incidentVisibilitySql } from '../incident-visibility';
+import { IncidentViewer, incidentVisibilitySql, isFrozenIncidentStatus } from '../incident-visibility';
 
 const DEFAULT_SORT: Sort = { field: 'detected_at', direction: 'DESC' };
 
@@ -85,18 +85,11 @@ const BOOLEAN_FIELDS = ['personal_data_affected', 'authority_notification_requir
 
 const CONFIDENTIAL_LIFT_MESSAGE = 'Only a register administrator can lift this restriction.';
 
-/** Statuses that freeze the record, and with it the incident review. */
-const FROZEN_STATUSES = new Set<IncidentStatus>(['closed', 'cancelled']);
-
 /** Change note stored on the review version kept by a closure or a cancellation. */
 const CLOSURE_CHANGE_NOTES: Record<string, string> = {
   closed: 'Incident closed',
   cancelled: 'Incident cancelled',
 };
-
-function isFrozenStatus(status: IncidentStatus | null | undefined): boolean {
-  return !!status && FROZEN_STATUSES.has(status);
-}
 
 function toDate(value: string | null | undefined): Date | null {
   return value ? new Date(value) : null;
@@ -482,7 +475,7 @@ export class IncidentsService extends IncidentsBaseService {
     // Created directly closed or cancelled (API or CSV): the creation entry is
     // the transition entry, so it carries the review version (§3.3). No
     // explicit row lock: the INSERT above already holds it in this transaction.
-    const reviewVersion = isFrozenStatus(saved.status)
+    const reviewVersion = isFrozenIncidentStatus(saved.status)
       ? await this.captureReviewVersion(mg, saved.id, saved.status, userId)
       : null;
 
@@ -510,8 +503,7 @@ export class IncidentsService extends IncidentsBaseService {
     // §3.3: lock the row, then re-read rights and status under that lock. This
     // patch can change the status, the confidential flag, the owner or the
     // reporter, all of which have to be serialised with the review mutations.
-    await this.lockIncidentRow(mg, id, tenantId);
-    const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
+    const incident = await this.lockVisibleIncident(mg, id, tenantId, opts?.viewer);
     this.assertEditable(incident);
 
     if (dto.status !== undefined && dto.status !== incident.status && STATUS_RANK[dto.status] < STATUS_RANK[incident.status]) {
@@ -527,9 +519,27 @@ export class IncidentsService extends IncidentsBaseService {
     incident.updated_at = now;
     this.applyStatusTimestamps(incident, now);
 
+    // The review document is titled `INC-N - <title> - Incident review`: a rename
+    // has to follow. Done before the status is persisted, so that closing and
+    // renaming in the same patch still writes the title (the review freezes with
+    // the row) and the closure snapshot below captures the new one.
+    if (before.title !== incident.title) {
+      await this.integratedDocuments.syncTitles(
+        'incidents',
+        {
+          id: incident.id,
+          tenant_id: incident.tenant_id,
+          item_number: incident.item_number,
+          name: incident.title,
+        },
+        userId,
+        { manager: mg },
+      );
+    }
+
     // Closing or cancelling through the patch freezes the review: snapshot it
     // before the status flips, in this same transaction (§3.3).
-    const reviewVersion = isFrozenStatus(incident.status) && !isFrozenStatus(before.status)
+    const reviewVersion = isFrozenIncidentStatus(incident.status) && !isFrozenIncidentStatus(before.status)
       ? await this.captureReviewVersion(mg, incident.id, incident.status, userId)
       : null;
 
@@ -577,8 +587,7 @@ export class IncidentsService extends IncidentsBaseService {
     const tenantId = this.ensureTenantId(opts?.tenantId);
     // Status transition: same lock ordering as the other paths (§3.3). Reopening
     // keeps every stored review version and its journal reference untouched.
-    await this.lockIncidentRow(mg, id, tenantId);
-    const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
+    const incident = await this.lockVisibleIncident(mg, id, tenantId, opts?.viewer);
     if (incident.status === 'open' || incident.status === 'in_progress') {
       throw new BadRequestException('Only resolved, closed or cancelled incidents can be reopened.');
     }
@@ -607,8 +616,7 @@ export class IncidentsService extends IncidentsBaseService {
   async cancel(id: string, reason: string, userId: string | null, opts?: ServiceOpts) {
     const mg = this.getManager(opts);
     const tenantId = this.ensureTenantId(opts?.tenantId);
-    await this.lockIncidentRow(mg, id, tenantId);
-    const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
+    const incident = await this.lockVisibleIncident(mg, id, tenantId, opts?.viewer);
     this.assertEditable(incident);
 
     const before = { ...incident };
@@ -647,8 +655,7 @@ export class IncidentsService extends IncidentsBaseService {
     const tenantId = this.ensureTenantId(opts?.tenantId);
     // A confidentiality change can revoke access to the review: serialise it
     // with the review mutations under the incident row lock (§3.3).
-    await this.lockIncidentRow(mg, id, tenantId);
-    const incident = await this.ensureIncident(id, mg, tenantId, opts?.viewer);
+    const incident = await this.lockVisibleIncident(mg, id, tenantId, opts?.viewer);
     if (incident.confidential === confidential) {
       return this.get(incident.id, { manager: mg, tenantId, viewer: opts?.viewer ?? { userId, isAdmin: true } });
     }
@@ -692,6 +699,26 @@ export class IncidentsService extends IncidentsBaseService {
       'SELECT id FROM incidents WHERE id = $1 AND tenant_id = $2 FOR UPDATE',
       [id, tenantId],
     );
+  }
+
+  /**
+   * Visibility first, then the §3.3 row lock, then the authoritative re-read.
+   *
+   * The first read takes no lock: a caller who may not see the incident (wrong
+   * tenant, confidential record) is refused without ever queueing behind another
+   * transaction's `FOR UPDATE`. The row returned to the caller is always the
+   * second one, read under the lock, so rights and status are the committed
+   * ones and nothing can change between the check and the write.
+   */
+  private async lockVisibleIncident(
+    manager: EntityManager,
+    id: string,
+    tenantId: string,
+    viewer?: IncidentViewer,
+  ): Promise<Incident> {
+    await this.ensureIncident(id, manager, tenantId, viewer);
+    await this.lockIncidentRow(manager, id, tenantId);
+    return this.ensureIncident(id, manager, tenantId, viewer);
   }
 
   /**

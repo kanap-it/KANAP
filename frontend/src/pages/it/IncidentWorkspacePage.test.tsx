@@ -145,7 +145,7 @@ const incident: Incident = {
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const view = render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/it/incidents/INC-1/overview']}>
@@ -156,6 +156,7 @@ function renderPage() {
       </QueryClientProvider>
     </ThemeProvider>,
   );
+  return Object.assign(view, { queryClient });
 }
 
 /** Types into the review document: opens the editor (auto edit mode) and edits it. */
@@ -210,16 +211,39 @@ describe('IncidentWorkspacePage — review draft is flushed before every transit
     );
   });
 
-  it('aborts the transition and keeps the draft when the review save fails', async () => {
+  it('aborts the transition and keeps the draft when the review save fails and the user stays', async () => {
     renderPage();
     const editor = await typeInReview('Root cause: power loss');
     vi.mocked(api.patch).mockRejectedValue(new Error('offline'));
+    // "Stay on the page and try again".
+    dialogsMock.confirm.mockResolvedValueOnce(false);
 
     fireEvent.click(screen.getByText('shell-back'));
 
     await screen.findByText('workspace.incident.messages.reviewSaveFailed');
+    await waitFor(() => expect(dialogsMock.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'workspace.incident.dialogs.discardReviewTitle' }),
+    ));
     expect(navigateMock).not.toHaveBeenCalled();
     expect((editor as HTMLTextAreaElement).value).toBe('Root cause: power loss');
+  });
+
+  it('offers to discard an unsavable review instead of trapping the user on the incident', async () => {
+    renderPage();
+    await typeInReview('Root cause: power loss');
+    // A terminal failure: the incident was closed elsewhere, retrying never helps.
+    vi.mocked(api.patch).mockRejectedValue(new Error('offline'));
+    dialogsMock.confirm.mockResolvedValueOnce(true);
+
+    fireEvent.click(screen.getByText('shell-back'));
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalled());
+    // The draft was dropped and the stored body reloaded.
+    await waitFor(() => expect(
+      (screen.queryByLabelText('markdown-editor') as HTMLTextAreaElement | null)?.value
+        ?? (screen.getByText('## Description').textContent),
+    ).toContain('## Description'));
+    expect(screen.queryByText('workspace.incident.messages.reviewSaveFailed')).toBeNull();
   });
 
   it('saves the review before a tab change and before prev/next navigation', async () => {
@@ -271,6 +295,39 @@ describe('IncidentWorkspacePage — review draft is flushed before every transit
     const saveOrder = vi.mocked(api.patch).mock.invocationCallOrder[0];
     const statusOrder = vi.mocked(incidentsApi.update).mock.invocationCallOrder[0];
     expect(saveOrder).toBeLessThan(statusOrder);
+  });
+
+  it('rolls a failed transition back to the flushed state, not to the stale render', async () => {
+    const { queryClient } = renderPage();
+    await screen.findByLabelText('workspace.incident.overview.review');
+
+    // A debounced property edit that the transition will flush first.
+    const description = screen.getByPlaceholderText('workspace.incident.overview.descriptionPlaceholder');
+    fireEvent.change(description, { target: { value: 'Router down details' } });
+
+    const flushed = { ...incident, description: 'Router down details', updated_at: '2026-09-02T00:00:00.000Z' };
+    vi.mocked(incidentsApi.update)
+      .mockResolvedValueOnce(flushed)
+      .mockRejectedValueOnce(new Error('conflict'));
+
+    fireEvent.click(screen.getByText('enums.incidentStatus.open'));
+    fireEvent.click(await screen.findByText('enums.incidentStatus.resolved'));
+
+    // The description flush, then the refused status change.
+    await waitFor(() => expect(incidentsApi.update).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(incidentsApi.update).mock.calls[0][1]).toMatchObject({ description: 'Router down details' });
+    expect(vi.mocked(incidentsApi.update).mock.calls[1][1]).toEqual({ status: 'resolved' });
+
+    // The rollback snapshot has to be the post-flush row: rolling back to the
+    // render-time copy would silently undo the description the flush persisted.
+    await waitFor(() => expect(
+      queryClient.getQueryData<Incident>(['incident', 'INC-1'])?.status,
+    ).toBe('open'));
+    const cached = queryClient.getQueryData<Incident>(['incident', 'INC-1']);
+    expect(cached?.description).toBe('Router down details');
+    // `updated_at` only ever comes back from the server, so it is the field that
+    // proves the snapshot was read after the flush and not from the render.
+    expect(cached?.updated_at).toBe('2026-09-02T00:00:00.000Z');
   });
 
   it('flushes the review with the save shortcut', async () => {

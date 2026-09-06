@@ -27,6 +27,18 @@ export type IntegratedDocumentSlottedEntityType = Extract<
   'requests' | 'projects' | 'interfaces' | 'applications' | 'incidents'
 >;
 
+/**
+ * The one integrated document slot with rules of its own (§3.7): the incident
+ * review. Every module that has to recognise it — the document ACL, the
+ * provisioning primitive, the AI entity layer, the CSV import, the incident
+ * record service — compares against this single pair instead of repeating the
+ * two string literals.
+ */
+export const INCIDENT_REVIEW_SLOT = {
+  sourceEntityType: 'incidents',
+  slotKey: 'review',
+} as const;
+
 export const MANAGED_DOCS_LIBRARY_NAME = 'Managed Docs';
 export const MANAGED_DOCS_LIBRARY_SLUG = 'managed-docs';
 export const MANAGED_DOCS_LIBRARY_DISPLAY_ORDER = 2;
@@ -67,7 +79,7 @@ export const MANAGED_DOCS_FOLDER_DEFINITIONS: ManagedDocsFolderDefinition[] = [
  * plain-text columns. Seeded in English for every tenant (no tenant language).
  */
 export const INCIDENT_REVIEW_TEMPLATE_CONTENT_MARKDOWN = [
-  '## Description',
+  '## Detailed description',
   '',
   '## Impact',
   '',

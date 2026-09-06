@@ -241,7 +241,10 @@
         "cancelPlaceholder": "e.g., logged twice, see INC-12",
         "cancelConfirm": "Cancel incident",
         "loseAccessTitle": "You will no longer see this incident",
-        "loseAccessMessage": "After this change, only register administrators, the reporter and the owner can open it. You will be taken back to the register."
+        "loseAccessMessage": "After this change, only register administrators, the reporter and the owner can open it. You will be taken back to the register.",
+        "discardReviewTitle": "Review changes could not be saved",
+        "discardReviewMessage": "The incident review could not be saved. Continue and lose your unsaved review changes, or stay on the page and try again.",
+        "discardReviewConfirm": "Discard and continue"
       },
       "metadata": {
         "status": "Status",

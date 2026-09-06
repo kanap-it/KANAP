@@ -38,6 +38,7 @@ import type { EmailContent } from '../notifications/notification-templates';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { PermissionLevel, PermissionsService } from '../permissions/permissions.service';
+import { INCIDENT_REVIEW_SLOT } from './integrated-document.constants';
 import { incidentVisibilitySql } from '../incidents/incident-visibility';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user-role.entity';
@@ -170,6 +171,11 @@ export type DocumentAccessOptions = {
 };
 
 export type { DocumentSourceAccessContext };
+
+/** `%`, `_` and `\` are LIKE metacharacters: escaped so the fragment matches literally. */
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
 
 const LOCK_TTL_SECONDS = 5 * 60;
 const DEFAULT_DOCUMENT_TYPE_NAME = 'Document';
@@ -959,7 +965,7 @@ export class KnowledgeService {
     userId: string | null | undefined,
     mode: 'read' | 'write',
     opts?: DocumentAccessOptions & { knownLibraryId?: string | null },
-  ): Promise<KnowledgeLibraryView> {
+  ): Promise<KnowledgeLibraryView & { granted_by_source_context?: boolean }> {
     const resolveLibraryId = async () => (
       String(opts?.knownLibraryId || '').trim()
       || await this.getDocumentLibraryId(documentId, manager)
@@ -996,11 +1002,17 @@ export class KnowledgeService {
       const library = await this.getLibraryOrThrow(libraryId, manager);
       // No Knowledge level is granted: the incident permissions decide, and the
       // synthesized view stays below `admin` so manage/delete remain refused.
-      return this.toKnowledgeLibraryView(
-        library,
-        isDocumentIncidentWritable(binding, viewer) ? 'writer' : 'reader',
-        null,
-      );
+      return {
+        ...this.toKnowledgeLibraryView(
+          library,
+          isDocumentIncidentWritable(binding, viewer) ? 'writer' : 'reader',
+          null,
+        ),
+        // Tells `get()` that the caller holds no Knowledge right on this
+        // document: everything the Knowledge branch would expose about its
+        // neighbourhood (relations, template) has to be withheld.
+        granted_by_source_context: true,
+      };
     }
 
     const libraryId = await resolveLibraryId();
@@ -3527,6 +3539,14 @@ export class KnowledgeService {
       ...(opts ?? {}),
       knownLibraryId: document.library_id,
     });
+    // §3.7: reached through the incident's own routes, the caller has no
+    // Knowledge right on this document — only the right to see the incident. The
+    // review body is theirs to read; the document's Knowledge neighbourhood is
+    // not. Related applications, assets, projects, requests, tasks and interfaces
+    // are withheld entirely (they carry no ACL of their own here), and so is the
+    // template the document was created from. Related incidents and backlinks
+    // stay, because both are already filtered on the caller's own rights.
+    const knowledgeBranch = libraryAccess.granted_by_source_context !== true;
     // Related incidents and backlinks are filtered on their own rights: reaching a
     // document (even through the incident source context) never exposes the
     // metadata of neighbouring incidents or documents the caller cannot read.
@@ -3587,31 +3607,31 @@ export class KnowledgeService {
         [id],
       ),
       Promise.all([
-        manager.query(
+        knowledgeBranch ? manager.query(
           `SELECT da.application_id, a.name FROM document_applications da
            JOIN applications a ON a.id = da.application_id AND a.tenant_id = da.tenant_id
-           WHERE da.document_id = $1 ORDER BY da.created_at ASC`, [id]),
-        manager.query(
+           WHERE da.document_id = $1 ORDER BY da.created_at ASC`, [id]) : [],
+        knowledgeBranch ? manager.query(
           `SELECT das.asset_id, a.name FROM document_assets das
            JOIN assets a ON a.id = das.asset_id AND a.tenant_id = das.tenant_id
-           WHERE das.document_id = $1 ORDER BY das.created_at ASC`, [id]),
-        manager.query(
+           WHERE das.document_id = $1 ORDER BY das.created_at ASC`, [id]) : [],
+        knowledgeBranch ? manager.query(
           `SELECT dp.project_id, p.name, p.item_number FROM document_projects dp
            JOIN portfolio_projects p ON p.id = dp.project_id AND p.tenant_id = dp.tenant_id
-           WHERE dp.document_id = $1 ORDER BY dp.created_at ASC`, [id]),
-        manager.query(
+           WHERE dp.document_id = $1 ORDER BY dp.created_at ASC`, [id]) : [],
+        knowledgeBranch ? manager.query(
           `SELECT dr.request_id, r.name, r.item_number FROM document_requests dr
            JOIN portfolio_requests r ON r.id = dr.request_id AND r.tenant_id = dr.tenant_id
-           WHERE dr.document_id = $1 ORDER BY dr.created_at ASC`, [id]),
-        manager.query(
+           WHERE dr.document_id = $1 ORDER BY dr.created_at ASC`, [id]) : [],
+        knowledgeBranch ? manager.query(
           `SELECT dt.task_id, t.title, t.item_number FROM document_tasks dt
            JOIN tasks t ON t.id = dt.task_id AND t.tenant_id = dt.tenant_id
-           WHERE dt.document_id = $1 ORDER BY dt.created_at ASC`, [id]),
-        manager.query(
+           WHERE dt.document_id = $1 ORDER BY dt.created_at ASC`, [id]) : [],
+        knowledgeBranch ? manager.query(
           `SELECT di.interface_id, i.interface_reference, i.interface_id AS interface_code, i.name
            FROM document_interfaces di
            JOIN interfaces i ON i.id = di.interface_id AND i.tenant_id = di.tenant_id
-           WHERE di.document_id = $1 ORDER BY di.created_at ASC`, [id]),
+           WHERE di.document_id = $1 ORDER BY di.created_at ASC`, [id]) : [],
         incidentRelationSql
           ? manager.query(incidentRelationSql, incidentRelationParams)
           : Promise.resolve([]),
@@ -3648,6 +3668,13 @@ export class KnowledgeService {
 
     return {
       ...document,
+      ...(knowledgeBranch ? {} : {
+        template_document_id: null,
+        template_document_title: null,
+        template_document_item_number: null,
+        template_document_type_id: null,
+        template_document_type_name: null,
+      }),
       item_ref: `DOC-${document.item_number}`,
       contributors,
       classifications,
@@ -4285,8 +4312,8 @@ export class KnowledgeService {
     await this.assertDocumentWritable(existing.id, manager, userId, opts);
 
     const integratedBinding = await this.getIntegratedBinding(existing.id, manager);
-    const isIncidentReview = integratedBinding?.source_entity_type === 'incidents'
-      && integratedBinding.slot_key === 'review';
+    const isIncidentReview = integratedBinding?.source_entity_type === INCIDENT_REVIEW_SLOT.sourceEntityType
+      && integratedBinding.slot_key === INCIDENT_REVIEW_SLOT.slotKey;
 
     const saveMode = body?.save_mode === 'autosave' ? 'autosave' : 'manual';
 
@@ -6142,6 +6169,28 @@ export class KnowledgeService {
     return `/api/knowledge/inline/${tenantSlug}/${attachmentId}`;
   }
 
+  /**
+   * Is this inline attachment still referenced by any stored version of the
+   * document? One indexed-by-document_id lookup that stops at the first hit,
+   * instead of reading every version body back into the process.
+   */
+  private async isInlineAttachmentUsedByVersion(
+    manager: EntityManager,
+    documentId: string,
+    attachmentId: string,
+  ): Promise<boolean> {
+    const rows = await manager.query<Array<{ exists: number }>>(
+      `SELECT 1 AS exists
+       FROM document_versions
+       WHERE tenant_id = app_current_tenant()
+         AND document_id = $1
+         AND content_markdown LIKE $2
+       LIMIT 1`,
+      [documentId, `%${escapeLikePattern(attachmentId)}%`],
+    );
+    return rows.length > 0;
+  }
+
   private async cleanupOrphanedInlineAttachments(
     documentId: string,
     oldContent: string | null,
@@ -6152,22 +6201,6 @@ export class KnowledgeService {
     const nextUrls = new Set(extractInlineImageUrls(newContent));
     if (previousUrls.length === 0) {
       return;
-    }
-
-    // Kept versions still render their images: an attachment that disappeared
-    // from the current body but is referenced by any stored version is not an
-    // orphan. Without this, reverting or reading an older version of an incident
-    // review after a closure would show broken images.
-    const versionRows = await manager.query<Array<{ content_markdown: string | null }>>(
-      `SELECT content_markdown
-       FROM document_versions
-       WHERE document_id = $1`,
-      [documentId],
-    );
-    for (const row of versionRows) {
-      for (const url of extractInlineImageUrls(row.content_markdown)) {
-        nextUrls.add(url);
-      }
     }
 
     const repo = manager.getRepository(DocumentAttachment);
@@ -6188,6 +6221,16 @@ export class KnowledgeService {
         } as any,
       });
       if (!attachment) {
+        continue;
+      }
+
+      // Kept versions still render their images: an attachment that disappeared
+      // from the current body but is still referenced by a stored version is not
+      // an orphan. Without this, reverting or reading an older version of an
+      // incident review after a closure would show broken images. Asked per
+      // candidate and bounded by `LIMIT 1`, so a document with a long history
+      // never has every version body pulled into memory.
+      if (await this.isInlineAttachmentUsedByVersion(manager, documentId, attachment.id)) {
         continue;
       }
 

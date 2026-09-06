@@ -1,9 +1,16 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import {
+  INCIDENT_FROZEN_STATUSES,
+  INCIDENT_LEVEL_RANK,
+  INCIDENT_LOCKED_MESSAGE,
   IncidentViewer,
+  incidentConfidentialityPredicate,
   incidentVisibleToViewer,
+  isIncidentAdminFromFacts,
+  loadIncidentRoleFacts,
 } from '../incidents/incident-visibility';
+import { INCIDENT_REVIEW_SLOT } from './integrated-document.constants';
 
 /**
  * Access rules for documents that are bound to a business entity through
@@ -19,15 +26,12 @@ import {
  * (`IncidentsModule` already imports `KnowledgeModule`).
  */
 
-export const INCIDENT_SOURCE_ENTITY_TYPE = 'incidents' as const;
-export const INCIDENT_REVIEW_SLOT_KEY = 'review' as const;
+export const INCIDENT_SOURCE_ENTITY_TYPE = INCIDENT_REVIEW_SLOT.sourceEntityType;
+export const INCIDENT_REVIEW_SLOT_KEY = INCIDENT_REVIEW_SLOT.slotKey;
 
-/** Same text as `INCIDENT_LOCKED_MESSAGE` in incidents-base.service.ts (asserted by a test). */
-export const INCIDENT_REVIEW_LOCKED_MESSAGE = 'This incident is closed. Reopen it to make changes.';
+/** Re-exported under its document-side name; the text lives in `incident-visibility.ts`. */
+export const INCIDENT_REVIEW_LOCKED_MESSAGE = INCIDENT_LOCKED_MESSAGE;
 export const DOCUMENT_NOT_FOUND_MESSAGE = 'Document not found';
-
-const LEVEL_RANK: Record<string, number> = { reader: 1, contributor: 2, member: 3, admin: 4 };
-const FROZEN_INCIDENT_STATUSES = new Set(['closed', 'cancelled']);
 
 /**
  * An incident viewer plus the two RBAC answers a document ACL needs. Resolved
@@ -131,10 +135,6 @@ function isUuid(value: string): boolean {
   return UUID_RE.test(value);
 }
 
-function coerceBoolean(value: unknown): boolean {
-  return value === true || value === 't' || value === 'true' || value === 1 || value === '1';
-}
-
 /** Tenant of the current connection; used when a caller has no tenantId at hand. */
 export async function resolveCurrentTenantId(
   manager: EntityManager,
@@ -170,66 +170,17 @@ export async function resolveDocumentIncidentViewer(
     return { ...ANONYMOUS_DOCUMENT_INCIDENT_VIEWER, userId: normalizedUserId };
   }
 
-  const rows = await manager.query<Array<{
-    user_ok: boolean | string;
-    is_administrator: boolean | string;
-    level_rank: number | string | null;
-  }>>(
-    `WITH ctx AS (
-       SELECT u.id AS user_id, u.role_id
-       FROM users u
-       WHERE u.id = $1
-         AND u.tenant_id = $2
-         AND u.status = 'enabled'
-     ),
-     role_ids AS (
-       SELECT c.role_id AS role_id FROM ctx c WHERE c.role_id IS NOT NULL
-       UNION
-       SELECT ur.role_id
-       FROM user_roles ur
-       WHERE ur.user_id = $1
-         AND ur.tenant_id = $2
-         AND EXISTS (SELECT 1 FROM ctx)
-     )
-     SELECT
-       EXISTS (SELECT 1 FROM ctx) AS user_ok,
-       EXISTS (
-         SELECT 1
-         FROM role_ids ri
-         JOIN roles r ON r.id = ri.role_id AND r.tenant_id = $2
-         WHERE lower(coalesce(r.role_name, '')) = 'administrator'
-       ) AS is_administrator,
-       (
-         SELECT max(
-           CASE rp.level
-             WHEN 'admin' THEN 4
-             WHEN 'member' THEN 3
-             WHEN 'contributor' THEN 2
-             WHEN 'reader' THEN 1
-             ELSE 0
-           END)
-         FROM role_permissions rp
-         WHERE rp.tenant_id = $2
-           AND rp.resource = 'incidents'
-           AND rp.role_id IN (SELECT role_id FROM role_ids)
-       ) AS level_rank`,
-    [normalizedUserId, tenant],
-  );
-
-  const row = rows[0];
-  if (!row || !coerceBoolean(row.user_ok)) {
+  const facts = await loadIncidentRoleFacts(manager, normalizedUserId, tenant);
+  if (!facts.userOk) {
     return { ...ANONYMOUS_DOCUMENT_INCIDENT_VIEWER, userId: normalizedUserId };
   }
 
-  const isAdministrator = coerceBoolean(row.is_administrator);
-  const rank = Number(row.level_rank ?? 0) || 0;
-  const isAdmin = isAdministrator || rank >= LEVEL_RANK.admin;
-
+  const isAdmin = isIncidentAdminFromFacts(facts);
   return {
     userId: normalizedUserId,
     isAdmin,
-    canReadIncidents: isAdmin || rank >= LEVEL_RANK.reader,
-    canContributeIncidents: isAdmin || rank >= LEVEL_RANK.contributor,
+    canReadIncidents: isAdmin || facts.levelRank >= INCIDENT_LEVEL_RANK.reader,
+    canContributeIncidents: isAdmin || facts.levelRank >= INCIDENT_LEVEL_RANK.contributor,
   };
 }
 
@@ -369,7 +320,7 @@ export function isDocumentIncidentWritable(
 ): boolean {
   if (!isDocumentIncidentVisible(binding, viewer)) return false;
   if (!viewer.canContributeIncidents) return false;
-  return !FROZEN_INCIDENT_STATUSES.has(String(binding.status || ''));
+  return !INCIDENT_FROZEN_STATUSES.has(String(binding.status || ''));
 }
 
 /** Throwing form of `isDocumentIncidentVisible` (404, never 403 — presence is confidential). */
@@ -395,7 +346,7 @@ export function assertIncidentBindingWritable(
   if (!viewer.canContributeIncidents) {
     throw new ForbiddenException('incidents:contributor permission is required');
   }
-  if (!opts?.allowFrozenIncident && FROZEN_INCIDENT_STATUSES.has(String(binding.status || ''))) {
+  if (!opts?.allowFrozenIncident && INCIDENT_FROZEN_STATUSES.has(String(binding.status || ''))) {
     throw new ForbiddenException(INCIDENT_REVIEW_LOCKED_MESSAGE);
   }
 }
@@ -470,9 +421,13 @@ export async function assertDocumentIncidentWritable(
  *  - no identity or no `incidents:reader` → every incident-bound document is out;
  *  - registry admin → only orphan bindings are out;
  *  - identified reader → orphan bindings and confidential incidents that are
- *    neither reported nor owned by the viewer are out. `IS NOT TRUE` (not
- *    `NOT (...)`) is load-bearing: a null reporter/owner would otherwise make
- *    the comparison unknown and let the document through.
+ *    neither reported nor owned by the viewer are out.
+ *
+ * The confidentiality rule itself is not restated here: it is the register's own
+ * `incidentConfidentialityPredicate`, in its `hidden` polarity, so the document
+ * ACL and the incident list cannot drift. `IS NOT TRUE` (not `NOT (...)`) is
+ * load-bearing there: a null reporter/owner would otherwise make the comparison
+ * unknown and let the document through.
  */
 export function documentIncidentVisibilitySql(
   documentAlias: string,
@@ -484,25 +439,25 @@ export function documentIncidentVisibilitySql(
       AND b_acl.tenant_id = ${alias}.tenant_id
       AND b_acl.source_entity_type = '${INCIDENT_SOURCE_ENTITY_TYPE}'`;
 
-  if (!viewer?.canReadIncidents) {
-    return ` AND NOT EXISTS (
+  const excludeEveryBoundDocument = ` AND NOT EXISTS (
     SELECT 1
     FROM integrated_document_bindings b_acl
     WHERE ${bindingScope}
   )`;
-  }
+
+  // A non-admin viewer with no identity cannot be matched against a reporter or
+  // an owner, so nothing beyond "no incident-bound document at all" is grantable.
+  if (!viewer?.canReadIncidents) return excludeEveryBoundDocument;
+  if (!viewer.isAdmin && !String(viewer.userId || '').trim()) return excludeEveryBoundDocument;
 
   const orphanOnly = `i_acl.id IS NULL`;
-  let rowCondition = orphanOnly;
-  if (!viewer.isAdmin) {
-    params.push(String(viewer.userId || ''));
-    const userParam = `$${params.length}`;
-    rowCondition = `${orphanOnly}
+  const confidentiality = incidentConfidentialityPredicate('i_acl', viewer, params);
+  const rowCondition = confidentiality.unrestricted
+    ? orphanOnly
+    : `${orphanOnly}
       OR (
-        i_acl.confidential = true
-        AND (i_acl.reporter_user_id = ${userParam} OR i_acl.owner_user_id = ${userParam}) IS NOT TRUE
+        ${confidentiality.hidden}
       )`;
-  }
 
   return ` AND NOT EXISTS (
     SELECT 1

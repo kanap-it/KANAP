@@ -196,6 +196,19 @@ export default function IncidentJournalTab({ incidentId, canAdd, onEntryAdded }:
           const name = authorName(entry);
           // Link changes carry a ready-made sentence; showing the raw before/after lists as well would duplicate it.
           const changes = entry.changed_fields && entry.kind !== 'link_change' ? Object.entries(entry.changed_fields) : [];
+          // `renderReviewVersion` returns null for a malformed snapshot, so the
+          // nodes are built first: an entry whose only change renders to nothing
+          // must not leave an empty spacer block behind.
+          const changeNodes = changes
+            .map(([field, change]) => {
+              const node = field === 'review_version' ? renderReviewVersion(change) : (
+                <Typography sx={{ fontSize: 13, lineHeight: 1.55 }}>
+                  {describeChange(field, change)}
+                </Typography>
+              );
+              return node ? <React.Fragment key={field}>{node}</React.Fragment> : null;
+            })
+            .filter(Boolean);
           return (
             <Box key={entry.id} sx={{ display: 'flex', gap: '12px' }}>
               <Avatar sx={{ width: 26, height: 26, fontSize: '10px', fontWeight: 500, bgcolor: 'kanap.teal', color: 'kanap.tealForeground', flexShrink: 0 }}>
@@ -215,17 +228,9 @@ export default function IncidentJournalTab({ incidentId, canAdd, onEntryAdded }:
                     </Typography>
                   )}
                 </Stack>
-                {changes.length > 0 && (
+                {changeNodes.length > 0 && (
                   <Box sx={{ mt: '4px' }}>
-                    {changes.map(([field, change]) => (
-                      <React.Fragment key={field}>
-                        {field === 'review_version' ? renderReviewVersion(change) : (
-                          <Typography sx={{ fontSize: 13, lineHeight: 1.55 }}>
-                            {describeChange(field, change)}
-                          </Typography>
-                        )}
-                      </React.Fragment>
-                    ))}
+                    {changeNodes}
                   </Box>
                 )}
                 {entry.content && (

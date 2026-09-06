@@ -58,6 +58,18 @@ export function takePendingIncidentReview(entity: object): string | null {
   return value;
 }
 
+/**
+ * True while this row is being inserted by the current import.
+ *
+ * The authoritative insert marker: an existing row can never be mistaken for a
+ * new one, which `previousStatus === null` cannot guarantee (that value is also
+ * null once it has been consumed, or when the pre-image read came back empty).
+ * Cleared by the base `afterCommit`, which runs after the review hooks.
+ */
+export function wasInsertedByImport(entity: object): boolean {
+  return insertedByImport.has(entity);
+}
+
 /** Status of the row before this import: null for an inserted incident. */
 export function takePreviousIncidentStatus(entity: object): string | null {
   const value = previousStatusByEntity.get(entity) ?? null;

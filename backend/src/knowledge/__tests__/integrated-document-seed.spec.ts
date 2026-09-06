@@ -6,6 +6,11 @@ import {
   getManagedDocsSeedDefinitions,
   seedManagedDocsKnowledgeAssets,
 } from '../integrated-document-seed';
+import { INCIDENT_REVIEW_SLOT } from '../integrated-document.constants';
+import {
+  INCIDENT_REVIEW_SLOT_KEY,
+  INCIDENT_REVIEW_SOURCE_ENTITY_TYPE,
+} from '../incident-review-provisioning';
 
 function testFoundationDefinitionsExcludeInterfaces() {
   const { folderDefinitions, slotDefinitions } = getManagedDocsSeedDefinitions({
@@ -59,7 +64,7 @@ function testIncidentReviewSlotIsDeclared() {
     String(slot?.templateContentMarkdown || '')
       .split('\n')
       .filter((line) => line.startsWith('## ')),
-    ['## Description', '## Impact', '## Root cause', '## Corrective actions', '## Lessons learned'],
+    ['## Detailed description', '## Impact', '## Root cause', '## Corrective actions', '## Lessons learned'],
   );
 }
 
@@ -84,7 +89,7 @@ function testExplicitDefinitionsWinOverTheSourceFilter() {
         documentTypeDescription: 'frozen',
         templateTitle: 'Incident Review Template',
         templateSummary: 'frozen',
-        templateContentMarkdown: '## Description\n',
+        templateContentMarkdown: '## Detailed description\n',
       },
     ],
   };
@@ -162,8 +167,20 @@ async function testReSeedKeepsACustomisedIncidentTemplate() {
   }
 }
 
+/**
+ * `incident-review-provisioning.ts` deliberately keeps its own copies of the
+ * slot identity: the migration runs it on a frozen schema and must not change
+ * behaviour because a shared constant moved. This asserts the two never drift,
+ * which is what the shared constant would have bought without the coupling.
+ */
+function testProvisioningConstantsMatchTheSharedSlot() {
+  assert.equal(INCIDENT_REVIEW_SOURCE_ENTITY_TYPE, INCIDENT_REVIEW_SLOT.sourceEntityType);
+  assert.equal(INCIDENT_REVIEW_SLOT_KEY, INCIDENT_REVIEW_SLOT.slotKey);
+}
+
 async function run() {
   testFoundationDefinitionsExcludeInterfaces();
+  testProvisioningConstantsMatchTheSharedSlot();
   testInterfaceDefinitionsIncludeSpecificationSlot();
   testDefaultDefinitionsRemainUnfiltered();
   testIncidentReviewSlotIsDeclared();

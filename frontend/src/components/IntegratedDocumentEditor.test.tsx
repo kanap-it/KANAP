@@ -75,10 +75,14 @@ function documentPayload(content: string, revision = 1) {
 
 const theme = createAppTheme('light');
 
-async function renderEditor(options?: { autosaveDelayMs?: number; entityId?: string }) {
-  const ref = React.createRef<IntegratedDocumentEditorHandle>();
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const view = render(
+type EditorOptions = { autosaveDelayMs?: number; entityId?: string; disabled?: boolean };
+
+function editorTree(
+  ref: React.Ref<IntegratedDocumentEditorHandle>,
+  queryClient: QueryClient,
+  options?: EditorOptions,
+) {
+  return (
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
         <IntegratedDocumentEditor
@@ -93,15 +97,23 @@ async function renderEditor(options?: { autosaveDelayMs?: number; entityId?: str
           editModeBehavior="auto"
           autosaveEnabled
           autosaveDelayMs={options?.autosaveDelayMs ?? 5}
+          disabled={options?.disabled ?? false}
           surface
           hideToolbarUntilFocus
           minRows={10}
         />
       </QueryClientProvider>
-    </ThemeProvider>,
+    </ThemeProvider>
   );
+}
+
+async function renderEditor(options?: EditorOptions) {
+  const ref = React.createRef<IntegratedDocumentEditorHandle>();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = render(editorTree(ref, queryClient, options));
   await screen.findByLabelText('Incident review');
-  return { ref, view };
+  const rerender = (next?: EditorOptions) => view.rerender(editorTree(ref, queryClient, next));
+  return { ref, view, rerender };
 }
 
 /** Click the read-only preview: the editor acquires the lock and switches to edit mode. */
@@ -207,6 +219,26 @@ describe('IntegratedDocumentEditor — incidents:review', () => {
     expect(result).toBe(false);
     expect((screen.getByLabelText('markdown-editor') as HTMLTextAreaElement).value).toBe('unsaved work');
     expect(ref.current!.isDirty()).toBe(true);
+  });
+
+  it('leaves edit mode and releases the lock when editing is revoked mid-session', async () => {
+    // The host can revoke editing under the user's feet: closing the incident in
+    // another tab freezes its review. Staying in edit mode would keep the lock
+    // held until it expires, blocking every other editor.
+    const { rerender } = await renderEditor({ autosaveDelayMs: 60_000 });
+    await startEditing();
+    expect(api.post).toHaveBeenCalledWith(`${REVIEW_ENDPOINT}/locks`);
+    expect(api.delete).not.toHaveBeenCalled();
+
+    await act(async () => {
+      rerender({ autosaveDelayMs: 60_000, disabled: true });
+    });
+
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith(
+      `${REVIEW_ENDPOINT}/locks`,
+      { headers: { 'X-Lock-Token': 'lock-1' } },
+    ));
+    expect(screen.queryByLabelText('markdown-editor')).toBeNull();
   });
 
   it('does not save again when nothing changed since the last save', async () => {

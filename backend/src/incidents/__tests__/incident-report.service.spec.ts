@@ -18,7 +18,7 @@ const REVIEW_DOC_ID = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff';
 
 /** The five system H2 headings of the §3.2 template, verbatim. */
 const SYSTEM_TEMPLATE = [
-  '## Description',
+  '## Detailed description',
   '',
   '## Impact',
   '',
@@ -325,8 +325,8 @@ function testReviewOmissionIsConservative() {
   assert.ok(only(custom).includes('## Timeline'));
 
   // Reordering or dropping a heading is content too.
-  assert.equal(isSystemTemplateOnlyReview('## Impact\n\n## Description'), false);
-  assert.equal(isSystemTemplateOnlyReview('## Description\n\n## Impact'), false);
+  assert.equal(isSystemTemplateOnlyReview('## Impact\n\n## Detailed description'), false);
+  assert.equal(isSystemTemplateOnlyReview('## Detailed description\n\n## Impact'), false);
 }
 
 /**

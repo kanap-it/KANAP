@@ -2,7 +2,12 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { EntityManager, Repository } from 'typeorm';
 import { Incident } from '../incident.entity';
 import { IncidentChangedFields, IncidentEntry, IncidentEntryKind } from '../incident-entry.entity';
-import { IncidentViewer, incidentVisibleToViewer } from '../incident-visibility';
+import {
+  INCIDENT_LOCKED_MESSAGE,
+  IncidentViewer,
+  incidentVisibleToViewer,
+  isFrozenIncidentStatus,
+} from '../incident-visibility';
 
 /**
  * Common options for service methods.
@@ -13,7 +18,8 @@ export interface ServiceOpts {
   viewer?: IncidentViewer;
 }
 
-export const INCIDENT_LOCKED_MESSAGE = 'This incident is closed. Reopen it to make changes.';
+/** Re-exported for the existing import sites; the text lives in `incident-visibility.ts`. */
+export { INCIDENT_LOCKED_MESSAGE };
 
 /** "First Last" for a `users` alias; falls back to the email when both names are empty. */
 export function userNameSql(alias: string): string {
@@ -59,7 +65,7 @@ export abstract class IncidentsBaseService {
    * Closure lock: closed and cancelled incidents refuse every write until reopened.
    */
   protected assertEditable(incident: Incident): void {
-    if (incident.status === 'closed' || incident.status === 'cancelled') {
+    if (isFrozenIncidentStatus(incident.status)) {
       throw new ForbiddenException(INCIDENT_LOCKED_MESSAGE);
     }
   }

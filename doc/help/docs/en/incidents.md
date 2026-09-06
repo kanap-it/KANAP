@@ -132,7 +132,7 @@ The Overview tells the story of the incident in two parts: a short description, 
 
 A new incident starts from the **Incident review** template, which proposes the five parts an incident report is normally read in:
 
-- **Description**: what happened, in detail
+- **Detailed description**: what happened, in detail
 - **Impact**: services, sites and users affected
 - **Root cause**: why it happened
 - **Corrective actions**: what was done to fix it and to prevent it. Track the actual follow-up work as linked tasks

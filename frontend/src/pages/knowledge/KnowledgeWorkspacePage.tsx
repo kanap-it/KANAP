@@ -384,17 +384,26 @@ export default function KnowledgeWorkspacePage() {
   // A document the viewer may not read must leave no trace on screen or in the
   // cache: its detail, versions and activities are dropped when the workspace
   // is left (the back action below, or any route change).
-  const dropCachedDocument = React.useCallback(() => {
-    qc.removeQueries({ queryKey: ['knowledge', id] });
-    qc.removeQueries({ queryKey: ['knowledge-versions', id] });
-    qc.removeQueries({ queryKey: ['knowledge-activities', id] });
-  }, [id, qc]);
-  const accessDeniedRef = React.useRef(false);
-  accessDeniedRef.current = documentAccessDenied;
+  const dropCachedDocument = React.useCallback((documentId: string) => {
+    qc.removeQueries({ queryKey: ['knowledge', documentId] });
+    qc.removeQueries({ queryKey: ['knowledge-versions', documentId] });
+    qc.removeQueries({ queryKey: ['knowledge-activities', documentId] });
+  }, [qc]);
+  // Which document was refused, not "is the current one refused": the cleanup
+  // below runs after the next document has already rendered, so reading a
+  // render-time value there would drop the wrong id (leaving DOC-9's cache
+  // behind and evicting DOC-3's instead).
+  const deniedDocumentIdRef = React.useRef<string | null>(null);
+  if (documentAccessDenied) deniedDocumentIdRef.current = id;
   const dropCachedDocumentRef = React.useRef(dropCachedDocument);
   dropCachedDocumentRef.current = dropCachedDocument;
-  React.useEffect(() => () => {
-    if (accessDeniedRef.current) dropCachedDocumentRef.current();
+  React.useEffect(() => {
+    const leavingId = id;
+    return () => {
+      if (deniedDocumentIdRef.current !== leavingId) return;
+      deniedDocumentIdRef.current = null;
+      dropCachedDocumentRef.current(leavingId);
+    };
   }, [id]);
 
   React.useEffect(() => {
@@ -1668,7 +1677,8 @@ export default function KnowledgeWorkspacePage() {
 
   if (documentLoadErrorKind) {
     const backToLibrary = () => {
-      dropCachedDocument();
+      deniedDocumentIdRef.current = null;
+      dropCachedDocument(id);
       navigate('/knowledge');
     };
     return (

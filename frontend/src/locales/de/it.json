@@ -241,7 +241,10 @@
         "cancelPlaceholder": "z. B. doppelt erfasst, siehe INC-12",
         "cancelConfirm": "Vorfall abbrechen",
         "loseAccessTitle": "Sie sehen diesen Vorfall anschließend nicht mehr",
-        "loseAccessMessage": "Nach dieser Änderung können nur noch Registeradministratoren, der Melder und der Verantwortliche ihn öffnen. Sie werden zum Register zurückgeführt."
+        "loseAccessMessage": "Nach dieser Änderung können nur noch Registeradministratoren, der Melder und der Verantwortliche ihn öffnen. Sie werden zum Register zurückgeführt.",
+        "discardReviewTitle": "Analyse konnte nicht gespeichert werden",
+        "discardReviewMessage": "Die Incident-Analyse konnte nicht gespeichert werden. Fahren Sie fort und verlieren Sie Ihre nicht gespeicherten Änderungen, oder bleiben Sie auf der Seite und versuchen Sie es erneut.",
+        "discardReviewConfirm": "Verwerfen und fortfahren"
       },
       "metadata": {
         "status": "Status",

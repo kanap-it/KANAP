@@ -130,6 +130,19 @@ function testSqlBranches() {
     assert.equal(/incidents i_acl/.test(sql), false, 'the no-rights branch does not even join incidents');
   }
 
+  // A non-admin viewer with incidents rights but no identity cannot be matched
+  // against a reporter or an owner: it falls back to the exclude-everything branch
+  // rather than emitting a placeholder nothing will ever bind.
+  const identitylessParams: unknown[] = [];
+  const identitylessSql = documentIncidentVisibilitySql(
+    'd',
+    viewer({ userId: null, canReadIncidents: true, canContributeIncidents: true }),
+    identitylessParams,
+  );
+  assert.equal(identitylessParams.length, 0);
+  assert.equal(/incidents i_acl/.test(identitylessSql), false, 'no identity, no incident join');
+  assert.equal(/\$\d/.test(identitylessSql), false, 'no dangling placeholder');
+
   // Registry admin: orphan bindings still excluded, no confidentiality restriction, no parameter.
   const adminParams: unknown[] = [];
   const adminSql = documentIncidentVisibilitySql('d', ADMIN, adminParams);

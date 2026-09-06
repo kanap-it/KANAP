@@ -132,7 +132,7 @@ La **Revue d'incident** est le constat complet, rédigé dans un document plutô
 
 Un nouvel incident démarre à partir du modèle **Revue d'incident**, qui propose les cinq parties dans l'ordre où se lit habituellement un rapport d'incident :
 
-- **Description** : ce qui s'est passé, en détail
+- **Description détaillée** : ce qui s'est passé, en détail
 - **Impact** : services, sites et utilisateurs touchés
 - **Cause racine** : pourquoi c'est arrivé
 - **Actions correctives** : ce qui a été fait pour corriger et pour prévenir. Suivez le travail de fond sous forme de tâches liées

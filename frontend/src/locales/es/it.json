@@ -241,7 +241,10 @@
         "cancelPlaceholder": "p. ej., registrado dos veces, ver INC-12",
         "cancelConfirm": "Cancelar incidente",
         "loseAccessTitle": "Ya no verá este incidente",
-        "loseAccessMessage": "Tras este cambio, solo los administradores del registro, el notificante y el responsable podrán abrirlo. Volverá al registro."
+        "loseAccessMessage": "Tras este cambio, solo los administradores del registro, el notificante y el responsable podrán abrirlo. Volverá al registro.",
+        "discardReviewTitle": "No se pudo guardar el análisis",
+        "discardReviewMessage": "No se pudo guardar el análisis del incidente. Continúe y pierda los cambios sin guardar, o permanezca en la página e inténtelo de nuevo.",
+        "discardReviewConfirm": "Descartar y continuar"
       },
       "metadata": {
         "status": "Estado",

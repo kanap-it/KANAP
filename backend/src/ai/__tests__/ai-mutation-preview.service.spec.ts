@@ -136,6 +136,7 @@ function createService(options?: {
   documentCreateResult?: any;
   workflowError?: Error;
   lockedDocumentError?: Error;
+  writeAccessError?: Error;
   acquireLockError?: Error;
   releaseLockError?: Error;
   updateError?: Error;
@@ -443,6 +444,12 @@ function createService(options?: {
       { id: 'type-1', name: 'Document', is_default: true },
     ],
     get: async () => documentRows.shift() ?? defaultDocumentRow,
+    // The preview now runs the same write gate as the mutation itself (S2).
+    assertDocumentWritable: async () => {
+      if (options?.writeAccessError) {
+        throw options.writeAccessError;
+      }
+    },
     assertWorkflowAllowsEditing: async () => {
       if (options?.workflowError) {
         throw options.workflowError;
@@ -1502,6 +1509,7 @@ async function testCreateDocumentInputSchemaAcceptsContentAlias() {
     listLibraries: async () => [{ id: 'library-1', name: 'Operations', is_system: false, can_write: true }],
     listTypes: async () => [{ id: 'type-1', name: 'Document', is_default: true }],
     get: async () => null,
+    assertDocumentWritable: async () => undefined,
     assertWorkflowAllowsEditing: async () => undefined,
     assertDocumentUnlockedForUser: async () => undefined,
     create: async () => null,
@@ -1527,6 +1535,7 @@ async function testCreateDocumentInputSchemaAcceptsTemplateAlias() {
     listLibraries: async () => [{ id: 'library-1', name: 'Operations', is_system: false, can_write: true }],
     listTypes: async () => [{ id: 'type-1', name: 'Document', is_default: true }],
     get: async () => null,
+    assertDocumentWritable: async () => undefined,
     assertWorkflowAllowsEditing: async () => undefined,
     assertDocumentUnlockedForUser: async () => undefined,
     create: async () => null,
@@ -2881,6 +2890,43 @@ async function testListConversationPreviewsReturnsLatestWindowInChronologicalOrd
   );
 }
 
+/**
+ * S2: previewing an AI document mutation must refuse exactly what the write
+ * would refuse. Without the write gate the preview discloses that a document the
+ * caller cannot write exists and is editable — and for an incident review it
+ * skips `incidents:contributor` and the closure freeze entirely.
+ */
+async function testUpdatePreviewRequiresDocumentWriteAccess() {
+  const context: any = { manager: {}, userId: 'user-1', tenantId: 'tenant-1' };
+
+  const refusedCalls: string[] = [];
+  const refusing: any = {
+    assertDocumentWritable: async () => {
+      refusedCalls.push('writable');
+      throw new ForbiddenException('incidents:contributor permission is required');
+    },
+    assertWorkflowAllowsEditing: async () => { refusedCalls.push('workflow'); },
+    assertDocumentUnlockedForUser: async () => { refusedCalls.push('lock'); },
+  };
+  await assert.rejects(
+    new AiDocumentMutationSupportService(refusing).assertUpdatePreviewAllowed(context, 'doc-1'),
+    /incidents:contributor/,
+  );
+  assert.deepEqual(refusedCalls, ['writable'], 'the write ACL runs first and short-circuits');
+
+  const allowedCalls: string[] = [];
+  const permissive: any = {
+    assertDocumentWritable: async (documentId: string, manager: unknown, userId: string) => {
+      assert.equal(manager, context.manager);
+      allowedCalls.push(`writable:${documentId}:${userId}`);
+    },
+    assertWorkflowAllowsEditing: async () => { allowedCalls.push('workflow'); },
+    assertDocumentUnlockedForUser: async () => { allowedCalls.push('lock'); },
+  };
+  await new AiDocumentMutationSupportService(permissive).assertUpdatePreviewAllowed(context, 'doc-1');
+  assert.deepEqual(allowedCalls, ['writable:doc-1:user-1', 'workflow', 'lock']);
+}
+
 async function main() {
   await testCreatePreviewPersistsCorrectData();
   await testCreatePreviewAllowsMultiplePendingPreviewsInConversation();
@@ -2942,6 +2988,7 @@ async function main() {
   await testCreateReversePreviewBuildsExpectedMutation();
   await testUndoRejectsNonReversibleCommentPreview();
   await testListConversationPreviewsReturnsLatestWindowInChronologicalOrder();
+  await testUpdatePreviewRequiresDocumentWriteAccess();
 }
 
 main().catch((error) => {

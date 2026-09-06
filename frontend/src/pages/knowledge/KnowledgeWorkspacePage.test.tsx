@@ -60,20 +60,27 @@ function httpError(status: number) {
   return Object.assign(new Error(`HTTP ${status}`), { response: { status } });
 }
 
-function renderWorkspace(queryClient: QueryClient) {
-  return render(
+function workspaceTree(queryClient: QueryClient, path = '/knowledge/DOC-9') {
+  return (
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
         <KanapDialogProvider>
           <MemoryRouter initialEntries={['/knowledge/DOC-9']}>
-            <Routes>
+            {/* `location` drives the match, so the page keeps its instance and
+                simply re-renders with the next document id — the situation the
+                cache-drop effect has to get right. */}
+            <Routes location={path}>
               <Route path="/knowledge/:id" element={<KnowledgeWorkspacePage />} />
             </Routes>
           </MemoryRouter>
         </KanapDialogProvider>
       </QueryClientProvider>
-    </ThemeProvider>,
+    </ThemeProvider>
   );
+}
+
+function renderWorkspace(queryClient: QueryClient) {
+  return render(workspaceTree(queryClient));
 }
 
 describe('classifyKnowledgeLoadError', () => {
@@ -114,6 +121,33 @@ describe('KnowledgeWorkspacePage — document load errors', () => {
     fireEvent.click(screen.getByText('workspace.errors.backToLibrary'));
     expect(navigateMock).toHaveBeenCalledWith('/knowledge');
     expect(queryClient.getQueryData(['knowledge', 'DOC-9'])).toBeUndefined();
+  });
+
+  it('drops the refused document on the way to another one, and only that one', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === DOC_URL) throw httpError(404);
+      if (url === '/knowledge/DOC-3') throw httpError(500);
+      return { data: [] } as any;
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, retryDelay: 0 } } });
+    for (const id of ['DOC-9', 'DOC-3']) {
+      queryClient.setQueryData(['knowledge', id], { id, title: `${id} title`, item_number: 1 });
+      queryClient.setQueryData(['knowledge-versions', id], [{ version_number: 1 }]);
+      queryClient.setQueryData(['knowledge-activities', id], [{ id: 'a1' }]);
+    }
+
+    const view = render(workspaceTree(queryClient));
+    await screen.findByText('workspace.errors.notFoundTitle');
+
+    // Navigate DOC-9 (refused) → DOC-3 without unmounting the page.
+    view.rerender(workspaceTree(queryClient, '/knowledge/DOC-3'));
+
+    await waitFor(() => expect(queryClient.getQueryData(['knowledge', 'DOC-9'])).toBeUndefined());
+    expect(queryClient.getQueryData(['knowledge-versions', 'DOC-9'])).toBeUndefined();
+    expect(queryClient.getQueryData(['knowledge-activities', 'DOC-9'])).toBeUndefined();
+
+    expect(queryClient.getQueryData(['knowledge-versions', 'DOC-3'])).toBeDefined();
+    expect(queryClient.getQueryData(['knowledge-activities', 'DOC-3'])).toBeDefined();
   });
 
   it('offers a retry on a network or server failure', async () => {

@@ -281,7 +281,7 @@ function importOpts(runner: QueryRunner, f: Fixture, userId: string, isAdmin = t
 // ---------------------------------------------------------------------------
 
 const MULTILINE_REVIEW = [
-  '## Description',
+  '## Detailed description',
   '',
   'Mail stopped; **Lyon** offline.',
   '',
@@ -680,6 +680,231 @@ async function testCreatedClosedGetsItsReviewVersion() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// 10. Review titles follow the incident title
+// ---------------------------------------------------------------------------
+
+async function readReviewTitle(runner: QueryRunner, f: Fixture, incidentId: string): Promise<string> {
+  const review = await readReview(runner, f, incidentId);
+  const rows = await runner.manager.query('SELECT title FROM documents WHERE id = $1', [review.document_id]);
+  return String(rows[0].title);
+}
+
+async function testReviewTitleFollowsIncidentRename() {
+  await withFixture(async (runner, f) => {
+    const services = createServices(runner.manager);
+    const incident = await createIncident(runner, f, services, { title: 'Mail outage' });
+    const opts = { manager: runner.manager, tenantId: f.tenantId, viewer: { userId: f.users.admin, isAdmin: true } };
+
+    assert.equal(
+      await readReviewTitle(runner, f, incident.id),
+      `INC-${incident.item_number} - Mail outage - Incident review`,
+    );
+
+    await services.incidents.update(incident.id, { title: 'Mail outage (Lyon)' }, f.users.admin, opts);
+    assert.equal(
+      await readReviewTitle(runner, f, incident.id),
+      `INC-${incident.item_number} - Mail outage (Lyon) - Incident review`,
+      'renaming the incident renames its managed review',
+    );
+
+    // Renaming and closing in the same patch: the title lands and the closure
+    // snapshot freezes the renamed document.
+    await services.incidents.update(
+      incident.id, { title: 'Mail outage (Lyon, resolved)', status: 'closed' }, f.users.admin, opts,
+    );
+    assert.equal(
+      await readReviewTitle(runner, f, incident.id),
+      `INC-${incident.item_number} - Mail outage (Lyon, resolved) - Incident review`,
+      'a rename that also closes the incident still renames the review',
+    );
+    const entries = await readEntries(runner, f, incident.id);
+    const closure = entries.find((e: any) => e.changed_fields?.review_version);
+    assert.ok(closure, 'the closure still snapshots the review');
+  });
+}
+
+async function testReviewTitleFollowsCsvRename() {
+  await withFixture(async (runner, f) => {
+    const services = createServices(runner.manager);
+    const open = await createIncident(runner, f, services, { title: 'Csv rename me' });
+    const closed = await createIncident(runner, f, services, { title: 'Csv closed rename me' });
+    await services.incidents.update(closed.id, { status: 'closed' }, f.users.admin, {
+      manager: runner.manager, tenantId: f.tenantId, viewer: { userId: f.users.admin, isAdmin: true },
+    });
+
+    const csv = [
+      REVIEW_HEADERS,
+      `INC-${open.item_number};Csv renamed;major;open;2026-03-10T08:00:00Z;false;short;`,
+      `INC-${closed.item_number};Csv closed renamed;major;closed;2026-03-10T08:00:00Z;false;short;`,
+    ].join('\n');
+    const result = await services.csv.import(
+      csvFile(csv),
+      { dryRun: false, mode: 'enrich', operation: 'upsert' },
+      importOpts(runner, f, f.users.admin),
+    );
+    assert.deepEqual(result.errors, []);
+
+    assert.equal(
+      await readReviewTitle(runner, f, open.id),
+      `INC-${open.item_number} - Csv renamed - Incident review`,
+    );
+    // §3.8: the import exemption also covers the title of a frozen record.
+    assert.equal(
+      await readReviewTitle(runner, f, closed.id),
+      `INC-${closed.item_number} - Csv closed renamed - Incident review`,
+      'an imported rename reaches a closed incident review too',
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 11. A closed incident with no review can still be repaired by the backfill
+// ---------------------------------------------------------------------------
+
+async function testFrozenIncidentRepairIsBackfillOnly() {
+  await withFixture(async (runner, f) => {
+    const services = createServices(runner.manager);
+    const incident = await createIncident(runner, f, services);
+    await services.incidents.update(incident.id, { status: 'closed' }, f.users.admin, {
+      manager: runner.manager, tenantId: f.tenantId, viewer: { userId: f.users.admin, isAdmin: true },
+    });
+
+    // Simulate the integrity gap the backfill exists for.
+    const review = await readReview(runner, f, incident.id);
+    await runner.manager.query(
+      `DELETE FROM integrated_document_bindings WHERE source_entity_id = $1 AND slot_key = 'review'`,
+      [incident.id],
+    );
+    await runner.manager.query('DELETE FROM document_incidents WHERE document_id = $1', [review.document_id]);
+    await runner.manager.query('DELETE FROM documents WHERE id = $1', [review.document_id]);
+
+    // The lazy read path still refuses to mint a review for a frozen record.
+    await assert.rejects(
+      services.integrated.repairSourceSlot('incidents', incident.id, 'review', { manager: runner.manager }),
+      /closed incident/i,
+      'a read must not create a review for a closed incident',
+    );
+    assert.equal(await readReview(runner, f, incident.id), null);
+
+    // The backfill script's explicit opt-in does.
+    const repaired = await services.integrated.repairSourceSlot('incidents', incident.id, 'review', {
+      manager: runner.manager,
+      allowFrozenIncident: true,
+    });
+    assert.equal(repaired.created, true);
+    const rebuilt = await readReview(runner, f, incident.id);
+    assert.ok(rebuilt, 'the backfill repairs the frozen incident');
+    assert.match(rebuilt.content_markdown, /## Corrective actions/);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 12. Visibility is decided before the row lock is taken
+// ---------------------------------------------------------------------------
+
+/** Records the SQL a service issues, so the order of the checks can be asserted. */
+function recordingManager(manager: any, log: string[]) {
+  return new Proxy(manager, {
+    get(target, prop, receiver) {
+      if (prop === 'query') {
+        return (sql: string, params?: any[]) => {
+          log.push(String(sql));
+          return target.query(sql, params);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+async function testVisibilityIsCheckedBeforeTheRowLock() {
+  await withFixture(async (runner, f) => {
+    const services = createServices(runner.manager);
+    const incident = await createIncident(runner, f, services, { confidential: true });
+    const outsider = { userId: f.users.other, isAdmin: false };
+
+    for (const [label, call] of [
+      ['update', (mg: any) => services.incidents.update(incident.id, { title: 'nope' }, f.users.other, {
+        manager: mg, tenantId: f.tenantId, viewer: outsider,
+      })],
+      ['cancel', (mg: any) => services.incidents.cancel(incident.id, 'nope', f.users.other, {
+        manager: mg, tenantId: f.tenantId, viewer: outsider,
+      })],
+      ['reopen', (mg: any) => services.incidents.reopen(incident.id, 'nope', f.users.other, {
+        manager: mg, tenantId: f.tenantId, viewer: outsider,
+      })],
+      ['setConfidentiality', (mg: any) => services.incidents.setConfidentiality(incident.id, false, f.users.other, {
+        manager: mg, tenantId: f.tenantId, viewer: outsider,
+      })],
+    ] as Array<[string, (mg: any) => Promise<unknown>]>) {
+      const log: string[] = [];
+      await assert.rejects(call(recordingManager(runner.manager, log)), /Incident not found/, label);
+      assert.equal(
+        log.some((sql) => /FOR UPDATE/i.test(sql)),
+        false,
+        `${label}: a caller who cannot see the incident must not queue on its row lock`,
+      );
+    }
+
+    // The admin still locks the row, and still sees the committed state.
+    const log: string[] = [];
+    await services.incidents.update(incident.id, { title: 'renamed' }, f.users.admin, {
+      manager: recordingManager(runner.manager, log),
+      tenantId: f.tenantId,
+      viewer: { userId: f.users.admin, isAdmin: true },
+    });
+    assert.equal(
+      log.some((sql) => /FROM incidents WHERE id = \$1 AND tenant_id = \$2 FOR UPDATE/i.test(sql)),
+      true,
+      'an authorised write still takes the §3.3 row lock',
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 13. The other integrated slots keep their historical (Knowledge-free) ACL
+// ---------------------------------------------------------------------------
+
+async function testProjectPurposeIgnoresKnowledgeAcl() {
+  await withFixture(async (runner, f) => {
+    const services = createServices(runner.manager);
+    const provisionerRole = await seedRole(runner, f.tenantId, `PortfolioKnow ${f.tag}`, {
+      portfolio_projects: 'member', knowledge: 'member',
+    });
+    const provisioner = await seedUser(runner, f.tenantId, provisionerRole, `portfolio-know-${f.tag}@example.com`);
+    // No `knowledge` permission at all: the Knowledge library ACL would refuse them.
+    const readerRole = await seedRole(runner, f.tenantId, `PortfolioOnly ${f.tag}`, {
+      portfolio_projects: 'member',
+    });
+    const reader = await seedUser(runner, f.tenantId, readerRole, `portfolio-only-${f.tag}@example.com`);
+
+    const projectId = randomUUID();
+    await runner.manager.query(
+      `INSERT INTO portfolio_projects (id, tenant_id, name, item_number) VALUES ($1, $2, $3, $4)`,
+      [projectId, f.tenantId, `Project ${f.tag}`, 4321],
+    );
+
+    const provisioned: any = await services.integrated.getBySource(
+      'projects', projectId, 'purpose', provisioner, { manager: runner.manager },
+    );
+    assert.ok(provisioned?.id, 'the purpose document is provisioned on first read');
+
+    // The regression this guards: `projects:purpose` has never gone through the
+    // Knowledge library ACL, and must not start to. Only `incidents:review`
+    // carries a source access context.
+    const doc: any = await services.integrated.getBySource('projects', projectId, 'purpose', reader, {
+      manager: runner.manager,
+    });
+    assert.equal(doc.id, provisioned.id, 'a portfolio member without knowledge rights can read the purpose document');
+
+    const versions: any[] = await services.integrated.listVersionsBySource(
+      'projects', projectId, 'purpose', reader, { manager: runner.manager },
+    );
+    assert.ok(Array.isArray(versions), 'and can list its versions');
+  });
+}
+
 async function run() {
   await dataSource.initialize();
   try {
@@ -692,6 +917,11 @@ async function run() {
     await testClosureSnapshotAndReopen();
     await testCancelSnapshotsAndForeignLockRefusesClosure();
     await testCreatedClosedGetsItsReviewVersion();
+    await testReviewTitleFollowsIncidentRename();
+    await testReviewTitleFollowsCsvRename();
+    await testFrozenIncidentRepairIsBackfillOnly();
+    await testVisibilityIsCheckedBeforeTheRowLock();
+    await testProjectPurposeIgnoresKnowledgeAcl();
     console.log('incident-review-csv.integration.spec: all assertions passed');
   } finally {
     await dataSource.destroy();

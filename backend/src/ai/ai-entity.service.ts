@@ -21,10 +21,12 @@ import {
   AiSearchEntityType,
 } from './ai.types';
 import { incidentRelatedLabelSql, incidentRelatedTitleSql, incidentVisibilitySql, resolveIncidentViewer } from '../incidents/incident-visibility';
+import { INCIDENT_REVIEW_SLOT } from '../knowledge/integrated-document.constants';
 import { AiPolicyService } from './ai-policy.service';
 import {
   participantConditionForAiEntity,
   ParticipationScopedAiEntityType,
+  resolveAiDocumentIncidentViewer,
   resolveAiParticipationAccessScope,
 } from './query/ai-query-scope.util';
 
@@ -1494,9 +1496,9 @@ export class AiEntityService {
        FROM incidents i
        LEFT JOIN integrated_document_bindings review_b
          ON review_b.tenant_id = i.tenant_id
-        AND review_b.source_entity_type = 'incidents'
+        AND review_b.source_entity_type = '${INCIDENT_REVIEW_SLOT.sourceEntityType}'
         AND review_b.source_entity_id = i.id
-        AND review_b.slot_key = 'review'
+        AND review_b.slot_key = '${INCIDENT_REVIEW_SLOT.slotKey}'
        LEFT JOIN documents review_d
          ON review_d.id = review_b.document_id
         AND review_d.tenant_id = review_b.tenant_id
@@ -2203,16 +2205,11 @@ export class AiEntityService {
       // the searched types — never gated on `incidents` being searched too, and
       // never inside the library branch (which is skipped for unrestricted
       // Knowledge access).
-      const documentIncidentViewer = await resolveDocumentIncidentViewer(
-        context.manager,
-        context.userId ?? null,
-        context.tenantId,
-      );
-      const incidentAclParams: unknown[] = [];
-      const incidentAclSql = documentIncidentVisibilitySql('d_acl', documentIncidentViewer, incidentAclParams);
-      const incidentAclClause = incidentAclParams.length > 0
-        ? incidentAclSql.replace(/\$1\b/g, push(incidentAclParams[0]))
-        : incidentAclSql;
+      const documentIncidentViewer = await resolveAiDocumentIncidentViewer(context);
+      // Built straight onto the shared parameter array, so the placeholders it
+      // emits are the real positions in this query: no `$1` rewriting, and no
+      // assumption about how many parameters the fragment needs.
+      const incidentAclClause = documentIncidentVisibilitySql('d_acl', documentIncidentViewer, params);
       scopeClauses.push(`AND (search_index.entity_type <> 'documents' OR EXISTS (
         SELECT 1 FROM documents d_acl
         WHERE d_acl.id = search_index.entity_id

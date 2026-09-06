@@ -21,7 +21,6 @@ import { isDocumentStatus } from '../../knowledge/document-status';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
 import {
   documentIncidentVisibilityQueryBuilderClause,
-  resolveDocumentIncidentViewer,
 } from '../../knowledge/document-entity-visibility';
 import { LocationsService } from '../../locations/locations.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
@@ -36,7 +35,12 @@ import {
   buildFilterRepairSuggestions,
   hasEmailOrUuidFilterValue,
 } from './ai-filter-description.util';
-import { applyScopeToAiQuery, resolveAiParticipationAccessScope, ResolvedAiScope } from './ai-query-scope.util';
+import {
+  applyScopeToAiQuery,
+  resolveAiDocumentIncidentViewer,
+  resolveAiParticipationAccessScope,
+  ResolvedAiScope,
+} from './ai-query-scope.util';
 import {
   AiAggregateMetricDef,
   AiAggregateMetricType,
@@ -1013,7 +1017,7 @@ export class AiAggregateExecutor {
     }
     const incidentAcl = documentIncidentVisibilityQueryBuilderClause(
       'd',
-      await resolveDocumentIncidentViewer(context.manager, context.userId ?? null, context.tenantId),
+      await resolveAiDocumentIncidentViewer(context),
     );
     qb.andWhere(incidentAcl.clause, incidentAcl.params);
 

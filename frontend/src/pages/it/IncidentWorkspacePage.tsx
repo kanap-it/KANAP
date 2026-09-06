@@ -231,9 +231,33 @@ export function IncidentWorkspacePage() {
   const flushAll = React.useCallback(async (): Promise<boolean> => {
     const propertiesSaved = await flushSave();
     const reviewSaved = reviewEditorRef.current ? await reviewEditorRef.current.save() : true;
+    if (propertiesSaved && reviewSaved) return true;
     if (!reviewSaved) setError(t('workspace.incident.messages.reviewSaveFailed'));
-    return propertiesSaved && reviewSaved;
-  }, [flushSave, t]);
+    // Some failures never clear on a retry: the incident was closed elsewhere,
+    // the edit lock was taken over. Without a way out the user is stuck on this
+    // incident, unable to close it, change tab or navigate away.
+    const discard = await dialogs.confirm({
+      title: t('workspace.incident.dialogs.discardReviewTitle'),
+      message: t('workspace.incident.dialogs.discardReviewMessage'),
+      confirmLabel: t('workspace.incident.dialogs.discardReviewConfirm'),
+      intent: 'danger',
+    });
+    if (!discard) return false;
+    await reviewEditorRef.current?.reset();
+    setError(null);
+    return true;
+  }, [dialogs, flushSave, t]);
+
+  /**
+   * The row the optimistic update rolls back to. Read after the flush, never
+   * from the render that started the transition: flushing writes the saved
+   * review and the drained property patch into the cache, so the render-time
+   * `data` is already one revision behind by the time a rollback would use it.
+   */
+  const rollbackSnapshot = React.useCallback(
+    () => queryClient.getQueryData<Incident>(queryKey) ?? data,
+    [data, queryClient, queryKey],
+  );
 
   const patchNow = React.useCallback(async (patch: UpdateIncidentInput) => {
     if (!data || stale) return;
@@ -241,7 +265,8 @@ export function IncidentWorkspacePage() {
     // before the PATCH and the optimistic update, and abort when it fails.
     if (patchNeedsFlush(patch) && !(await flushAll())) return;
     if (viewerLosesAccess(patch) && !(await confirmLoseAccess())) return;
-    const previous = data;
+    const previous = rollbackSnapshot();
+    if (!previous) return;
     setIncidentCache((current) => ({ ...current, ...patch }));
     setError(null);
     try {
@@ -253,7 +278,7 @@ export function IncidentWorkspacePage() {
       setIncidentCache(() => previous);
       setError(getApiErrorMessage(e, t, t('workspace.incident.messages.saveFailed')));
     }
-  }, [confirmLoseAccess, data, flushAll, invalidateEntries, leaveRegister, setIncidentCache, stale, t, viewerLosesAccess]);
+  }, [confirmLoseAccess, data, flushAll, invalidateEntries, leaveRegister, rollbackSnapshot, setIncidentCache, stale, t, viewerLosesAccess]);
 
   const handleClose = React.useCallback(async () => {
     if (!(await flushAll())) return;
@@ -293,7 +318,8 @@ export function IncidentWorkspacePage() {
     if (!data || stale) return;
     if (!(await flushAll())) return;
     if (viewerLosesAccess({ confidential }) && !(await confirmLoseAccess())) return;
-    const previous = data;
+    const previous = rollbackSnapshot();
+    if (!previous) return;
     setIncidentCache((current) => ({ ...current, confidential }));
     setError(null);
     try {
@@ -307,7 +333,7 @@ export function IncidentWorkspacePage() {
       setIncidentCache(() => previous);
       setError(getApiErrorMessage(e, t, t('workspace.incident.messages.confidentialityFailed')));
     }
-  }, [confirmLoseAccess, data, flushAll, invalidateEntries, leaveRegister, locked, setIncidentCache, stale, t, viewerLosesAccess]);
+  }, [confirmLoseAccess, data, flushAll, invalidateEntries, leaveRegister, locked, rollbackSnapshot, setIncidentCache, stale, t, viewerLosesAccess]);
 
   const handleDrawerChange = React.useCallback((patch: IncidentDrawerPatch) => {
     if (patch.confidential !== undefined) {
@@ -348,7 +374,8 @@ export function IncidentWorkspacePage() {
 
   const handleCancel = React.useCallback(async () => {
     if (!data) return;
-    if (!(await flushAll())) return;
+    // The prompt comes first: cancelling out of it must not have cost the user
+    // their review draft (the flush can end in a discard).
     const reason = await dialogs.prompt({
       title: t('workspace.incident.dialogs.cancelTitle'),
       message: t('workspace.incident.dialogs.cancelMessage'),
@@ -358,6 +385,8 @@ export function IncidentWorkspacePage() {
       intent: 'danger',
     });
     if (!reason?.trim()) return;
+    // Cancelling freezes the review: persist the draft before the transition.
+    if (!(await flushAll())) return;
     try {
       const saved = await incidentsApi.cancel(data.id, reason.trim());
       setIncidentCache(() => saved);
@@ -633,12 +662,15 @@ export function IncidentWorkspacePage() {
       >
         {isCreate ? (
           <Box sx={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
-            <PropertyRow label={t('workspace.incident.create.title')} required valueSx={{ maxWidth: 560 }}>
+            {/* The TextField sizes to the value column: without `fullWidth` it kept the
+                browser's intrinsic ~160px input width, far too short for an incident title. */}
+            <PropertyRow label={t('workspace.incident.create.title')} required valueSx={{ maxWidth: 340 }}>
               <TextField
                 value={createForm.title}
                 onChange={(event) => setCreateForm((previous) => ({ ...previous, title: event.target.value }))}
                 placeholder={t('workspace.incident.create.titlePlaceholder')}
                 required
+                fullWidth
                 size="small"
                 variant="standard"
                 InputProps={{ disableUnderline: true }}

@@ -17,7 +17,6 @@ import { InterfacesService } from '../../interfaces/services';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
 import {
   documentIncidentVisibilitySql,
-  resolveDocumentIncidentViewer,
 } from '../../knowledge/document-entity-visibility';
 import { LocationsService } from '../../locations/locations.service';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
@@ -43,6 +42,7 @@ import {
   applyScopeToAiQuery,
   isParticipationScopedAiEntityType,
   participantConditionForAiEntity,
+  resolveAiDocumentIncidentViewer,
   resolveAiParticipationAccessScope,
 } from './ai-query-scope.util';
 import {
@@ -2157,6 +2157,18 @@ export class AiQueryExecutor {
     const registry = getAiEntityRegistry(entityType);
     const values: Record<string, Array<string | boolean | null>> = {};
 
+    // Resolved once for the whole call: the viewers and the readable library set
+    // depend on the user and the tenant only, never on the field being listed.
+    const incidentViewer = entityType === 'incidents'
+      ? await resolveIncidentViewer(context.manager, context.userId, context.tenantId)
+      : null;
+    const accessibleLibraries = entityType === 'documents'
+      ? await this.knowledge.listReadableLibraryIdsForUser(context.manager, context.userId ?? null)
+      : null;
+    const documentIncidentViewer = entityType === 'documents'
+      ? await resolveAiDocumentIncidentViewer(context)
+      : null;
+
     for (const aiField of aiFields) {
       const groupField = registry.aggregate.groupFields[aiField];
       if (!groupField) continue;
@@ -2168,18 +2180,14 @@ export class AiQueryExecutor {
         ? `AND ${participantConditionForAiEntity(entityType, alias, `$${params.length + 1}`)}`
         : '';
       if (accessScopeSql) params.push(accessScope!.userId);
-      const incidentVisibility = entityType === 'incidents'
-        ? incidentVisibilitySql(alias, await resolveIncidentViewer(context.manager, context.userId, context.tenantId), params)
+      const incidentVisibility = incidentViewer
+        ? incidentVisibilitySql(alias, incidentViewer, params)
         : '';
       // Documents fall through to this registry path for dynamic fields; without
       // the two clauses below it would be a tenant-wide oracle on library and
       // incident-review metadata.
       let documentAclSql = '';
       if (entityType === 'documents') {
-        const accessibleLibraries = await this.knowledge.listReadableLibraryIdsForUser(
-          context.manager,
-          context.userId ?? null,
-        );
         if (accessibleLibraries) {
           if (accessibleLibraries.length === 0) {
             values[aiField] = [];
@@ -2188,11 +2196,7 @@ export class AiQueryExecutor {
           params.push(accessibleLibraries);
           documentAclSql += ` AND ${alias}.library_id = ANY($${params.length}::uuid[])`;
         }
-        documentAclSql += documentIncidentVisibilitySql(
-          alias,
-          await resolveDocumentIncidentViewer(context.manager, context.userId ?? null, context.tenantId),
-          params,
-        );
+        documentAclSql += documentIncidentVisibilitySql(alias, documentIncidentViewer, params);
       }
       const rows = await context.manager.query(
         `SELECT DISTINCT ${groupField.expression} AS value
