@@ -272,7 +272,6 @@
       "overview": {
         "description": "Description",
         "descriptionPlaceholder": "Summary of the incident in one or two sentences.",
-        "descriptionHint": "The full account goes in the incident review below.",
         "review": "Incident review",
         "reviewPlaceholder": "Describe the incident, its impact, the root cause, the corrective actions and what to keep from it.",
         "closedBanner": "Closed on {{date}}. Reopen it to make changes.",

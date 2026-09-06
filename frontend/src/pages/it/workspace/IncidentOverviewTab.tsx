@@ -70,9 +70,6 @@ export default function IncidentOverviewTab({
           InputProps={{ disableUnderline: true, readOnly }}
           sx={incidentComposerSx}
         />
-        <Typography sx={{ mt: '6px', fontSize: 11, color: 'kanap.text.tertiary' }}>
-          {t('workspace.incident.overview.descriptionHint')}
-        </Typography>
       </Box>
 
       <Box>

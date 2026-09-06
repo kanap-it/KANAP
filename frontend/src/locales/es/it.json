@@ -272,7 +272,6 @@
       "overview": {
         "description": "Descripción",
         "descriptionPlaceholder": "Resumen del incidente en una o dos frases.",
-        "descriptionHint": "El relato completo se escribe en la revisión del incidente, más abajo.",
         "review": "Revisión del incidente",
         "reviewPlaceholder": "Describa el incidente, su impacto, la causa raíz, las acciones correctivas y lo que conviene retener.",
         "closedBanner": "Cerrado el {{date}}. Reábralo para hacer cambios.",

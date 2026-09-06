@@ -272,7 +272,6 @@
       "overview": {
         "description": "Beschreibung",
         "descriptionPlaceholder": "Zusammenfassung des Vorfalls in ein bis zwei Sätzen.",
-        "descriptionHint": "Die vollständige Schilderung gehört in die Vorfallanalyse weiter unten.",
         "review": "Vorfallanalyse",
         "reviewPlaceholder": "Beschreiben Sie den Vorfall, seine Auswirkung, die Ursache, die Korrekturmaßnahmen und die Erkenntnisse.",
         "closedBanner": "Am {{date}} geschlossen. Öffnen Sie ihn wieder, um Änderungen vorzunehmen.",
