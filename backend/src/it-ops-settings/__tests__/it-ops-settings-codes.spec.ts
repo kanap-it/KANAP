@@ -1,5 +1,6 @@
 import * as assert from 'node:assert/strict';
-import { generateCatalogCode, prepareCatalogListForWrite, slugifyCatalogCode } from '../catalog-codes';
+import { catalogAliases, generateCatalogCode, normalizeTranslations, prepareCatalogListForWrite, slugifyCatalogCode } from '../catalog-codes';
+import { resolveClassificationOption } from '../classification-catalog';
 import { exportCatalogLabels, findCatalogOption, resolveCatalogCode } from '../catalog-resolve';
 
 // Generation: accents, punctuation, no usable ASCII, truncation leaves room for the suffix.
@@ -47,4 +48,19 @@ assert.equal(resolveCatalogCode('', options), null);
 const row: Record<string, any> = { category: 'high', tags: ['high', 'other'], untouched: 'x', empty: null };
 exportCatalogLabels(row, { category: options, tags: options, empty: options });
 assert.deepEqual(row, { category: 'Élevée', tags: ['Élevée', 'other'], untouched: 'x', empty: null });
-console.log('IT Ops settings codes, aliases, resolution and export passed');
+
+// Translations: known locales, trimmed, empty fields dropped; translated names are aliases too.
+assert.deepEqual(normalizeTranslations({ fr: { label: ' Élevée ', description: '' }, de: { label: '' }, xx: { label: 'nope' }, es: { description: 'Solo descripción' } }), { fr: { label: 'Élevée' }, es: { description: 'Solo descripción' } });
+assert.equal(normalizeTranslations({ fr: { label: '' } }), undefined);
+assert.equal(normalizeTranslations('bad'), undefined);
+assert.throws(() => normalizeTranslations({ fr: { label: 'x'.repeat(201) } }), /too long/);
+assert.deepEqual(catalogAliases({ code: 'high', label: 'High', translations: { fr: { label: 'Élevée' }, de: { description: 'nur Beschreibung' } } }), ['high', 'élevée']);
+const translated = prepareCatalogListForWrite([{ code: 'high', label: 'High', translations: { fr: { label: 'Élevée' } } }, { code: 'low', label: 'Low' }], { listName: 'Test' });
+assert.deepEqual(translated[0].translations, { fr: { label: 'Élevée' } });
+assert.throws(() => prepareCatalogListForWrite([{ code: 'high', label: 'High', translations: { fr: { label: 'Basse' } } }, { code: 'low', label: 'Basse' }], { listName: 'Test' }), /clashes with/);
+assert.throws(() => prepareCatalogListForWrite([{ code: 'web', label: 'Web', translations: { fr: { label: 'Web, mobile' } } }], { listName: 'Test', commaSeparatedInCsv: true }), /comma/);
+const translatedOptions = [{ code: 'high', label: 'High', translations: { fr: { label: 'Élevée' } } }, { code: 'low', label: 'Low' }];
+assert.equal(findCatalogOption('élevée', translatedOptions)?.code, 'high');
+assert.equal(resolveClassificationOption('Élevée', translatedOptions), 'high');
+assert.throws(() => resolveClassificationOption('Moyenne', translatedOptions), /Unknown or ambiguous/);
+console.log('IT Ops settings codes, aliases, translations, resolution and export passed');

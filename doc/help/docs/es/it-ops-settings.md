@@ -51,6 +51,12 @@ Una lista que incumple una de estas reglas no se guarda hasta que la corrija; la
 
 Los valores integrados que KANAP gestiona por sí mismo (los cuatro estados del ciclo de vida, los dominios Workgroup y N/A) no se pueden editar ni eliminar. Las zonas de red y los tipos de activo predeterminados se pueden editar y retirar, pero no eliminar: el servidor los volvería a añadir.
 
+### Traducir sus valores
+
+Los valores que escribe se muestran tal cual en todos los idiomas. Para mostrarlos en el idioma de cada usuario, use la acción **Traducir** en una fila: el cuadro de diálogo presenta el nombre base (y la descripción en los niveles de clasificación) y un campo por idioma. Un campo dejado vacío usa la traducción automática mientras el valor siga siendo un valor predeterminado de KANAP; de lo contrario, el texto base. Guardar las traducciones nunca cambia el texto base, y un nombre traducido se puede usar en los archivos CSV y en la API igual que el propio nombre, por lo que no debe duplicar otro valor de la lista.
+
+Los editores siempre muestran y editan el texto base; cuando el nombre mostrado difiere en su idioma, la fila lo indica («Se muestra: …»).
+
 ---
 
 ## Ubicaciones

@@ -89,6 +89,16 @@ async function main() {
     await assert.rejects(() => settings.updateSettings(tenantId, { ipAddressTypes: tolerant.ipAddressTypes }, { manager: publisher.manager }), /clashes with/);
     assert.equal((await settings.updateSettings(tenantId, { ipAddressTypes: [{ code: 'a', label: 'Same' }, { code: 'b', label: 'Other' }] as any }, { manager: publisher.manager })).ipAddressTypes[1].label, 'Other');
 
+    // Translations: saving only a translation persists it, survives a reload and becomes an import alias.
+    const providers = (await settings.getSettings(tenantId, { manager: publisher.manager })).serverProviders;
+    const translatedProviders = providers.map((item) => item.code === 'aws' ? { ...item, translations: { fr: { label: 'Amazon Web Services (FR)' }, de: { description: 'Nur Beschreibung' } } } : item);
+    const savedTranslations = await settings.updateSettings(tenantId, { serverProviders: translatedProviders }, { manager: publisher.manager });
+    assert.deepEqual(savedTranslations.serverProviders.find((item) => item.code === 'aws')?.translations, { fr: { label: 'Amazon Web Services (FR)' }, de: { description: 'Nur Beschreibung' } });
+    const reloaded = await service(writer).getSettings(tenantId, { manager: writer.manager });
+    assert.equal(reloaded.serverProviders.find((item) => item.code === 'aws')?.translations?.fr?.label, 'Amazon Web Services (FR)');
+    assert.equal(reloaded.serverProviders.find((item) => item.code === 'aws')?.label, 'AWS', 'the base name is untouched');
+    await assert.rejects(() => settings.updateSettings(tenantId, { serverProviders: [...reloaded.serverProviders, { label: 'Amazon Web Services (FR)' }] as any }, { manager: publisher.manager }), /clashes with/);
+
     // Order 1: a writer holding the shared lock delays the removal, which then sees the new reference and refuses.
     await writer.startTransaction();
     const writerSettings = await service(writer).getSettingsForWrite(tenantId, writer.manager);

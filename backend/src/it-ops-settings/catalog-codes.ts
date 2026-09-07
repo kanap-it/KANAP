@@ -9,6 +9,35 @@ import { BadRequestException } from '@nestjs/common';
 const MAX_CODE_LENGTH = 64;
 const GENERATED_BASE_LENGTH = 56;
 
+export const CATALOG_LOCALES = ['en', 'fr', 'de', 'es'] as const;
+export type CatalogLocale = (typeof CATALOG_LOCALES)[number];
+/** Per-locale overrides of a value's name and description; an absent field falls back (default translation, then base text). */
+export type CatalogTranslations = Partial<Record<CatalogLocale, { label?: string; description?: string }>>;
+
+/** Keeps known locales and non-empty fields only; returns undefined when nothing remains. */
+export function normalizeTranslations(raw: unknown): CatalogTranslations | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const result: CatalogTranslations = {};
+  for (const locale of CATALOG_LOCALES) {
+    const entry = (raw as Record<string, unknown>)[locale];
+    if (!entry || typeof entry !== 'object') continue;
+    const label = String((entry as Record<string, unknown>).label ?? '').trim();
+    const description = String((entry as Record<string, unknown>).description ?? '').trim();
+    if (label.length > 200) throw new BadRequestException(`Translation "${label}" is too long (200 characters maximum)`);
+    if (description.length > 4000) throw new BadRequestException('A translated description is too long (4000 characters maximum)');
+    if (!label && !description) continue;
+    result[locale] = { ...(label ? { label } : {}), ...(description ? { description } : {}) };
+  }
+  return Object.keys(result).length ? result : undefined;
+}
+
+/** Every alias a value answers to: its code, its name and its translated names. */
+export function catalogAliases(row: { code?: unknown; label?: unknown; translations?: CatalogTranslations }): string[] {
+  const aliases = [normalizeAlias(row.code), normalizeAlias(row.label)];
+  for (const locale of CATALOG_LOCALES) aliases.push(normalizeAlias(row.translations?.[locale]?.label));
+  return [...new Set(aliases.filter(Boolean))];
+}
+
 export function normalizeAlias(value: unknown): string {
   return String(value ?? '').trim().toLowerCase();
 }
@@ -34,7 +63,7 @@ export function generateCatalogCode(label: unknown, taken: Set<string>): string 
   return candidate;
 }
 
-export type CatalogRowLike = { code?: unknown; label?: unknown; [key: string]: unknown };
+export type CatalogRowLike = { code?: unknown; label?: unknown; translations?: unknown; [key: string]: unknown };
 export type PrepareListOptions = {
   /** Human name of the list for error messages. */
   listName: string;
@@ -69,10 +98,14 @@ export function prepareCatalogListForWrite<T extends CatalogRowLike>(rows: unkno
     if (label.length > 200) throw new BadRequestException(`${options.listName}: "${label}" is too long (200 characters maximum)`);
     if (options.commaSeparatedInCsv && /[,;]/.test(label)) throw new BadRequestException(`${options.listName}: "${label}" cannot contain a comma or a semicolon`);
     row.label = label;
+    const translations = normalizeTranslations(row.translations);
+    if (translations) row.translations = translations; else delete row.translations;
+    if (options.commaSeparatedInCsv && Object.values(translations ?? {}).some((entry) => /[,;]/.test(entry.label ?? ''))) throw new BadRequestException(`${options.listName}: a translation of "${label}" contains a comma or a semicolon`);
     if (!normalizeAlias(row.code)) row.code = generateCatalogCode(label, taken);
-    for (const alias of [normalizeAlias(row.code), normalizeAlias(label)]) {
+    // Names, codes and translated names are all aliases: each designates one entry, in any language.
+    for (const alias of catalogAliases({ code: row.code, label, translations })) {
       const owner = aliases.get(alias);
-      if (owner !== undefined && owner !== index) throw new BadRequestException(`${options.listName}: "${label}" clashes with "${String(list[owner].label)}" (names and codes must be unique)`);
+      if (owner !== undefined && owner !== index) throw new BadRequestException(`${options.listName}: "${label}" clashes with "${String(list[owner].label)}" (names, translations and codes must be unique)`);
       aliases.set(alias, index);
     }
   });

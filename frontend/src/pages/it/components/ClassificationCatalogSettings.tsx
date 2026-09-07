@@ -3,6 +3,7 @@ import { classificationText } from '../../../utils/applicationClassification';
 import React from 'react';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import TranslateIcon from '@mui/icons-material/Translate';
 import { Alert, Box, Button, Checkbox, IconButton, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { KanapDialog } from '../../../components/design';
@@ -10,7 +11,10 @@ import type { ApplicationClassificationCatalog, BusinessCriticalityLevel, Classi
 import { updateItOpsSettings } from '../../../services/itOpsSettings';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { useCatalogRemoval } from '../../../components/settings/useCatalogRemoval';
+import { useCatalogTranslations } from '../../../components/settings/CatalogTranslationsDialog';
 import { catalogListIssues } from '../../../components/settings/catalogValidation';
+import { classificationDefaults } from '../../../utils/applicationClassification';
+import { localizeCatalogItem, toCatalogLocale } from '../../../utils/catalogLocalization';
 
 type Props = { settings: ItOpsSettings };
 type Kind = 'business' | 'level' | 'wave';
@@ -26,14 +30,19 @@ function stripCatalog(settings: ItOpsSettings): ApplicationClassificationCatalog
 
 const fieldSx = { '& input': { fontSize: 12, py: 0.5 } } as const;
 const headerSx = { fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' } as const;
-const columns = (kind: Kind) => kind === 'business' ? '52px 150px minmax(180px,1fr) 105px 84px 80px' : '52px 150px minmax(180px,1fr) 84px 80px';
+const columns = (kind: Kind) => kind === 'business' ? '52px 150px minmax(180px,1fr) 105px 84px 116px' : '52px 150px minmax(180px,1fr) 84px 116px';
 
 /** Rows are the order: first = most severe (or first restored). The server assigns ranks from that order and generates codes from names. */
 function LevelRows<T extends ClassificationLevel | BusinessCriticalityLevel | RecoveryWave>({ rows, kind, help, usageList, onChange }: { rows: T[]; kind: Kind; help: string; usageList: string; onChange: (rows: T[]) => void }) {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const patch = (index: number, next: Partial<T>) => onChange(rows.map((row, i) => i === index ? { ...row, ...next } : row));
   const removal = useCatalogRemoval(usageList);
+  const translations = useCatalogTranslations();
   const issues = catalogListIssues(rows);
+  // Editable fields are always the base text; the row shows what the user's language displays when it differs.
+  const defaults = classificationDefaults(usageList);
+  const locale = toCatalogLocale(i18n.resolvedLanguage || i18n.language);
+  const shownAs = (row: T) => { const localized = localizeCatalogItem(row as any, locale, defaults); return localized.label !== row.label ? localized.label : null; };
   const move = (index: number, delta: number) => {
     const next = [...rows];
     const [row] = next.splice(index, 1);
@@ -58,14 +67,19 @@ function LevelRows<T extends ClassificationLevel | BusinessCriticalityLevel | Re
       <Box>
         <TextField value={row.label} onChange={(e) => patch(index, { label: e.target.value } as Partial<T>)} placeholder="e.g., Tier 1" size="small" sx={fieldSx} inputProps={{ 'aria-label': classificationText('Name') }} fullWidth />
         {issues.get(index) && <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.25 }}>{t(`enumEditor.${issues.get(index)}`)}</Typography>}
+        {shownAs(row) && <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.25 }}>{t('enumEditor.shownAs', { value: shownAs(row) })}</Typography>}
       </Box>
       <TextField value={row.description || ''} onChange={(e) => patch(index, { description: e.target.value } as Partial<T>)} placeholder={classificationText('Shown under the name when choosing a level')} size="small" sx={fieldSx} inputProps={{ 'aria-label': classificationText('Description') }} />
       {kind === 'business' && <TextField value={(row as BusinessCriticalityLevel).maxMtdMinutes ?? ''} onChange={(e) => patch(index, { maxMtdMinutes: e.target.value === '' ? null : Number(e.target.value) } as unknown as Partial<T>)} placeholder={classificationText('No limit')} type="number" size="small" sx={fieldSx} inputProps={{ 'aria-label': classificationText('Maximum tolerable downtime (minutes)'), min: 1 }} />}
       <Checkbox checked={!!row.deprecated} onChange={(e) => patch(index, { deprecated: e.target.checked } as Partial<T>)} size="small" inputProps={{ 'aria-label': `${classificationText('No longer offered')} ${row.label}` }} />
-      <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: row.label || row.code, key: row.code ? { code: row.code } : null, onRemove: () => onChange(rows.filter((_, i) => i !== index)), onRetire: () => patch(index, { deprecated: true } as Partial<T>) })}>{t('enumEditor.remove')}</Button>
+      <Box sx={{ display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+        {row.code && <IconButton size="small" aria-label={`${t('enumEditor.translate')} ${row.label}`} sx={{ color: 'kanap.text.secondary', mr: 0.5 }} onClick={() => translations.openTranslations({ item: row as any, withDescription: true, defaults, onSave: (next) => patch(index, { translations: next } as Partial<T>) })}><TranslateIcon sx={{ fontSize: 17 }} /></IconButton>}
+        <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: row.label || row.code, key: row.code ? { code: row.code } : null, onRemove: () => onChange(rows.filter((_, i) => i !== index)), onRetire: () => patch(index, { deprecated: true } as Partial<T>) })}>{t('enumEditor.remove')}</Button>
+      </Box>
     </Box>)}
     <Button variant="action" sx={{ alignSelf: 'flex-start' }} onClick={() => onChange([...rows, ({ code: '', label: '', description: '', deprecated: false, ...(kind === 'wave' ? { order: rows.length } : { rank: 0 }), ...(kind === 'business' ? { maxMtdMinutes: null } : {}) } as T)])}>{classificationText('Add level')}</Button>
     {removal.dialog}
+    {translations.dialog}
   </Stack>;
 }
 

@@ -434,7 +434,14 @@
       "subnets_one": "{{count}} subred",
       "subnets_other": "{{count}} subredes"
     },
-    "retiredSuffix": "ya no se propone"
+    "retiredSuffix": "ya no se propone",
+    "translate": "Traducir",
+    "translationsTitle": "Traducciones de «{{name}}»",
+    "baseName": "Nombre",
+    "baseDescription": "Descripción",
+    "description": "Descripción",
+    "translationsHelp": "Deje un campo vacío para usar la traducción automática cuando exista; de lo contrario, el texto base.",
+    "shownAs": "Se muestra: {{value}}"
   },
   "settingsSection": {
     "addItem": "Agregar elemento",

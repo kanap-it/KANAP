@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
-import { normalizeAlias } from './catalog-codes';
+import { catalogAliases, normalizeAlias, type CatalogTranslations } from './catalog-codes';
 
-export type CatalogOptionLike = { code: string; label?: string | null; deprecated?: boolean };
+export type CatalogOptionLike = { code: string; label?: string | null; deprecated?: boolean; translations?: CatalogTranslations };
 
 /**
  * Shared resolution policy for catalog values coming from the API, CSV or Plaid: an input matches an
@@ -11,7 +11,7 @@ export type CatalogOptionLike = { code: string; label?: string | null; deprecate
 export function findCatalogOption<T extends CatalogOptionLike>(input: unknown, options: T[]): T | null {
   const key = normalizeAlias(input);
   if (!key) return null;
-  const matches = options.filter((option) => normalizeAlias(option.code) === key || normalizeAlias(option.label) === key);
+  const matches = options.filter((option) => catalogAliases(option).includes(key));
   const distinct = [...new Map(matches.map((option) => [option.code, option])).values()];
   if (distinct.length > 1) throw new BadRequestException(`"${String(input)}" matches several values (${distinct.map((option) => option.label || option.code).join(', ')}); use the exact name of one of them`);
   return distinct[0] ?? null;

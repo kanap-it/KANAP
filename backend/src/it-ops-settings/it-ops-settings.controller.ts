@@ -14,7 +14,8 @@ const text = (name: string, fallback?: string): FieldReader => (row) => {
   const value = row[name] ?? (fallback ? row[fallback] : undefined);
   return value === undefined || value === null ? undefined : String(value).trim();
 };
-const base = { code, label, deprecated };
+const translations: FieldReader = (row) => row.translations === undefined || row.translations === null ? undefined : row.translations;
+const base = { code, label, deprecated, translations };
 const tiered = { ...base, graph_tier: (row: any) => row.graph_tier };
 
 /** Fields accepted per list on PATCH; anything else in the body is ignored. */

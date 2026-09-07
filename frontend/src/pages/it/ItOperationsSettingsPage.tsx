@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Checkbox,
+  IconButton,
   FormControlLabel,
   Paper,
   Stack,
@@ -30,6 +31,8 @@ import type {
 import useItOpsSettings from '../../hooks/useItOpsSettings';
 import { useVirtualRows } from '../../hooks/useVirtualRows';
 import { useCatalogRemoval } from '../../components/settings/useCatalogRemoval';
+import { useCatalogTranslations } from '../../components/settings/CatalogTranslationsDialog';
+import TranslateIcon from '@mui/icons-material/Translate';
 import { catalogListIssues } from '../../components/settings/catalogValidation';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import api from '../../api';
@@ -104,6 +107,7 @@ const listsEqual = (a: ItOpsEnumOption[], b: ItOpsEnumOption[]): boolean => {
     if (((left as any).graph_tier || undefined) !== ((right as any).graph_tier || undefined)) return false;
     if (((left as any).typicalPorts || undefined) !== ((right as any).typicalPorts || undefined)) return false;
     if (!!(left as any).is_physical !== !!(right as any).is_physical) return false;
+    if (JSON.stringify((left as any).translations ?? null) !== JSON.stringify((right as any).translations ?? null)) return false;
   }
   return true;
 };
@@ -118,6 +122,7 @@ const osListsEqual = (a: OperatingSystemOption[], b: OperatingSystemOption[]): b
     if (!!left.deprecated !== !!right.deprecated) return false;
     if ((left.standardSupportEnd || '') !== (right.standardSupportEnd || '')) return false;
     if ((left.extendedSupportEnd || '') !== (right.extendedSupportEnd || '')) return false;
+    if (JSON.stringify((left as any).translations ?? null) !== JSON.stringify((right as any).translations ?? null)) return false;
   }
   return true;
 };
@@ -231,6 +236,11 @@ interface OperatingSystemsEditorProps {
   hideAddButton?: boolean;
 }
 
+function TranslateButton({ label, onClick }: { label: string; onClick: () => void }) {
+  const { t } = useTranslation('common');
+  return <IconButton size="small" aria-label={`${t('enumEditor.translate')} ${label}`} sx={{ color: 'kanap.text.secondary', mr: 0.5 }} onClick={onClick}><TranslateIcon sx={{ fontSize: 17 }} /></IconButton>;
+}
+
 function IssueText({ issue }: { issue?: string }) {
   const { t } = useTranslation('common');
   return issue ? <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.25 }}>{t(`enumEditor.${issue}`)}</Typography> : null;
@@ -280,6 +290,7 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
     });
   };
   const removal = useCatalogRemoval('operatingSystems');
+  const translations = useCatalogTranslations();
   const issues = React.useMemo(() => catalogListIssues(localItems), [localItems]);
 
   return (
@@ -327,7 +338,8 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
                 <TableCell>
                   <Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `No longer offered ${item.label}` }} />
                 </TableCell>
-                <TableCell align="right">
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                  {item.code && <TranslateButton label={item.label} onClick={() => translations.openTranslations({ item, onSave: (next) => handleUpdate(item.localId, { translations: next } as any) })} />}
                   <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button>
                 </TableCell>
               </TableRow>
@@ -339,6 +351,7 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
         </Table>
       </TableContainer>
       {removal.dialog}
+      {translations.dialog}
     </Paper>
   );
 });
@@ -398,6 +411,7 @@ const ConnectionTypesEditor = React.memo(function ConnectionTypesEditor({
   );
 
   const removal = useCatalogRemoval('connectionTypes');
+  const translations = useCatalogTranslations();
   const issues = React.useMemo(() => catalogListIssues(localItems), [localItems]);
 
   return (
@@ -436,7 +450,10 @@ const ConnectionTypesEditor = React.memo(function ConnectionTypesEditor({
                 <TableCell sx={{ verticalAlign: 'top' }}><TextField value={item.label} onChange={(e) => handleUpdate(item.localId, { label: e.target.value })} size="small" fullWidth placeholder="e.g., HTTPS" inputProps={{ 'aria-label': 'Name' }} /><IssueText issue={issues.get(localItems.indexOf(item))} /></TableCell>
                 <TableCell><TextField value={item.typicalPorts || ''} onChange={(e) => handleUpdate(item.localId, { typicalPorts: e.target.value })} size="small" fullWidth placeholder="e.g., 80, 443" /></TableCell>
                 <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `No longer offered ${item.label}` }} /></TableCell>
-                <TableCell align="right"><Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button></TableCell>
+                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                  {item.code && <TranslateButton label={item.label} onClick={() => translations.openTranslations({ item, onSave: (next) => handleUpdate(item.localId, { translations: next } as any) })} />}
+                  <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button>
+                </TableCell>
               </TableRow>
             ))}
             {useVirtual && paddingBottom > 0 && (
@@ -446,6 +463,7 @@ const ConnectionTypesEditor = React.memo(function ConnectionTypesEditor({
         </Table>
       </TableContainer>
       {removal.dialog}
+      {translations.dialog}
     </Paper>
   );
 });
@@ -643,6 +661,7 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
     [handleUpdate]
   );
   const removal = useCatalogRemoval('domains');
+  const translations = useCatalogTranslations();
   const issues = React.useMemo(() => catalogListIssues(localItems, { skipCodes: new Set(localItems.filter((row: any) => row.system).map((row: any) => String(row.code).toLowerCase())) }), [localItems]);
 
   return (
@@ -681,12 +700,13 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
                   <TableCell sx={{ verticalAlign: 'top' }}><TextField value={item.label || ''} onChange={(e) => handleLabelChange(item.localId, e.target.value, item.dns_suffix || '', item.label || '')} size="small" fullWidth placeholder="e.g., Corporate AD" disabled={isSystem} InputProps={{ readOnly: isSystem }} inputProps={{ 'aria-label': 'Name' }} /><IssueText issue={issues.get(localItems.indexOf(item))} /></TableCell>
                   <TableCell><TextField value={item.dns_suffix || ''} onChange={(e) => handleUpdate(item.localId, { dns_suffix: e.target.value.toLowerCase() })} size="small" fullWidth placeholder="e.g., corp.example.com" disabled={isSystem} InputProps={{ readOnly: isSystem }} /></TableCell>
                   <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} disabled={isSystem} inputProps={{ 'aria-label': `No longer offered ${item.label}` }} /></TableCell>
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                     {isSystem ? (
                       <Typography variant="caption" color="text.secondary">Built-in</Typography>
-                    ) : (
+                    ) : (<>
+                      {item.code && <TranslateButton label={item.label} onClick={() => translations.openTranslations({ item, onSave: (next) => handleUpdate(item.localId, { translations: next } as any) })} />}
                       <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button>
-                    )}
+                    </>)}
                   </TableCell>
                 </TableRow>
               );
@@ -698,6 +718,7 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
         </Table>
       </TableContainer>
       {removal.dialog}
+      {translations.dialog}
     </Paper>
   );
 });

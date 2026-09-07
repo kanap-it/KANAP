@@ -1,10 +1,15 @@
 import api from '../api';
 
+export type CatalogLocale = 'en' | 'fr' | 'de' | 'es';
+/** Per-locale overrides of a value's name and description typed by the tenant; an absent field falls back. */
+export type CatalogTranslations = Partial<Record<CatalogLocale, { label?: string; description?: string }>>;
+
 export type ItOpsEnumOption = {
   code: string;
   label: string;
   deprecated?: boolean;
   category?: string;
+  translations?: CatalogTranslations;
   // UI-only helper for stable row keys; ignored by backend
   localId?: string;
 };

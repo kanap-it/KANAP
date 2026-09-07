@@ -51,6 +51,12 @@ A list that breaks one of these rules is not saved until you fix it; the row sho
 
 Built-in values that KANAP manages itself (the four lifecycle statuses, the Workgroup and N/A domains) cannot be edited or removed. Default network zones and asset types can be edited and retired but not removed: the server would add them back.
 
+### Translating your values
+
+The values you type are shown as is in every language. To show them in the language of each user, use the **Translate** action on a row: the dialog shows the base name (and description for classification levels) and one field per language. A field left empty uses the automatic translation when the value is still a KANAP default, otherwise the base text. Saving translations never changes the base text, and a translated name can be used in CSV files and the API like the name itself, which is why it must not duplicate another value of the list.
+
+Editors always show and edit the base text; when the displayed name differs for your language, the row says so ("Shown: …").
+
 ---
 
 ## Locations

@@ -434,7 +434,14 @@
       "subnets_one": "{{count}} Subnetz",
       "subnets_other": "{{count}} Subnetze"
     },
-    "retiredSuffix": "nicht mehr angeboten"
+    "retiredSuffix": "nicht mehr angeboten",
+    "translate": "Übersetzen",
+    "translationsTitle": "Übersetzungen von „{{name}}“",
+    "baseName": "Name",
+    "baseDescription": "Beschreibung",
+    "description": "Beschreibung",
+    "translationsHelp": "Lassen Sie ein Feld leer, um die automatische Übersetzung zu verwenden, wenn es eine gibt, sonst den Basistext.",
+    "shownAs": "Angezeigt: {{value}}"
   },
   "settingsSection": {
     "addItem": "Element hinzufügen",

@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
+import { catalogAliases, normalizeTranslations, type CatalogTranslations } from './catalog-codes';
 
-export type ClassificationLevel = { code: string; label: string; description: string; rank: number; deprecated?: boolean };
+export type ClassificationLevel = { code: string; label: string; description: string; rank: number; deprecated?: boolean; translations?: CatalogTranslations };
 export type BusinessCriticalityLevel = ClassificationLevel & { maxMtdMinutes: number | null };
 export type RecoveryWave = Omit<ClassificationLevel, 'rank'> & { order: number };
 export type ClassificationCatalog = {
@@ -101,6 +102,8 @@ export function validateClassificationCatalog(catalog: ClassificationCatalog): C
       if (item.deprecated !== undefined && typeof item.deprecated !== 'boolean') throw new BadRequestException(`${key}: deprecated must be boolean`);
       item.label = item.label.trim();
       item.description = item.description.trim();
+      const translations = normalizeTranslations(item.translations);
+      if (translations) item.translations = translations; else delete item.translations;
       if (key === 'recoveryWaves') { delete item.rank; item.order = index; }
       else { delete item.order; item.rank = list.length - index; }
       if (key === 'businessCriticalityLevels') item.maxMtdMinutes = validateDuration(item.maxMtdMinutes ?? null, 'maxMtdMinutes');
@@ -110,12 +113,12 @@ export function validateClassificationCatalog(catalog: ClassificationCatalog): C
   return next;
 }
 
-export function resolveClassificationOption(value: unknown, options: Array<{ code: string; label: string; deprecated?: boolean }>, existing?: string | null): string | null {
+export function resolveClassificationOption(value: unknown, options: Array<{ code: string; label: string; deprecated?: boolean; translations?: CatalogTranslations }>, existing?: string | null): string | null {
   if (value === null) return null;
   if (typeof value !== 'string' || !value.trim()) throw new BadRequestException('Classification must be a tenant code or unambiguous label; use null to clear it');
   const text = value.trim().toLowerCase();
-  const code = options.find((item) => item.code.toLowerCase() === text);
-  const matches = code ? [code] : options.filter((item) => item.label.trim().toLowerCase() === text);
+  // Code, name and translated names are aliases; an input matching several entries is refused.
+  const matches = [...new Map(options.filter((item) => catalogAliases(item).includes(text)).map((item) => [item.code, item])).values()];
   if (matches.length !== 1) throw new BadRequestException(`Unknown or ambiguous classification "${value}"; consult the tenant classification catalog`);
   if (matches[0].deprecated && matches[0].code !== existing) throw new BadRequestException(`Classification "${value}" is deprecated and cannot be newly assigned`);
   return matches[0].code;

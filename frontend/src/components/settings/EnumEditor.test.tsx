@@ -85,6 +85,15 @@ describe('EnumEditor', () => {
     expect(screen.getAllByText('Built-in')).toHaveLength(2);
   });
 
+  it('opens the translations dialog for a saved row and stores the result on the row', async () => {
+    const { onChange } = renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Translate Analytics' }));
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Name Français' }), { target: { value: 'Analytique' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+    expect(onChange.mock.calls[0][0][0]).toMatchObject({ code: 'analytics', label: 'Analytics', translations: { fr: { label: 'Analytique' } } });
+  });
+
   it('derived editors expose their extra columns and pass the guards through', () => {
     const onChange = vi.fn();
     render(

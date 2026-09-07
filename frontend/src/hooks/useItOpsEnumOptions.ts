@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import i18n from '../i18n';
-import { useItOpsSettings } from './useItOpsSettings';
+import { useLocalizedItOpsSettings } from './useLocalizedItOpsSettings';
 import { ItOpsEnumOption } from '../services/itOpsSettings';
 
 type FieldKey =
@@ -26,7 +26,8 @@ type FieldKey =
   | 'incidentCategories';
 
 export function useItOpsEnumOptions() {
-  const { data } = useItOpsSettings();
+  // Display projection: names and descriptions localized for the user; editors use the raw settings hook.
+  const { data } = useLocalizedItOpsSettings();
   const settings = data;
 
   const byField = useMemo<Record<FieldKey, ItOpsEnumOption[]>>(() => ({

@@ -1,5 +1,6 @@
 import i18n from '../i18n';
-import type { ApplicationClassificationCatalog } from '../services/itOpsSettings';
+import type { ApplicationClassificationCatalog, CatalogLocale } from '../services/itOpsSettings';
+import { localizeCatalogList, toCatalogLocale, type CatalogDefaults, type LocalizableCatalogItem } from './catalogLocalization';
 
 type DefaultClassificationCopy = { label: string; description: string };
 type ClassificationAxis = 'businessCriticalityLevels' | 'cyberCriticalityLevels' | 'dataClasses' | 'recoveryWaves';
@@ -31,24 +32,25 @@ const DEFAULT_CLASSIFICATION_COPY: Record<ClassificationAxis, Record<string, Def
   },
 };
 
-function translatedDefault(axis: ClassificationAxis, code: string, source: DefaultClassificationCopy): DefaultClassificationCopy {
-  const locale = i18n.resolvedLanguage?.split('-')[0] || i18n.language?.split('-')[0] || 'en';
+function translatedDefault(axis: ClassificationAxis, code: string, source: DefaultClassificationCopy, locale: string = toCatalogLocale(i18n.resolvedLanguage || i18n.language)): DefaultClassificationCopy {
   const value = i18n.getResource(locale, 'classification-catalog', `${axis}.${code}`) as Partial<DefaultClassificationCopy> | undefined;
   return value && typeof value.label === 'string' && typeof value.description === 'string'
     ? value as DefaultClassificationCopy
     : source;
 }
 
-/** Localizes only untouched, canonical defaults; tenant text is returned byte-for-byte. */
-export function localizeApplicationClassificationCatalog(catalog: ApplicationClassificationCatalog): ApplicationClassificationCatalog {
+/** Shipped defaults of a classification axis, for the field-by-field display projection; undefined for other catalogs. */
+export function classificationDefaults(axis: string): CatalogDefaults | undefined {
+  const source = DEFAULT_CLASSIFICATION_COPY[axis as ClassificationAxis];
+  if (!source) return undefined;
+  return { source, translated: (locale, code) => source[code] ? translatedDefault(axis as ClassificationAxis, code, source[code], locale) : undefined };
+}
+
+/** Display projection of the classification catalog: tenant translations, shipped translations for untouched defaults, base text. */
+export function localizeApplicationClassificationCatalog(catalog: ApplicationClassificationCatalog, locale: CatalogLocale = toCatalogLocale(i18n.resolvedLanguage || i18n.language)): ApplicationClassificationCatalog {
   const next = { ...catalog };
   (Object.keys(DEFAULT_CLASSIFICATION_COPY) as ClassificationAxis[]).forEach((axis) => {
-    const defaults = DEFAULT_CLASSIFICATION_COPY[axis];
-    (next as unknown as Record<ClassificationAxis, unknown>)[axis] = catalog[axis].map((item) => {
-      const source = defaults[item.code];
-      if (!source || item.label !== source.label || item.description !== source.description) return item;
-      return { ...item, ...translatedDefault(axis, item.code, source) };
-    });
+    (next as unknown as Record<ClassificationAxis, unknown>)[axis] = localizeCatalogList(catalog[axis] as LocalizableCatalogItem[], locale, classificationDefaults(axis));
   });
   return next;
 }

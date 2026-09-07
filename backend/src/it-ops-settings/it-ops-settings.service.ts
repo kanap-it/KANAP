@@ -1,6 +1,6 @@
 import { AuditService } from '../audit/audit.service';
 import { ClassificationCatalog, ClassificationLevel, CLASSIFICATION_CATALOG_KEYS, OBSOLETE_CATALOG_METADATA_KEYS, catalogFromMetadata, catalogToMetadata, validateClassificationCatalog } from './classification-catalog';
-import { prepareCatalogListForWrite } from './catalog-codes';
+import { CatalogTranslations, normalizeTranslations, prepareCatalogListForWrite } from './catalog-codes';
 import { CATALOG_USAGE, CatalogUsageItem, UsageKey, countCatalogUsage } from './catalog-usage';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,6 +13,8 @@ export type ItOpsEnumOption = {
   label: string;
   deprecated?: boolean;
   category?: string;
+  /** Per-locale name/description overrides typed by the tenant; absent = fallback. */
+  translations?: CatalogTranslations;
 };
 
 /** Incident register categories served to tenants that never customised the list (also used by the CSV import). */
@@ -520,11 +522,13 @@ export class ItOpsSettingsService {
       const deprecated = !!raw?.deprecated;
       const category =
         raw?.category === 'on_prem' ? 'on_prem' : raw?.category === 'cloud' ? 'cloud' : undefined;
+      const translations = normalizeTranslations(raw?.translations);
       byCode.set(code, {
         code,
         label,
         deprecated,
         ...(category ? { category } : {}),
+        ...(translations ? { translations } : {}),
       });
     }
 
@@ -555,11 +559,13 @@ export class ItOpsSettingsService {
         ? rawTier
         : defaultTierByCode.get(code) || 'center';
 
+      const translations = normalizeTranslations(raw?.translations);
       byCode.set(code, {
         code,
         label,
         deprecated,
         graph_tier,
+        ...(translations ? { translations } : {}),
       } as T);
     }
 
@@ -578,7 +584,8 @@ export class ItOpsSettingsService {
         const code = this.normalizeCode(raw?.code ?? raw?.value);
         const label = this.normalizeLabel(raw?.label, code);
         const deprecated = !!raw?.deprecated;
-        byCode.set(code, { code, label, deprecated });
+        const translations = normalizeTranslations(raw?.translations);
+        byCode.set(code, { code, label, deprecated, ...(translations ? { translations } : {}) });
       }
     }
 
@@ -605,12 +612,14 @@ export class ItOpsSettingsService {
       const deprecated = !!raw?.deprecated;
       const standardSupportEnd = this.parseDate(raw?.standardSupportEnd ?? raw?.standard_support_end, 'standardSupportEnd');
       const extendedSupportEnd = this.parseDate(raw?.extendedSupportEnd ?? raw?.extended_support_end, 'extendedSupportEnd');
+      const translations = normalizeTranslations(raw?.translations);
       byCode.set(code, {
         code,
         label,
         deprecated,
         standardSupportEnd,
         extendedSupportEnd,
+        ...(translations ? { translations } : {}),
       });
     }
 
@@ -634,12 +643,14 @@ export class ItOpsSettingsService {
         rawPorts === undefined || rawPorts === null || String(rawPorts).trim() === ''
           ? undefined
           : String(rawPorts).trim();
+      const translations = normalizeTranslations(raw?.translations);
       byCode.set(code, {
         code,
         label,
         deprecated,
         ...(category ? { category } : {}),
         ...(typicalPorts ? { typicalPorts } : {}),
+        ...(translations ? { translations } : {}),
       });
     }
 
@@ -667,11 +678,13 @@ export class ItOpsSettingsService {
           const def = defaultsMap.get(code);
           is_physical = def?.is_physical ?? false;
         }
+        const translations = normalizeTranslations(raw?.translations);
         byCode.set(code, {
           code,
           label,
           deprecated,
           is_physical,
+          ...(translations ? { translations } : {}),
         });
       }
     }
@@ -839,7 +852,8 @@ export class ItOpsSettingsService {
         const label = this.normalizeLabel(raw?.label, code);
         const dns_suffix = String(raw?.dns_suffix ?? label ?? '').trim().toLowerCase();
         const deprecated = !!raw?.deprecated;
-        byCode.set(code, { code, label, dns_suffix, deprecated, system: false });
+        const translations = normalizeTranslations(raw?.translations);
+        byCode.set(code, { code, label, dns_suffix, deprecated, system: false, ...(translations ? { translations } : {}) });
       }
     }
 
