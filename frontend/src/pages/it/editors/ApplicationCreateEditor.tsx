@@ -11,7 +11,6 @@ import { drawerFieldValueSx } from '../../../theme/formSx';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
-import ApplicationMtdSelect from '../components/ApplicationMtdSelect';
 import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
 export type ApplicationCreateEditorHandle = {
   isDirty: () => boolean;
@@ -34,7 +33,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
   const [editor, setEditor] = React.useState('');
   const [retiredDate, setRetiredDate] = React.useState('');
   const [lifecycle, setLifecycle] = React.useState<string>('active');
-  const [businessMtdMinutes, setBusinessMtdMinutes] = React.useState<number | null>(null);
+  const [criticality, setCriticality] = React.useState<string | null>(null);
   const [cyberCriticality, setCyberCriticality] = React.useState<string | null>(null);
   const [recoveryWave, setRecoveryWave] = React.useState<string | null>(null);
   const [dataClass, setDataClass] = React.useState<string | null>(null);
@@ -82,7 +81,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
     setEditor('');
     setRetiredDate('');
     setLifecycle('active');
-    setBusinessMtdMinutes(null);
+    setCriticality(null);
     setCyberCriticality(null);
     setRecoveryWave(null);
     setDataClass(null);
@@ -110,7 +109,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
         editor: editor || null,
         retired_date: retiredDate || null,
         lifecycle,
-        business_mtd_minutes: businessMtdMinutes,
+        criticality,
         cyber_criticality: cyberCriticality,
         recovery_wave: recoveryWave,
         external_facing: false,
@@ -135,7 +134,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
     } finally {
       setSaving(false);
     }
-  }, [saving, name, supplierId, description, category, editor, retiredDate, lifecycle, businessMtdMinutes, cyberCriticality, recoveryWave, dataClass, version, goLiveDate, endOfSupportDate, isSuite]);
+  }, [saving, name, supplierId, description, category, editor, retiredDate, lifecycle, criticality, cyberCriticality, recoveryWave, dataClass, version, goLiveDate, endOfSupportDate, isSuite]);
 
   useImperativeHandle(ref, () => ({ isDirty: () => dirty, save, reset }), [dirty, save, reset]);
 
@@ -165,8 +164,8 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
       <PropertyRow label="Publisher">
         <TextField value={editor} onChange={(e) => { setEditor(e.target.value); markDirty(); }} fullWidth variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
       </PropertyRow>
-      <PropertyRow label={classificationText("Maximum tolerable downtime (MTD)")}>
-        <ApplicationMtdSelect value={businessMtdMinutes} onCommit={(value) => { setBusinessMtdMinutes(value); markDirty(); }} />
+      <PropertyRow label={classificationText("Business criticality")}>
+        <EnumAutocomplete label={classificationText("Business criticality")} value={criticality || ''} onChange={(v) => { setCriticality(v || null); markDirty(); }} options={(classificationCatalog?.businessCriticalityLevels || []).filter((item) => !item.deprecated).map((item) => ({ label: item.label, value: item.code }))} hideLabel textFieldSx={drawerFieldValueSx} />
       </PropertyRow>
       <PropertyRow label={classificationText("Cyber criticality")}>
         <EnumAutocomplete label={classificationText("Cyber criticality")} value={cyberCriticality || ''} onChange={(v) => { setCyberCriticality(v || null); markDirty(); }} options={(classificationCatalog?.cyberCriticalityLevels || []).filter((item) => !item.deprecated).map((item) => ({ label: item.label, value: item.code }))} hideLabel textFieldSx={drawerFieldValueSx} />

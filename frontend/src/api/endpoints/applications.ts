@@ -83,7 +83,7 @@ export interface CreateApplicationInput {
   supplier_id?: string | null;
   editor?: string | null;
   lifecycle?: string;
-  business_mtd_minutes?: number | null;
+  criticality?: string | null;
   cyber_criticality?: string | null;
   recovery_wave?: string | null;
   rto_minutes?: number | null;

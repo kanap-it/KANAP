@@ -375,7 +375,7 @@ export class AiToolRegistry {
         {
           name: 'get_application_classification_catalog',
           category: 'authoritative',
-          description: 'Return the complete tenant application-classification catalog: business MTD thresholds, allowed MTD durations, cyber and confidentiality severity ranks, recovery-wave order, deprecated historical levels, units, and semantic versions. Use it before interpreting, filtering, sorting, or writing a classification. New or changed business MTD values must come from businessMtdPresets. Codes are authoritative; deprecated values remain readable but cannot be newly assigned.',
+          description: 'Return the complete tenant application-classification catalog: business criticality levels (with their optional maximum tolerable downtime in minutes, an attribute of the level and not of the application), cyber and confidentiality severity ranks, recovery-wave order and deprecated historical levels. Lists are ordered from most to least severe; waves in restoration order. Use it before interpreting, filtering, sorting, or writing a classification. Codes are authoritative; deprecated values remain readable but cannot be newly assigned.',
           inputSchema: GetApplicationClassificationCatalogInputSchema,
           inputSummary: {},
           surfaces: ['chat', 'mcp'],
@@ -388,7 +388,7 @@ export class AiToolRegistry {
               ...catalog,
               durationUnit: 'minutes',
               assignmentPolicy: 'Only active levels may be newly assigned. Deprecated levels remain readable for historical records.',
-              businessPolicy: 'Business criticality is derived from business_mtd_minutes and is never assigned independently.',
+              businessPolicy: 'Business criticality is chosen directly among the tenant levels. Level definitions may mention a maximum tolerable downtime; applications do not store a downtime of their own.',
             };
           },
         },

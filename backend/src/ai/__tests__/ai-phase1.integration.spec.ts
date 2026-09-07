@@ -1494,7 +1494,8 @@ function buildToolIsolationCases(
           assert.deepEqual(result.cyberCriticalityLevels, [{
             code: 'custom_cyber', label: 'Tenant A cyber', description: 'Tenant A definition', rank: 7,
           }]);
-          assert.deepEqual(result.businessMtdPresets, [240, 1440, 4320, 10080]);
+          assert.equal(result.businessMtdPresets, undefined);
+          assert.match(result.businessPolicy, /chosen directly/);
         },
       }];
     case 'search_all':

@@ -1,7 +1,6 @@
 import { ApplicationsCsvService } from '../applications-csv.service';
 import { copyClassification } from './application-classification';
-import { classificationPatch, classificationReadState, versionsEqual } from './application-classification';
-import { ClassificationVersions } from '../../it-ops-settings/classification-catalog';
+import { classificationPatch, classificationReadState } from './application-classification';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -99,9 +98,8 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
         [appId],
       );
     }
-    const catalog = await this.itOpsSettings.getClassificationCatalog(app.tenant_id, { manager: mg });
     const classification_reviewer_name = await this.classificationReviewerName(app, mg);
-    const result: any = { ...app, ...classificationReadState(app, catalog), classification_reviewer_name, owners, companies, departments, links, attachments, data_residency, derived_total_users };
+    const result: any = { ...app, ...classificationReadState(app), classification_reviewer_name, owners, companies, departments, links, attachments, data_residency, derived_total_users };
     if (includeSupport) {
       result.support_contacts = support_contacts;
     }
@@ -181,11 +179,10 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     return this.getManager(opts).transaction((manager) => this.updateLocked(id, body, userId, { ...opts, manager }));
   }
 
-  async reviewClassification(id: string, expectedRevision: number, userId: string | null, opts?: ServiceOpts, expectedVersions?: ClassificationVersions) {
+  async reviewClassification(id: string, expectedRevision: number, userId: string | null, opts?: ServiceOpts) {
     if (!userId) throw new ForbiddenException('A signed-in reviewer is required');
     return this.getManager(opts).transaction(async (manager) => {
       const tenantId = await this.getCurrentTenantId(manager);
-      const catalog = await this.itOpsSettings.lockClassificationCatalog(tenantId, manager);
       const appId = await this.resolveApplicationIdentifier(id, manager);
       await this.assertVisible(appId, opts?.accessScope, manager);
       await manager.query('SELECT id FROM applications WHERE id = $1 AND tenant_id = $2 FOR UPDATE', [appId, tenantId]);
@@ -193,15 +190,14 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
       const app = await repo.findOne({ where: { id: appId, tenant_id: tenantId } });
       if (!app) throw new NotFoundException('Application not found');
       if (!Number.isInteger(expectedRevision) || app.classification_revision !== expectedRevision) throw new ConflictException('Classification changed; reload before marking as reviewed');
-      if (expectedVersions !== undefined && !versionsEqual(expectedVersions, catalog.classificationVersions)) throw new ConflictException('Classification methodology changed; reload before marking as reviewed');
-      if (classificationReadState(app, catalog).classification_review_state === 'incomplete') throw new BadRequestException('Set MTD, cyber criticality, data confidentiality, recovery wave and a brief justification before review');
+      if (classificationReadState(app).classification_review_state === 'incomplete') throw new BadRequestException('Set business criticality, cyber criticality, data confidentiality, recovery wave and a brief justification before review');
       const actor = await manager.query('SELECT id FROM users WHERE id = $1 AND tenant_id = $2', [userId, tenantId]);
       if (!actor.length) throw new ForbiddenException('Reviewer must belong to this tenant');
       const before = { ...app };
-      app.classification_review = { user_id: userId, reviewed_at: new Date().toISOString(), revision: app.classification_revision, versions: catalog.classificationVersions };
+      app.classification_review = { user_id: userId, reviewed_at: new Date().toISOString(), revision: app.classification_revision };
       await repo.save(app);
       await this.audit.log({ table: 'applications', recordId: app.id, action: 'update', before, after: app, userId }, { manager });
-      return Object.assign(app, classificationReadState(app, catalog));
+      return Object.assign(app, classificationReadState(app));
     });
   }
 
@@ -262,7 +258,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     if (!entity.name) throw new BadRequestException('name is required');
     const saved = (await repo.save(entity as any)) as Application;
     await this.audit.log({ table: 'applications', recordId: saved.id, action: 'create', before: null, after: saved, userId }, { manager: mg });
-    return Object.assign(saved, classificationReadState(saved, catalog));
+    return Object.assign(saved, classificationReadState(saved));
   }
 
   /**
@@ -280,7 +276,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     const before = { ...existing };
     const classification = classificationPatch(body, existing, catalog);
     const patch: any = { ...body, ...classification };
-    for (const key of ['id', 'tenant_id', 'created_at', 'sequential_id', 'expected_classification_revision', 'expected_classification_versions']) delete patch[key];
+    for (const key of ['id', 'tenant_id', 'created_at', 'sequential_id']) delete patch[key];
     if (patch.last_dr_test !== undefined) patch.last_dr_test = patch.last_dr_test ? new Date(patch.last_dr_test as any) : null;
     if (patch.retired_date !== undefined) patch.retired_date = patch.retired_date ? new Date(patch.retired_date as any) : null;
     if (patch.end_of_support_date !== undefined) patch.end_of_support_date = patch.end_of_support_date ? new Date(patch.end_of_support_date as any) : null;
@@ -294,7 +290,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     Object.assign(existing, patch, { updated_at: new Date() });
     const saved = (await repo.save(existing as any)) as Application;
     await this.audit.log({ table: 'applications', recordId: saved.id, action: 'update', before, after: saved, userId }, { manager: mg });
-    return Object.assign(saved, classificationReadState(saved, catalog));
+    return Object.assign(saved, classificationReadState(saved));
   }
 
   /**

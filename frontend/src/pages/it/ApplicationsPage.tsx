@@ -55,8 +55,6 @@ type AppRow = {
   editor: string | null;
   lifecycle: string;
   criticality: string;
-  business_mtd_minutes?: number | null;
-  business_criticality_origin?: string;
   cyber_criticality?: string | null;
   recovery_wave?: string | null;
   rto_minutes?: number | null;
@@ -641,10 +639,9 @@ export default function ApplicationsPage() {
         getValues: getAppFilterValues('criticality', { labelFormatter: criticalityLabel }),
         searchable: false,
       },
-      valueFormatter: (p: any) => `${criticalityLabel(p.value)}${p.data?.business_mtd_minutes != null ? ` · ${formatDuration(p.data.business_mtd_minutes)}` : p.data?.business_criticality_origin === 'legacy' ? ` · ${classificationText('Legacy')}` : ''}`,
+      valueFormatter: (p: any) => criticalityLabel(p.value),
       cellRenderer: ClickToCompliance,
     },
-    { headerName: classificationText('MTD'), field: 'business_mtd_minutes', width: 120, defaultHidden: true, filter: 'agNumberColumnFilter', valueFormatter: (p: any) => formatDuration(p.value, ''), cellRenderer: ClickToCompliance },
     { headerName: classificationText("Cyber criticality"), field: 'cyber_criticality', filter: CheckboxSetFilter, floatingFilterComponent: CheckboxSetFloatingFilter, filterParams: { getValues: getAppFilterValues('cyber_criticality', { labelFormatter: (v: any) => catalogLabel('cyber', v) }) }, width: 160, defaultHidden: true, valueFormatter: (p: any) => catalogLabel('cyber', p.value), cellRenderer: ClickToCompliance },
     { headerName: classificationText("Recovery wave"), field: 'recovery_wave', filter: CheckboxSetFilter, floatingFilterComponent: CheckboxSetFloatingFilter, filterParams: { getValues: getAppFilterValues('recovery_wave', { labelFormatter: (v: any) => catalogLabel('wave', v) }) }, width: 160, defaultHidden: true, valueFormatter: (p: any) => catalogLabel('wave', p.value), cellRenderer: ClickToCompliance },
     { headerName: 'RTO', field: 'rto_minutes', width: 110, defaultHidden: true, filter: 'agNumberColumnFilter', valueFormatter: (p: any) => formatDuration(p.value, ''), cellRenderer: ClickToCompliance },

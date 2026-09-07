@@ -30,9 +30,6 @@ const catalog = catalogFromMetadata({
     { code: 'base_custom', label: 'Foundation renamed', description: 'Prerequisites.', order: 5 },
     { code: 'later_custom', label: 'Later', description: 'Later recovery.', order: 40 },
   ],
-  business_mtd_presets: [60, 120, 200, 720],
-  classification_versions: { business: 7, cyber: 8, confidentiality: 9, recovery: 10 },
-  classification_settings_revision: 23,
 });
 
 function context(surface: 'chat' | 'mcp' = 'chat', query: (sql: string) => Promise<any[]> = async () => []) {
@@ -54,9 +51,7 @@ function application(overrides: Record<string, unknown> = {}) {
     sequential_id: 'APP-42',
     name: 'Atlas',
     status: 'enabled',
-    business_mtd_minutes: 720,
     criticality: 'patient',
-    business_criticality_origin: 'derived',
     cyber_criticality: 'custom_calm',
     data_class: 'open_custom',
     recovery_wave: 'later_custom',
@@ -64,7 +59,7 @@ function application(overrides: Record<string, unknown> = {}) {
     rpo_minutes: 30,
     classification_justification: 'Business approved.',
     classification_revision: 12,
-    classification_review: { user_id: 'human', reviewed_at: '2026-09-01T10:00:00Z', revision: 12, versions: catalog.classificationVersions },
+    classification_review: { user_id: 'human', reviewed_at: '2026-09-01T10:00:00Z', revision: 12 },
     ...overrides,
   };
 }
@@ -99,7 +94,8 @@ function mutationHarness() {
 async function testFullTenantCatalogAndToolPermission() {
   assert.equal(catalog.businessCriticalityLevels.find((level) => level.code === 'retired_peak')?.deprecated, true);
   assert.equal(catalog.cyberCriticalityLevels.find((level) => level.rank === 100)?.label, 'Old maximum');
-  assert.equal(catalog.classificationVersions.confidentiality, 9);
+  // Read order is most severe first, whatever the stored order.
+  assert.deepEqual(catalog.businessCriticalityLevels.map((level) => level.code), ['retired_peak', 'stop_now', 'patient']);
   assert.equal(catalog.businessCriticalityLevels.some((level) => level.code === 'medium'), false);
 
   const permissionCalls: any[] = [];
@@ -120,7 +116,8 @@ async function testFullTenantCatalogAndToolPermission() {
     const tools = await registry.listAvailableTools(context(surface) as any);
     assert.ok(tools.some((tool) => tool.name === 'get_application_classification_catalog'));
     const result: any = await registry.execute(context(surface) as any, 'get_application_classification_catalog', {});
-    assert.equal(result.cyberCriticalityLevels[2].code, 'historic_peak');
+    assert.equal(result.cyberCriticalityLevels[0].code, 'historic_peak');
+    assert.match(result.businessPolicy, /chosen directly/);
     assert.equal(result.durationUnit, 'minutes');
     assert.match(result.assignmentPolicy, /Deprecated levels remain readable/);
   }
@@ -131,23 +128,25 @@ async function testFullTenantCatalogAndToolPermission() {
 function testRegistryFiltersSortingAggregationAndSql() {
   const adapted = adaptFilters(applicationsRegistry, {
     cyber_criticality: ['custom_peak'],
-    business_mtd_minutes: { op: 'lte', value: 1440 },
+    rto_minutes: { op: 'lte', value: 1440 },
   });
-  assert.deepEqual(adapted.applied, ['cyber_criticality', 'business_mtd_minutes']);
+  assert.deepEqual(adapted.applied, ['cyber_criticality', 'rto_minutes']);
   assert.deepEqual(adapted.filters, {
     cyber_criticality: { filterType: 'set', values: ['custom_peak'] },
-    business_mtd_minutes: { filterType: 'number', type: 'lessThanOrEqual', filter: 1440 },
+    rto_minutes: { filterType: 'number', type: 'lessThanOrEqual', filter: 1440 },
   });
+  assert.equal((applicationsRegistry.fields as any).business_mtd_minutes, undefined);
   assert.equal(applicationsRegistry.sortFields.cyber_criticality, 'cyber_criticality');
   assert.equal(applicationsRegistry.sortFields.business_criticality_rank, 'business_criticality_rank');
   assert.equal(applicationsRegistry.fields.cyber_criticality.groupable, true);
   assert.equal(applicationsRegistry.aggregate?.groupFields.cyber_criticality.expression, 'a.cyber_criticality');
-  assert.equal(applicationsRegistry.aggregate?.metricFields.business_mtd_minutes.type, 'number');
+  assert.equal(applicationsRegistry.aggregate?.metricFields.rto_minutes.type, 'number');
   assert.equal(applicationsRegistry.aggregate?.metricFields.cyber_criticality_rank.type, 'number');
   const sql = classificationSqlExpressions('a');
   assert.match(sql.cyber_criticality_rank, /cyber_criticality_levels/);
   assert.match(sql.cyber_criticality_rank, /level->>'rank'/);
-  assert.match(sql.classification_review_state, /classification_versions/);
+  assert.doesNotMatch(sql.classification_review_state, /classification_versions/);
+  assert.match(sql.classification_review_state, /BTRIM\(a\.criticality\)/);
   assert.match(applicationsRegistry.aggregate!.metricFields.cyber_criticality_rank.expression, /tenants classification_tenant/);
 }
 
@@ -156,30 +155,23 @@ async function testCreateAndUpdatePreviews() {
   const create = await service.prepareCreatePreview(executionContext as any, {
     entity_type: 'applications',
     fields: {
-      name: 'New Atlas', dmia: 200, cyber: 'Renamed maximum', confidentiality: null,
+      name: 'New Atlas', business_criticality: 'Immediate', cyber: 'Renamed maximum', confidentiality: null,
       wave: 'Foundation renamed', rto: null, rpo: 0, justification: null,
     },
   });
   assert.deepEqual(create.mutationInput.fields, {
-    name: 'New Atlas', business_mtd_minutes: 200, cyber_criticality: 'custom_peak', data_class: null,
+    name: 'New Atlas', criticality: 'stop_now', cyber_criticality: 'custom_peak', data_class: null,
     recovery_wave: 'base_custom', rto_minutes: null, rpo_minutes: 0, classification_justification: null,
   });
-  assert.deepEqual((create.mutationInput.classification as any).expected_classification_versions, catalog.classificationVersions);
-  assert.equal((create.mutationInput.classification as any).derived_business_criticality, 'stop_now');
-  assert.equal((create.mutationInput.classification as any).expected_classification_revision, undefined);
-  assert.equal((create.mutationInput.fields as any).criticality, undefined);
+  assert.deepEqual(create.mutationInput.classification, { has_classification_input: true, invalidates_review: false });
   assert.equal((create.mutationInput.fields as any).classification_review, undefined);
 
   const update = await service.prepareUpdatePreview(executionContext as any, {
     entity_type: 'applications', ref: APP_ID,
-    fields: { business_mtd_minutes: 120, cyber_criticality: null },
+    fields: { criticality: 'stop_now', cyber_criticality: null },
   });
-  const state: any = update.mutationInput.classification;
-  assert.equal(state.expected_classification_revision, 12);
-  assert.deepEqual(state.expected_classification_versions, catalog.classificationVersions);
-  assert.equal(state.derived_business_criticality, 'stop_now');
-  assert.equal(state.invalidates_review, true);
-  assert.deepEqual(update.currentValues.values, { business_mtd_minutes: 720, cyber_criticality: 'custom_calm' });
+  assert.deepEqual(update.mutationInput.classification, { has_classification_input: true, invalidates_review: true });
+  assert.deepEqual(update.currentValues.values, { criticality: 'patient', cyber_criticality: 'custom_calm' });
   const shown = service.presentPreview({ id: 'preview-1', status: 'pending', target_entity_type: 'applications', target_entity_id: APP_ID, mutation_input: update.mutationInput, current_values: update.currentValues } as any);
   assert.equal(shown.changes.criticality.to, 'Immediate');
   assert.equal(shown.changes.classification_review_state.to, 'Stale after this change');
@@ -188,15 +180,18 @@ async function testCreateAndUpdatePreviews() {
     entity_type: 'applications', fields: { name: 'Bad', cyber_criticality: 'historic_peak' },
   }), /deprecated and cannot be newly assigned/);
   await assert.rejects(() => service.prepareCreatePreview(executionContext as any, {
-    entity_type: 'applications', fields: { name: 'Bad MTD', business_mtd_minutes: 201 },
-  }), /tenant-configured presets/);
+    entity_type: 'applications', fields: { name: 'Bad level', criticality: 'retired_peak' },
+  }), /deprecated and cannot be newly assigned/);
+  await assert.rejects(() => service.prepareCreatePreview(executionContext as any, {
+    entity_type: 'applications', fields: { name: 'No downtime field', business_mtd_minutes: 240 },
+  }));
 }
 
 async function testExecutionControlsConflictsAndUndoInputs() {
   const { service, calls, context: executionContext, setLive } = mutationHarness();
   const prepared = await service.prepareUpdatePreview(executionContext as any, {
     entity_type: 'applications', ref: APP_ID,
-    fields: { business_mtd_minutes: 120, cyber_criticality: null },
+    fields: { criticality: 'stop_now', cyber_criticality: null },
   });
   const preview: any = {
     id: 'preview-update', status: 'approved', target_entity_type: 'applications', target_entity_id: APP_ID,
@@ -204,26 +199,18 @@ async function testExecutionControlsConflictsAndUndoInputs() {
   };
   await service.executePreview(executionContext as any, preview);
   assert.equal(calls.update.length, 1);
-  assert.deepEqual(calls.update[0].fields, {
-    business_mtd_minutes: 120,
-    cyber_criticality: null,
-    expected_classification_versions: catalog.classificationVersions,
-    expected_classification_revision: 12,
-  });
-  assert.equal(calls.update[0].fields.criticality, undefined);
+  assert.deepEqual(calls.update[0].fields, { criticality: 'stop_now', cyber_criticality: null });
   assert.equal(calls.update[0].fields.classification_review, undefined);
   assert.equal(calls.audit.length, 1);
 
   setLive(application({ cyber_criticality: 'custom_peak' }));
   await assert.rejects(() => service.executePreview(executionContext as any, preview), ConflictException);
 
-  setLive(application({ business_mtd_minutes: 120, criticality: 'stop_now', cyber_criticality: null, classification_revision: 13 }));
+  setLive(application({ criticality: 'stop_now', cyber_criticality: null, classification_revision: 13 }));
   const reverse = await service.prepareReverseUpdatePreview(executionContext as any, preview);
-  assert.deepEqual(reverse.mutationInput.fields, { business_mtd_minutes: 720, cyber_criticality: 'custom_calm' });
-  assert.equal((reverse.mutationInput.fields as any).criticality, undefined);
+  assert.deepEqual(reverse.mutationInput.fields, { criticality: 'patient', cyber_criticality: 'custom_calm' });
   assert.equal((reverse.mutationInput.fields as any).classification_review, undefined);
-  assert.equal((reverse.mutationInput.classification as any).expected_classification_revision, 13);
-  assert.equal((reverse.mutationInput.classification as any).derived_business_criticality, 'patient');
+  assert.deepEqual(reverse.mutationInput.classification, { has_classification_input: true, invalidates_review: true });
 }
 
 async function main() {

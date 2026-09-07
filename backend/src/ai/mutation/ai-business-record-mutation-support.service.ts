@@ -13,7 +13,7 @@ import { ConnectionsService } from '../../connections/services/connections.servi
 import { ContractsService } from '../../contracts/contracts.service';
 import { InterfacesService } from '../../interfaces/services/interfaces.service';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
-import { ClassificationCatalog, deriveBusinessCriticality, resolveClassificationOption, validateBusinessMtdChoice } from '../../it-ops-settings/classification-catalog';
+import { ClassificationCatalog, resolveClassificationOption } from '../../it-ops-settings/classification-catalog';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
 import { SpendItemsService } from '../../spend/spend-items.service';
@@ -168,7 +168,7 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
       predecessor_id: { label: 'Predecessor', kind: 'relation', nullable: true, relationTarget: 'applications', aliases: ['predecessor'] },
       lifecycle: { label: 'Lifecycle', kind: 'enum', enumValues: APPLICATION_LIFECYCLES },
       environment: { label: 'Environment', kind: 'enum', enumValues: ENVIRONMENTS },
-      business_mtd_minutes: { label: 'Business MTD (minutes)', kind: 'integer', nullable: true, minimum: 1, aliases: ['mtd_minutes', 'dmia_minutes', 'dmia'] },
+      criticality: { label: 'Business criticality', kind: 'application_classification', classificationAxis: 'business', nullable: true, aliases: ['business_criticality'] },
       cyber_criticality: { label: 'Cyber Criticality', kind: 'application_classification', classificationAxis: 'cyber', nullable: true, aliases: ['cyber'] },
       data_class: { label: 'Data Confidentiality', kind: 'application_classification', classificationAxis: 'confidentiality', nullable: true, aliases: ['confidentiality'] },
       recovery_wave: { label: 'Recovery Wave', kind: 'application_classification', classificationAxis: 'recovery', nullable: true, aliases: ['wave'] },
@@ -556,10 +556,6 @@ export class AiBusinessRecordMutationSupportService {
       const parsed = Number(rawValue);
       if (!Number.isInteger(parsed) || parsed > 2147483647 || (field.minimum !== undefined && parsed < field.minimum)) {
         throw new BadRequestException(`${field.label} must be an integer${field.minimum !== undefined ? ` from ${field.minimum} to 2147483647` : ''}.`);
-      }
-      if (entityType === 'applications' && fieldName === 'business_mtd_minutes') {
-        if (!catalog) throw new BadRequestException('Application classification catalog is unavailable.');
-        validateBusinessMtdChoice(parsed, catalog.businessMtdPresets, existing?.business_mtd_minutes as number | null | undefined);
       }
       return { value: parsed, displayValue: String(parsed) };
     }
@@ -973,7 +969,7 @@ export class AiBusinessRecordMutationSupportService {
     const entityType = requireEntityType(input.entity_type);
     const normalized = await this.normalizeFields(context, entityType, coerceRecord(input.fields, 'fields'), 'create');
     const classification = entityType === 'applications'
-      ? await this.applicationClassificationPreviewState(context, normalized.fields, null)
+      ? this.applicationClassificationPreviewState(normalized.fields, null)
       : null;
     const title = this.titleForPendingCreate(entityType, normalized.fields);
     return {
@@ -1047,7 +1043,7 @@ export class AiBusinessRecordMutationSupportService {
       previousValues[fieldName] = currentValues[fieldName];
     }
     const classification = entityType === 'applications'
-      ? await this.applicationClassificationPreviewState(context, nextFields, target.row)
+      ? this.applicationClassificationPreviewState(nextFields, target.row)
       : null;
 
     return {
@@ -1067,35 +1063,20 @@ export class AiBusinessRecordMutationSupportService {
         target_title: target.label,
         values: previousValues,
         display_values: previousValues,
-        ...(classification ? { classification: { derived_business_criticality: target.row.criticality ?? null } } : {}),
       },
     };
   }
 
-  private async applicationClassificationPreviewState(
-    context: AiExecutionContextWithManager,
+  private applicationClassificationPreviewState(
     fields: Record<string, unknown>,
     existing: Record<string, unknown> | null,
-  ): Promise<Record<string, unknown>> {
-    const catalog = await this.itOpsSettings.getClassificationCatalog(context.tenantId, { manager: context.manager });
+  ): Record<string, unknown> {
     const hasClassificationInput = Object.keys(fields).some((field) => [
-      'business_mtd_minutes', 'cyber_criticality', 'data_class', 'recovery_wave',
+      'criticality', 'cyber_criticality', 'data_class', 'recovery_wave',
       'rto_minutes', 'rpo_minutes', 'classification_justification',
     ].includes(field));
-    const hasMtd = Object.prototype.hasOwnProperty.call(fields, 'business_mtd_minutes');
-    const nextMtd = hasMtd
-      ? fields.business_mtd_minutes as number | null
-      : existing?.business_mtd_minutes as number | null | undefined;
-    const derivedCode = !hasMtd && existing?.business_mtd_minutes == null || nextMtd === undefined
-      ? existing?.criticality ?? null
-      : deriveBusinessCriticality(nextMtd, catalog.businessCriticalityLevels);
-    const derivedLevel = catalog.businessCriticalityLevels.find((item) => item.code === derivedCode);
     return {
-      expected_classification_versions: catalog.classificationVersions,
-      ...(existing ? { expected_classification_revision: Number(existing.classification_revision ?? 0) } : {}),
       has_classification_input: hasClassificationInput,
-      derived_business_criticality: derivedCode,
-      derived_business_criticality_label: derivedLevel?.label ?? derivedCode,
       invalidates_review: !!existing?.classification_review && hasClassificationInput,
     };
   }
@@ -1151,14 +1132,6 @@ export class AiBusinessRecordMutationSupportService {
     const classification = mutation.classification && typeof mutation.classification === 'object'
       ? mutation.classification as Record<string, unknown>
       : null;
-    if (classification?.has_classification_input && Object.prototype.hasOwnProperty.call(classification, 'derived_business_criticality')) {
-      changes.criticality = {
-        label: 'Derived Business Criticality',
-        from: action === 'create' ? null : formatPlainValue((preview.current_values?.classification as any)?.derived_business_criticality),
-        to: formatPlainValue(classification.derived_business_criticality_label ?? classification.derived_business_criticality),
-        format: 'text',
-      };
-    }
     if (classification?.invalidates_review) {
       changes.classification_review_state = {
         label: 'Classification Review', from: 'Reviewed', to: 'Stale after this change', format: 'text',
@@ -1182,18 +1155,7 @@ export class AiBusinessRecordMutationSupportService {
     const mutation = preview.mutation_input ?? {};
     const action = String(mutation.action || '');
     const fields = coerceRecord(mutation.fields, 'mutation_input.fields');
-    const classification = mutation.classification && typeof mutation.classification === 'object'
-      ? mutation.classification as Record<string, unknown>
-      : null;
-    const executionFields = entityType === 'applications' && classification
-      ? {
-          ...fields,
-          expected_classification_versions: classification.expected_classification_versions,
-          ...(classification.expected_classification_revision !== undefined
-            ? { expected_classification_revision: classification.expected_classification_revision }
-            : {}),
-        }
-      : fields;
+    const executionFields = fields;
     if (action === 'create') {
       const saved = await this.createRecord(context, entityType, executionFields);
       const snapshot = await this.getRecordSnapshot(context, entityType, String((saved as any).id));

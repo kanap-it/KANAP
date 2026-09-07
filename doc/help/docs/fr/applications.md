@@ -48,7 +48,7 @@ Rendez-vous dans **Cartographie SI > Applications** pour voir votre liste. Cliqu
 - **Éditeur** : L'éditeur du logiciel (ex. : Microsoft, SAP, Oracle)
 - **Description** : Ce que fait cette application
 
-Les champs de classification sont facultatifs à la création. Pour la **DMIA**, l'éditeur et les nouvelles modifications API/CSV utilisent les durées autorisées configurées par le tenant ; l'interface ne permet pas la saisie libre. Une durée historique hors durées autorisées reste visible mais indisponible comme nouvelle option et peut être effacée. Elle reste valide si elle n'est pas modifiée, y compris lors d'un reclassement du catalogue. Les autres valeurs restent non définies tant que vous ne les choisissez pas.
+Les champs de classification sont facultatifs à la création. La **Criticité business**, la criticité cyber, la confidentialité des données et la vague de reprise se choisissent parmi les niveaux définis par votre organisation dans **Cartographie SI > Paramètres** ; chaque option affiche la définition du niveau. Les valeurs restent non définies tant que vous ne les choisissez pas.
 
 **Optionnel mais utile** :
 - **Version** : Numéro de version actuel (texte libre, ex. : « 4.2.1 », « 2023 », « Q1 2024 »)
@@ -85,7 +85,7 @@ La grille Applications offre une vue complète de votre portefeuille applicatif.
 - **Catégorie** : L'objectif principal de l'application
 - **Environnements** : Pastilles colorées montrant les environnements actifs (Prod, Pré-prod, QA, Test, Dev, Sandbox). Survolez pour voir l'URL de base et le cycle de vie.
 - **Cycle de vie** : Statut actuel
-- **Criticité métier** : Niveau calculé à partir de la DMIA
+- **Criticité business** : Niveau d'importance pour le métier
 - **Éditeur** : Éditeur du logiciel
 - **Utilisateurs dérivés (A)** : Nombre d'utilisateurs calculé pour l'année en cours (basé sur l'audience définie dans le tiroir des propriétés)
 - **Créé** : Quand l'enregistrement a été créé
@@ -103,6 +103,7 @@ La grille Applications offre une vue complète de votre portefeuille applicatif.
 - **Postes OPEX** / **Postes CAPEX** / **Contrats** : Dépenses et contrats liés
 - **Composants** : Applications enfants (si c'est une suite)
 - **Classification données** / **Contient des PII** / **Résidence des données** : Informations de conformité
+- **Criticité cyber**, **Vague de reprise**, **RTO**, **RPO**, **État/date de revue** : Champs de classification et de continuité
 
 **Filtrage** :
 - Recherche rapide : correspond au nom et à l'éditeur
@@ -128,7 +129,7 @@ L'en-tête affiche :
 - **Nom de l'application** (modifiable sur place)
 - **Référence** : court identifiant copiable
 - Pastille **Cycle de vie** : cliquez pour modifier
-- Pastille **Criticité métier** : affiche le niveau calculé et ouvre le contrôle DMIA
+- Pastille **Criticité business** : affiche le niveau et ouvre un menu des niveaux définis par l'organisation
 - Pastille **Version** (si une version est définie) : cliquez pour copier
 - Date de **Mise en production**
 - **Envoyer le lien** : copier un lien partageable vers cet espace de travail
@@ -249,21 +250,25 @@ L'onglet Conformité capture les informations de protection des données et de r
 
 La zone Conformité enregistre également les décisions de continuité et de classification de l'application. Les valeurs absentes apparaissent comme **Non défini** ; KANAP ne remplace pas une valeur manquante par un niveau par défaut.
 
-**Criticité** :
-- La **DMIA (durée maximale tolérable d'interruption)** se choisit parmi les durées autorisées configurées par le tenant. Toute nouvelle valeur ou modification doit utiliser l'une de ces durées. La **Criticité métier**, en lecture seule, est calculée à partir des seuils du tenant. Une durée historique hors durées autorisées reste affichée comme indisponible à la nouvelle sélection et peut être effacée ; elle reste valide si elle n'est pas modifiée.
-- La **Criticité cyber** est choisie indépendamment. Le menu affiche la description de chaque niveau du tenant ; retenez le niveau correspondant aux conséquences plausibles les plus élevées. Attention à ne pas confondre la criticité cyber avec le niveau de risque !
-- La **Justification** décrit les décisions métier, cyber et de reprise.
+L'onglet est organisé en quatre blocs, dans l'ordre d'une analyse d'impact métier.
 
-**Données et reprise** :
-- La **Confidentialité des données** utilise le catalogue des classes du tenant.
+**Criticité** :
+- La **Criticité business** se choisit parmi les niveaux définis par votre organisation. Chaque option affiche la définition du niveau, en général l'interruption que l'activité peut tolérer. Le niveau est une référence stable : renommer un niveau, modifier sa définition ou réordonner le catalogue dans les Paramètres ne déplace jamais une application vers un autre niveau.
+- La **Criticité cyber** est choisie indépendamment. Le menu affiche la description de chaque niveau ; retenez le niveau correspondant aux conséquences plausibles les plus élevées. Attention à ne pas confondre la criticité cyber avec le niveau de risque !
+
+**Données** :
+- La **Confidentialité des données** utilise le catalogue des classes de données de l'organisation.
+- **Contient des données personnelles** et **Résidence des données** complètent le volet données.
+
+**Continuité et reprise** :
 - La **Vague de reprise** indique l'ordre de restauration et ne représente ni une durée ni une gravité.
-- Le **RTO** est l'objectif de délai de reprise. Le **RPO** est la perte de données acceptable et peut être égal à zéro. Si le RTO est supérieur ou égal à la DMIA, KANAP affiche un avertissement mais conserve les deux valeurs.
+- Le **RTO** est l'objectif de délai de reprise. Le **RPO** est la perte de données acceptable et peut être égal à zéro. Si le RTO atteint la durée maximale tolérable d'interruption définie sur le niveau de criticité business choisi, KANAP affiche un avertissement mais conserve les deux valeurs.
 - Le **Dernier test de reprise** contient la date du test le plus récent. Un lien ouvert depuis cette zone utilise l'unique section **Base de connaissances** de la Vue d'ensemble et ne crée pas de doublon. Les anciennes URL restent accessibles dans Relations.
 
 **Revue** :
-- **À compléter** signifie qu'une des quatre dimensions (DMIA, cyber, confidentialité, vague) ou la justification manque.
-- **À revoir** indique une modification de classification, de référence pertinente ou de version du catalogue. La cause est traduite dans l'interface ; la date et le nom du dernier relecteur sont affichés.
-- **Revu** est défini uniquement par **Marquer comme revu**, lorsque les quatre dimensions et la justification sont présentes. Le bouton est désactivé lorsque l'application est déjà revue. L'action enregistre la révision, les versions du catalogue, l'acteur et la date serveur. Un changement de nom ou d'éditeur ne l'invalide pas.
+- La **Justification** décrit le raisonnement derrière les niveaux choisis et ce sur quoi repose le plan de reprise.
+- La revue est un horodatage : **Marquer comme revu** enregistre qui a revu la classification et quand. L'action est disponible dès que la criticité business, la criticité cyber, la confidentialité des données, la vague de reprise et la justification sont renseignées.
+- La date de revue et le relecteur restent visibles ensuite. Lorsqu'une valeur de classification, une référence de reprise ou la résidence des données change après la revue, l'onglet affiche **Modifiée depuis la revue** et la liste affiche **À revoir**. Un changement de nom ou d'éditeur n'a aucun effet. Modifier le catalogue dans les Paramètres n'invalide jamais une revue.
 
 ### Relations
 
@@ -316,6 +321,8 @@ La nouvelle version est créée comme une application séparée avec :
 - Un lien vers son prédécesseur (utilisé par la chronologie des versions)
 - Des données copiées selon vos sélections
 - Des interfaces dupliquées pointant vers la nouvelle version
+
+Les valeurs de classification et de continuité sont copiées, mais la nouvelle version démarre avec une revue réinitialisée et sans copie du dernier test de reprise.
 
 ### Ce qui est copié
 
@@ -462,7 +469,7 @@ Depuis la liste des Applications :
 | `category` | Objectif principal | Non | Accepte un code ou un libellé depuis les Paramètres |
 | `supplier_name` | Nom du fournisseur | Non | Doit correspondre à un fournisseur existant |
 | `editor` | Éditeur du logiciel | Non | Texte libre (ex. : Microsoft, SAP) |
-| `criticality` | Niveau métier calculé | Résultat/export | Calculé à partir de `business_mtd_minutes` |
+| `criticality` | Criticité business | Non | Accepte un code ou un libellé depuis les Paramètres ; `__CLEAR__` l'efface |
 | `lifecycle` | Statut actuel | Non | Accepte un code ou un libellé depuis les Paramètres |
 | `is_suite` | Peut avoir des apps enfants | Non | `true` ou `false` |
 | `status` | Activé/désactivé | Non | `enabled` ou `disabled` |
@@ -500,13 +507,13 @@ Depuis la liste des Applications :
 
 | Colonne CSV | Description | Notes |
 |------------|-------------|-------|
-| `business_mtd_minutes` | DMIA | Une nouvelle valeur ou modification doit utiliser un raccourci configuré ; calcule la `criticality` exportée |
+| `criticality` | Niveau de criticité business | Code ou libellé non ambigu du catalogue |
 | `cyber_criticality` | Niveau de conséquence cyber | Code ou libellé non ambigu du catalogue |
 | `recovery_wave` | Ordre de reprise | Code ou libellé non ambigu du catalogue |
 | `rto_minutes` / `rpo_minutes` | Objectifs de reprise | Minutes entières ; le RPO peut être zéro |
 | `classification_justification` | Justification | Texte libre |
 
-`criticality` est un résultat calculé exporté et ne permet pas de définir un niveau. Une cellule de classification vide conserve la valeur existante dans les modes Enrichir et Remplacer ; utilisez `__CLEAR__` pour effacer une classification.
+Une cellule de classification vide conserve la valeur existante dans les modes Enrichir et Remplacer ; utilisez `__CLEAR__` pour effacer une classification.
 
 **Champs Responsables** :
 
@@ -567,9 +574,9 @@ Si vous incluez la colonne `id` avec un UUID valide, la correspondance utilise d
 
 ```csv
 name;category;supplier_name;criticality;lifecycle;go_live_date;external_facing
-Salesforce CRM;Line-of-business;Salesforce Inc;business_critical;Active;2020-01-15;true
+Salesforce CRM;Line-of-business;Salesforce Inc;Critical;Active;2020-01-15;true
 Microsoft 365;Productivity;Microsoft;high;active;2019-06-01;false
-Custom ERP;lob;;medium;Active;2018-03-20;false
+Custom ERP;lob;;Moderate;Active;2018-03-20;false
 ```
 
 ---

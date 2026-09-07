@@ -54,9 +54,9 @@ async function main() {
     const catalogResponse = await request(reader, '/applications/classification-catalog');
     assert.equal(catalogResponse.status, 200);
     const catalog: any = await catalogResponse.json();
-    assert.ok(Array.isArray(catalog.businessMtdPresets) && catalog.businessMtdPresets.length > 0);
+    assert.ok(Array.isArray(catalog.businessCriticalityLevels) && catalog.businessCriticalityLevels.length > 0);
+    assert.equal(catalog.businessMtdPresets, undefined);
 
-    assert.equal((await request(reader, '/it-ops/settings/classification-preview', { method: 'POST', body: '{}' })).status, 403);
     assert.equal((await request(reader, '/it-ops/settings', { method: 'PATCH', body: '{}' })).status, 403);
     assert.equal((await request(reader, '/applications', { method: 'POST', body: JSON.stringify({ name: 'reader denied' }) })).status, 403);
     assert.equal((await request(reader, `/applications/${randomUUID()}/classification-review`, { method: 'POST', body: JSON.stringify({ expected_revision: 0 }) })).status, 403);
@@ -66,7 +66,7 @@ async function main() {
       method: 'POST',
       body: JSON.stringify({
         name: `HTTP classification ${randomUUID()}`,
-        business_mtd_minutes: catalog.businessMtdPresets[0],
+        criticality: catalog.businessCriticalityLevels.find((row: any) => !row.deprecated)?.code,
         cyber_criticality: catalog.cyberCriticalityLevels.find((row: any) => !row.deprecated)?.code,
         data_class: catalog.dataClasses.find((row: any) => !row.deprecated)?.code,
         recovery_wave: catalog.recoveryWaves.find((row: any) => !row.deprecated)?.code,
@@ -80,7 +80,7 @@ async function main() {
 
     const reviewResponse = await request(member, `/applications/${application.id}/classification-review`, {
       method: 'POST',
-      body: JSON.stringify({ expected_revision: application.classification_revision, expected_classification_versions: catalog.classificationVersions }),
+      body: JSON.stringify({ expected_revision: application.classification_revision }),
     });
     if (reviewResponse.status !== 201) throw new Error(`member review returned ${reviewResponse.status}: ${await reviewResponse.text()}`);
     const reviewed: any = await reviewResponse.json();

@@ -254,7 +254,6 @@ async function testIndexedRowsMapToLegacyDtoShape(applicationClassifications: Re
     criticality: null,
     cyber_criticality: null,
     recovery_wave: null,
-    business_mtd_minutes: null,
     rto_minutes: null,
     rpo_minutes: null,
     category: null,
@@ -289,7 +288,6 @@ async function run() {
     cyber_criticality: 'cyber_custom',
     recovery_wave: 'wave_custom',
     data_class: 'confidentiality_custom',
-    business_mtd_minutes: 240,
     rto_minutes: 60,
     rpo_minutes: 0,
   });

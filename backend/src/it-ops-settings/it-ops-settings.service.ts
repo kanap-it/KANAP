@@ -1,8 +1,6 @@
-import { ParticipationAccessScope, applicationParticipantCondition } from '../auth/business-contributor-scope';
 import { AuditService } from '../audit/audit.service';
-import { Application } from '../applications/application.entity';
-import { ClassificationCatalog, ClassificationLevel, CLASSIFICATION_CATALOG_KEYS, catalogFromMetadata, catalogToMetadata, validateClassificationCatalog, semanticCatalogValue, deriveBusinessCriticality } from './classification-catalog';
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { ClassificationCatalog, ClassificationLevel, CLASSIFICATION_CATALOG_KEYS, OBSOLETE_CATALOG_METADATA_KEYS, catalogFromMetadata, catalogToMetadata, validateClassificationCatalog } from './classification-catalog';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import { Tenant } from '../tenants/tenant.entity';
@@ -1011,7 +1009,7 @@ export class ItOpsSettingsService {
 
   private async updateSettingsLocked(
     tenantId: string,
-    patch: Partial<ItOpsSettings> & { expectedClassificationSettingsRevision?: number },
+    patch: Partial<ItOpsSettings>,
     opts?: { manager?: EntityManager; userId?: string | null },
   ): Promise<ItOpsSettings> {
     const repo = this.repo(opts?.manager);
@@ -1145,23 +1143,10 @@ export class ItOpsSettingsService {
 
     const catalogChanged = CLASSIFICATION_CATALOG_KEYS.some((key) => patch[key] !== undefined);
     if (catalogChanged) {
+      // Saving the catalog never moves an application: levels are referenced by stable code.
       const candidate = this.prepareClassificationCatalog(current, patch);
       await this.assertClassificationUsage(tenantId, current, candidate, opts!.manager!);
       Object.assign(next, candidate);
-      if (current.classificationVersions.business !== candidate.classificationVersions.business) {
-        const applications = await opts!.manager!.getRepository(Application).find({ where: { tenant_id: tenantId } });
-        for (const application of applications) {
-          if (application.business_mtd_minutes == null) continue;
-          const criticality = deriveBusinessCriticality(application.business_mtd_minutes, candidate.businessCriticalityLevels);
-          if (criticality === application.criticality) continue;
-          const before = { ...application };
-          application.criticality = criticality;
-          application.classification_revision += 1;
-          application.updated_at = new Date();
-          await opts!.manager!.getRepository(Application).save(application);
-          await this.audit.log({ table: 'applications', recordId: application.id, action: 'update', before, after: application, userId: opts?.userId, source: 'classification_method' }, opts);
-        }
-      }
     }
     const meta: any = tenant.metadata || {};
     const itOps: any = {
@@ -1191,6 +1176,7 @@ export class ItOpsSettingsService {
       path_hop_functions: next.pathHopFunctions,
       incident_categories: next.incidentCategories,
     };
+    for (const key of OBSOLETE_CATALOG_METADATA_KEYS) delete itOps[key];
     meta.it_ops = itOps;
     tenant.metadata = meta;
 
@@ -1210,7 +1196,7 @@ export class ItOpsSettingsService {
     return this.getClassificationCatalog(tenantId, { manager });
   }
 
-  async updateSettings(tenantId: string, patch: Partial<ItOpsSettings> & { expectedClassificationSettingsRevision?: number }, opts?: { manager?: EntityManager; userId?: string | null }): Promise<ItOpsSettings> {
+  async updateSettings(tenantId: string, patch: Partial<ItOpsSettings>, opts?: { manager?: EntityManager; userId?: string | null }): Promise<ItOpsSettings> {
     const manager = opts?.manager ?? this.tenants.manager;
     return manager.transaction(async (tx) => {
       await tx.query('SELECT id FROM tenants WHERE id = $1 FOR UPDATE', [tenantId]);
@@ -1218,18 +1204,10 @@ export class ItOpsSettingsService {
     });
   }
 
-  private prepareClassificationCatalog(current: ClassificationCatalog, patch: Partial<ClassificationCatalog> & { expectedClassificationSettingsRevision?: number }): ClassificationCatalog {
-    if (patch.expectedClassificationSettingsRevision !== current.classificationSettingsRevision) throw new ConflictException('Classification settings changed; reload and preview again');
+  private prepareClassificationCatalog(current: ClassificationCatalog, patch: Partial<ClassificationCatalog>): ClassificationCatalog {
     const merged = { ...current };
     for (const key of CLASSIFICATION_CATALOG_KEYS) if (patch[key] !== undefined) (merged as any)[key] = patch[key];
-    const next = validateClassificationCatalog(merged);
-    next.classificationVersions = { ...current.classificationVersions };
-    for (const [key, axis] of [['businessCriticalityLevels', 'business'], ['cyberCriticalityLevels', 'cyber'], ['dataClasses', 'confidentiality'], ['recoveryWaves', 'recovery']] as const) {
-      if (semanticCatalogValue(current[key]) !== semanticCatalogValue(next[key])) next.classificationVersions[axis] += 1;
-    }
-    const changed = CLASSIFICATION_CATALOG_KEYS.some((key) => JSON.stringify(current[key]) !== JSON.stringify(next[key]));
-    next.classificationSettingsRevision = current.classificationSettingsRevision + (changed ? 1 : 0);
-    return next;
+    return validateClassificationCatalog(merged);
   }
 
   private async assertClassificationUsage(tenantId: string, current: ClassificationCatalog, next: ClassificationCatalog, manager: EntityManager): Promise<void> {
@@ -1241,37 +1219,13 @@ export class ItOpsSettingsService {
         const rows = await manager.query(`SELECT 1 FROM ${table} WHERE tenant_id = $1 AND ${field} = ANY($2::text[]) LIMIT 1`, [tenantId, removed]);
         if (rows.length) throw new BadRequestException(`${key}: a removed code is still used; deprecate it instead`);
       }
-      if (field === 'criticality') {
-        const rows = await manager.query('SELECT 1 FROM applications WHERE tenant_id = $1 AND legacy_criticality = ANY($2::text[]) LIMIT 1', [tenantId, removed]);
-        if (rows.length) throw new BadRequestException('A business code is retained in migration history; deprecate it instead');
-      }
     }
   }
 
-  async previewClassificationSettings(tenantId: string, patch: Partial<ClassificationCatalog> & { expectedClassificationSettingsRevision?: number }, opts?: { manager?: EntityManager; accessScope?: ParticipationAccessScope }) {
-    const manager = opts?.manager ?? this.tenants.manager;
-    const current = await this.getClassificationCatalog(tenantId, { manager });
-    const next = this.prepareClassificationCatalog(current, patch);
-    await this.assertClassificationUsage(tenantId, current, next, manager);
-    const rows = await manager.query(`SELECT a.criticality, a.business_mtd_minutes FROM applications a WHERE a.tenant_id = $1 AND a.business_mtd_minutes IS NOT NULL ${opts?.accessScope ? `AND ${applicationParticipantCondition('a', '$2')}` : ''}`, opts?.accessScope ? [tenantId, opts.accessScope.userId] : [tenantId]);
-    const transitions = new Map<string, { from: string | null; to: string | null; count: number }>();
-    let affectedApplications = 0;
-    for (const row of rows) {
-      const to = deriveBusinessCriticality(row.business_mtd_minutes, next.businessCriticalityLevels);
-      if (to === row.criticality) continue;
-      affectedApplications++;
-      const key = JSON.stringify([row.criticality, to]);
-      const item = transitions.get(key) ?? { from: row.criticality, to, count: 0 };
-      item.count++;
-      transitions.set(key, item);
-    }
-    return { affectedApplications, transitions: [...transitions.values()], classificationVersions: next.classificationVersions, classificationSettingsRevision: current.classificationSettingsRevision };
-  }
-
-  async resetToDefaults(tenantId: string, opts?: { manager?: EntityManager; userId?: string | null; expectedClassificationSettingsRevision?: number }): Promise<ItOpsSettings> {
+  async resetToDefaults(tenantId: string, opts?: { manager?: EntityManager; userId?: string | null }): Promise<ItOpsSettings> {
     const manager = opts?.manager ?? this.tenants.manager;
     const defaults = await this.getMetadataSettings({ id: tenantId, metadata: {} } as Tenant, { manager });
-    return this.updateSettings(tenantId, { ...defaults, expectedClassificationSettingsRevision: opts?.expectedClassificationSettingsRevision }, opts);
+    return this.updateSettings(tenantId, defaults, opts);
   }
 
   private normalizeHostingTypes(list: unknown, defaults: ItOpsEnumOption[]): ItOpsEnumOption[] {

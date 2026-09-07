@@ -22,21 +22,12 @@ export type RecoveryWave = Omit<ClassificationLevel, 'rank'> & {
   order: number;
 };
 
-export type ClassificationVersions = {
-  business: number;
-  cyber: number;
-  confidentiality: number;
-  recovery: number;
-};
-
+/** Levels are listed from most to least severe; waves in restoration order. The server assigns ranks from that order. */
 export type ApplicationClassificationCatalog = {
   businessCriticalityLevels: BusinessCriticalityLevel[];
-  businessMtdPresets: number[];
   cyberCriticalityLevels: ClassificationLevel[];
   dataClasses: ClassificationLevel[];
   recoveryWaves: RecoveryWave[];
-  classificationVersions: ClassificationVersions;
-  classificationSettingsRevision: number;
 };
 
 export type OperatingSystemOption = ItOpsEnumOption & {
@@ -107,23 +98,11 @@ export type ItOpsSettings = {
   accessMethods: ItOpsEnumOption[];
   incidentCategories: ItOpsEnumOption[];
   businessCriticalityLevels: BusinessCriticalityLevel[];
-  businessMtdPresets: number[];
   cyberCriticalityLevels: ClassificationLevel[];
   recoveryWaves: RecoveryWave[];
-  classificationVersions: ClassificationVersions;
-  classificationSettingsRevision: number;
 };
 
-export type ClassificationSettingsPatch = Pick<ApplicationClassificationCatalog,
-  'businessCriticalityLevels' | 'businessMtdPresets' | 'cyberCriticalityLevels' | 'dataClasses' | 'recoveryWaves'
-> & { expectedClassificationSettingsRevision: number };
-
-export type ClassificationPreview = {
-  affectedApplications: number;
-  transitions: Array<{ from: string | null; to: string | null; count: number }>;
-  classificationVersions: ClassificationVersions;
-  classificationSettingsRevision: number;
-};
+export type ClassificationSettingsPatch = ApplicationClassificationCatalog;
 
 export async function fetchItOpsSettings(): Promise<ItOpsSettings> {
   const res = await api.get('/it-ops/settings');
@@ -140,13 +119,7 @@ export async function fetchApplicationClassificationCatalog(): Promise<Applicati
   return res.data as ApplicationClassificationCatalog;
 }
 
-export async function previewClassificationSettings(payload: ClassificationSettingsPatch): Promise<ClassificationPreview> {
-  const res = await api.post('/it-ops/settings/classification-preview', payload);
-  return res.data as ClassificationPreview;
-}
-
 export async function resetItOpsSettingsToDefaults(): Promise<ItOpsSettings> {
-  const current = await fetchItOpsSettings();
-  const res = await api.post('/it-ops/settings/reset', { expectedClassificationSettingsRevision: current.classificationSettingsRevision });
+  const res = await api.post('/it-ops/settings/reset', {});
   return res.data as ItOpsSettings;
 }

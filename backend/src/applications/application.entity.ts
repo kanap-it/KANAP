@@ -60,12 +60,6 @@ export class Application {
   @Column('text', { nullable: true })
   criticality!: string | null;
 
-  @Column('integer', { nullable: true })
-  business_mtd_minutes!: number | null;
-
-  @Column('text', { nullable: true })
-  legacy_criticality!: string | null;
-
   @Column('text', { nullable: true })
   cyber_criticality!: string | null;
 
@@ -83,9 +77,6 @@ export class Application {
 
   @Column('jsonb', { nullable: true })
   classification_review!: ClassificationReview | null;
-
-  @Column('text', { default: 'unset' })
-  business_criticality_origin!: 'unset' | 'legacy' | 'derived';
 
   @Column('integer', { default: 0 })
   classification_revision!: number;

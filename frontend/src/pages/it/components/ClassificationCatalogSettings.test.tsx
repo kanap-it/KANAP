@@ -8,21 +8,20 @@ import type { ItOpsSettings } from '../../../services/itOpsSettings';
 import ClassificationCatalogSettings from './ClassificationCatalogSettings';
 
 const serviceMocks = vi.hoisted(() => ({
-  previewClassificationSettings: vi.fn(),
   updateItOpsSettings: vi.fn(),
 }));
 
 vi.mock('../../../services/itOpsSettings', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../../services/itOpsSettings')>(),
-  previewClassificationSettings: serviceMocks.previewClassificationSettings,
   updateItOpsSettings: serviceMocks.updateItOpsSettings,
 }));
 
 const settings = {
   businessCriticalityLevels: [
-    { code: 'high', label: 'High', description: 'Up to one day', rank: 3, maxMtdMinutes: 1440 },
+    { code: 'critical', label: 'Critical', description: 'At most four hours', rank: 3, maxMtdMinutes: 240 },
+    { code: 'high', label: 'High', description: 'Up to one day', rank: 2, maxMtdMinutes: 1440 },
+    { code: 'low', label: 'Low', description: 'More than a day', rank: 1, maxMtdMinutes: null },
   ],
-  businessMtdPresets: [240, 1440],
   cyberCriticalityLevels: [
     { code: 'critical', label: 'Critical', description: 'Catastrophic consequences', rank: 4 },
   ],
@@ -32,8 +31,6 @@ const settings = {
   recoveryWaves: [
     { code: 'vital', label: 'V1 — Vital activities', description: 'Restore vital activities', order: 1 },
   ],
-  classificationVersions: { business: 1, cyber: 1, confidentiality: 1, recovery: 1 },
-  classificationSettingsRevision: 7,
 } as unknown as ItOpsSettings;
 
 function renderSettings() {
@@ -46,49 +43,42 @@ function renderSettings() {
     </QueryClientProvider>,
   );
   fireEvent.click(screen.getByRole('button', { name: 'Edit catalog' }));
-  return screen.getByRole('textbox', { name: 'Allowed MTD durations in minutes' });
 }
 
-describe('ClassificationCatalogSettings MTD presets', () => {
+describe('ClassificationCatalogSettings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    serviceMocks.previewClassificationSettings.mockResolvedValue({
-      affectedApplications: 0,
-      transitions: [],
-      classificationVersions: settings.classificationVersions,
-      classificationSettingsRevision: 7,
-    });
+    serviceMocks.updateItOpsSettings.mockResolvedValue(settings);
   });
 
-  it('preserves an incomplete comma-separated draft and disables preview', () => {
-    const input = renderSettings();
-
-    fireEvent.change(input, { target: { value: '240, 1440, ' } });
-
-    expect(input).toHaveValue('240, 1440, ');
-    expect(screen.getByRole('button', { name: 'Preview impact' })).toBeDisabled();
-    expect(serviceMocks.previewClassificationSettings).not.toHaveBeenCalled();
+  it('saves in one step, with the rows in their displayed order', async () => {
+    renderSettings();
+    expect(screen.queryByRole('button', { name: /Preview/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(serviceMocks.updateItOpsSettings).toHaveBeenCalledTimes(1));
+    const payload = serviceMocks.updateItOpsSettings.mock.calls[0][0];
+    expect(Object.keys(payload).sort()).toEqual(['businessCriticalityLevels', 'cyberCriticalityLevels', 'dataClasses', 'recoveryWaves']);
+    expect(payload.businessCriticalityLevels.map((level: any) => level.code)).toEqual(['critical', 'high', 'low']);
   });
 
-  it('previews a complete draft as the exact numeric preset list', async () => {
-    const input = renderSettings();
-    fireEvent.change(input, { target: { value: '240, 1440, 4320' } });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Preview impact' }));
-
-    await waitFor(() => expect(serviceMocks.previewClassificationSettings).toHaveBeenCalledOnce());
-    expect(serviceMocks.previewClassificationSettings).toHaveBeenCalledWith(expect.objectContaining({
-      businessMtdPresets: [240, 1440, 4320],
-      expectedClassificationSettingsRevision: 7,
-    }));
+  it('reorders with the arrows and lets the server derive ranks from the new order', async () => {
+    renderSettings();
+    const moveUp = screen.getAllByRole('button', { name: 'Move up' });
+    const moveDown = screen.getAllByRole('button', { name: 'Move down' });
+    expect(moveUp[0]).toBeDisabled();
+    expect(moveDown[2]).toBeDisabled();
+    fireEvent.click(moveUp[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(serviceMocks.updateItOpsSettings).toHaveBeenCalledTimes(1));
+    const payload = serviceMocks.updateItOpsSettings.mock.calls[0][0];
+    expect(payload.businessCriticalityLevels.map((level: any) => level.code)).toEqual(['high', 'critical', 'low']);
   });
 
-  it.each(['240, 240', '240, 0', '240, -60'])('disallows invalid preset list %s', (value) => {
-    const input = renderSettings();
-
-    fireEvent.change(input, { target: { value } });
-
-    expect(input).toHaveValue(value);
-    expect(screen.getByRole('button', { name: 'Preview impact' })).toBeDisabled();
+  it('keeps the downtime optional and disables saving while a level has no name', () => {
+    renderSettings();
+    const downtimes = screen.getAllByRole('spinbutton', { name: 'Maximum tolerable downtime (minutes)' });
+    expect(downtimes[2]).toHaveValue(null);
+    fireEvent.change(screen.getAllByRole('textbox', { name: 'Name' })[0], { target: { value: ' ' } });
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 });

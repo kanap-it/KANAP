@@ -499,8 +499,6 @@ export class AiQueryExecutor {
         criticality: scalar(row.criticality),
         business_criticality_label: scalar(row.business_criticality_label),
         business_criticality_rank: numericScalar(row.business_criticality_rank),
-        business_mtd_minutes: numericScalar(row.business_mtd_minutes),
-        business_criticality_origin: scalar(row.business_criticality_origin),
         cyber_criticality: scalar(row.cyber_criticality),
         cyber_criticality_label: scalar(row.cyber_criticality_label),
         cyber_criticality_rank: numericScalar(row.cyber_criticality_rank),

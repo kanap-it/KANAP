@@ -111,19 +111,20 @@ Datenklassifizierungsstufen für Anwendungen und Schnittstellen. Gesperrte Codes
 
 ### Klassifizierungen und Kontinuität
 
-Dieser spezialisierte Editor konfiguriert die Kataloge für Anwendungs-Klassifizierung und Kontinuität. Er steht Benutzern mit `settings:admin` im Bereich **Apps, Services & Schnittstellen** zur Verfügung.
+Dieser Editor konfiguriert die Stufen, mit denen Anwendungen klassifiziert werden. Er steht Benutzern mit `settings:admin` im Bereich **Apps, Services & Schnittstellen** zur Verfügung und öffnet sich als einzelner Dialog mit einer Liste pro Katalog:
 
-- **Business-Kritikalität und MTD-Schwellenwerte**: stabile Codes, Bezeichnungen, Beschreibungen, eindeutige Ränge und ein maximales MTD in Minuten; die letzte aktive Stufe ist unbegrenzt.
-- **Zulässige MTD-Dauern in Minuten**: Auswahlmöglichkeiten im Anwendungseditor. Der Editor bietet keine freie MTD-Eingabe; ein historischer Wert außerhalb der zulässigen Dauern bleibt lesbar und kann gelöscht werden. Neue oder geänderte Werte über API/CSV/Plaid müssen eine konfigurierte zulässige Dauer verwenden; ein unveränderter historischer Wert bleibt gültig. Die Liste muss mindestens einen unterschiedlichen positiven ganzzahligen Minutenwert enthalten. Das API-Feld bleibt `businessMtdPresets`; die zulässigen Dauern ändern die Klassifizierungsmethode nicht.
-- **Cyber-Kritikalität**: unabhängige Folgenstufen mit expliziten Rängen.
-- **Datenvertraulichkeit**: Datenklassenkatalog mit Beschreibungen und Rängen.
+- **Geschäftskritikalität**: die Stufen, die einer Anwendung zugewiesen werden können. Jede Stufe hat einen Namen, eine Beschreibung, die bei der Auswahl unter dem Namen angezeigt wird, eine optionale **maximal tolerierbare Ausfallzeit (MTD)** in Minuten und die Markierung **Nicht mehr anbieten**. Die Ausfallzeit dokumentiert die Stufe und löst bei einer Anwendung, deren RTO sie erreicht, einen Hinweis aus; sie ist ein Attribut der Stufe, kein Wert, der auf Anwendungen eingegeben wird.
+- **Cyberkritikalität**: unabhängige Folgenstufen.
+- **Datenvertraulichkeit**: der Datenklassenkatalog, mit Beschreibungen.
 - **Wiederherstellungswellen**: geordnete Wiederherstellungsstufen; die Reihenfolge ist weder Schweregrad noch Zeitangabe.
 
-Codes sind stabile Kennungen. Ein verwendeter Wert kann als veraltet markiert werden: Er bleibt bei bestehenden Anwendungen sichtbar, kann aber neuen Datensätzen nicht zugewiesen werden. Bezeichnungen und Beschreibungen können geändert werden.
+**Die Reihenfolge ist die Position in der Liste.** Schweregrad-Kataloge sind von der kritischsten Stufe oben bis zur am wenigsten kritischen unten sortiert; Wiederanlaufwellen in Wiederherstellungsreihenfolge. Verschieben Sie eine Stufe mit den Pfeilen; die Position bestimmt die Sortierung der Listen, die Regel „höchste Stufe“ für Schnittstellen und Verbindungen sowie die Reihenfolge in den Auswahlmenüs. **Stufe hinzufügen** fügt unten an.
 
-Business-Änderungen verwenden **Auswirkungen anzeigen** vor **Änderungen veröffentlichen**. Die Vorschau zeigt betroffene Anwendungen und Übergänge. Die Veröffentlichung erfordert die aktuelle Einstellungsrevision; bei einer parallelen Änderung muss neu geladen werden. **Zurücksetzen** folgt denselben Schutzmechanismen und entfernt verwendete Codes aus Anwendungen, Schnittstellen oder Verbindungen nicht stillschweigend.
+**Änderungen am Katalog ändern nie Anwendungen.** Eine Anwendung speichert den Code ihrer Stufe. Das Umbenennen einer Stufe, das Bearbeiten ihrer Beschreibung oder Ausfallzeit und das Umsortieren des Katalogs lassen jede Anwendung auf derselben Stufe und machen Reviews nicht ungültig. Eine Stufe, die noch von einer Anwendung, Schnittstelle oder Verbindung verwendet wird, kann nicht entfernt werden; markieren Sie sie stattdessen mit **Nicht mehr anbieten**: Sie bleibt bei bestehenden Datensätzen sichtbar und wird für neue nicht mehr vorgeschlagen.
 
-Die Business-Stufen liefern auch die operative Kritikalität für Schnittstellen und Verbindungen. MTD-Schwellenwerte gelten nur für Anwendungen; unvollständige Ableitungen werden gekennzeichnet und Nullwerte nicht als niedrig behandelt.
+Codes sind stabile Kennungen und werden zur Referenz angezeigt. Namen müssen innerhalb eines Katalogs eindeutig sein, da CSV-Import und API sowohl den Code als auch den Namen akzeptieren.
+
+Die Business-Stufen liefern auch die operative Kritikalität für Schnittstellen und Verbindungen. Unvollständige Ableitungen werden als unvollständig gekennzeichnet; sie werden nicht als niedrigste Stufe behandelt.
 
 ### Integrationsmuster
 

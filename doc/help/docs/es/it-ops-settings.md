@@ -241,19 +241,20 @@ Niveles de clasificación de datos para Aplicaciones e Interfaces.
 
 ### Clasificaciones y continuidad
 
-Este editor especializado configura los catálogos utilizados por la clasificación y la continuidad de las aplicaciones. Está disponible para usuarios `settings:admin` en la sección **Aplicaciones, servicios e interfaces**.
+Este editor configura los niveles utilizados para clasificar las aplicaciones. Está disponible para usuarios `settings:admin` en la sección **Aplicaciones, servicios e interfaces** y se abre como un único cuadro de diálogo con una lista por catálogo:
 
-- **Criticidad empresarial y umbrales MTD**: códigos estables, etiquetas, descripciones, rangos únicos y un máximo MTD en minutos; el último nivel activo no tiene límite.
-- **Duraciones MTD permitidas en minutos**: opciones que ofrece el editor de aplicaciones. El editor no permite introducir una MTD libre; un valor histórico fuera de las duraciones permitidas sigue siendo visible y puede borrarse. Los valores nuevos o modificados mediante API/CSV/Plaid deben usar una duración permitida configurada; un valor histórico sin cambios sigue siendo válido. La lista debe contener al menos un valor entero positivo distinto. El campo API sigue siendo `businessMtdPresets`; las duraciones permitidas no cambian el método de clasificación.
-- **Criticidad cibernética**: niveles de consecuencias con rangos explícitos.
-- **Confidencialidad de datos**: catálogo de clases de datos con descripciones y rangos.
+- **Criticidad de negocio**: los niveles que se pueden asignar a una aplicación. Cada nivel tiene un nombre, una descripción que se muestra bajo el nombre al elegir un nivel, una **duración máxima tolerable de interrupción (MTD)** opcional en minutos y una marca **Dejar de proponer**. La duración documenta el nivel y activa una advertencia en una aplicación cuyo RTO la alcanza; es un atributo del nivel, no un valor que se introduce en las aplicaciones.
+- **Criticidad cibernética**: niveles de consecuencias independientes.
+- **Confidencialidad de los datos**: el catálogo de clases de datos, con descripciones.
 - **Olas de recuperación**: etapas ordenadas de restauración; el orden no representa gravedad ni duración.
 
-Los códigos son identificadores estables. Un valor utilizado puede marcarse como obsoleto: seguirá visible en las aplicaciones existentes, pero no podrá asignarse a nuevos registros. Las etiquetas y descripciones pueden editarse.
+**El orden es la posición en la lista.** Los catálogos de gravedad se listan del nivel más crítico arriba al menos crítico abajo; las olas de recuperación, en orden de restauración. Use las flechas para mover un nivel; la posición determina el orden de las listas, la regla del "nivel más alto" que usan interfaces y conexiones, y el orden de los selectores. **Añadir nivel** añade al final de la lista.
 
-Los cambios empresariales usan **Previsualizar impacto** antes de **Publicar cambios**. La previsualización muestra las aplicaciones afectadas y las transiciones. La publicación requiere la revisión actual de ajustes; un cambio concurrente exige recargar. Restablecer respeta las mismas protecciones y no elimina silenciosamente códigos usados por aplicaciones, interfaces o conexiones.
+**Cambiar el catálogo nunca cambia las aplicaciones.** Una aplicación guarda el código de su nivel. Renombrar un nivel, editar su descripción o su duración y reordenar el catálogo dejan cada aplicación en el mismo nivel y no invalidan las revisiones. Un nivel que todavía usa una aplicación, interfaz o conexión no se puede eliminar; márquelo como **Dejar de proponer**: sigue visible en los registros existentes y ya no se propone para los nuevos.
 
-Los niveles empresariales también alimentan la criticidad operativa de interfaces y conexiones. Los umbrales MTD solo se aplican a aplicaciones; las derivaciones incompletas se señalan y los valores nulos no se tratan como bajos.
+Los códigos son identificadores estables que se muestran como referencia. Los nombres deben ser únicos dentro de un catálogo, porque la importación CSV y la API aceptan tanto el código como el nombre.
+
+Los niveles de negocio también alimentan la criticidad operativa de interfaces y conexiones. Las derivaciones incompletas se señalan como tales; no se tratan como el nivel más bajo.
 
 ### Patrones de integración
 

@@ -52,7 +52,7 @@ import { formatShortDate } from '../../lib/dateFormat';
 import { fetchApplicationIncidentsCount } from '../../utils/workspaceTabCounts';
 import { useLocale } from '../../i18n/useLocale';
 import ApplicationClassificationPanel from './components/ApplicationClassificationPanel';
-import ApplicationMtdMetadata from './components/ApplicationMtdMetadata';
+import ApplicationCriticalityMetadata from './components/ApplicationCriticalityMetadata';
 
 type TabKey = 'overview' | 'deployments' | 'interfaces' | 'operations' | 'compliance' | 'relations';
 
@@ -65,8 +65,6 @@ type ApplicationDetail = {
   editor: string | null;
   lifecycle: string;
   criticality: string | null;
-  business_mtd_minutes: number | null;
-  business_criticality_origin?: 'unset' | 'legacy' | 'derived';
   cyber_criticality: string | null;
   recovery_wave: string | null;
   rto_minutes: number | null;
@@ -76,7 +74,6 @@ type ApplicationDetail = {
   classification_review_state?: 'incomplete' | 'stale' | 'reviewed';
   classification_review_reason?: string | null;
   classification_reviewed_at?: string | null;
-  classification_catalog_versions?: { business: number; cyber: number; confidentiality: number; recovery: number };
   version: string | null;
   go_live_date: string | null;
   end_of_support_date: string | null;
@@ -1307,10 +1304,7 @@ export default function ApplicationWorkspacePage() {
       classificationSaveFailed.current = false;
       setError(null);
       try {
-        const res = await api.patch<Partial<ApplicationDetail>>(`/applications/${current.id}`, {
-          ...patch, expected_classification_revision: current.classification_revision,
-          expected_classification_versions: current.classification_catalog_versions,
-        });
+        const res = await api.patch<Partial<ApplicationDetail>>(`/applications/${current.id}`, patch);
         currentApp.current = { ...current, ...res.data };
         updateApplicationCache((prev) => ({ ...prev, ...res.data }));
         await queryClient.invalidateQueries({ predicate: (query) => ['applications', 'app-filter-values', 'applications-filter-values'].some((key) => String(query.queryKey[0]).startsWith(key)) });
@@ -1421,7 +1415,7 @@ export default function ApplicationWorkspacePage() {
               onChange={(value) => { void patchApplication({ lifecycle: value }); }}
               disabled={!canManage}
             />
-            <ApplicationMtdMetadata criticality={app.criticality} minutes={app.business_mtd_minutes} disabled={!canManage} onCommit={(value) => patchApplication({ business_mtd_minutes: value })} />
+            <ApplicationCriticalityMetadata criticality={app.criticality} disabled={!canManage} onCommit={(value) => patchApplication({ criticality: value })} />
             {app.version && (
               <PortfolioMetadataItem mono onClick={() => { void navigator.clipboard?.writeText(app.version || ''); }}>
                 v{app.version}
@@ -1529,7 +1523,7 @@ export default function ApplicationWorkspacePage() {
                 await saveQueue.current;
                 if (classificationSaveFailed.current || !currentApp.current) return;
                 setClassificationSaving(true);
-                await api.post(`/applications/${currentApp.current.id}/classification-review`, { expected_revision: currentApp.current.classification_revision, expected_classification_versions: currentApp.current.classification_catalog_versions });
+                await api.post(`/applications/${currentApp.current.id}/classification-review`, { expected_revision: currentApp.current.classification_revision });
                 await appQuery.refetch();
                 await queryClient.invalidateQueries({ queryKey: ['applications'] });
               } catch (err: any) { setError(err?.response?.data?.message || err?.message || 'Review failed'); }

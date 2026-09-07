@@ -49,11 +49,11 @@ async function testReviewerNameIsTenantScopedAndNameOnly() {
   assert.equal(unnamed, null, 'email and UUID must not be reviewer-name fallbacks');
 }
 
-async function testReviewRejectsStaleExpectedCatalogVersions() {
-  const app = {
+async function testReviewRecordsTimestampAndRejectsStaleRevision() {
+  const app: any = {
     id: applicationId,
     tenant_id: tenantId,
-    business_mtd_minutes: 240,
+    criticality: 'business_critical',
     cyber_criticality: 'critical',
     data_class: 'restricted',
     recovery_wave: 'vital',
@@ -67,19 +67,21 @@ async function testReviewRejectsStaleExpectedCatalogVersions() {
     getRepository: () => repo,
     query: async (sql: string) => {
       if (sql.includes('SELECT app_current_tenant()')) return [{ tenant_id: tenantId }];
+      if (sql.includes('FROM users')) return [{ id: reviewerId }];
       if (sql.includes('FROM applications') && !sql.includes('FOR UPDATE')) return [{ id: applicationId }];
       return [];
     },
   };
   const service = createService(manager);
   await assert.rejects(
-    () => service.reviewClassification(applicationId, 4, reviewerId, { manager }, {
-      ...DEFAULT_CLASSIFICATION_CATALOG.classificationVersions,
-      cyber: DEFAULT_CLASSIFICATION_CATALOG.classificationVersions.cyber + 1,
-    }),
-    (error: unknown) => error instanceof ConflictException && /methodology changed/i.test(error.message),
+    () => service.reviewClassification(applicationId, 3, reviewerId, { manager }),
+    (error: unknown) => error instanceof ConflictException && /reload before marking/i.test(error.message),
   );
   assert.equal(app.classification_review, null);
+  const reviewed = await service.reviewClassification(applicationId, 4, reviewerId, { manager });
+  assert.deepEqual(Object.keys(app.classification_review).sort(), ['reviewed_at', 'revision', 'user_id'], 'review is a timestamp: no catalog version is recorded');
+  assert.equal(reviewed.classification_review_state, 'reviewed');
+  assert.equal(app.classification_review.revision, 4);
 }
 
 function testReviewerDisplayIsServerManaged() {
@@ -91,9 +93,9 @@ function testReviewerDisplayIsServerManaged() {
 
 async function main() {
   await testReviewerNameIsTenantScopedAndNameOnly();
-  await testReviewRejectsStaleExpectedCatalogVersions();
+  await testReviewRecordsTimestampAndRejectsStaleRevision();
   testReviewerDisplayIsServerManaged();
-  console.log('Application classification reviewer display and methodology concurrency passed');
+  console.log('Application classification reviewer display and review timestamp passed');
 }
 
 main().catch((error) => {

@@ -48,7 +48,7 @@ Navigieren Sie zu **IT-Landschaft > Anwendungen**, um Ihre Liste zu sehen. Klick
 - **Herausgeber**: Der Software-Herausgeber (z. B. Microsoft, SAP, Oracle)
 - **Beschreibung**: Was diese Anwendung tut
 
-Klassifizierungsfelder sind beim Anlegen optional. Für die **MTD** verwenden der Editor sowie neue oder geänderte API-/CSV-Schreibvorgänge die vom Mandanten konfigurierten zulässigen Dauern; eine freie Eingabe ist in der Oberfläche nicht möglich. Eine historische Dauer außerhalb der zulässigen Dauern bleibt sichtbar, kann aber nicht als neue Option gewählt und gelöscht werden. Sie bleibt unverändert gültig, auch bei einer Katalogneuberechnung. Andere Werte bleiben offen, bis Sie sie auswählen.
+Klassifizierungsfelder sind beim Anlegen optional. **Geschäftskritikalität**, Cyberkritikalität, Datenvertraulichkeit und Wiederanlaufwelle werden aus den Stufen gewählt, die Ihre Organisation unter **IT-Landschaft > Einstellungen** definiert hat; jede Option zeigt die Definition der Stufe. Die Werte bleiben offen, bis Sie sie auswählen.
 
 **Optional aber nützlich**:
 - **Version**: Aktuelle Versionskennung (Freitext, z. B. „4.2.1", „2023", „Q1 2024")
@@ -85,7 +85,7 @@ Das Anwendungsraster bietet eine umfassende Ansicht Ihres Anwendungsportfolios.
 - **Kategorie**: Der Hauptzweck der Anwendung
 - **Umgebungen**: Farbige Chips, die aktive Umgebungen zeigen (Prod, Pre-prod, QA, Test, Dev, Sandbox). Bewegen Sie den Mauszeiger darüber für Basis-URL und Lebenszyklus.
 - **Lebenszyklus**: Aktueller Status
-- **Business-Kritikalität**: Aus der MTD berechnete Stufe
+- **Geschäftskritikalität**: Stufe der geschäftlichen Bedeutung
 - **Herausgeber**: Software-Herausgeber
 - **Abgeleitete Benutzer (J)**: Berechnete Benutzeranzahl für das aktuelle Jahr (basierend auf der in der Eigenschaftsleiste festgelegten Zielgruppe)
 - **Erstellt**: Wann der Datensatz erstellt wurde
@@ -103,6 +103,7 @@ Das Anwendungsraster bietet eine umfassende Ansicht Ihres Anwendungsportfolios.
 - **OPEX-Positionen** / **CAPEX-Positionen** / **Verträge**: Verknüpfte Ausgaben und Verträge
 - **Komponenten**: Unteranwendungen (wenn dies eine Suite ist)
 - **Datenklasse** / **Enthält PII** / **Datenhaltung**: Compliance-Informationen
+- **Cyberkritikalität**, **Wiederanlaufwelle**, **RTO**, **RPO**, **Prüfstatus/-datum**: Klassifizierungs- und Kontinuitätsfelder
 
 **Filterung**:
 - Schnellsuche: gleicht Name und Editor/Herausgeber ab
@@ -128,7 +129,7 @@ Die Kopfzeile zeigt:
 - **Anwendungsname** (an Ort und Stelle bearbeitbar)
 - **Referenz**: kurze Kennung, die Sie kopieren können
 - **Lebenszyklus**-Chip: klicken zum Ändern
-- **Business-Kritikalitäts**-Chip: zeigt die berechnete Stufe und öffnet die MTD-Steuerung
+- **Geschäftskritikalitäts**-Chip: zeigt die Stufe und öffnet ein Menü mit den Stufen der Organisation
 - **Versions**-Chip (wenn eine Version festgelegt ist): klicken zum Kopieren
 - **Go-Live**-Datum
 - **Link senden**: Einen teilbaren Link zu diesem Arbeitsbereich kopieren
@@ -249,21 +250,25 @@ Der Reiter Compliance erfasst Datenschutz- und regulatorische Informationen.
 
 Der Bereich Compliance erfasst auch die Entscheidungen zu Kontinuität und Klassifizierung der Anwendung. Fehlende Werte werden als **Nicht festgelegt** angezeigt; KANAP ersetzt sie nicht durch eine Standardstufe.
 
-**Kritikalität**:
-- Die **maximal tolerierbare Ausfallzeit (MTD)** wird aus den konfigurierten zulässigen Dauern des Mandanten gewählt. Neue oder geänderte Werte müssen eine dieser Dauern verwenden. Die schreibgeschützte **Business-Kritikalität** wird aus den Schwellenwerten berechnet. Eine historische Dauer außerhalb der zulässigen Dauern bleibt als nicht neu wählbar sichtbar und kann gelöscht werden; unverändert bleibt sie gültig.
-- Die **Cyber-Kritikalität** wird unabhängig gewählt. Das Auswahlmenü zeigt die Beschreibung jeder Mandantenstufe; wählen Sie die Stufe mit den höchsten plausiblen Folgen. Verwechseln Sie Cyberkritikalität nicht mit dem Risikoniveau!
-- Die **Begründung** dokumentiert die fachlichen, Cyber- und Wiederherstellungsentscheidungen.
+Der Reiter ist in vier Blöcke gegliedert, in der Reihenfolge einer Business-Impact-Analyse.
 
-**Daten und Wiederherstellung**:
-- **Datenvertraulichkeit** verwendet den Datenklassenkatalog des Mandanten.
+**Kritikalität**:
+- Die **Geschäftskritikalität** wird aus den von Ihrer Organisation definierten Stufen gewählt. Jede Option zeigt die Definition der Stufe, in der Regel die Unterbrechung, die die Aktivität tolerieren kann. Die Stufe ist eine stabile Referenz: Das Umbenennen einer Stufe, das Ändern ihrer Definition oder das Umsortieren des Katalogs in den Einstellungen verschiebt nie eine Anwendung auf eine andere Stufe.
+- Die **Cyberkritikalität** wird unabhängig gewählt. Das Auswahlmenü zeigt die Beschreibung jeder Stufe; wählen Sie die Stufe mit den höchsten plausiblen Folgen. Verwechseln Sie Cyberkritikalität nicht mit dem Risikoniveau!
+
+**Daten**:
+- **Datenvertraulichkeit** verwendet den Datenklassenkatalog der Organisation.
+- **Enthält personenbezogene Daten** und **Datenresidenz** vervollständigen das Datenbild.
+
+**Kontinuität und Wiederanlauf**:
 - Die **Wiederherstellungswelle** bezeichnet die Reihenfolge der Wiederherstellung, keine Dauer und keinen Schweregrad.
-- Das **RTO** ist das Ziel für die Wiederherstellungszeit. Das **RPO** ist der zulässige Datenverlust und darf null sein. Wenn RTO größer oder gleich MTD ist, zeigt KANAP einen Hinweis, behält aber beide Werte.
+- Das **RTO** ist das Ziel für die Wiederherstellungszeit. Das **RPO** ist der zulässige Datenverlust und darf null sein. Erreicht das RTO die maximal tolerierbare Ausfallzeit, die auf der gewählten Geschäftsstufe definiert ist, zeigt KANAP einen Hinweis, behält aber beide Werte.
 - **Letzter Wiederherstellungstest** enthält das Datum des letzten Tests. Ein Link aus diesem Bereich verwendet die einzige **Wissensdatenbank** im Reiter Übersicht und erzeugt keinen doppelten Datensatz. Ältere URL-Links bleiben unter Verknüpfungen verfügbar.
 
 **Review**:
-- **Zu vervollständigen** bedeutet, dass MTD, Cyber-Kritikalität, Datenvertraulichkeit, Wiederherstellungswelle oder Begründung fehlt.
-- **Review erforderlich** bedeutet, dass eine Klassifizierung, eine relevante Referenz oder eine Katalogversion geändert wurde. Der Grund wird übersetzt angezeigt; Datum und Name des letzten Prüfers werden eingeblendet.
-- **Geprüft** wird nur mit **Als geprüft markieren** gesetzt, wenn alle vier Dimensionen und eine Begründung vorhanden sind. Die Schaltfläche ist deaktiviert, sobald die Anwendung bereits geprüft ist. Revision, Katalogversionen, Benutzer und Serverdatum werden gespeichert. Eine Änderung von Name oder Herausgeber macht das Review nicht ungültig.
+- Die **Begründung** dokumentiert, warum die Stufen gewählt wurden und worauf der Wiederherstellungsplan beruht.
+- Das Review ist ein Zeitstempel: **Als geprüft markieren** hält fest, wer die Klassifizierung wann geprüft hat. Die Aktion steht zur Verfügung, sobald Geschäftskritikalität, Cyberkritikalität, Datenvertraulichkeit, Wiederanlaufwelle und Begründung vorhanden sind.
+- Prüfdatum und Prüfer bleiben danach sichtbar. Ändert sich nach dem Review ein Klassifizierungswert, eine Wiederanlaufreferenz oder die Datenresidenz, zeigt der Reiter **Seit der Prüfung geändert** und die Liste **Erneut prüfen**. Eine Änderung von Name oder Herausgeber hat keine Auswirkung. Eine Änderung des Katalogs in den Einstellungen macht ein Review nie ungültig.
 
 ### Verknüpfungen
 
@@ -316,6 +321,8 @@ Die neue Version wird als separate Anwendung erstellt mit:
 - Einem Link zu seinem Vorgänger (verwendet von der Versions-Zeitleiste)
 - Kopierten Daten basierend auf Ihren Auswahlen
 - Duplizierten Schnittstellen, die auf die neue Version verweisen
+
+Klassifizierungs- und Kontinuitätswerte werden kopiert, die neue Version beginnt jedoch mit einem zurückgesetzten Review und ohne kopierten letzten Wiederherstellungstest.
 
 ### Was kopiert wird
 
@@ -462,7 +469,7 @@ Aus der Anwendungsliste:
 | `category` | Hauptzweck | Nein | Akzeptiert Code oder Bezeichnung aus den Einstellungen |
 | `supplier_name` | Lieferantenname | Nein | Muss mit vorhandenem Lieferanten übereinstimmen |
 | `editor` | Software-Herausgeber | Nein | Freitext (z. B. Microsoft, SAP) |
-| `criticality` | Berechnete Business-Stufe | Nur Ergebnis/Export | Aus `business_mtd_minutes` abgeleitet |
+| `criticality` | Geschäftskritikalität | Nein | Akzeptiert Code oder Bezeichnung aus den Einstellungen; `__CLEAR__` löscht den Wert |
 | `lifecycle` | Aktueller Status | Nein | Akzeptiert Code oder Bezeichnung aus den Einstellungen |
 | `is_suite` | Kann Unteranwendungen haben | Nein | `true` oder `false` |
 | `status` | Aktiviert/deaktiviert | Nein | `enabled` oder `disabled` |
@@ -500,13 +507,13 @@ Aus der Anwendungsliste:
 
 | CSV-Spalte | Beschreibung | Hinweise |
 |------------|-------------|---------|
-| `business_mtd_minutes` | MTD | Neue oder geänderte Werte müssen eine konfigurierte zulässige Dauer verwenden; berechnet die exportierte `criticality` |
+| `criticality` | Stufe der Geschäftskritikalität | Mandantencode oder eindeutige Bezeichnung |
 | `cyber_criticality` | Cyber-Folgenstufe | Mandantencode oder eindeutige Bezeichnung |
 | `recovery_wave` | Wiederherstellungsreihenfolge | Mandantencode oder eindeutige Bezeichnung |
 | `rto_minutes` / `rpo_minutes` | Wiederherstellungsziele | Ganze Minuten; RPO darf null sein |
 | `classification_justification` | Begründung | Freitext |
 
-`criticality` ist ein berechnetes Exportergebnis und kann keine neue Stufe setzen. Eine leere Klassifizierungszelle behält im Modus Anreichern und Ersetzen den vorhandenen Wert; verwenden Sie `__CLEAR__`, um eine Klassifizierung zu löschen.
+Eine leere Klassifizierungszelle behält im Modus Anreichern und Ersetzen den vorhandenen Wert; verwenden Sie `__CLEAR__`, um eine Klassifizierung zu löschen.
 
 **Verantwortlichen-Felder**:
 
@@ -567,9 +574,9 @@ Wenn Sie die Spalte `id` mit einer gültigen UUID einschließen, verwendet der A
 
 ```csv
 name;category;supplier_name;criticality;lifecycle;go_live_date;external_facing
-Salesforce CRM;Line-of-business;Salesforce Inc;business_critical;Active;2020-01-15;true
+Salesforce CRM;Line-of-business;Salesforce Inc;Critical;Active;2020-01-15;true
 Microsoft 365;Productivity;Microsoft;high;active;2019-06-01;false
-Custom ERP;lob;;medium;Active;2018-03-20;false
+Custom ERP;lob;;Moderate;Active;2018-03-20;false
 ```
 
 ---

@@ -241,20 +241,20 @@ Data classification levels for Applications and Interfaces.
 
 ### Classifications and continuity
 
-This specialized editor configures the catalogs used by application classification and continuity. It is available to `settings:admin` users from the **Apps, Services & Interfaces** section.
+This editor configures the levels used to classify applications. It is available to `settings:admin` users from the **Apps, Services & Interfaces** section and opens as a single dialog with one list per catalog:
 
-**Catalogs**:
-- **Business criticality and MTD thresholds**: levels with stable codes, labels, descriptions, unique severity ranks, and an optional maximum MTD in minutes. The last active level must be unbounded.
-- **Allowed MTD durations in minutes**: the choices offered by the application editor. The editor does not offer free MTD entry; a historical non-allowed value remains readable and can be cleared. New or changed values must use one of these durations, and the catalog must contain at least one distinct positive integer minute value. The API field remains `businessMtdPresets`; allowed durations do not change the classification method.
-- **Cyber criticality**: independent consequence levels with explicit ranks.
-- **Data confidentiality**: the existing Data Classes catalog, enriched with descriptions and ranks.
+- **Business criticality**: the levels an application can be assigned. Each level has a name, a description shown under the name when choosing a level, an optional **maximum tolerable downtime** in minutes, and a **No longer offered** flag. The downtime documents the level and triggers a warning on an application whose RTO reaches it; it is an attribute of the level, not a value entered on applications.
+- **Cyber criticality**: independent consequence levels.
+- **Data confidentiality**: the Data Classes catalog, with descriptions.
 - **Recovery waves**: ordered restoration stages. The order does not represent severity or a time estimate.
 
-Codes are stable identifiers. A used value can be deprecated so it remains visible on existing applications while no longer being assignable to new records. Labels and descriptions may be edited without changing codes.
+**Order is the position in the list.** Severity catalogs are listed from the most critical level at the top to the least critical at the bottom; recovery waves in restoration order. Use the arrows to move a level; the position drives the sort order of lists, the "highest level" rule used by interfaces and connections, and the order of the pickers. **Add level** appends at the bottom.
 
-Business catalog edits use **Preview impact** before **Publish changes**. The preview reports affected applications and old-to-new transitions. Publication requires the current settings revision; a concurrent change requires reloading the settings. Classification versions are exposed to application edits so stale reviews can be identified. The settings **Reset** action follows the same reference and revision protections and does not silently remove codes used by applications, interfaces, or connections.
+**Changing the catalog never changes applications.** An application stores the code of its level. Renaming a level, editing its description or downtime, and reordering the catalog leave every application on the same level and do not invalidate reviews. A level still used by an application, interface or connection cannot be removed; mark it **No longer offered** instead: it stays visible on existing records and is no longer proposed for new ones.
 
-The business levels also power operational criticality on interfaces and connections. MTD thresholds apply only to applications. Missing derived inputs are marked incomplete; they are not treated as the lowest level.
+Codes are stable identifiers shown for reference. Names must be unique within a catalog because CSV import and the API accept either the code or the name.
+
+The business levels also power operational criticality on interfaces and connections. Missing derived inputs are marked incomplete; they are not treated as the lowest level.
 
 ### Integration Patterns
 

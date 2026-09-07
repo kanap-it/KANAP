@@ -29,14 +29,13 @@ export const applicationCsvConfig: CsvEntityConfig = {
   displayName: 'Applications',
   upsertKey: ['name'],
   fields: [
-    ...['business_mtd_minutes', 'rto_minutes', 'rpo_minutes', 'cyber_criticality', 'recovery_wave', 'classification_justification'].map((field) => ({
+    ...['rto_minutes', 'rpo_minutes', 'cyber_criticality', 'recovery_wave', 'classification_justification'].map((field) => ({
       csvColumn: field, entityProperty: field, type: CsvFieldType.STRING, required: false, defaultExport: true,
       label: field.endsWith('_minutes') ? `${field} (integer minutes; __CLEAR__ to clear)` : `${field} (__CLEAR__ to clear)`, group: 'Classification',
     })),
-    ...['legacy_criticality', 'business_criticality_origin', 'classification_revision', 'classification_review_state', 'classification_reviewed_at'].map((field) => ({
+    ...['classification_revision', 'classification_review_state', 'classification_reviewed_at'].map((field) => ({
       csvColumn: field, entityProperty: field, type: CsvFieldType.STRING, importable: false, exportable: true, defaultExport: false, label: field, group: 'Classification',
     })),
-    { csvColumn: 'classification_catalog_versions', entityProperty: 'classification_catalog_versions', type: CsvFieldType.COMPUTED, importable: false, exportable: true, defaultExport: false, label: 'Classification method versions', exportFn: (entity: any) => JSON.stringify(entity.classification_catalog_versions) },
 
     // Identity
     {
@@ -107,9 +106,8 @@ export const applicationCsvConfig: CsvEntityConfig = {
       type: CsvFieldType.STRING,
       required: false,
       defaultExport: true,
-      label: 'Business criticality (calculated; provide business_mtd_minutes to change)',
+      label: 'Business criticality (code or name; __CLEAR__ to clear)',
       group: 'Overview',
-
     },
     {
       csvColumn: 'lifecycle',
@@ -481,7 +479,7 @@ export const applicationCsvConfig: CsvEntityConfig = {
       // Only importable fields - excludes computed fields like data_residency, created_at, updated_at
       fields: [
         'id', 'name', 'description', 'category', 'supplier_name', 'editor',
-        'criticality', 'business_mtd_minutes', 'cyber_criticality', 'recovery_wave', 'rto_minutes', 'rpo_minutes', 'classification_justification', 'lifecycle', 'is_suite',
+        'criticality', 'cyber_criticality', 'recovery_wave', 'rto_minutes', 'rpo_minutes', 'classification_justification', 'lifecycle', 'is_suite',
         'version', 'go_live_date', 'end_of_support_date', 'retired_date',
         'licensing', 'notes',
         'access_methods', 'external_facing', 'etl_enabled', 'support_notes',
@@ -505,7 +503,7 @@ export const applicationCsvConfig: CsvEntityConfig = {
       delete row.parsed._data_residency_csv;
       if (row.errors.length) continue;
       const input: Record<string, any> = {};
-      for (const field of [...CLASSIFICATION_INPUT_FIELDS, 'criticality']) {
+      for (const field of CLASSIFICATION_INPUT_FIELDS) {
         const raw = row.raw[field];
         // Empty and absent classification cells preserve values in BOTH modes.
         delete row.parsed[field];

@@ -48,7 +48,7 @@ Navigate to **IT Landscape > Applications** to see your list. Click **New App / 
 - **Publisher**: The software publisher (e.g., Microsoft, SAP, Oracle)
 - **Description**: What this application does
 
-Classification fields are optional when you create an application. For **MTD**, the editor and new or changed API/CSV writes use the tenant's configured allowed durations; there is no free-entry control in the UI. A historical non-allowed duration remains visible but cannot be selected as a new option, and you can clear it. Existing non-preset durations remain valid when unchanged, including during catalog recalculation. Other classification values remain unset until you choose them.
+Classification fields are optional when you create an application. **Business criticality**, cyber criticality, data confidentiality and recovery wave are chosen among the levels your organization defined in **IT Landscape > Settings**; each option shows the level's definition. Values remain unset until you choose them.
 
 **Optional but useful**:
 - **Version**: Current version identifier (free text, e.g., "4.2.1", "2023", "Q1 2024")
@@ -103,7 +103,7 @@ The Applications grid provides a comprehensive view of your application portfoli
 - **OPEX Items** / **CAPEX Items** / **Contracts**: Linked spend and contracts
 - **Components**: Child applications (if this is a suite)
 - **Data Class** / **Contains PII** / **Data Residency**: Compliance information
-- **Business MTD**, **Cyber criticality**, **Recovery wave**, **RTO**, **RPO**, **Review state/date**: Classification and continuity fields
+- **Cyber criticality**, **Recovery wave**, **RTO**, **RPO**, **Review state/date**: Classification and continuity fields
 
 **Filtering**:
 - Quick search: matches name and editor/publisher
@@ -129,7 +129,7 @@ The header shows:
 - **Application name** (editable in place)
 - **Reference**: short identifier you can copy
 - **Lifecycle** chip: click to change
-- **Business criticality** chip: shows the calculated level and opens the MTD control
+- **Business criticality** chip: shows the level and opens a menu of the organization's levels
 - **Version** chip (if a version is set): click to copy
 - **Go live** date
 - **Send link**: copy a shareable link to this workspace
@@ -248,21 +248,25 @@ The Compliance tab captures data protection and regulatory information.
 
 The Compliance area also records the application's continuity and classification decisions. Missing values are shown as **Not set**; KANAP does not substitute a default level.
 
-**Criticality**:
-- **Maximum tolerable downtime (MTD)** is chosen from the tenant's configured allowed durations. New or changed writes must use one of those configured durations. The read-only **Business criticality** is calculated from the tenant's thresholds. A historical duration outside the allowed durations is displayed as unavailable for new selection and can be cleared; it remains valid when unchanged.
-- **Cyber criticality** is selected independently. The picker shows each tenant level's description; use the level whose plausible consequences are highest. Do not confuse cyber criticality with the level of risk.
-- **Justification** records the business, cyber, and recovery reasoning.
+The tab is organized in four blocks, in the order of a business impact analysis.
 
-**Data and recovery**:
-- **Data confidentiality** uses the tenant's data-class catalog.
+**Criticality**:
+- **Business criticality** is chosen among the levels defined by your organization. Each option shows the level's definition, typically the interruption the activity can tolerate. The level is a stable reference: renaming a level, changing its definition or reordering the catalog in Settings never moves an application to another level.
+- **Cyber criticality** is selected independently. The picker shows each level's description; use the level whose plausible consequences are highest. Do not confuse cyber criticality with the level of risk.
+
+**Data**:
+- **Data confidentiality** uses the organization's data-class catalog.
+- **Contains personal data** and **Data residency** complete the data picture.
+
+**Continuity and recovery**:
 - **Recovery wave** identifies the order in which the application is restored. It does not imply a duration or severity.
-- **RTO** is the target time to restore service. **RPO** is the acceptable data-loss duration and may be zero. If RTO is greater than or equal to MTD, KANAP shows a warning but keeps both values.
+- **RTO** is the target time to restore service. **RPO** is the acceptable data-loss duration and may be zero. If the RTO reaches the maximum tolerable downtime defined on the chosen business level, KANAP shows a warning but keeps both values.
 - **Last recovery test** records the most recent test date. A link opened from this area uses the single existing **Knowledge** section in Overview; it does not create a duplicate record. Older URL links remain available under Relations.
 
 **Review**:
-- **To complete** means one of MTD, cyber criticality, data confidentiality, recovery wave, or the justification is missing.
-- **Review needed** means a classification or relevant reference changed, or the catalog version changed. The reason is translated in the UI and the last review date and named reviewer are shown.
-- **Reviewed** is set only by **Mark as reviewed**, after all four core axes and a justification are present. The button is disabled once the application is already reviewed. The action records the current revision, catalog versions, actor, and server date. Editing the application name or publisher does not invalidate it.
+- **Justification** records the reasoning behind the levels and what the recovery plan relies on.
+- The review is a timestamp: **Mark as reviewed** records who reviewed the classification and when. It is available once business criticality, cyber criticality, data confidentiality, recovery wave and the justification are present.
+- The review date and reviewer stay visible afterwards. When a classification value, a recovery reference or the data residency changes after the review, the tab shows **Changed since review** and the list shows **Review needed**. Editing the application name or publisher does not affect it. Changing the catalog in Settings never invalidates a review.
 
 ---
 
@@ -318,7 +322,7 @@ The new version is created as a separate application with:
 - Copied data based on your selections
 - Duplicated interfaces pointing to the new version
 
-Classification and continuity values are copied when their source values are copied, but the new version starts with a reset review and no copied last recovery test. A legacy classification without an MTD remains legacy; KANAP does not invent a duration.
+Classification and continuity values are copied, but the new version starts with a reset review and no copied last recovery test.
 
 ### What gets copied
 
@@ -465,7 +469,7 @@ From the Applications list:
 | `category` | Primary purpose | No | Accepts code or label from Settings |
 | `supplier_name` | Vendor name | No | Must match existing supplier |
 | `editor` | Software publisher | No | Free text (e.g., Microsoft, SAP) |
-| `criticality` | Calculated business level | Export/result only | Derived from `business_mtd_minutes` |
+| `criticality` | Business criticality | No | Accepts code or label from Settings; `__CLEAR__` clears it |
 | `lifecycle` | Current status | No | Accepts code or label from Settings |
 | `is_suite` | Can have child apps | No | `true` or `false` |
 | `status` | Enabled/disabled | No | `enabled` or `disabled` |
@@ -503,13 +507,13 @@ From the Applications list:
 
 | CSV Column | Description | Notes |
 |------------|-------------|-------|
-| `business_mtd_minutes` | Maximum tolerable downtime | New or changed values must use a configured allowed duration; calculates the exported `criticality` |
+| `criticality` | Business criticality level | Tenant catalog code or unambiguous label |
 | `cyber_criticality` | Cyber consequence level | Tenant catalog code or unambiguous label |
 | `recovery_wave` | Recovery order | Tenant catalog code or unambiguous label |
 | `rto_minutes` / `rpo_minutes` | Recovery objectives | Whole minutes; RPO may be zero |
 | `classification_justification` | Classification reasoning | Free text |
 
-`criticality` is a calculated export value and cannot set a new level. A blank classification cell preserves the existing value in both Enrich and Replace modes; use the literal `__CLEAR__` to clear a classification.
+A blank classification cell preserves the existing value in both Enrich and Replace modes; use the literal `__CLEAR__` to clear a classification.
 
 **Owner fields**:
 
@@ -569,10 +573,10 @@ If you include the `id` column with a valid UUID, matching uses ID first, then f
 ### Example CSV
 
 ```csv
-name;category;supplier_name;business_mtd_minutes;lifecycle;go_live_date;external_facing
-Salesforce CRM;Line-of-business;Salesforce Inc;240;Active;2020-01-15;true
-Microsoft 365;Productivity;Microsoft;1440;active;2019-06-01;false
-Custom ERP;lob;;4320;Active;2018-03-20;false
+name;category;supplier_name;criticality;lifecycle;go_live_date;external_facing
+Salesforce CRM;Line-of-business;Salesforce Inc;Critical;Active;2020-01-15;true
+Microsoft 365;Productivity;Microsoft;high;active;2019-06-01;false
+Custom ERP;lob;;Moderate;Active;2018-03-20;false
 ```
 
 ---

@@ -20,8 +20,6 @@ export interface ApplicationResponse {
   lifecycle: string;
   environment: string;
   criticality: string | null;
-  business_mtd_minutes: number | null;
-  business_criticality_origin: 'unset' | 'legacy' | 'derived';
   cyber_criticality: string | null;
   recovery_wave: string | null;
   rto_minutes: number | null;
@@ -224,8 +222,6 @@ export interface ApplicationMapSummaryResponse {
   description: string | null;
   editor: string | null;
   criticality: string | null;
-  business_mtd_minutes: number | null;
-  business_criticality_origin: 'unset' | 'legacy' | 'derived';
   cyber_criticality: string | null;
   recovery_wave: string | null;
   rto_minutes: number | null;

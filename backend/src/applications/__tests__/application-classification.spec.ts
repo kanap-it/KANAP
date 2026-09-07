@@ -1,54 +1,70 @@
 import * as assert from 'node:assert/strict';
-import { DEFAULT_CLASSIFICATION_CATALOG as defaults, catalogFromMetadata, deriveBusinessCriticality, highestClassification, resolveClassificationOption, validateBusinessMtdChoice, validateClassificationCatalog, validateDuration } from '../../it-ops-settings/classification-catalog';
+import { DEFAULT_CLASSIFICATION_CATALOG as defaults, catalogFromMetadata, highestClassification, resolveClassificationOption, validateClassificationCatalog, validateDuration } from '../../it-ops-settings/classification-catalog';
 import { classificationPatch, classificationReadState, copyClassification } from '../services/application-classification';
 const catalog = structuredClone(defaults);
-for (const [minutes, expected] of [[null,null],[30,'business_critical'],[240,'business_critical'],[241,'high'],[1440,'high'],[1441,'medium'],[4320,'medium'],[4321,'low'],[10080,'low'],[20160,'low']] as const) assert.equal(deriveBusinessCriticality(minutes,catalog.businessCriticalityLevels), expected);
-for (const value of [-1,0,0.5,NaN,Infinity,2147483648,'60',undefined]) assert.throws(() => validateDuration(value,'mtd'));
+for (const value of [-1,0,0.5,NaN,Infinity,2147483648,'60',undefined]) assert.throws(() => validateDuration(value,'rto'));
 assert.equal(validateDuration(0,'rpo',true),0);
-assert.equal(validateBusinessMtdChoice(null,catalog.businessMtdPresets),null);
-assert.equal(validateBusinessMtdChoice(777,catalog.businessMtdPresets,777),777);
-assert.throws(()=>validateBusinessMtdChoice(777,catalog.businessMtdPresets));
+
+// Ranks and orders follow array position, whatever the client sends.
+const shuffled = structuredClone(catalog);
+shuffled.businessCriticalityLevels.forEach((level, index) => { level.rank = [7, 2, 9, 4][index]; });
+shuffled.recoveryWaves.forEach((wave, index) => { wave.order = [30, 10, 20, 0][index]; });
+const normalized = validateClassificationCatalog(shuffled);
+assert.deepEqual(normalized.businessCriticalityLevels.map((item) => [item.code, item.rank]), [['business_critical',4],['high',3],['medium',2],['low',1]]);
+assert.deepEqual(normalized.cyberCriticalityLevels.map((item) => item.rank), [4,3,2,1]);
+assert.deepEqual(normalized.recoveryWaves.map((item) => item.order), [0,1,2,3]);
+// Reading sorts by stored rank so a tenant stored least-severe-first is displayed most-severe-first.
+const stored = catalogFromMetadata({ cyber_criticality_levels: [...catalog.cyberCriticalityLevels].reverse() });
+assert.deepEqual(stored.cyberCriticalityLevels.map((item) => item.code), ['critical','high','moderate','low']);
+assert.deepEqual(catalogFromMetadata({data_classes:[{code:'secret',label:'Custom'},{code:'open',label:'Open'}]}).dataClasses.map(x=>[x.code,x.rank]),[['open',2],['secret',1]]);
+
 for (const mutate of [
-  (c: any) => c.businessCriticalityLevels[1].maxMtdMinutes = 240,
-  (c: any) => c.businessCriticalityLevels[3].maxMtdMinutes = 10080,
   (c: any) => c.cyberCriticalityLevels[1].code = 'low',
-  (c: any) => c.cyberCriticalityLevels[1].rank = 1,
-  (c: any) => c.businessMtdPresets = [],
+  (c: any) => c.cyberCriticalityLevels[1].label = ' critical ',
+  (c: any) => c.businessCriticalityLevels[0].maxMtdMinutes = 0,
+  (c: any) => c.businessCriticalityLevels[0].maxMtdMinutes = '240',
+  (c: any) => c.recoveryWaves = [],
+  (c: any) => c.dataClasses.forEach((item: any) => item.deprecated = true),
 ]) { const bad = structuredClone(catalog); mutate(bad); assert.throws(() => validateClassificationCatalog(bad)); }
-const custom = structuredClone(catalog); custom.businessCriticalityLevels = [
-  {code:'tier_z',label:'A',description:'',rank:9,maxMtdMinutes:30},
-  {code:'tier_a',label:'Z',description:'',rank:5,maxMtdMinutes:900},
-  {code:'tier_q',label:'B',description:'',rank:1,maxMtdMinutes:null},
-];
-validateClassificationCatalog(custom); assert.equal(deriveBusinessCriticality(31,custom.businessCriticalityLevels),'tier_a');
+// The downtime of a level is optional and unconstrained by the neighbouring levels.
+const loose = structuredClone(catalog);
+loose.businessCriticalityLevels[0].maxMtdMinutes = null; loose.businessCriticalityLevels[3].maxMtdMinutes = 60;
+assert.deepEqual(validateClassificationCatalog(loose).businessCriticalityLevels.map((item) => item.maxMtdMinutes), [null,1440,4320,60]);
+const custom = validateClassificationCatalog({ ...structuredClone(catalog), businessCriticalityLevels: [
+  {code:'tier_z',label:'A',description:'',rank:0,maxMtdMinutes:30},
+  {code:'tier_a',label:'Z',description:'',rank:0,maxMtdMinutes:900},
+  {code:'tier_q',label:'B',description:'',rank:0,maxMtdMinutes:null},
+]});
 assert.deepEqual(highestClassification(['tier_q',null,'tier_z'],custom.businessCriticalityLevels),{code:'tier_z',incomplete:true});
 assert.deepEqual(highestClassification(['unknown',null],custom.businessCriticalityLevels),{code:null,incomplete:true});
-const old = {criticality:'medium',legacy_criticality:'medium',business_criticality_origin:'legacy',business_mtd_minutes:null,classification_revision:0};
+
+// Business criticality is chosen directly, by code or by exact label.
+const old = {criticality:'medium',classification_revision:0};
 assert.equal(classificationPatch({},old,catalog).criticality,undefined);
-const derived = {...old,...classificationPatch({business_mtd_minutes:1440},old,catalog)};
-assert.equal(derived.criticality,'high'); assert.equal(derived.legacy_criticality,'medium');
-const cleared = {...derived,...classificationPatch({business_mtd_minutes:null},derived,catalog)};
-assert.equal(cleared.criticality,null); assert.equal(cleared.business_criticality_origin,'unset');
-assert.throws(()=>classificationPatch({criticality:'high'},old,catalog));
-assert.throws(()=>classificationPatch({business_mtd_minutes:1440,criticality:'low'},old,catalog));
-assert.equal(classificationPatch({business_mtd_minutes:1440,criticality:'high'},old,catalog).criticality,'high');
-assert.throws(()=>classificationPatch({business_mtd_minutes:777},old,catalog),/tenant-configured presets/);
-assert.equal(classificationPatch({business_mtd_minutes:777},{...old,business_mtd_minutes:777},catalog).business_mtd_minutes,777);
-for(const key of ['classification_review','classification_revision','legacy_criticality','business_criticality_origin']) assert.throws(()=>classificationPatch({[key]:null},old,catalog));
-const option = {...catalog.cyberCriticalityLevels[0],deprecated:true};
+assert.equal(classificationPatch({},old,catalog).classification_revision,0);
+const chosen = {...old,...classificationPatch({criticality:'High'},old,catalog)};
+assert.equal(chosen.criticality,'high'); assert.equal(chosen.classification_revision,1);
+assert.equal(classificationPatch({criticality:'business_critical'},chosen,catalog).criticality,'business_critical');
+assert.equal(classificationPatch({criticality:null},chosen,catalog).criticality,null);
+assert.throws(()=>classificationPatch({criticality:'unknown'},old,catalog),/Unknown or ambiguous/);
+const deprecatedCatalog = structuredClone(catalog); deprecatedCatalog.businessCriticalityLevels[1].deprecated = true;
+assert.throws(()=>classificationPatch({criticality:'high'},old,deprecatedCatalog),/deprecated/);
+assert.equal(classificationPatch({criticality:'high'},chosen,deprecatedCatalog).criticality,'high');
+for(const key of ['classification_review','classification_revision','classification_review_state']) assert.throws(()=>classificationPatch({[key]:null},old,catalog));
+const option = {...catalog.cyberCriticalityLevels[3],deprecated:true};
 assert.throws(()=>resolveClassificationOption('low',[option])); assert.equal(resolveClassificationOption('low',[option],'low'),'low');
 assert.throws(()=>resolveClassificationOption('Same',[{code:'a',label:'Same'},{code:'b',label:'Same'}]));
-const complete:any = {...derived,cyber_criticality:'high',data_class:'internal',recovery_wave:'vital',classification_justification:'Agreed service needs',classification_review:null};
-assert.equal(classificationReadState(complete,catalog).classification_review_state,'stale');
-complete.classification_review={user_id:'test',reviewed_at:'2026-09-05T00:00:00Z',revision:complete.classification_revision,versions:catalog.classificationVersions};
-assert.equal(classificationReadState(complete,catalog).classification_review_state,'reviewed');
-assert.equal(classificationReadState({...complete,...classificationPatch({name:'Renamed'},complete,catalog)},catalog).classification_review_state,'reviewed');
-assert.equal(classificationReadState({...complete,...classificationPatch({rpo_minutes:0},complete,catalog)},catalog).classification_review_state,'stale');
-assert.equal(classificationReadState(complete,{...catalog,classificationVersions:{...catalog.classificationVersions,cyber:2}}).classification_review_reason,'method_changed');
-assert.throws(()=>classificationPatch({expected_classification_revision:999},complete,catalog));
-assert.throws(()=>classificationPatch({expected_classification_versions:{business:9}},complete,catalog));
-assert.equal(copyClassification(complete,catalog).classification_review,null);
-assert.equal(copyClassification({...complete,last_dr_test:'2026-01-01'},catalog).last_dr_test,null);
-assert.equal(copyClassification(old,catalog).business_criticality_origin,'legacy');
-assert.deepEqual(catalogFromMetadata({data_classes:[{code:'secret',label:'Custom'},{code:'open',label:'Open'}]}).dataClasses.map(x=>x.rank),[1,2]);
-console.log('Application classification: boundary, catalog, legacy, review, concurrency, copy and tenant defaults passed');
+
+// Review is a timestamp: never invalidated by the catalog, flagged when the application changes.
+const complete:any = {...chosen,cyber_criticality:'high',data_class:'internal',recovery_wave:'vital',classification_justification:'Agreed service needs',classification_review:null};
+assert.deepEqual(classificationReadState({...complete,criticality:null}),{classification_review_state:'incomplete',classification_review_reason:'missing_fields',classification_reviewed_at:null});
+assert.equal(classificationReadState(complete).classification_review_reason,'never_reviewed');
+complete.classification_review={user_id:'test',reviewed_at:'2026-09-05T00:00:00Z',revision:complete.classification_revision};
+assert.equal(classificationReadState(complete).classification_review_state,'reviewed');
+assert.equal(classificationReadState({...complete,...classificationPatch({name:'Renamed'},complete,catalog)}).classification_review_state,'reviewed');
+const changed = {...complete,...classificationPatch({rpo_minutes:0},complete,catalog)};
+assert.deepEqual([classificationReadState(changed).classification_review_state, classificationReadState(changed).classification_review_reason, classificationReadState(changed).classification_reviewed_at],['stale','data_changed','2026-09-05T00:00:00Z']);
+assert.equal(classificationReadState({...complete,cyber_criticality:null}).classification_reviewed_at,'2026-09-05T00:00:00Z');
+const copy = copyClassification({...complete,last_dr_test:'2026-01-01'},catalog);
+assert.deepEqual([copy.criticality,copy.classification_review,copy.classification_revision,copy.last_dr_test],['high',null,0,null]);
+console.log('Application classification: catalog order, validation, direct choice, review and copy passed');

@@ -48,7 +48,7 @@ Navegue a **Panorama IT > Aplicaciones** para ver su lista. Haga clic en **Nueva
 - **Editor**: El editor del software (p. ej., Microsoft, SAP, Oracle)
 - **Descripción**: Qué hace esta aplicación
 
-Los campos de clasificación son opcionales al crear una aplicación. Para la **MTD**, el editor y las escrituras nuevas o modificadas por API/CSV usan las duraciones permitidas configuradas por el tenant; la interfaz no permite introducir un valor libre. Una duración histórica fuera de las duraciones permitidas sigue visible, pero no puede elegirse como nueva opción y puede borrarse. Sigue siendo válida si no se modifica, incluso al recalcular el catálogo. Los demás valores permanecen sin definir hasta que usted los seleccione.
+Los campos de clasificación son opcionales al crear una aplicación. La **Criticidad de negocio**, la criticidad cibernética, la confidencialidad de los datos y la ola de recuperación se eligen entre los niveles que su organización definió en **Panorama IT > Configuración**; cada opción muestra la definición del nivel. Los valores permanecen sin definir hasta que usted los seleccione.
 
 **Opcionales pero útiles**:
 - **Versión**: Identificador de versión actual (texto libre, p. ej., "4.2.1", "2023", "T1 2024")
@@ -85,7 +85,7 @@ La cuadrícula de Aplicaciones proporciona una vista completa de su portafolio d
 - **Categoría**: El propósito principal de la aplicación
 - **Entornos**: Chips de colores que muestran entornos activos (Prod, Pre-prod, QA, Test, Dev, Sandbox). Pase el ratón para ver la URL base y el ciclo de vida.
 - **Ciclo de vida**: Estado actual
-- **Criticidad empresarial**: Nivel calculado a partir de la MTD
+- **Criticidad de negocio**: Nivel de importancia para el negocio
 - **Editor**: Editor del software
 - **Usuarios derivados (A)**: Conteo calculado de usuarios para el año actual (basado en la audiencia establecida en el panel de propiedades)
 - **Creado**: Cuándo se creó el registro
@@ -103,6 +103,7 @@ La cuadrícula de Aplicaciones proporciona una vista completa de su portafolio d
 - **Partidas OPEX** / **Partidas CAPEX** / **Contratos**: Gasto y contratos vinculados
 - **Componentes**: Aplicaciones hijas (si es una suite)
 - **Clase de datos** / **Contiene PII** / **Residencia de datos**: Información de conformidad
+- **Criticidad cibernética**, **Ola de recuperación**, **RTO**, **RPO**, **Estado/fecha de revisión**: Campos de clasificación y continuidad
 
 **Filtrado**:
 - Búsqueda rápida: coincide con el nombre y editor
@@ -128,7 +129,7 @@ El encabezado muestra:
 - **Nombre de la aplicación** (editable en línea)
 - **Referencia**: identificador corto que puede copiar
 - Chip de **Ciclo de vida**: haga clic para cambiar
-- Chip de **Criticidad empresarial**: muestra el nivel calculado y abre el control MTD
+- Chip de **Criticidad de negocio**: muestra el nivel y abre un menú con los niveles de la organización
 - Chip de **Versión** (si hay versión definida): haga clic para copiar
 - Fecha de **Puesta en marcha**
 - **Enviar enlace**: copiar un enlace compartible a este espacio de trabajo
@@ -249,21 +250,25 @@ La pestaña Conformidad captura información de protección de datos y normativa
 
 El área de Conformidad también registra las decisiones de continuidad y clasificación de la aplicación. Los valores ausentes se muestran como **No definido**; KANAP no sustituye un nivel predeterminado.
 
-**Criticidad**:
-- La **duración máxima tolerable de interrupción (MTD)** se elige entre las duraciones permitidas configuradas por el tenant. Los valores nuevos o modificados deben usar una de ellas. La **criticidad empresarial**, de solo lectura, se calcula con los umbrales del tenant. Una duración histórica fuera de las duraciones permitidas se muestra como no disponible para nuevas selecciones y puede borrarse; si no se modifica, sigue siendo válida.
-- La **criticidad cibernética** se selecciona de forma independiente. El selector muestra la descripción de cada nivel del tenant; elija el nivel con las consecuencias plausibles más graves. No confunda la criticidad cibernética con el nivel de riesgo.
-- La **justificación** documenta las decisiones empresariales, cibernéticas y de recuperación.
+La pestaña se organiza en cuatro bloques, en el orden de un análisis de impacto en el negocio.
 
-**Datos y recuperación**:
-- La **confidencialidad de datos** utiliza el catálogo de clases de datos del tenant.
+**Criticidad**:
+- La **Criticidad de negocio** se elige entre los niveles definidos por su organización. Cada opción muestra la definición del nivel, normalmente la interrupción que la actividad puede tolerar. El nivel es una referencia estable: renombrar un nivel, cambiar su definición o reordenar el catálogo en Configuración nunca mueve una aplicación a otro nivel.
+- La **Criticidad cibernética** se selecciona de forma independiente. El selector muestra la descripción de cada nivel; elija el nivel con las consecuencias plausibles más graves. No confunda la criticidad cibernética con el nivel de riesgo.
+
+**Datos**:
+- La **Confidencialidad de los datos** utiliza el catálogo de clases de datos de la organización.
+- **Contiene datos personales** y **Residencia de los datos** completan la visión de los datos.
+
+**Continuidad y recuperación**:
 - La **ola de recuperación** indica el orden de restauración; no representa una duración ni una gravedad.
-- El **RTO** es el objetivo de tiempo de recuperación. El **RPO** es la pérdida de datos aceptable y puede ser cero. Si RTO es mayor o igual que MTD, KANAP muestra una advertencia y conserva ambos valores.
+- El **RTO** es el objetivo de tiempo de recuperación. El **RPO** es la pérdida de datos aceptable y puede ser cero. Si el RTO alcanza la duración máxima tolerable de interrupción definida en el nivel de negocio elegido, KANAP muestra una advertencia y conserva ambos valores.
 - **Última prueba de recuperación** contiene la fecha de la prueba más reciente. Un enlace abierto desde esta zona utiliza la única sección **Base de conocimiento** de Visión general y no crea un registro duplicado. Las URL antiguas siguen disponibles en Relaciones.
 
 **Revisión**:
-- **Por completar** indica que falta MTD, criticidad cibernética, confidencialidad, ola de recuperación o justificación.
-- **Revisión necesaria** indica que cambió una clasificación, una referencia relevante o una versión del catálogo. El motivo se traduce en la interfaz; se muestran la fecha y el nombre del último revisor.
-- **Revisado** solo se establece mediante **Marcar como revisado**, cuando están presentes las cuatro dimensiones y una justificación. El botón se desactiva cuando la aplicación ya está revisada. Se guardan la revisión, las versiones del catálogo, el actor y la fecha del servidor. Cambiar el nombre o el editor no lo invalida.
+- La **Justificación** documenta el razonamiento detrás de los niveles elegidos y en qué se apoya el plan de recuperación.
+- La revisión es una marca de tiempo: **Marcar como revisado** registra quién revisó la clasificación y cuándo. Está disponible cuando la criticidad de negocio, la criticidad cibernética, la confidencialidad de los datos, la ola de recuperación y la justificación están presentes.
+- La fecha de revisión y el revisor siguen visibles después. Cuando un valor de clasificación, una referencia de recuperación o la residencia de los datos cambia tras la revisión, la pestaña muestra **Modificada desde la revisión** y la lista muestra **Por revisar**. Cambiar el nombre o el editor no le afecta. Cambiar el catálogo en Configuración nunca invalida una revisión.
 
 ### Relaciones
 
@@ -316,6 +321,8 @@ La nueva versión se crea como una aplicación separada con:
 - Un enlace a su predecesor (usado por la línea de tiempo de versiones)
 - Datos copiados según sus selecciones
 - Interfaces duplicadas apuntando a la nueva versión
+
+Los valores de clasificación y continuidad se copian, pero la nueva versión empieza con la revisión restablecida y sin copiar la última prueba de recuperación.
 
 ### Qué se copia
 
@@ -462,7 +469,7 @@ Desde la lista de Aplicaciones:
 | `category` | Propósito principal | No | Acepta código o etiqueta de Configuración |
 | `supplier_name` | Nombre del proveedor | No | Debe coincidir con un proveedor existente |
 | `editor` | Editor del software | No | Texto libre (p. ej., Microsoft, SAP) |
-| `criticality` | Nivel empresarial calculado | Solo resultado/exportación | Derivado de `business_mtd_minutes` |
+| `criticality` | Criticidad de negocio | No | Acepta código o etiqueta de Configuración; `__CLEAR__` lo borra |
 | `lifecycle` | Estado actual | No | Acepta código o etiqueta de Configuración |
 | `is_suite` | Puede tener apps hijas | No | `true` o `false` |
 | `status` | Habilitado/deshabilitado | No | `enabled` o `disabled` |
@@ -500,13 +507,13 @@ Desde la lista de Aplicaciones:
 
 | Columna CSV | Descripción | Notas |
 |------------|-------------|-------|
-| `business_mtd_minutes` | MTD | Los valores nuevos o modificados deben usar una duración permitida configurada; calcula la `criticality` exportada |
+| `criticality` | Nivel de criticidad de negocio | Código del tenant o etiqueta no ambigua |
 | `cyber_criticality` | Nivel de consecuencias cibernéticas | Código del tenant o etiqueta no ambigua |
 | `recovery_wave` | Orden de recuperación | Código del tenant o etiqueta no ambigua |
 | `rto_minutes` / `rpo_minutes` | Objetivos de recuperación | Minutos enteros; RPO puede ser cero |
 | `classification_justification` | Justificación | Texto libre |
 
-`criticality` es un resultado calculado de exportación y no puede establecer un nivel nuevo. Una celda de clasificación vacía conserva el valor existente en los modos Enriquecer y Reemplazar; use `__CLEAR__` para borrar una clasificación.
+Una celda de clasificación vacía conserva el valor existente en los modos Enriquecer y Reemplazar; use `__CLEAR__` para borrar una clasificación.
 
 **Campos de responsables**:
 
@@ -567,9 +574,9 @@ Si incluye la columna `id` con un UUID válido, la coincidencia usa primero el I
 
 ```csv
 name;category;supplier_name;criticality;lifecycle;go_live_date;external_facing
-Salesforce CRM;Line-of-business;Salesforce Inc;business_critical;Active;2020-01-15;true
+Salesforce CRM;Line-of-business;Salesforce Inc;Critical;Active;2020-01-15;true
 Microsoft 365;Productivity;Microsoft;high;active;2019-06-01;false
-Custom ERP;lob;;medium;Active;2018-03-20;false
+Custom ERP;lob;;Moderate;Active;2018-03-20;false
 ```
 
 ---

@@ -7,9 +7,6 @@ export class ApplicationClassificationV11853480000000 implements MigrationInterf
   async up(runner: QueryRunner): Promise<void> {
     await runner.query(`ALTER TABLE applications
       ALTER COLUMN criticality DROP NOT NULL, ALTER COLUMN criticality DROP DEFAULT,
-      ADD COLUMN business_mtd_minutes integer CHECK (business_mtd_minutes > 0),
-      ADD COLUMN legacy_criticality text,
-      ADD COLUMN business_criticality_origin text NOT NULL DEFAULT 'unset' CHECK (business_criticality_origin IN ('unset','legacy','derived')),
       ADD COLUMN cyber_criticality text,
       ADD COLUMN recovery_wave text,
       ADD COLUMN rto_minutes integer CHECK (rto_minutes > 0),
@@ -26,6 +23,7 @@ export class ApplicationClassificationV11853480000000 implements MigrationInterf
     await runner.query(`CREATE INDEX idx_applications_tenant_cyber ON applications(tenant_id, cyber_criticality)`);
     await runner.query(`CREATE INDEX idx_applications_tenant_recovery ON applications(tenant_id, recovery_wave)`);
 
+    // Recovery references and data residency are part of the classification: bump the revision so a review can detect the change.
     await runner.query(`CREATE FUNCTION application_classification_reference_changed() RETURNS trigger LANGUAGE plpgsql AS $$
       DECLARE affected_id uuid; affected_tenant uuid;
       BEGIN
@@ -46,12 +44,11 @@ export class ApplicationClassificationV11853480000000 implements MigrationInterf
       await runner.query(`CREATE TRIGGER classification_reference_changed AFTER INSERT OR UPDATE OR DELETE ON ${table} FOR EACH ROW EXECUTE FUNCTION application_classification_reference_changed()`);
     }
 
-    // Per-tenant context also works when FORCE RLS is enabled for the migration role.
+    // Materialize the default catalog per tenant. Existing criticality codes were a fixed enum equal to the
+    // default level codes, so they stay valid as chosen levels. Per-tenant context also works under FORCE RLS.
     const tenants = await runner.query(`SELECT id, metadata FROM tenants`);
     for (const tenant of tenants) {
       await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenant.id]);
-      await runner.query(`UPDATE applications SET legacy_criticality = criticality,
-        business_criticality_origin = CASE WHEN criticality IS NULL THEN 'unset' ELSE 'legacy' END WHERE tenant_id = $1`, [tenant.id]);
       const raw = tenant.metadata?.it_ops ?? {};
       const catalog = catalogFromMetadata(raw);
       const known = new Set(catalog.businessCriticalityLevels.map((item) => item.code));
@@ -59,12 +56,7 @@ export class ApplicationClassificationV11853480000000 implements MigrationInterf
         UNION SELECT DISTINCT criticality FROM interfaces WHERE tenant_id = $1 AND criticality IS NOT NULL
         UNION SELECT DISTINCT criticality FROM connections WHERE tenant_id = $1 AND criticality IS NOT NULL`, [tenant.id]);
       const unknownCodes = historical.filter(({ code }: { code: string }) => !known.has(code)).map(({ code }: { code: string }) => code);
-      if (unknownCodes.length) {
-        // Preserve anomalous codes on records, but never invent their severity.
-        // Consumers flag unknown codes as incomplete until an administrator defines them.
-        console.warn(`Classification migration: tenant ${tenant.id} has unranked historical codes: ${unknownCodes.join(', ')}`);
-        raw.classification_anomalies = { unranked_business_codes: unknownCodes };
-      }
+      if (unknownCodes.length) console.warn(`Classification migration: tenant ${tenant.id} has criticality codes outside its catalog: ${unknownCodes.join(', ')}`);
       await runner.query(`UPDATE tenants SET metadata = $2::jsonb WHERE id = $1`, [tenant.id, JSON.stringify({ ...tenant.metadata, it_ops: { ...raw, ...catalogToMetadata(catalog) } })]);
     }
     await runner.query(`SELECT set_config('app.current_tenant', '', true)`);

@@ -219,8 +219,8 @@ export class ApplicationsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'member')
   @Post(':id/classification-review')
-  reviewClassification(@Param('id') id: string, @Body() body: { expected_revision: number; expected_classification_versions?: import('../it-ops-settings/classification-catalog').ClassificationVersions }, @Tenant() ctx: TenantRequest) {
-    return this.svc.reviewClassification(id, body?.expected_revision, ctx.userId || null, { manager: ctx.manager }, body?.expected_classification_versions);
+  reviewClassification(@Param('id') id: string, @Body() body: { expected_revision: number }, @Tenant() ctx: TenantRequest) {
+    return this.svc.reviewClassification(id, body?.expected_revision, ctx.userId || null, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)

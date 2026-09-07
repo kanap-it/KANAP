@@ -83,8 +83,8 @@ export class ApplicationsService {
 
   getClassificationCatalog(opts?: ServiceOpts) { return this.crudService.getClassificationCatalog(opts); }
 
-  reviewClassification(id: string, expectedRevision: number, userId: string | null, opts?: ServiceOpts, expectedVersions?: import('../../it-ops-settings/classification-catalog').ClassificationVersions) {
-    return this.crudService.reviewClassification(id, expectedRevision, userId, opts, expectedVersions);
+  reviewClassification(id: string, expectedRevision: number, userId: string | null, opts?: ServiceOpts) {
+    return this.crudService.reviewClassification(id, expectedRevision, userId, opts);
   }
 
   create(body: Partial<Application>, userId?: string | null, opts?: ServiceOpts) {

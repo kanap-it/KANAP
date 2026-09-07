@@ -22,8 +22,8 @@ import { ApplicationsBaseService, ServiceOpts } from './applications-base.servic
 
 const classificationSql = classificationSqlExpressions('a');
 const classificationTargets: Record<string, FilterTargetConfig> = {
-  ...Object.fromEntries(['business_mtd_minutes', 'rto_minutes', 'rpo_minutes'].map((field) => [field, { expression: `a.${field}`, numericExpression: `a.${field}`, dataType: 'number' as const }])),
-  ...Object.fromEntries(['cyber_criticality', 'recovery_wave', 'business_criticality_origin', 'classification_justification'].map((field) => [field, { expression: `a.${field}`, dataType: 'string' as const }])),
+  ...Object.fromEntries(['rto_minutes', 'rpo_minutes'].map((field) => [field, { expression: `a.${field}`, numericExpression: `a.${field}`, dataType: 'number' as const }])),
+  ...Object.fromEntries(['cyber_criticality', 'recovery_wave', 'classification_justification'].map((field) => [field, { expression: `a.${field}`, dataType: 'string' as const }])),
   ...Object.fromEntries(Object.entries(classificationSql).map(([field, expression]) => [field, { expression, numericExpression: expression, dataType: field.includes('rank') || field.endsWith('_order') ? 'number' as const : 'string' as const }])),
 };
 const classificationSort: Record<string, string> = { ...classificationSql, criticality: classificationSql.criticality_rank, cyber_criticality: classificationSql.cyber_criticality_rank, data_class: classificationSql.data_class_rank, recovery_wave: classificationSql.recovery_wave_order };
@@ -534,7 +534,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
     // Compute derived users per row and attach expansions
     const items = await Promise.all(
       entities.map(async (app, idx) => {
-        const base: any = { ...app, ...classificationReadState(app, catalog) };
+        const base: any = { ...app, ...classificationReadState(app) };
         for (const [field, options, output, rankField] of [
           ['criticality', catalog.businessCriticalityLevels, 'business_criticality_label', 'business_criticality_rank'],
           ['cyber_criticality', catalog.cyberCriticalityLevels, 'cyber_criticality_label', 'cyber_criticality_rank'],
@@ -1335,9 +1335,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       environment: row.environment,
     }));
 
-    const tenantRows = await mg.query('SELECT metadata FROM tenants WHERE id = app_current_tenant()');
-    const catalog = catalogFromMetadata(tenantRows[0]?.metadata?.it_ops);
-    const reviewState = classificationReadState(app, catalog);
+    const reviewState = classificationReadState(app);
 
     return {
       id: app.id,
@@ -1345,8 +1343,6 @@ export class ApplicationsListService extends ApplicationsBaseService {
       description: app.description,
       editor: app.editor,
       criticality: app.criticality,
-      business_mtd_minutes: app.business_mtd_minutes,
-      business_criticality_origin: app.business_criticality_origin,
       cyber_criticality: app.cyber_criticality,
       recovery_wave: app.recovery_wave,
       rto_minutes: app.rto_minutes,

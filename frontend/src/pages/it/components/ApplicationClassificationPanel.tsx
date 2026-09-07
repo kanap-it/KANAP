@@ -7,14 +7,11 @@ import { PropertyRow } from '../../../components/design';
 import DateEUField from '../../../components/fields/DateEUField';
 import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
-import DurationEditor from './DurationEditor';
-import ApplicationMtdSelect from './ApplicationMtdSelect';
+import DurationEditor, { formatDuration } from './DurationEditor';
 
 export type ApplicationClassification = {
   id: string;
   criticality: string | null;
-  business_mtd_minutes: number | null;
-  business_criticality_origin?: 'unset' | 'legacy' | 'derived';
   cyber_criticality: string | null;
   recovery_wave: string | null;
   rto_minutes: number | null;
@@ -41,27 +38,36 @@ type Props = {
   saving?: boolean;
 };
 
+type Option = { code: string; label: string; description?: string; deprecated?: boolean };
+
 const rowSx = { display: 'grid', gridTemplateColumns: '180px minmax(0, 1fr)', columnGap: '18px', alignItems: 'start' } as const;
 const valueSx = { maxWidth: 520 } as const;
-
-function optionList<T extends { code: string; label: string; deprecated?: boolean }>(items: T[], current: string | null) {
-  return items.filter((item) => !item.deprecated || item.code === current);
-}
+const sectionTitleSx = (theme: any) => ({ fontSize: 16, fontWeight: 500, color: theme.palette.kanap.text.primary, mb: 1.25 });
 
 function HelpLabel({ text, help }: { text: string; help: string }) {
   return <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>{classificationText(text)}<Tooltip title={classificationText(help)} enterTouchDelay={0}><IconButton size="small" aria-label={classificationText(text)} sx={{ p: 0.25 }}><HelpOutlineIcon sx={{ fontSize: 15 }} /></IconButton></Tooltip></Box>;
 }
 
+/** Naked select over a tenant catalog: label at 13px, definition at 11px under each option. */
+function LevelSelect({ value, options, placeholder, ariaLabel, disabled, onChange }: { value: string | null; options: Option[]; placeholder: string; ariaLabel: string; disabled: boolean; onChange: (value: string | null) => void }) {
+  const visible = options.filter((item) => !item.deprecated || item.code === value);
+  return <Select value={value || ''} renderValue={(selected) => options.find((item) => item.code === selected)?.label || selected || placeholder} onChange={(event) => onChange(event.target.value || null)} disabled={disabled} displayEmpty variant="standard" disableUnderline sx={drawerSelectSx} inputProps={{ 'aria-label': ariaLabel }}>
+    <MenuItem value="" sx={drawerMenuItemSx}>{placeholder}</MenuItem>
+    {visible.map((item) => <MenuItem key={item.code} value={item.code} sx={drawerMenuItemSx}><Box><Typography sx={{ fontSize: 13 }}>{item.label}{item.deprecated ? ` (${classificationText('No longer offered')})` : ''}</Typography>{item.description && <Typography sx={{ fontSize: 11, whiteSpace: 'normal', maxWidth: 440, color: 'text.secondary' }}>{item.description}</Typography>}</Box></MenuItem>)}
+  </Select>;
+}
+
 export default function ApplicationClassificationPanel({ app, canManage, onPatch, onReview, children, recoveryLinks, error, saving }: Props) {
   const { t, i18n } = useTranslation('it');
   const { data: catalog } = useApplicationClassificationCatalog();
-  const [durationDraftsBlocking, setDurationDraftsBlocking] = React.useState({ businessMtd: false, rto: false, rpo: false });
+  const [durationDraftsBlocking, setDurationDraftsBlocking] = React.useState({ rto: false, rpo: false });
   const setDurationDraftBlocking = React.useCallback((field: keyof typeof durationDraftsBlocking, blocking: boolean) => {
     setDurationDraftsBlocking((current) => current[field] === blocking ? current : { ...current, [field]: blocking });
   }, []);
-  const business = catalog?.businessCriticalityLevels.find((item) => item.code === app.criticality);
+  const patch = (value: Partial<ApplicationClassification>) => void onPatch(value).catch(() => {});
+  const level = catalog?.businessCriticalityLevels.find((item) => item.code === app.criticality);
   const missingFields = [
-    !app.business_mtd_minutes && classificationText('Maximum tolerable downtime (MTD)'),
+    !app.criticality && classificationText('Business criticality'),
     !app.cyber_criticality && classificationText('Cyber criticality'),
     !app.data_class && classificationText('Data confidentiality'),
     !app.recovery_wave && classificationText('Recovery wave'),
@@ -69,74 +75,63 @@ export default function ApplicationClassificationPanel({ app, canManage, onPatch
   ].filter(Boolean);
   const complete = missingFields.length === 0;
   const hasBlockingDurationDraft = Object.values(durationDraftsBlocking).some(Boolean);
-  const reviewLabels = { incomplete: classificationText("To complete"), stale: classificationText("Review needed"), reviewed: classificationText("Reviewed") } as const;
+  const hasReview = !!app.classification_reviewed_at;
+  const changedSinceReview = hasReview && (app.classification_review_reason === 'data_changed' || !complete);
+  const rtoExceedsDowntime = app.rto_minutes != null && typeof level?.maxMtdMinutes === 'number' && app.rto_minutes >= level.maxMtdMinutes;
 
   return (
     <Stack spacing={3}>
       {error && <Alert severity="error">{error}</Alert>}
       <Box>
-        <Typography component="h2" sx={(theme) => ({ fontSize: 16, fontWeight: 500, color: theme.palette.kanap.text.primary, mb: 1.25 })}>{classificationText("Criticality")}</Typography>
+        <Typography component="h2" sx={sectionTitleSx}>{classificationText('Criticality')}</Typography>
         <Stack spacing={1.25}>
-          <PropertyRow label={<HelpLabel text="Maximum tolerable downtime (MTD)" help="Business help" />} sx={rowSx} valueSx={valueSx}>
-            <ApplicationMtdSelect value={app.business_mtd_minutes} onCommit={(value) => onPatch({ business_mtd_minutes: value })} onDraftStateChange={(blocking) => setDurationDraftBlocking('businessMtd', blocking)} disabled={!canManage} />
-          </PropertyRow>
-          <PropertyRow label={classificationText("Business criticality")} sx={rowSx} valueSx={valueSx}>
-            <Box>
-              <Typography sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.primary })}>{business?.label || app.criticality || classificationText("Not set")}</Typography>
-              {app.business_criticality_origin === 'legacy' && <Typography sx={(theme) => ({ fontSize: 11, color: theme.palette.kanap.text.tertiary })}>{classificationText("Legacy value \u2014 MTD has not been assessed.")}</Typography>}
-            </Box>
+          <PropertyRow label={<HelpLabel text="Business criticality" help="Business help" />} sx={rowSx} valueSx={valueSx}>
+            <LevelSelect value={app.criticality} ariaLabel={classificationText('Business criticality')} options={catalog?.businessCriticalityLevels || []} placeholder={classificationText('Choose business criticality')} disabled={!canManage} onChange={(value) => patch({ criticality: value })} />
           </PropertyRow>
           <PropertyRow label={<HelpLabel text="Cyber criticality" help="Cyber help" />} sx={rowSx} valueSx={valueSx}>
-            <Select value={app.cyber_criticality || ''} renderValue={(value) => catalog?.cyberCriticalityLevels.find((item) => item.code === value)?.label || value || classificationText("Choose cyber criticality")} onChange={(event) => void onPatch({ cyber_criticality: event.target.value || null }).catch(() => {})} disabled={!canManage} displayEmpty variant="standard" disableUnderline sx={drawerSelectSx}>
-              <MenuItem value="" sx={drawerMenuItemSx}>{classificationText("Choose cyber criticality")}</MenuItem>
-              {optionList(catalog?.cyberCriticalityLevels || [], app.cyber_criticality).map((item) => <MenuItem key={item.code} value={item.code} sx={drawerMenuItemSx}><Box><Typography sx={{ fontSize: 13 }}>{item.label}{item.deprecated ? ` (${classificationText("Deprecated")})` : ''}</Typography><Typography sx={{ fontSize: 11, whiteSpace: 'normal', maxWidth: 440, color: 'text.secondary' }}>{item.description}</Typography></Box></MenuItem>)}
-            </Select>
-          </PropertyRow>
-          <PropertyRow label={classificationText("Justification")} sx={rowSx} valueSx={valueSx}>
-            <TextField defaultValue={app.classification_justification || ''} key={`${app.id}:justification`} onBlur={(event) => void onPatch({ classification_justification: event.target.value.trim() || null }).catch(() => {})} disabled={!canManage} multiline minRows={3} placeholder={classificationText("Explain the business, cyber and recovery decisions")} variant="standard" fullWidth InputProps={{ disableUnderline: true }} sx={(theme) => ({ ...drawerFieldValueSx, p: 1, border: `1px solid ${theme.palette.kanap.border.default}`, borderRadius: '8px', bgcolor: theme.palette.kanap.bg.composer })} />
+            <LevelSelect value={app.cyber_criticality} ariaLabel={classificationText('Cyber criticality')} options={catalog?.cyberCriticalityLevels || []} placeholder={classificationText('Choose cyber criticality')} disabled={!canManage} onChange={(value) => patch({ cyber_criticality: value })} />
           </PropertyRow>
         </Stack>
       </Box>
       <Box>
-        <Typography component="h2" sx={(theme) => ({ fontSize: 16, fontWeight: 500, color: theme.palette.kanap.text.primary, mb: 1.25 })}>{classificationText("Data")}</Typography>
+        <Typography component="h2" sx={sectionTitleSx}>{classificationText('Data')}</Typography>
         <Stack spacing={1.25}>
           <PropertyRow label={<HelpLabel text="Data confidentiality" help="Confidentiality help" />} sx={rowSx} valueSx={valueSx}>
-            <Select value={app.data_class || ''} renderValue={(value) => catalog?.dataClasses.find((item) => item.code === value)?.label || value || classificationText("Choose data confidentiality")} onChange={(event) => void onPatch({ data_class: event.target.value || null }).catch(() => {})} disabled={!canManage} displayEmpty variant="standard" disableUnderline sx={drawerSelectSx}>
-              <MenuItem value="" sx={drawerMenuItemSx}>{classificationText("Choose data confidentiality")}</MenuItem>
-              {optionList(catalog?.dataClasses || [], app.data_class).map((item) => <MenuItem key={item.code} value={item.code} sx={drawerMenuItemSx}><Box><Typography sx={{ fontSize: 13 }}>{item.label}{item.deprecated ? ` (${classificationText("Deprecated")})` : ''}</Typography><Typography sx={{ fontSize: 11, whiteSpace: 'normal', maxWidth: 440, color: 'text.secondary' }}>{item.description}</Typography></Box></MenuItem>)}
-            </Select>
+            <LevelSelect value={app.data_class} ariaLabel={classificationText('Data confidentiality')} options={catalog?.dataClasses || []} placeholder={classificationText('Choose data confidentiality')} disabled={!canManage} onChange={(value) => patch({ data_class: value })} />
           </PropertyRow>
-          <PropertyRow label={classificationText("Contains personal data")} sx={rowSx} valueSx={valueSx}><input type="checkbox" checked={!!app.contains_pii} disabled={!canManage} onChange={(event) => void onPatch({ contains_pii: event.target.checked }).catch(() => {})} /></PropertyRow>
+          <PropertyRow label={classificationText('Contains personal data')} sx={rowSx} valueSx={valueSx}><input type="checkbox" checked={!!app.contains_pii} disabled={!canManage} onChange={(event) => patch({ contains_pii: event.target.checked })} /></PropertyRow>
           {children}
         </Stack>
       </Box>
       <Box>
-        <Typography component="h2" sx={(theme) => ({ fontSize: 16, fontWeight: 500, color: theme.palette.kanap.text.primary, mb: 1.25 })}>{classificationText("Continuity and recovery")}</Typography>
+        <Typography component="h2" sx={sectionTitleSx}>{classificationText('Continuity and recovery')}</Typography>
         <Stack spacing={1.25}>
           <PropertyRow label={<HelpLabel text="Recovery wave" help="Recovery help" />} sx={rowSx} valueSx={valueSx}>
-            <Select value={app.recovery_wave || ''} renderValue={(value) => catalog?.recoveryWaves.find((item) => item.code === value)?.label || value || classificationText("Choose a recovery wave")} onChange={(event) => void onPatch({ recovery_wave: event.target.value || null }).catch(() => {})} disabled={!canManage} displayEmpty variant="standard" disableUnderline sx={drawerSelectSx}>
-              <MenuItem value="" sx={drawerMenuItemSx}>{classificationText("Choose a recovery wave")}</MenuItem>
-              {optionList(catalog?.recoveryWaves || [], app.recovery_wave).sort((a, b) => a.order - b.order).map((item) => <MenuItem key={item.code} value={item.code} sx={drawerMenuItemSx}><Box><Typography sx={{ fontSize: 13 }}>{item.label}{item.deprecated ? ` (${classificationText("Deprecated")})` : ''}</Typography><Typography sx={{ fontSize: 11, whiteSpace: 'normal', maxWidth: 440, color: 'text.secondary' }}>{item.description}</Typography></Box></MenuItem>)}
-            </Select>
+            <LevelSelect value={app.recovery_wave} ariaLabel={classificationText('Recovery wave')} options={catalog?.recoveryWaves || []} placeholder={classificationText('Choose a recovery wave')} disabled={!canManage} onChange={(value) => patch({ recovery_wave: value })} />
           </PropertyRow>
-          <PropertyRow label={<HelpLabel text="Recovery time objective (RTO)" help="RTO help" />} sx={rowSx} valueSx={valueSx}><DurationEditor value={app.rto_minutes} onCommit={(value) => onPatch({ rto_minutes: value })} onDraftStateChange={(blocking) => setDurationDraftBlocking('rto', blocking)} disabled={!canManage} placeholder={classificationText("Choose a duration")} ariaLabel={classificationText("Recovery time objective")} /></PropertyRow>
-          {app.rto_minutes != null && app.business_mtd_minutes != null && app.rto_minutes >= app.business_mtd_minutes && <Alert severity="warning" sx={{ maxWidth: 700 }}>{classificationText("RTO leaves no margin before the maximum tolerable downtime.")}</Alert>}
-          <PropertyRow label={<HelpLabel text="Recovery point objective (RPO)" help="RPO help" />} sx={rowSx} valueSx={valueSx}><DurationEditor value={app.rpo_minutes} onCommit={(value) => onPatch({ rpo_minutes: value })} onDraftStateChange={(blocking) => setDurationDraftBlocking('rpo', blocking)} allowZero disabled={!canManage} placeholder={classificationText("Choose a duration")} ariaLabel={classificationText("Recovery point objective")} /></PropertyRow>
-          <PropertyRow label={classificationText("Last recovery test")} sx={rowSx} valueSx={valueSx}><DateEUField label="" valueYmd={app.last_dr_test || ''} onChangeYmd={(value) => void onPatch({ last_dr_test: value || null }).catch(() => {})} disabled={!canManage} hideLabel textFieldSx={drawerFieldValueSx} /></PropertyRow>
+          <PropertyRow label={<HelpLabel text="Recovery time objective (RTO)" help="RTO help" />} sx={rowSx} valueSx={valueSx}><DurationEditor value={app.rto_minutes} onCommit={(value) => onPatch({ rto_minutes: value })} onDraftStateChange={(blocking) => setDurationDraftBlocking('rto', blocking)} disabled={!canManage} placeholder={classificationText('Choose a duration')} ariaLabel={classificationText('Recovery time objective')} /></PropertyRow>
+          {rtoExceedsDowntime && <Alert severity="warning" sx={{ maxWidth: 700 }}>{t('classification.rto_exceeds_level_downtime', { level: level?.label, duration: formatDuration(level!.maxMtdMinutes as number) })}</Alert>}
+          <PropertyRow label={<HelpLabel text="Recovery point objective (RPO)" help="RPO help" />} sx={rowSx} valueSx={valueSx}><DurationEditor value={app.rpo_minutes} onCommit={(value) => onPatch({ rpo_minutes: value })} onDraftStateChange={(blocking) => setDurationDraftBlocking('rpo', blocking)} allowZero disabled={!canManage} placeholder={classificationText('Choose a duration')} ariaLabel={classificationText('Recovery point objective')} /></PropertyRow>
+          <PropertyRow label={classificationText('Last recovery test')} sx={rowSx} valueSx={valueSx}><DateEUField label="" valueYmd={app.last_dr_test || ''} onChangeYmd={(value) => patch({ last_dr_test: value || null })} disabled={!canManage} hideLabel textFieldSx={drawerFieldValueSx} /></PropertyRow>
           {recoveryLinks}
         </Stack>
       </Box>
       <Box>
-        <Typography component="h2" sx={(theme) => ({ fontSize: 16, fontWeight: 500, color: theme.palette.kanap.text.primary, mb: 1.25 })}>{classificationText("Review")}</Typography>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Box>
-            <Typography sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.primary })}>{reviewLabels[app.classification_review_state || 'incomplete']}</Typography>
-            {app.classification_reviewed_at && <Typography sx={(theme) => ({ fontSize: 11, color: theme.palette.kanap.text.tertiary })}>{classificationText("Last reviewed")} {new Date(app.classification_reviewed_at).toLocaleString(i18n.resolvedLanguage, { dateStyle: 'medium', timeStyle: 'short' })}</Typography>}
-            {app.classification_reviewer_name && <Typography sx={(theme) => ({ fontSize: 11, color: theme.palette.kanap.text.tertiary })}>{t("classification.reviewed_by", { name: app.classification_reviewer_name })}</Typography>}
-            {missingFields.length > 0 && <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.secondary })}>{t("classification.complete_before_review", { fields: missingFields.join(', ') })}</Typography>}
-            {app.classification_review_reason && app.classification_review_reason !== 'missing_fields' && <Typography sx={(theme) => ({ fontSize: 11, color: theme.palette.kanap.text.tertiary })}>{classificationText(app.classification_review_reason.replace(/_/g, ' '))}</Typography>}
-          </Box>
-          {canManage && <Button variant="contained" size="small" disabled={!complete || hasBlockingDurationDraft || saving || !!error || app.classification_review_state === 'reviewed'} onClick={() => void onReview().catch(() => {})}>{classificationText("Mark as reviewed")}</Button>}
+        <Typography component="h2" sx={sectionTitleSx}>{classificationText('Review')}</Typography>
+        <Stack spacing={1.25}>
+          <PropertyRow label={classificationText('Justification')} sx={rowSx} valueSx={valueSx}>
+            <TextField defaultValue={app.classification_justification || ''} key={`${app.id}:justification`} onBlur={(event) => patch({ classification_justification: event.target.value.trim() || null })} disabled={!canManage} multiline minRows={3} placeholder={classificationText('Why these levels were chosen and what the recovery plan relies on')} variant="standard" fullWidth InputProps={{ disableUnderline: true }} sx={(theme) => ({ ...drawerFieldValueSx, p: 1, border: `1px solid ${theme.palette.kanap.border.default}`, borderRadius: '8px', bgcolor: theme.palette.kanap.bg.composer })} />
+          </PropertyRow>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Box>
+              {hasReview
+                ? <Typography sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.primary })}>{t('classification.reviewed_on', { date: new Date(app.classification_reviewed_at!).toLocaleString(i18n.resolvedLanguage, { dateStyle: 'medium', timeStyle: 'short' }) })}{app.classification_reviewer_name ? ` · ${app.classification_reviewer_name}` : ''}</Typography>
+                : <Typography sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.primary })}>{classificationText('Never reviewed')}</Typography>}
+              {changedSinceReview && <Typography sx={(theme) => ({ fontSize: 11, color: theme.palette.kanap.text.tertiary })}>{classificationText('Changed since review')}</Typography>}
+              {missingFields.length > 0 && <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.secondary })}>{t('classification.complete_before_review', { fields: missingFields.join(', ') })}</Typography>}
+            </Box>
+            {canManage && <Button variant="contained" size="small" disabled={!complete || hasBlockingDurationDraft || saving || !!error || app.classification_review_state === 'reviewed'} onClick={() => void onReview().catch(() => {})}>{classificationText('Mark as reviewed')}</Button>}
+          </Stack>
         </Stack>
       </Box>
     </Stack>

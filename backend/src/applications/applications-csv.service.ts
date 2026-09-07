@@ -1,5 +1,4 @@
 import { ApplicationsListService } from './services/applications-list.service';
-import { catalogFromMetadata } from '../it-ops-settings/classification-catalog';
 import { classificationReadState } from './services/application-classification';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -93,9 +92,7 @@ export class ApplicationsCsvService {
     if (!matching.ids.length) queryBuilder.andWhere('FALSE');
     else queryBuilder.andWhere('app.id = ANY(:ids)', { ids: matching.ids });
     const applications = await queryBuilder.getMany();
-    const tenants = await manager.query('SELECT metadata FROM tenants WHERE id = $1', [tenantId]);
-    const catalog = catalogFromMetadata(tenants[0]?.metadata?.it_ops);
-    for (const app of applications) Object.assign(app, classificationReadState(app, catalog));
+    for (const app of applications) Object.assign(app, classificationReadState(app));
 
     // Load related data for export
     if (applications.length > 0) {

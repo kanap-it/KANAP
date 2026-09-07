@@ -141,13 +141,14 @@ complete lists. Discovery tools are intentionally treated as ranked and
 incomplete.
 
 Application classification has a dedicated catalog read. `get_application_classification_catalog`
-uses the tenant and `applications:reader` scope and returns business MTD
-thresholds and presets, cyber levels, data classes, recovery waves, explicit
-ranks/orders, deprecation flags, and classification versions/settings revision.
-It is authoritative for labels and ranks; `get_filter_values` only reports
-values observed on accessible applications. Application queries can filter,
-sort, group, aggregate, and count MTD, derived business rank, cyber level/rank,
-data class, recovery wave/order, RTO, RPO, and review state.
+uses the tenant and `applications:reader` scope and returns business levels
+(with the optional downtime that documents each level), cyber levels, data
+classes, recovery waves, explicit ranks/orders and deprecation flags, ordered
+from most to least severe. It is authoritative for labels and ranks;
+`get_filter_values` only reports values observed on accessible applications.
+Application queries can filter, sort, group, aggregate, and count business
+level/rank, cyber level/rank, data class, recovery wave/order, RTO, RPO, and
+review state.
 
 ## Write Model
 
@@ -174,11 +175,12 @@ Live write-preview coverage includes:
   reversal
 
 Application classification create/update previews use the normal application
-mutation service and capture expected classification revision and catalog
-versions. They can set or clear MTD, cyber, confidentiality, recovery, RTO/RPO,
-and justification; business criticality remains derived. Undo uses the same
-version and revision checks. Plaid cannot edit classification catalogs, publish
-settings, or implicitly mark an application reviewed.
+mutation service. They can set or clear business criticality, cyber,
+confidentiality, recovery wave, RTO/RPO and justification, by tenant code or
+exact label; a downtime mentioned by the user maps to the level whose
+definition covers it, never to an application field. The preview flags when an
+existing human review becomes stale. Plaid cannot edit classification catalogs,
+publish settings, or implicitly mark an application reviewed.
 
 Writes go through existing domain services where practical, so normal validation,
 workflow rules, side effects, and audit logging still apply. AI-originated domain

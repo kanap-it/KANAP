@@ -241,19 +241,20 @@ Niveaux de classification des données pour les Applications et Interfaces.
 
 ### Classifications et continuité
 
-Cet éditeur spécialisé configure les catalogues utilisés par la classification et la continuité des applications. Il est disponible aux utilisateurs `settings:admin` dans la section **Applications, services et interfaces**.
+Cet éditeur configure les niveaux utilisés pour classifier les applications. Il est disponible aux utilisateurs `settings:admin` dans la section **Applications, services et interfaces** et s'ouvre dans une seule boîte de dialogue, avec une liste par catalogue :
 
-- **Criticité métier et seuils DMIA** : codes stables, libellés, descriptions, rangs de gravité uniques et limite DMIA en minutes ; le dernier niveau actif est sans limite.
-- **Durées DMIA autorisées en minutes** : choix proposés par l'éditeur d'application. L'éditeur ne propose pas de saisie libre ; une valeur historique hors durées autorisées reste lisible et peut être effacée. Les nouvelles valeurs ou modifications via API/CSV/Plaid doivent utiliser une durée autorisée configurée ; une valeur historique inchangée reste valide. La liste doit contenir au moins une valeur entière positive distincte. Le champ API reste `businessMtdPresets` ; ces durées ne modifient pas la méthode de classement.
-- **Criticité cyber** : niveaux de conséquences avec rangs explicites.
-- **Confidentialité des données** : catalogue des classes de données avec descriptions et rangs.
+- **Criticité business** : les niveaux qu'une application peut recevoir. Chaque niveau a un nom, une description affichée sous le nom au moment du choix, une **durée maximale tolérable d'interruption (DMIA)** facultative en minutes et un indicateur **Ne plus proposer**. La DMIA documente le niveau et déclenche un avertissement sur une application dont le RTO l'atteint ; c'est un attribut du niveau, pas une valeur saisie sur les applications.
+- **Criticité cyber** : niveaux de conséquences indépendants.
+- **Confidentialité des données** : le catalogue des classes de données, avec descriptions.
 - **Vagues de reprise** : étapes ordonnées de restauration ; l'ordre n'est ni une gravité ni une estimation de durée.
 
-Les codes sont des identifiants stables. Une valeur utilisée peut être rendue obsolète : elle reste visible sur les applications existantes mais ne peut plus être affectée à de nouveaux enregistrements. Les libellés et descriptions restent modifiables.
+**L'ordre est la position dans la liste.** Les catalogues de gravité vont du niveau le plus critique en haut au moins critique en bas ; les vagues de reprise suivent l'ordre de restauration. Utilisez les flèches pour déplacer un niveau ; la position détermine l'ordre de tri des listes, la règle du « niveau le plus élevé » utilisée par les interfaces et les connexions, et l'ordre des menus de sélection. **Ajouter un niveau** ajoute en bas de la liste.
 
-Les modifications métier utilisent **Prévisualiser l'impact** avant **Publier les modifications**. La prévisualisation indique le nombre d'applications concernées et les transitions. La publication exige la révision actuelle des réglages ; une modification concurrente impose de recharger la page. La remise à zéro respecte les mêmes protections et ne supprime pas silencieusement les codes utilisés par les applications, interfaces ou connexions.
+**Modifier le catalogue ne modifie jamais les applications.** Une application enregistre le code de son niveau. Renommer un niveau, modifier sa description ou sa DMIA et réordonner le catalogue laissent chaque application sur le même niveau et n'invalident pas les revues. Un niveau encore utilisé par une application, une interface ou une connexion ne peut pas être supprimé ; marquez-le plutôt **Ne plus proposer** : il reste visible sur les enregistrements existants et n'est plus proposé pour les nouveaux.
 
-Les niveaux métier alimentent aussi la criticité opérationnelle des interfaces et connexions. Les seuils DMIA s'appliquent uniquement aux applications ; les dérivations incomplètes restent signalées et ne deviennent pas faibles.
+Les codes sont des identifiants stables affichés pour référence. Les noms doivent être uniques au sein d'un catalogue, car l'import CSV et l'API acceptent indifféremment le code ou le nom.
+
+Les niveaux business alimentent aussi la criticité opérationnelle des interfaces et des connexions. Les dérivations incomplètes sont signalées comme telles ; elles ne sont pas traitées comme le niveau le plus faible.
 
 ### Patterns d'intégration
 

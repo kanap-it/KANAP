@@ -45,12 +45,12 @@ async function main() {
     await setup.startTransaction();
     await setup.query(
       `INSERT INTO tenants(id, slug, name, metadata) VALUES ($1, $2, $3, $4::jsonb)`,
-      [tenantId, `classification-concurrency-${tenantId}`, 'Classification concurrency test', JSON.stringify({ it_ops: catalogToMetadata({ ...DEFAULT_CLASSIFICATION_CATALOG, businessMtdPresets: [...DEFAULT_CLASSIFICATION_CATALOG.businessMtdPresets, 500, 550] }) })],
+      [tenantId, `classification-concurrency-${tenantId}`, 'Classification concurrency test', JSON.stringify({ it_ops: catalogToMetadata(DEFAULT_CLASSIFICATION_CATALOG) })],
     );
     await setTenant(setup, tenantId);
     await setup.query(
-      `INSERT INTO applications(id, tenant_id, name, criticality, business_mtd_minutes, business_criticality_origin, classification_revision)
-       VALUES ($1, $2, 'Concurrent Atlas', 'high', 500, 'derived', 1)`,
+      `INSERT INTO applications(id, tenant_id, name, criticality, classification_revision)
+       VALUES ($1, $2, 'Concurrent Atlas', 'high', 1)`,
       [applicationId, tenantId],
     );
     await setup.commitTransaction();
@@ -74,7 +74,6 @@ async function main() {
     changedLevels[0].maxMtdMinutes = 600;
     const publication = publisherSettings.updateSettings(tenantId, {
       businessCriticalityLevels: changedLevels,
-      expectedClassificationSettingsRevision: oldCatalog.classificationSettingsRevision,
     }, { manager: publisher.manager });
     await publicationReachedAudit.promise;
 
@@ -85,27 +84,20 @@ async function main() {
       writer.manager.getRepository(Application), { log: async () => undefined } as any,
       null as any, writerSettings, null as any, null as any,
     );
-    let staleFinished = false;
-    const staleUpdate = crud.update(applicationId, {
-      business_mtd_minutes: 550,
-      expected_classification_revision: 2,
-      expected_classification_versions: oldCatalog.classificationVersions,
-    } as any, null, { manager: writer.manager }).finally(() => { staleFinished = true; });
+    let concurrentFinished = false;
+    const concurrentUpdate = crud.update(applicationId, { criticality: 'Moderate' } as any, null, { manager: writer.manager }).finally(() => { concurrentFinished = true; });
     await delay(100);
-    assert.equal(staleFinished, false, 'application update must wait for the tenant catalog publication lock');
+    assert.equal(concurrentFinished, false, 'application update must wait for the tenant catalog publication lock');
     allowPublicationCommit.resolve();
     await publication;
-    await assert.rejects(staleUpdate, /methodology changed/i);
+    const updated = await concurrentUpdate;
+    assert.equal(updated.criticality, 'medium', 'the write resolves its level against the published catalog');
 
     const latestCatalog = await writerSettings.getClassificationCatalog(tenantId, { manager: writer.manager });
+    assert.equal(latestCatalog.businessCriticalityLevels[0].maxMtdMinutes, 600);
     const current = await writer.manager.getRepository(Application).findOneByOrFail({ id: applicationId, tenant_id: tenantId });
-    assert.equal(current.criticality, 'business_critical', 'publication must reclassify with the latest thresholds');
-    const updated = await crud.update(applicationId, {
-      business_mtd_minutes: 550,
-      expected_classification_revision: current.classification_revision,
-      expected_classification_versions: latestCatalog.classificationVersions,
-    } as any, null, { manager: writer.manager });
-    assert.equal(updated.criticality, 'business_critical', 'retry must calculate with the published catalog');
+    assert.equal(current.criticality, 'medium', 'saving the catalog never moves an application to another level');
+    assert.equal(current.classification_revision, 2, 'only the application write bumps the revision; the catalog does not');
 
     const csvEntered = deferred();
     const allowCsvFailure = deferred();
@@ -130,11 +122,10 @@ async function main() {
 
     const catalogBeforeSecondPublication = await publisherSettings.getClassificationCatalog(tenantId, { manager: publisher.manager });
     const renamedCyber = structuredClone(catalogBeforeSecondPublication.cyberCriticalityLevels);
-    renamedCyber[0].label = 'Low renamed after CSV';
+    renamedCyber[0].label = 'Critical renamed after CSV';
     let secondPublicationFinished = false;
     const secondPublication = publisherSettings.updateSettings(tenantId, {
       cyberCriticalityLevels: renamedCyber,
-      expectedClassificationSettingsRevision: catalogBeforeSecondPublication.classificationSettingsRevision,
     }, { manager: publisher.manager }).finally(() => { secondPublicationFinished = true; });
     await delay(100);
     assert.equal(secondPublicationFinished, false, 'settings publication must wait for the CSV tenant lock');
@@ -145,9 +136,11 @@ async function main() {
     const afterFailedCsv = await writer.manager.getRepository(Application).findOneByOrFail({ id: applicationId, tenant_id: tenantId });
     assert.equal(afterFailedCsv.name, 'Concurrent Atlas', 'a row-0 CSV failure must roll back writes made by the importer');
     const afterSecondPublication = await writerSettings.getClassificationCatalog(tenantId, { manager: writer.manager });
-    assert.equal(afterSecondPublication.cyberCriticalityLevels[0].label, 'Low renamed after CSV');
+    assert.equal(afterSecondPublication.cyberCriticalityLevels[0].label, 'Critical renamed after CSV');
+    const untouched = await writer.manager.getRepository(Application).findOneByOrFail({ id: applicationId, tenant_id: tenantId });
+    assert.equal(untouched.criticality, 'medium');
 
-    console.log('PASS: isolated non-superuser catalog/application/CSV lock ordering, stale versions, latest derivation and CSV rollback');
+    console.log('PASS: isolated non-superuser catalog/application/CSV lock ordering, catalog stability and CSV rollback');
   } finally {
     for (const runner of [setup, publisher, writer, csvRunner]) {
       if (runner.isTransactionActive) await runner.rollbackTransaction().catch(() => undefined);
