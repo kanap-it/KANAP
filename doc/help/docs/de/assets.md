@@ -316,7 +316,7 @@ Für Felder, die in **IT-Landschaft > Einstellungen** konfiguriert sind, können
 | Domäne | `corp`, `dmz` | `Corporate Domain`, `DMZ` |
 | IP-Adresstyp | `host`, `ipmi`, `mgmt` | `Host IP`, `IPMI`, `Management` |
 
-Das System normalisiert Werte automatisch beim Import, sodass `Virtual Machine`, `virtual machine` und `vm` alle zum gleichen Asset-Typ aufgelöst werden.
+Das System normalisiert Werte automatisch beim Import, sodass `Virtual Machine`, `virtual machine` und `vm` alle zum gleichen Asset-Typ aufgelöst werden. Ein Wert, der auf mehrere Einträge passt, wird abgelehnt statt erraten. Der CSV-Export schreibt für diese Spalten Namen, sodass eine exportierte Datei unverändert wieder importiert werden kann.
 
 ### Abgleich und Updates
 

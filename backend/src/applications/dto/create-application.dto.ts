@@ -76,10 +76,16 @@ export const CreateApplicationSchema = z.object({
   environment: z.enum(EnvironmentTypes).optional().default('prod'),
 
   /** Criticality level */
-  criticality: z.enum(CriticalityLevels).optional().default('medium'),
+  criticality: z.string().nullable().optional(),
 
   /** Data classification level */
-  data_class: z.enum(DataClassifications).nullable().optional(),
+  data_class: z.string().nullable().optional(),
+
+  rto_minutes: z.number().int().min(1).max(2147483647).nullable().optional(),
+  rpo_minutes: z.number().int().min(0).max(2147483647).nullable().optional(),
+  cyber_criticality: z.string().nullable().optional(),
+  recovery_wave: z.string().nullable().optional(),
+  classification_justification: z.string().nullable().optional(),
 
   /** Hosting model (deprecated, use AppInstance) */
   hosting_model: z.enum(HostingModels).nullable().optional(),

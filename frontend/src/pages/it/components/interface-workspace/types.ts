@@ -85,6 +85,7 @@ export type InterfaceDetail = {
   lifecycle: string;
   overview_notes: string | null;
   criticality: string;
+  classification_incomplete?: boolean;
   impact_of_failure: string | null;
   business_objects: any | null;
   main_use_cases: string | null;

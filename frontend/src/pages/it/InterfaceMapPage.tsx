@@ -1,3 +1,4 @@
+import useApplicationClassificationCatalog from '../../hooks/useApplicationClassificationCatalog';
 import React from 'react';
 import {
   Alert,
@@ -232,6 +233,8 @@ function buildTechnicalGraph(data: InterfaceMapResponse): GraphData {
 }
 
 export default function InterfaceMapPage() {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
+  const businessLabel = (code?: string | null) => classificationCatalog?.businessCriticalityLevels.find((item) => item.code === code)?.label || code || 'Not set';
   const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -821,15 +824,7 @@ export default function InterfaceMapPage() {
                   <Typography variant="h6">{selectedNode.name}</Typography>
                   {(() => {
                     const summary = appSummaries[selectedNode.id];
-                    const criticalityLabel = (() => {
-                      switch (String(summary?.data?.criticality || selectedNode.criticality || '')) {
-                        case 'business_critical': return t('enums.criticality.businessCritical');
-                        case 'high': return t('enums.criticality.high');
-                        case 'medium': return t('enums.criticality.medium');
-                        case 'low': return t('enums.criticality.low');
-                        default: return summary?.data?.criticality || selectedNode.criticality || '—';
-                      }
-                    })();
+                    const criticalityLabel = businessLabel(summary?.data?.criticality ?? selectedNode.criticality);
                     return (
                       <Stack spacing={0.75}>
                         {summary?.loading && (
@@ -964,7 +959,7 @@ export default function InterfaceMapPage() {
                 <Stack spacing={1}>
                   <Typography variant="h6">{selectedLink.interfaceId}</Typography>
                   <Stack spacing={0.5}>
-                    <Typography variant="body2">{`Criticality: ${selectedLink.criticality || '-'}`}</Typography>
+                    <Typography variant="body2">{`Criticality: ${businessLabel(selectedLink.criticality)}`}</Typography>
                     <Typography variant="body2">{`Route: ${selectedLink.integrationRouteType || '-'}`}</Typography>
                     <Typography variant="body2">{`Bindings: ${selectedLink.bindingsCount}`}</Typography>
                     <Typography variant="body2">{`Via middleware: ${selectedLink.hasMiddleware ? t('enums.yesNo.yes') : t('enums.yesNo.no')}`}</Typography>

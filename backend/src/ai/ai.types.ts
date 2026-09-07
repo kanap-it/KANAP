@@ -28,6 +28,7 @@ export type AiToolName =
   | 'query_entities'
   | 'aggregate_entities'
   | 'get_filter_values'
+  | 'get_application_classification_catalog'
   | 'get_entity_detail'
   | 'get_entity_context'
   | 'get_entity_comments'

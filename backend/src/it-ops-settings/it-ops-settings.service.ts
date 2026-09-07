@@ -1,3 +1,7 @@
+import { AuditService } from '../audit/audit.service';
+import { ClassificationCatalog, ClassificationLevel, CLASSIFICATION_CATALOG_KEYS, OBSOLETE_CATALOG_METADATA_KEYS, catalogFromMetadata, catalogToMetadata, validateClassificationCatalog } from './classification-catalog';
+import { CatalogTranslations, normalizeTranslations, prepareCatalogListForWrite } from './catalog-codes';
+import { CATALOG_USAGE, CatalogUsageItem, UsageKey, countCatalogUsage } from './catalog-usage';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
@@ -9,6 +13,8 @@ export type ItOpsEnumOption = {
   label: string;
   deprecated?: boolean;
   category?: string;
+  /** Per-locale name/description overrides typed by the tenant; absent = fallback. */
+  translations?: CatalogTranslations;
 };
 
 /** Incident register categories served to tenants that never customised the list (also used by the CSV import). */
@@ -61,9 +67,9 @@ export type SubnetOption = {
   deprecated?: boolean;
 };
 
-export type ItOpsSettings = {
+export type ItOpsSettings = ClassificationCatalog & {
   applicationCategories: ItOpsEnumOption[];
-  dataClasses: ItOpsEnumOption[];
+  dataClasses: ClassificationLevel[];
   networkSegments: ItOpsEnumOption[];
   entities: EntityOption[];
   serverKinds: AssetKindOption[];
@@ -85,6 +91,10 @@ export type ItOpsSettings = {
   accessMethods: ItOpsEnumOption[];
   pathHopFunctions: ItOpsEnumOption[];
   incidentCategories: ItOpsEnumOption[];
+  /** Server-managed rows the editor must not edit nor remove. */
+  lockedCodes?: Record<string, string[]>;
+  /** Default rows the server re-adds after removal: editable and retirable, never removable. */
+  protectedCodes?: Record<string, string[]>;
 };
 
 type ItOpsMetadataShape = {
@@ -426,6 +436,7 @@ export class ItOpsSettingsService {
     private readonly tenants: Repository<Tenant>,
     @InjectRepository(Location)
     private readonly locations: Repository<Location>,
+    private readonly audit: AuditService,
   ) {}
 
   private repo(manager?: EntityManager) {
@@ -511,11 +522,13 @@ export class ItOpsSettingsService {
       const deprecated = !!raw?.deprecated;
       const category =
         raw?.category === 'on_prem' ? 'on_prem' : raw?.category === 'cloud' ? 'cloud' : undefined;
+      const translations = normalizeTranslations(raw?.translations);
       byCode.set(code, {
         code,
         label,
         deprecated,
         ...(category ? { category } : {}),
+        ...(translations ? { translations } : {}),
       });
     }
 
@@ -546,11 +559,13 @@ export class ItOpsSettingsService {
         ? rawTier
         : defaultTierByCode.get(code) || 'center';
 
+      const translations = normalizeTranslations(raw?.translations);
       byCode.set(code, {
         code,
         label,
         deprecated,
         graph_tier,
+        ...(translations ? { translations } : {}),
       } as T);
     }
 
@@ -569,7 +584,8 @@ export class ItOpsSettingsService {
         const code = this.normalizeCode(raw?.code ?? raw?.value);
         const label = this.normalizeLabel(raw?.label, code);
         const deprecated = !!raw?.deprecated;
-        byCode.set(code, { code, label, deprecated });
+        const translations = normalizeTranslations(raw?.translations);
+        byCode.set(code, { code, label, deprecated, ...(translations ? { translations } : {}) });
       }
     }
 
@@ -596,12 +612,14 @@ export class ItOpsSettingsService {
       const deprecated = !!raw?.deprecated;
       const standardSupportEnd = this.parseDate(raw?.standardSupportEnd ?? raw?.standard_support_end, 'standardSupportEnd');
       const extendedSupportEnd = this.parseDate(raw?.extendedSupportEnd ?? raw?.extended_support_end, 'extendedSupportEnd');
+      const translations = normalizeTranslations(raw?.translations);
       byCode.set(code, {
         code,
         label,
         deprecated,
         standardSupportEnd,
         extendedSupportEnd,
+        ...(translations ? { translations } : {}),
       });
     }
 
@@ -625,12 +643,14 @@ export class ItOpsSettingsService {
         rawPorts === undefined || rawPorts === null || String(rawPorts).trim() === ''
           ? undefined
           : String(rawPorts).trim();
+      const translations = normalizeTranslations(raw?.translations);
       byCode.set(code, {
         code,
         label,
         deprecated,
         ...(category ? { category } : {}),
         ...(typicalPorts ? { typicalPorts } : {}),
+        ...(translations ? { translations } : {}),
       });
     }
 
@@ -658,11 +678,13 @@ export class ItOpsSettingsService {
           const def = defaultsMap.get(code);
           is_physical = def?.is_physical ?? false;
         }
+        const translations = normalizeTranslations(raw?.translations);
         byCode.set(code, {
           code,
           label,
           deprecated,
           is_physical,
+          ...(translations ? { translations } : {}),
         });
       }
     }
@@ -830,7 +852,8 @@ export class ItOpsSettingsService {
         const label = this.normalizeLabel(raw?.label, code);
         const dns_suffix = String(raw?.dns_suffix ?? label ?? '').trim().toLowerCase();
         const deprecated = !!raw?.deprecated;
-        byCode.set(code, { code, label, dns_suffix, deprecated, system: false });
+        const translations = normalizeTranslations(raw?.translations);
+        byCode.set(code, { code, label, dns_suffix, deprecated, system: false, ...(translations ? { translations } : {}) });
       }
     }
 
@@ -850,7 +873,8 @@ export class ItOpsSettingsService {
   ): Promise<ItOpsSettings> {
     const raw = (tenant.metadata?.it_ops as ItOpsMetadataShape | undefined) ?? {};
     const applicationCategories = this.normalizeList(raw.application_categories, this.defaultApplicationCategories);
-    const dataClasses = this.normalizeList(raw.data_classes, this.defaultDataClasses);
+    const catalog = catalogFromMetadata(raw);
+    const dataClasses = catalog.dataClasses;
     const networkSegments = this.normalizeNetworkZones(raw.network_segments, this.defaultNetworkSegments);
     const entities = this.normalizeTieredList(raw.entities, this.defaultEntities);
     const serverKinds = this.normalizeAssetKinds(raw.server_kinds, this.defaultServerKinds);
@@ -905,6 +929,9 @@ export class ItOpsSettingsService {
     );
     const incidentCategories = this.normalizeList(raw.incident_categories, this.defaultIncidentCategories);
     return {
+      lockedCodes: { lifecycleStates: [...this.lockedLifecycleCodes], domains: [...this.lockedDomainCodes] },
+      protectedCodes: { networkSegments: this.defaultNetworkSegments.map((item) => item.code), serverKinds: this.defaultServerKinds.map((item) => item.code) },
+      ...catalog,
       applicationCategories,
       dataClasses,
       networkSegments,
@@ -929,6 +956,16 @@ export class ItOpsSettingsService {
       pathHopFunctions,
       incidentCategories,
     };
+  }
+
+  /**
+   * Settings read by a write path that will store catalog codes. Takes a shared lock on the tenant row so
+   * the read serializes with a concurrent settings PATCH (which locks it FOR UPDATE): a value counted as
+   * unused cannot be referenced by a write that validated against the older catalog.
+   */
+  async getSettingsForWrite(tenantId: string, manager?: EntityManager): Promise<ItOpsSettings> {
+    if (manager) await manager.query('SELECT id FROM tenants WHERE id = $1 FOR SHARE', [tenantId]);
+    return this.getSettings(tenantId, { manager });
   }
 
   async getSettings(
@@ -1002,10 +1039,10 @@ export class ItOpsSettingsService {
     return (await this.resolveApplicationCategoryOption(tenantId, value, opts)).code;
   }
 
-  async updateSettings(
+  private async updateSettingsLocked(
     tenantId: string,
     patch: Partial<ItOpsSettings>,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; userId?: string | null },
   ): Promise<ItOpsSettings> {
     const repo = this.repo(opts?.manager);
     const tenant = await repo.findOne({ where: { id: tenantId } });
@@ -1015,17 +1052,12 @@ export class ItOpsSettingsService {
 
     const current = await this.getMetadataSettings(tenant, { manager: opts?.manager });
     const next: ItOpsSettings = { ...current };
+    patch = this.prepareCatalogPatch(patch);
 
     if (patch.applicationCategories) {
       next.applicationCategories = this.normalizeList(
         patch.applicationCategories,
         this.defaultApplicationCategories,
-      );
-    }
-    if (patch.dataClasses) {
-      next.dataClasses = this.normalizeList(
-        patch.dataClasses,
-        this.defaultDataClasses,
       );
     }
     if (patch.networkSegments) {
@@ -1142,8 +1174,16 @@ export class ItOpsSettingsService {
       next.incidentCategories = this.normalizeList(patch.incidentCategories, this.defaultIncidentCategories);
     }
 
+    const catalogChanged = CLASSIFICATION_CATALOG_KEYS.some((key) => patch[key] !== undefined);
+    if (catalogChanged) {
+      // Saving the catalog never moves an application: levels are referenced by stable code.
+      Object.assign(next, this.prepareClassificationCatalog(current, patch));
+    }
+    await this.assertCatalogUsage(tenantId, current, next, patch, opts!.manager!);
     const meta: any = tenant.metadata || {};
     const itOps: any = {
+      ...(meta.it_ops || {}),
+      ...catalogToMetadata(next),
       application_categories: next.applicationCategories,
       data_classes: next.dataClasses,
       network_segments: next.networkSegments,
@@ -1168,31 +1208,98 @@ export class ItOpsSettingsService {
       path_hop_functions: next.pathHopFunctions,
       incident_categories: next.incidentCategories,
     };
+    for (const key of OBSOLETE_CATALOG_METADATA_KEYS) delete itOps[key];
     meta.it_ops = itOps;
     tenant.metadata = meta;
 
     await repo.save(tenant);
+    await this.audit.log({ table: 'tenants', recordId: tenantId, action: 'update', before: current, after: next, userId: opts?.userId }, opts);
     return next;
   }
 
-  async resetToDefaults(
-    tenantId: string,
-    opts?: { manager?: EntityManager },
-  ): Promise<ItOpsSettings> {
-    const repo = this.repo(opts?.manager);
-    const tenant = await repo.findOne({ where: { id: tenantId } });
-    if (!tenant) {
-      throw new Error(`Tenant ${tenantId} not found`);
-    }
+  async getClassificationCatalog(tenantId: string, opts?: { manager?: EntityManager }): Promise<ClassificationCatalog> {
+    const tenant = await this.repo(opts?.manager).findOne({ where: { id: tenantId } });
+    if (!tenant) throw new BadRequestException('Tenant not found');
+    return catalogFromMetadata(tenant.metadata?.it_ops as any);
+  }
 
-    const meta: any = tenant.metadata || {};
-    if (meta.it_ops) {
-      delete meta.it_ops;
-    }
-    tenant.metadata = meta;
+  async lockClassificationCatalog(tenantId: string, manager: EntityManager): Promise<ClassificationCatalog> {
+    await manager.query('SELECT id FROM tenants WHERE id = $1 FOR UPDATE', [tenantId]);
+    return this.getClassificationCatalog(tenantId, { manager });
+  }
 
-    await repo.save(tenant);
-    return this.getMetadataSettings(tenant, { manager: opts?.manager });
+  async updateSettings(tenantId: string, patch: Partial<ItOpsSettings>, opts?: { manager?: EntityManager; userId?: string | null }): Promise<ItOpsSettings> {
+    const manager = opts?.manager ?? this.tenants.manager;
+    return manager.transaction(async (tx) => {
+      await tx.query('SELECT id FROM tenants WHERE id = $1 FOR UPDATE', [tenantId]);
+      return this.updateSettingsLocked(tenantId, patch, { ...opts, manager: tx });
+    });
+  }
+
+  private prepareClassificationCatalog(current: ClassificationCatalog, patch: Partial<ClassificationCatalog>): ClassificationCatalog {
+    const merged = { ...current };
+    for (const key of CLASSIFICATION_CATALOG_KEYS) if (patch[key] !== undefined) (merged as any)[key] = patch[key];
+    return validateClassificationCatalog(merged);
+  }
+
+  /** Human names and write rules per list; the order of rows is preserved by every normalizer. */
+  static readonly LIST_META: Record<string, { name: string; commaSeparatedInCsv?: boolean; subnets?: boolean }> = {
+    applicationCategories: { name: 'Application categories' }, networkSegments: { name: 'Network zones' }, entities: { name: 'Entities' },
+    serverKinds: { name: 'Asset types' }, serverProviders: { name: 'Cloud providers' }, serverRoles: { name: 'Server roles' },
+    hostingTypes: { name: 'Hosting types' }, lifecycleStates: { name: 'Lifecycle statuses' }, interfaceProtocols: { name: 'Interface protocols' },
+    interfaceDataCategories: { name: 'Interface data categories' }, interfaceTriggerTypes: { name: 'Interface trigger types' },
+    interfacePatterns: { name: 'Integration patterns' }, interfaceFormats: { name: 'Interface data formats' }, interfaceAuthModes: { name: 'Interface authentication modes' },
+    operatingSystems: { name: 'Operating systems' }, connectionTypes: { name: 'Connection types' }, subnets: { name: 'Subnets', subnets: true }, domains: { name: 'Domains' },
+    ipAddressTypes: { name: 'IP address types' }, accessMethods: { name: 'Access methods', commaSeparatedInCsv: true }, pathHopFunctions: { name: 'Path hop functions' },
+    incidentCategories: { name: 'Incident categories' }, businessCriticalityLevels: { name: 'Business criticality' }, cyberCriticalityLevels: { name: 'Cyber criticality' },
+    dataClasses: { name: 'Data confidentiality' }, recoveryWaves: { name: 'Recovery waves' },
+  };
+
+  /** Write-time rules for the lists a PATCH carries: codes generated from names, aliases unique. Reads stay tolerant. */
+  private prepareCatalogPatch(patch: Partial<ItOpsSettings>): Partial<ItOpsSettings> {
+    const prepared: Record<string, unknown> = { ...patch };
+    for (const [key, meta] of Object.entries(ItOpsSettingsService.LIST_META)) {
+      const rows = (patch as Record<string, unknown>)[key];
+      if (rows === undefined || meta.subnets) continue;
+      const skipCodes = key === 'lifecycleStates' ? this.lockedLifecycleCodes : key === 'domains' ? this.lockedDomainCodes : undefined;
+      prepared[key] = prepareCatalogListForWrite(rows, { listName: meta.name, commaSeparatedInCsv: meta.commaSeparatedInCsv, skipCodes });
+    }
+    return prepared as Partial<ItOpsSettings>;
+  }
+
+  /** Usage of one catalog value on business records, shared by the usage endpoint and the PATCH guard. */
+  async getCatalogUsage(tenantId: string, list: string, key: UsageKey, opts?: { manager?: EntityManager }): Promise<{ total: number; usage: CatalogUsageItem[] }> {
+    if (!(list in CATALOG_USAGE)) throw new BadRequestException(`Unknown catalog "${list}"`);
+    const manager = opts?.manager ?? this.tenants.manager;
+    const settings = list === 'networkSegments' ? await this.getSettings(tenantId, { manager }) : undefined;
+    const usage = await countCatalogUsage(manager, tenantId, list, key, settings?.subnets);
+    return { total: usage.reduce((sum, item) => sum + item.count, 0), usage };
+  }
+
+  /** A value removed from a list must not be referenced any more; "no longer offered" is the alternative. */
+  private async assertCatalogUsage(tenantId: string, current: ItOpsSettings, next: ItOpsSettings, patch: Partial<ItOpsSettings>, manager: EntityManager): Promise<void> {
+    for (const [key, meta] of Object.entries(ItOpsSettingsService.LIST_META)) {
+      if ((patch as Record<string, unknown>)[key] === undefined || !(key in CATALOG_USAGE)) continue;
+      const before = ((current as any)[key] ?? []) as Array<Record<string, any>>;
+      const after = ((next as any)[key] ?? []) as Array<Record<string, any>>;
+      const identity = (row: Record<string, any>) => meta.subnets ? `${row.location_id}:${row.cidr}` : String(row.code);
+      const kept = new Set(after.map(identity));
+      for (const row of before) {
+        if (kept.has(identity(row))) continue;
+        const usageKey: UsageKey = meta.subnets ? { location_id: row.location_id, cidr: row.cidr } : { code: row.code };
+        const { total, usage } = await this.getCatalogUsage(tenantId, key, usageKey, { manager: manager });
+        if (!total) continue;
+        const label = meta.subnets ? row.cidr : row.label || row.code;
+        const summary = usage.map((item) => `${item.count} ${item.record.replace(/_/g, ' ')}`).join(', ');
+        throw new BadRequestException({ statusCode: 400, message: `${meta.name}: "${label}" is still used by ${summary}; mark it as no longer offered instead of removing it`, list: key, code: row.code ?? null, label, usage });
+      }
+    }
+  }
+
+  async resetToDefaults(tenantId: string, opts?: { manager?: EntityManager; userId?: string | null }): Promise<ItOpsSettings> {
+    const manager = opts?.manager ?? this.tenants.manager;
+    const defaults = await this.getMetadataSettings({ id: tenantId, metadata: {} } as Tenant, { manager });
+    return this.updateSettings(tenantId, defaults, opts);
   }
 
   private normalizeHostingTypes(list: unknown, defaults: ItOpsEnumOption[]): ItOpsEnumOption[] {

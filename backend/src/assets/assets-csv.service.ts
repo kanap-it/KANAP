@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { ItOpsSettingsService } from '../it-ops-settings/it-ops-settings.service';
+import { exportCatalogLabels } from '../it-ops-settings/catalog-resolve';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { Asset } from './asset.entity';
@@ -21,6 +23,7 @@ export class AssetsCsvService {
     @InjectRepository(Asset) private readonly assets: Repository<Asset>,
     private readonly exportSvc: CsvExportService,
     private readonly importSvc: CsvImportService,
+    private readonly itOpsSettings: ItOpsSettingsService,
   ) {}
 
   /**
@@ -59,6 +62,15 @@ export class AssetsCsvService {
 
     // Get assets (empty for template export)
     const assets = scope === 'template' ? [] : await queryBuilder.getMany();
+    if (assets.length) {
+      // Users never see codes: catalog-backed columns are exported as names (import accepts either).
+      const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+      const ipTypeLabel = (code: string) => settings.ipAddressTypes.find((option) => option.code === code)?.label || code;
+      for (const asset of assets) {
+        exportCatalogLabels(asset, { kind: settings.serverKinds, status: settings.lifecycleStates, domain: settings.domains, operating_system: settings.operatingSystems });
+        if (Array.isArray(asset.ip_addresses)) asset.ip_addresses = asset.ip_addresses.map((ip) => ({ ...ip, type: ipTypeLabel(ip.type) }));
+      }
+    }
 
     return this.exportSvc.export(assetCsvConfig, assets, {
       manager,
@@ -81,7 +93,10 @@ export class AssetsCsvService {
       userId?: string | null;
     },
   ): Promise<CsvImportResult> {
-    return this.importSvc.import(assetCsvConfig, file, params, opts);
+    return opts.manager.transaction(async (manager) => {
+      const itOpsSettings = await this.itOpsSettings.getSettingsForWrite(opts.tenantId, manager);
+      return this.importSvc.import(assetCsvConfig, file, params, { ...opts, manager, itOpsSettings });
+    });
   }
 
   /**

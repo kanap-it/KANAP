@@ -1,3 +1,4 @@
+import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { Alert, Autocomplete, Box, Button, Chip, CircularProgress, LinearProgress, Stack, TextField, Typography, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Paper } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -35,6 +36,8 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 export default forwardRef<ApplicationRelationsPanelHandle, Props>(function ApplicationRelationsPanel({ id, isSuite = false, onDirtyChange, onRelationsChange }, ref) {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
+  const businessLabel = (code?: string | null) => classificationCatalog?.businessCriticalityLevels.find((item) => item.code === code)?.label || code || 'Not set';
   const { t } = useTranslation(['it', 'common']);
   const dialogs = useKanapDialogs();
   const { hasLevel } = useAuth();
@@ -473,7 +476,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
                     <TableRow key={c.id} hover sx={{ cursor: 'pointer' }} onClick={() => window.open(`/it/applications/${c.id}/overview`, '_self')}>
                       <TableCell>{c.name}</TableCell>
                       <TableCell>{(() => { switch (String(c.lifecycle || '')) { case 'proposed': return 'Proposed'; case 'active': return 'Active'; case 'deprecated': return 'Deprecated'; case 'retired': return 'Retired'; default: return String(c.lifecycle || ''); } })()}</TableCell>
-                      <TableCell>{(() => { switch (String(c.criticality || '')) { case 'business_critical': return t('enums.criticality.businessCritical'); case 'high': return t('enums.criticality.high'); case 'medium': return t('enums.criticality.medium'); case 'low': return t('enums.criticality.low'); default: return String(c.criticality || ''); } })()}</TableCell>
+                      <TableCell>{businessLabel(c.criticality)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

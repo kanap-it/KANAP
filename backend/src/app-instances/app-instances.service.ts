@@ -301,7 +301,7 @@ export class AppInstancesService {
     manager?: EntityManager,
     fallback?: string,
   ): Promise<string> {
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = (settings.lifecycleStates || []).map((item) => item.code);
     const normalizedFallback = this.pickLifecycleFallback(fallback, allowed);
     if (value === undefined || value === null || String(value).trim() === '') {

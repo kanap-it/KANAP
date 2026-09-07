@@ -236,6 +236,7 @@ async function testIncidentReviewIsVirtual() {
     params: { dryRun: false, mode: 'replace', operation: 'upsert' },
     resolverCache: new Map(),
     userId: 'u1',
+    itOpsSettings: { incidentCategories: [] },
   } as any;
 
   const entity: any = {
@@ -261,12 +262,14 @@ async function testIncidentImportHooks() {
       return [];
     },
   };
+  // The effective catalog is preloaded by the CSV service; hooks never read tenant metadata themselves.
   const context = {
     tenantId: 't1',
     manager,
     params: { dryRun: false, mode: 'replace', operation: 'upsert' },
     resolverCache: new Map(),
     userId: 'u1',
+    itOpsSettings: { incidentCategories: [{ code: 'security', label: 'Security' }] },
   } as any;
 
   const inserted: any = { title: 'Storage outage', category: 'Security', severity: 'critical' };

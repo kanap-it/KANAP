@@ -1,3 +1,4 @@
+import { findCatalogOption, requireImportCatalogs, resolveCatalogCode } from '../it-ops-settings/catalog-resolve';
 import {
   ArrayStrategy,
   CsvEntityConfig,
@@ -320,29 +321,8 @@ export const assetCsvConfig: CsvEntityConfig = {
    *   accepting both codes and labels
    */
   beforeCommit: async (entities: any[], context: CsvImportContext) => {
-    // 1. Load IT Ops settings from tenant metadata
-    const tenantRows = await context.manager.query(
-      `SELECT metadata FROM tenants WHERE id = $1 LIMIT 1`,
-      [context.tenantId],
-    );
-    const settings = tenantRows[0]?.metadata?.it_ops || {};
-
-    // Helper to build bidirectional lookup map (code -> code, label -> code)
-    const buildLookup = (items: Array<{ code: string; label: string }>) => {
-      const map = new Map<string, string>();
-      for (const item of items || []) {
-        map.set(item.code.toLowerCase(), item.code);
-        map.set(item.label.toLowerCase(), item.code);
-      }
-      return map;
-    };
-
-    // Build lookup maps for all settings-backed fields
-    const kindLookup = buildLookup(settings.server_kinds || []);
-    const statusLookup = buildLookup(settings.lifecycle_states || []);
-    const osLookup = buildLookup(settings.operating_systems || []);
-    const domainLookup = buildLookup(settings.domains || []);
-    const ipTypeLookup = buildLookup(settings.ip_address_types || []);
+    // 1. Effective IT Ops catalogs (defaults included), preloaded by the assets CSV service.
+    const settings = await requireImportCatalogs(context);
 
     // 2. Derive provider from location
     const needsProvider = entities.filter((e) => e.location_id && !e.provider);
@@ -367,35 +347,12 @@ export const assetCsvConfig: CsvEntityConfig = {
       }
     }
 
-    // 3. Resolve settings-backed fields (accepts both code and label)
+    // 3. Resolve settings-backed fields (accepts a code or a name; ambiguity is refused)
     for (const entity of entities) {
-      // Kind (Asset Type)
-      if (entity.kind) {
-        const input = String(entity.kind).trim().toLowerCase();
-        const resolved = kindLookup.get(input);
-        if (resolved) entity.kind = resolved;
-      }
-
-      // Status (Lifecycle)
-      if (entity.status) {
-        const input = String(entity.status).trim().toLowerCase();
-        const resolved = statusLookup.get(input);
-        if (resolved) entity.status = resolved;
-      }
-
-      // Operating System
-      if (entity.operating_system) {
-        const input = String(entity.operating_system).trim().toLowerCase();
-        const resolved = osLookup.get(input);
-        if (resolved) entity.operating_system = resolved;
-      }
-
-      // Domain
-      if (entity.domain) {
-        const input = String(entity.domain).trim().toLowerCase();
-        const resolved = domainLookup.get(input);
-        if (resolved) entity.domain = resolved;
-      }
+      if (entity.kind) entity.kind = resolveCatalogCode(entity.kind, settings.serverKinds);
+      if (entity.status) entity.status = resolveCatalogCode(entity.status, settings.lifecycleStates);
+      if (entity.operating_system) entity.operating_system = resolveCatalogCode(entity.operating_system, settings.operatingSystems);
+      if (entity.domain) entity.domain = resolveCatalogCode(entity.domain, settings.domains);
 
       // 4. Normalize IP addresses (resolve type from label/code, trim values)
       if (Array.isArray(entity.ip_addresses)) {
@@ -407,11 +364,11 @@ export const assetCsvConfig: CsvEntityConfig = {
           }
 
           const typeInput = String(ip.type || '').trim().toLowerCase();
-          const resolvedType = ipTypeLookup.get(typeInput);
+          const resolvedType = typeInput ? findCatalogOption(typeInput, settings.ipAddressTypes)?.code : undefined;
 
           // Validate IP type against settings
           if (typeInput && !resolvedType) {
-            const validTypes = [...new Set(ipTypeLookup.values())].join(', ');
+            const validTypes = settings.ipAddressTypes.map((option) => option.label).join(', ');
             throw new Error(
               `Invalid IP address type "${ip.type}" for asset "${entity.name}". Valid types: ${validTypes || '(none configured)'}`,
             );

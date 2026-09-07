@@ -1,3 +1,4 @@
+import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
 import React from 'react';
 import { Box, MenuItem, Popover, Typography, useTheme } from '@mui/material';
 import {
@@ -7,10 +8,12 @@ import {
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import { drawerMenuItemSx } from '../../../theme/formSx';
 import { CRITICALITY_COLORS, getDotColor, LIFECYCLE_COLORS } from '../../../utils/statusColors';
+import { classificationText } from '../../../utils/applicationClassification';
 
 type Props = {
   lifecycle: string;
   criticality: string;
+  classificationIncomplete?: boolean;
   sourceName?: string | null;
   targetName?: string | null;
   routeType: 'direct' | 'via_middleware';
@@ -32,6 +35,7 @@ function humanize(value: string | null | undefined) {
 export default function InterfaceMetadataBar({
   lifecycle,
   criticality,
+  classificationIncomplete = false,
   sourceName,
   targetName,
   routeType,
@@ -43,6 +47,7 @@ export default function InterfaceMetadataBar({
   onDataClassChange,
   onFlowClick,
 }: Props) {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
   const theme = useTheme();
   const { byField, labelFor } = useItOpsEnumOptions();
   const [dataClassAnchor, setDataClassAnchor] = React.useState<HTMLElement | null>(null);
@@ -57,17 +62,7 @@ export default function InterfaceMetadataBar({
       }))
   ), [byField.lifecycleStatus, lifecycle, theme.palette.mode]);
 
-  const criticalityOptions = React.useMemo(() => (
-    [
-      { value: 'business_critical', label: 'Business critical' },
-      { value: 'high', label: 'High' },
-      { value: 'medium', label: 'Medium' },
-      { value: 'low', label: 'Low' },
-    ].map((item) => ({
-      ...item,
-      color: getDotColor(CRITICALITY_COLORS[item.value] || 'default', theme.palette.mode),
-    }))
-  ), [theme.palette.mode]);
+  const criticalityOptions = [{ value: '', label: 'Not set', color: getDotColor('default', theme.palette.mode) }, ...(classificationCatalog?.businessCriticalityLevels || []).filter((item) => !item.deprecated || item.code === criticality).map((item) => ({ value: item.code, label: item.label, color: getDotColor('default', theme.palette.mode) }))];
 
   const dataClassOptions = React.useMemo(() => (
     (byField.dataClass || [])
@@ -82,7 +77,7 @@ export default function InterfaceMetadataBar({
     ? `${sourceName} -> ${targetName}`
     : 'Applications missing';
   const routeLabel = routeType === 'via_middleware' ? 'Via middleware' : 'Direct';
-  const dataClassLabel = labelFor('dataClass', dataClass) || humanize(dataClass);
+  const dataClassLabel = classificationCatalog?.dataClasses.find((item) => item.code === dataClass)?.label || dataClass || 'Not set';
 
   return (
     <>
@@ -95,8 +90,8 @@ export default function InterfaceMetadataBar({
         disabled={disabled}
       />
       <PortfolioStatusMetadata
-        value={criticality || 'medium'}
-        label={humanize(criticality || 'medium')}
+        value={criticality || ''}
+        label={`${classificationCatalog?.businessCriticalityLevels.find((item) => item.code === criticality)?.label || criticality || 'Not set'}${classificationIncomplete ? ` (${classificationText('Incomplete inheritance')})` : ''}`}
         color={getDotColor(CRITICALITY_COLORS[criticality] || 'default', theme.palette.mode)}
         options={criticalityOptions}
         onChange={onCriticalityChange}

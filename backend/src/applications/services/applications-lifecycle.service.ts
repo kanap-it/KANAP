@@ -1,3 +1,5 @@
+import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
+import { copyClassification } from './application-classification';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
@@ -35,6 +37,7 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
     @InjectRepository(Application) appRepo: Repository<Application>,
     private readonly audit: AuditService,
     private readonly interfaceMappings: InterfaceMappingsService,
+    private readonly itOpsSettings: ItOpsSettingsService,
   ) {
     super(appRepo);
   }
@@ -42,7 +45,11 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
   /**
    * Create a new version of an application with lineage tracking.
    */
-  async createVersion(
+  async createVersion(sourceId: string, body: Parameters<ApplicationsLifecycleService['createVersionLocked']>[1], userId: string | null, opts?: ServiceOpts): Promise<Application> {
+    return this.getManager(opts).transaction((manager) => this.createVersionLocked(sourceId, body, userId, { ...opts, manager }));
+  }
+
+  private async createVersionLocked(
     sourceId: string,
     body: {
       name: string;
@@ -68,6 +75,7 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
 
+    const catalog = await this.itOpsSettings.lockClassificationCatalog(await this.getCurrentTenantId(mg), mg);
     const source = await repo.findOne({ where: { id: sourceId } });
     if (!source) throw new NotFoundException('Application not found');
 
@@ -81,7 +89,7 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
       editor: source.editor,
       lifecycle: 'proposed',
       environment: source.environment,
-      criticality: source.criticality,
+      ...copyClassification(source, catalog),
       data_class: source.data_class,
       hosting_model: source.hosting_model,
       external_facing: source.external_facing,

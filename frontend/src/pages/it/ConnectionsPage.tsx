@@ -1,3 +1,4 @@
+import useApplicationClassificationCatalog from '../../hooks/useApplicationClassificationCatalog';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Box, Button, Stack } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
@@ -11,6 +12,7 @@ import ForbiddenPage from '../ForbiddenPage';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import DeleteSelectedButton from '../../components/DeleteSelectedButton';
 import { useTranslation } from 'react-i18next';
+import { classificationText } from '../../utils/applicationClassification';
 
 type ConnectionRow = {
   id: string;
@@ -25,6 +27,7 @@ type ConnectionRow = {
   effective_criticality?: string;
   effective_data_class?: string;
   effective_contains_pii?: boolean;
+  classification_incomplete?: boolean;
   derived_interface_count?: number;
   linked_interface_count?: number;
   source_label?: string | null;
@@ -60,13 +63,6 @@ const CRIT_DOT_COLORS: Record<string, string> = {
   low: '#6B7280',
 };
 
-const CRIT_LABELS: Record<string, string> = {
-  business_critical: 'Business critical',
-  high: 'High',
-  medium: 'Medium',
-  low: 'Low',
-};
-
 function topologyLabel(v: string): string {
   if (v === 'server_to_server') return 'Server to server';
   if (v === 'multi_server') return 'Multi-server';
@@ -74,6 +70,7 @@ function topologyLabel(v: string): string {
 }
 
 export default function ConnectionsPage() {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
   const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
@@ -209,17 +206,22 @@ export default function ConnectionsPage() {
       width: 150,
       cellRenderer: (params: ICellRendererParams<ConnectionRow>) => {
         const row = params.data;
-        const value = String(row?.effective_criticality || row?.criticality || '');
+        const value = String((row?.risk_mode === 'derived' ? row.effective_criticality : row?.criticality) ?? '');
         const isDerived = row?.risk_mode === 'derived';
         const color = CRIT_DOT_COLORS[value] || '#9CA3AF';
         return (
           <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, height: '100%' }}>
             <StatusDot color={color} />
             <Box component="span" sx={{ fontSize: 13 }}>
-              {CRIT_LABELS[value] || value}
+              {classificationCatalog?.businessCriticalityLevels.find((item) => item.code === value)?.label || value || 'Not set'}
               {isDerived && (
                 <Box component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary', ml: 0.5 }}>
                   (derived)
+                </Box>
+              )}
+              {row?.classification_incomplete && (
+                <Box component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary', ml: 0.5 }}>
+                  ({classificationText('Incomplete inheritance')})
                 </Box>
               )}
             </Box>
@@ -235,7 +237,7 @@ export default function ConnectionsPage() {
       valueFormatter: (p) => {
         const row = p.data as ConnectionRow | undefined;
         const value = row?.effective_data_class || p.value;
-        return labelFor('dataClass', value) || (value || '');
+        return classificationCatalog?.dataClasses.find((item) => item.code === value)?.label || (value || 'Not set');
       },
       cellRenderer: ClickToWorkspace,
       filter: 'agSetColumnFilter',

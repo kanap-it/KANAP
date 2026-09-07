@@ -1,3 +1,4 @@
+import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
 import React from 'react';
 import { Box, MenuItem, Switch, TextField, Typography } from '@mui/material';
 import { PropertyGroup, PropertyRow } from '../../../components/design/PropertyRow';
@@ -5,13 +6,8 @@ import { drawerSelectSx, drawerMenuItemSx } from '../../../theme/formSx';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import { formatShortDate } from '../../../lib/dateFormat';
 import { useLocale } from '../../../i18n/useLocale';
+import { classificationText } from '../../../utils/applicationClassification';
 
-const CRITICALITIES = [
-  { code: 'low', label: 'Low' },
-  { code: 'medium', label: 'Medium' },
-  { code: 'high', label: 'High' },
-  { code: 'business_critical', label: 'Business critical' },
-];
 
 type Props = {
   lifecycle: string;
@@ -25,6 +21,7 @@ type Props = {
   effectiveDataClass: string;
   effectiveContainsPii: boolean;
   derivedInterfaceCount: number;
+  classificationIncomplete?: boolean;
   derivedAvailable: boolean;
   createdAt: string | null;
   updatedAt: string | null;
@@ -49,6 +46,7 @@ export default function ConnectionPropertiesDrawer({
   effectiveDataClass,
   effectiveContainsPii,
   derivedInterfaceCount,
+  classificationIncomplete = false,
   derivedAvailable,
   createdAt,
   updatedAt,
@@ -60,10 +58,12 @@ export default function ConnectionPropertiesDrawer({
   onDataClassChange,
   onContainsPiiChange,
 }: Props) {
-  const { byField, labelFor } = useItOpsEnumOptions();
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
+  const CRITICALITIES = [{ code: '', label: 'Not set' }, ...(classificationCatalog?.businessCriticalityLevels || [])];
+  const { byField } = useItOpsEnumOptions();
   const locale = useLocale();
   const lifecycleOptions = byField.lifecycleStatus || [];
-  const dataClassOptions = byField.dataClass || [];
+  const dataClassOptions = classificationCatalog?.dataClasses || [];
 
   const isDerived = riskMode === 'derived';
 
@@ -142,6 +142,11 @@ export default function ConnectionPropertiesDrawer({
               <Typography component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>
                 (derived from {derivedInterfaceCount})
               </Typography>
+              {classificationIncomplete && (
+                <Typography component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary' }}>
+                  ({classificationText('Incomplete inheritance')})
+                </Typography>
+              )}
             </Box>
           ) : (
             <TextField
@@ -162,7 +167,7 @@ export default function ConnectionPropertiesDrawer({
         <PropertyRow label="Data class">
           {isDerived ? (
             <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>
-              {labelFor('dataClass', effectiveDataClass) || effectiveDataClass || 'Not set'}
+              {classificationCatalog?.dataClasses.find((item) => item.code === effectiveDataClass)?.label || effectiveDataClass || 'Not set'}
             </Typography>
           ) : (
             <TextField

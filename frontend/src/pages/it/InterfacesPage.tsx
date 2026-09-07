@@ -1,3 +1,4 @@
+import useApplicationClassificationCatalog from '../../hooks/useApplicationClassificationCatalog';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -32,6 +33,7 @@ import api from '../../api';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { classificationText } from '../../utils/applicationClassification';
 type InterfaceRow = {
   id: string;
   interface_reference: string;
@@ -43,6 +45,7 @@ type InterfaceRow = {
   target_application_name: string;
   lifecycle: string;
   criticality: string;
+  classification_incomplete?: boolean;
   data_category: string;
   contains_pii: boolean;
   bindings_count?: number;
@@ -52,6 +55,8 @@ type InterfaceRow = {
 };
 
 export default function InterfacesPage() {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
+  const businessLabel = (code?: string | null) => classificationCatalog?.businessCriticalityLevels.find((item) => item.code === code)?.label || code || 'Not set';
   const { t } = useTranslation(['it', 'common']);
   const theme = useTheme();
   const navigate = useNavigate();
@@ -244,6 +249,7 @@ export default function InterfacesPage() {
     {
       headerName: t('pages.connections.columns.criticality'),
       field: 'criticality',
+      valueFormatter: (p) => `${businessLabel(p.value)}${p.data?.classification_incomplete ? ` (${classificationText('Incomplete inheritance')})` : ''}`,
       width: 140,
       cellRenderer: ClickToWorkspace,
     },

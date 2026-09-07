@@ -29,6 +29,16 @@ IT Landscape Settings let each tenant configure the enum-like values used across
 
 These settings are stored in `tenants.metadata.it_ops` and drive both frontend dropdowns and backend validation. They are tenant-scoped and respect the existing RLS and tenant-deletion patterns.
 
+### Application classification catalog (V1)
+
+The same tenant metadata also contains `businessCriticalityLevels`, `cyberCriticalityLevels`, `dataClasses` and `recoveryWaves`. Level entries contain `code`, `label`, `description`, `rank`, and `deprecated`; business entries add a nullable `maxMtdMinutes` that documents the level (it is not an application field), while recovery waves use `order`.
+
+Array order is the contract: levels are written most-severe-first and waves in restoration order; `validateClassificationCatalog` ignores incoming `rank`/`order` and assigns them from the position, and `catalogFromMetadata` sorts on read so tenants stored in an older order display consistently. Labels must be unique within a catalog (import and the API accept either code or label). `GET /applications/classification-catalog` exposes the catalog to application readers; IT Ops settings reads include it.
+
+Saving the catalog never rewrites an application: levels are referenced by stable code, so renaming, reordering or changing a downtime leaves every application on the same level and does not touch reviews. Used codes cannot be removed (`assertClassificationUsage` checks applications, interfaces and connections); deprecate them instead. Obsolete metadata keys from earlier builds (`business_mtd_presets`, `classification_versions`, `classification_settings_revision`, `classification_anomalies`) are dropped on the next settings write.
+
+A review is an explicit action requiring business criticality, cyber, confidentiality, recovery wave, and justification; it stores the server actor/date and the application revision. Recovery references use the existing Knowledge section and existing Relations links; no duplicate recovery-link store is created.
+
 ## Data Model
 
 Settings are kept inside `Tenant.metadata` rather than a separate table:

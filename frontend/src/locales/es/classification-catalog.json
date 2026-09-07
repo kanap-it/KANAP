@@ -1,0 +1,26 @@
+{
+  "businessCriticalityLevels": {
+    "business_critical": { "label": "Crítica", "description": "La actividad tolera como máximo cuatro horas de interrupción." },
+    "high": { "label": "Alta", "description": "La actividad tolera más de cuatro horas y hasta un día de interrupción." },
+    "medium": { "label": "Moderada", "description": "La actividad tolera más de un día y hasta tres días de interrupción." },
+    "low": { "label": "Baja", "description": "La actividad tolera más de tres días de interrupción." }
+  },
+  "cyberCriticalityLevels": {
+    "low": { "label": "Baja", "description": "Consecuencias limitadas y locales de una vulneración." },
+    "moderate": { "label": "Moderada", "description": "Daño significativo pero contenido." },
+    "high": { "label": "Alta", "description": "Daño importante para los datos, una actividad relevante o varios sistemas." },
+    "critical": { "label": "Crítica", "description": "Consecuencias catastróficas, daños graves a personas o al medio ambiente, o vulneración extendida de los sistemas de información." }
+  },
+  "dataClasses": {
+    "public": { "label": "Público", "description": "Información aprobada para su divulgación pública." },
+    "internal": { "label": "Interno", "description": "Información destinada al uso interno; su divulgación tiene consecuencias limitadas." },
+    "confidential": { "label": "Confidencial", "description": "La divulgación podría causar un daño significativo; el acceso se limita a destinatarios autorizados." },
+    "restricted": { "label": "Restringido", "description": "La divulgación podría causar un daño grave; el acceso se limita estrictamente a quienes lo necesitan." }
+  },
+  "recoveryWaves": {
+    "foundation": { "label": "V0 — Base", "description": "Prerrequisitos compartidos y servicios base." },
+    "vital": { "label": "V1 — Actividades vitales", "description": "Restaurar las actividades vitales después de sus prerrequisitos." },
+    "priority": { "label": "V2 — Actividades prioritarias", "description": "Restaurar las actividades prioritarias." },
+    "normal": { "label": "V3 — Funcionamiento normal", "description": "Volver al funcionamiento normal." }
+  }
+}

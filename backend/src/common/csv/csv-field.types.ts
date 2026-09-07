@@ -112,6 +112,8 @@ export interface CsvEntityConfig {
   relationHandlers?: CsvRelationHandler[];
   /** Hook called before import validation */
   beforeValidate?: (rows: CsvImportRow[], context: CsvImportContext) => Promise<void>;
+  /** Validate resolved rows identically in dry-run and execution, after identity resolution. */
+  afterValidate?: (rows: CsvImportRow[], context: CsvImportContext) => Promise<void>;
   /** Hook called before import commit */
   beforeCommit?: (entities: any[], context: CsvImportContext) => Promise<void>;
   /** Hook called after import commit */
@@ -244,6 +246,8 @@ export interface CsvImportContext {
   isAdmin?: boolean;
   /** Register viewer (userId + incidents:admin). Used to hide confidential incidents. */
   viewer?: { userId: string | null; isAdmin: boolean };
+  /** Effective IT Ops catalogs (defaults included), read with the tenant shared lock by the entity CSV service. */
+  itOpsSettings?: import('../../it-ops-settings/it-ops-settings.service').ItOpsSettings;
 }
 
 /**

@@ -1,12 +1,38 @@
 import api from '../api';
 
+export type CatalogLocale = 'en' | 'fr' | 'de' | 'es';
+/** Per-locale overrides of a value's name and description typed by the tenant; an absent field falls back. */
+export type CatalogTranslations = Partial<Record<CatalogLocale, { label?: string; description?: string }>>;
+
 export type ItOpsEnumOption = {
   code: string;
   label: string;
   deprecated?: boolean;
   category?: string;
+  translations?: CatalogTranslations;
   // UI-only helper for stable row keys; ignored by backend
   localId?: string;
+};
+
+export type ClassificationLevel = ItOpsEnumOption & {
+  description: string;
+  rank: number;
+};
+
+export type BusinessCriticalityLevel = ClassificationLevel & {
+  maxMtdMinutes: number | null;
+};
+
+export type RecoveryWave = Omit<ClassificationLevel, 'rank'> & {
+  order: number;
+};
+
+/** Levels are listed from most to least severe; waves in restoration order. The server assigns ranks from that order. */
+export type ApplicationClassificationCatalog = {
+  businessCriticalityLevels: BusinessCriticalityLevel[];
+  cyberCriticalityLevels: ClassificationLevel[];
+  dataClasses: ClassificationLevel[];
+  recoveryWaves: RecoveryWave[];
 };
 
 export type OperatingSystemOption = ItOpsEnumOption & {
@@ -76,7 +102,16 @@ export type ItOpsSettings = {
   ipAddressTypes: ItOpsEnumOption[];
   accessMethods: ItOpsEnumOption[];
   incidentCategories: ItOpsEnumOption[];
+  businessCriticalityLevels: BusinessCriticalityLevel[];
+  cyberCriticalityLevels: ClassificationLevel[];
+  recoveryWaves: RecoveryWave[];
+  /** Server-managed rows the editors must not edit nor remove. */
+  lockedCodes?: Record<string, string[]>;
+  /** Default rows the server re-adds after removal: editable and retirable, never removable. */
+  protectedCodes?: Record<string, string[]>;
 };
+
+export type ClassificationSettingsPatch = ApplicationClassificationCatalog;
 
 export async function fetchItOpsSettings(): Promise<ItOpsSettings> {
   const res = await api.get('/it-ops/settings');
@@ -88,7 +123,22 @@ export async function updateItOpsSettings(payload: Partial<ItOpsSettings>): Prom
   return res.data as ItOpsSettings;
 }
 
+export async function fetchApplicationClassificationCatalog(): Promise<ApplicationClassificationCatalog> {
+  const res = await api.get('/applications/classification-catalog');
+  return res.data as ApplicationClassificationCatalog;
+}
+
+export type CatalogUsageRecord = 'applications' | 'assets' | 'interfaces' | 'connections' | 'app_instances' | 'interface_bindings' | 'locations' | 'incidents' | 'server_assignments' | 'subnets';
+export type CatalogUsage = { total: number; usage: Array<{ record: CatalogUsageRecord; count: number; listPath?: string }> };
+export type CatalogUsageKey = { code: string } | { location_id: string; cidr: string };
+
+/** Records referencing one catalog value; the same counts protect removal on save. */
+export async function fetchCatalogUsage(list: string, key: CatalogUsageKey): Promise<CatalogUsage> {
+  const res = await api.get('/it-ops/settings/usage', { params: { list, ...key } });
+  return res.data as CatalogUsage;
+}
+
 export async function resetItOpsSettingsToDefaults(): Promise<ItOpsSettings> {
-  const res = await api.post('/it-ops/settings/reset');
+  const res = await api.post('/it-ops/settings/reset', {});
   return res.data as ItOpsSettings;
 }

@@ -22,10 +22,11 @@ type ListItem = Connection & {
   multi_server_count?: number;
   source_asset_name?: string | null;
   destination_asset_name?: string | null;
-  effective_criticality?: string;
-  effective_data_class?: string;
+  effective_criticality?: string | null;
+  effective_data_class?: string | null;
   effective_contains_pii?: boolean;
   derived_interface_count?: number;
+  classification_incomplete?: boolean;
   linked_interface_count?: number;
 };
 
@@ -55,10 +56,11 @@ export class ConnectionsListService extends ConnectionsBaseService {
     effectiveRiskMap?: Map<
       string,
       {
-        effective_criticality: string;
-        effective_data_class: string;
+        effective_criticality: string | null;
+        effective_data_class: string | null;
         effective_contains_pii: boolean;
         derived_interface_count: number;
+        classification_incomplete: boolean;
       }
     >,
   ): Promise<ListItem[]> {
@@ -151,10 +153,11 @@ export class ConnectionsListService extends ConnectionsBaseService {
         destination_asset_name,
         multi_server_count: countMap.get(c.id) || 0,
         linked_interface_count: linkedCountMap.get(c.id) || 0,
-        effective_criticality: effective?.effective_criticality ?? c.criticality,
-        effective_data_class: effective?.effective_data_class ?? c.data_class,
+        effective_criticality: effective ? effective.effective_criticality : c.criticality,
+        effective_data_class: effective ? effective.effective_data_class : c.data_class,
         effective_contains_pii: effective?.effective_contains_pii ?? c.contains_pii,
         derived_interface_count: effective?.derived_interface_count ?? 0,
+        classification_incomplete: effective?.classification_incomplete ?? false,
       };
     });
   }
@@ -176,7 +179,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
       where.lifecycle = String(query.lifecycle || '').trim().toLowerCase();
     }
     if (query.criticality) {
-      where.criticality = this.normalizeCriticality(query.criticality);
+      where.criticality = await this.normalizeCriticality(query.criticality, tenant, mg);
     }
     if (query.data_class) {
       where.data_class = await this.normalizeDataClass(query.data_class, tenant, mg);
@@ -244,7 +247,7 @@ export class ConnectionsListService extends ConnectionsBaseService {
       where.lifecycle = String(query.lifecycle || '').trim().toLowerCase();
     }
     if (query.criticality) {
-      where.criticality = this.normalizeCriticality(query.criticality);
+      where.criticality = await this.normalizeCriticality(query.criticality, tenant, mg);
     }
     if (query.data_class) {
       where.data_class = await this.normalizeDataClass(query.data_class, tenant, mg);
@@ -361,8 +364,8 @@ export class ConnectionsListService extends ConnectionsBaseService {
       interface_code: string;
       interface_name: string;
       interface_lifecycle: string;
-      interface_criticality: string;
-      interface_data_class: string;
+      interface_criticality: string | null;
+      interface_data_class: string | null;
       interface_contains_pii: boolean;
       source_application_id: string;
       target_application_id: string;
@@ -848,9 +851,10 @@ export class ConnectionsListService extends ConnectionsBaseService {
         name: row.name,
         topology: row.topology as Topology,
         lifecycle: row.lifecycle,
-        criticality: effective?.effective_criticality ?? row.criticality,
-        data_class: effective?.effective_data_class ?? row.data_class,
+        criticality: effective ? effective.effective_criticality : row.criticality,
+        data_class: effective ? effective.effective_data_class : row.data_class,
         contains_pii: effective?.effective_contains_pii ?? !!row.contains_pii,
+        classification_incomplete: effective?.classification_incomplete ?? false,
         description: row.description,
         protocol_codes,
         protocol_labels,

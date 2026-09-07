@@ -1,3 +1,6 @@
+import { catalogFromMetadata, catalogToMetadata } from '../it-ops-settings/classification-catalog';
+import { requireImportCatalogs, resolveCatalogCode } from '../it-ops-settings/catalog-resolve';
+import { CLASSIFICATION_INPUT_FIELDS, classificationPatch } from './services/application-classification';
 import {
   ArrayStrategy,
   CsvEntityConfig,
@@ -27,6 +30,14 @@ export const applicationCsvConfig: CsvEntityConfig = {
   displayName: 'Applications',
   upsertKey: ['name'],
   fields: [
+    ...['rto_minutes', 'rpo_minutes', 'cyber_criticality', 'recovery_wave', 'classification_justification'].map((field) => ({
+      csvColumn: field, entityProperty: field, type: CsvFieldType.STRING, required: false, defaultExport: true,
+      label: field.endsWith('_minutes') ? `${field} (integer minutes; __CLEAR__ to clear)` : `${field} (__CLEAR__ to clear)`, group: 'Classification',
+    })),
+    ...['classification_revision', 'classification_review_state', 'classification_reviewed_at'].map((field) => ({
+      csvColumn: field, entityProperty: field, type: CsvFieldType.STRING, importable: false, exportable: true, defaultExport: false, label: field, group: 'Classification',
+    })),
+
     // Identity
     {
       csvColumn: 'id',
@@ -96,25 +107,8 @@ export const applicationCsvConfig: CsvEntityConfig = {
       type: CsvFieldType.STRING,
       required: false,
       defaultExport: true,
-      label: 'Criticality',
+      label: 'Business criticality (code or name; __CLEAR__ to clear)',
       group: 'Overview',
-      enumValues: ['business_critical', 'high', 'medium', 'low'],
-      importTransformFn: (value: string) => {
-        const lookup = new Map<string, string>([
-          ['business_critical', 'business_critical'],
-          ['high', 'high'],
-          ['medium', 'medium'],
-          ['low', 'low'],
-          ['business critical', 'business_critical'],
-          ['critical', 'business_critical'],
-        ]);
-        const normalized = value.trim().toLowerCase();
-        const resolved = lookup.get(normalized);
-        if (!resolved) {
-          throw new Error(`Invalid criticality: "${value}". Valid values: Business Critical, High, Medium, Low`);
-        }
-        return resolved;
-      },
     },
     {
       csvColumn: 'lifecycle',
@@ -239,7 +233,7 @@ export const applicationCsvConfig: CsvEntityConfig = {
       type: CsvFieldType.STRING,
       required: false,
       defaultExport: true,
-      label: 'Data Class',
+      label: 'Data confidentiality',
       group: 'Compliance',
     },
     {
@@ -262,10 +256,10 @@ export const applicationCsvConfig: CsvEntityConfig = {
     },
     {
       csvColumn: 'data_residency',
-      entityProperty: 'data_residency',
+      entityProperty: '_data_residency_csv',
       type: CsvFieldType.COMPUTED,
       exportable: true,
-      importable: false,
+      importable: true,
       defaultExport: true,
       label: 'Data Residency (ISO codes)',
       group: 'Compliance',
@@ -486,7 +480,7 @@ export const applicationCsvConfig: CsvEntityConfig = {
       // Only importable fields - excludes computed fields like data_residency, created_at, updated_at
       fields: [
         'id', 'name', 'description', 'category', 'supplier_name', 'editor',
-        'criticality', 'lifecycle', 'is_suite',
+        'criticality', 'cyber_criticality', 'recovery_wave', 'rto_minutes', 'rpo_minutes', 'classification_justification', 'lifecycle', 'is_suite',
         'version', 'go_live_date', 'end_of_support_date', 'retired_date',
         'licensing', 'notes',
         'access_methods', 'external_facing', 'etl_enabled', 'support_notes',
@@ -502,79 +496,36 @@ export const applicationCsvConfig: CsvEntityConfig = {
    * Hook to resolve settings-backed and enum fields before commit.
    * Accepts both codes and labels for: category, lifecycle, data_class, criticality
    */
+  afterValidate: async (rows, context) => {
+    const settings = await requireImportCatalogs(context);
+    const catalog = catalogFromMetadata(catalogToMetadata(settings));
+    for (const row of rows) {
+      // Persist this through the relation handler, never as an application column.
+      delete row.parsed._data_residency_csv;
+      if (row.errors.length) continue;
+      const input: Record<string, any> = {};
+      for (const field of CLASSIFICATION_INPUT_FIELDS) {
+        const raw = row.raw[field];
+        // Empty and absent classification cells preserve values in BOTH modes.
+        delete row.parsed[field];
+        if (raw === undefined || raw === null || String(raw).trim() === '') continue;
+        if (String(raw).trim() === '__CLEAR__') input[field] = null;
+        else if (field.endsWith('_minutes')) input[field] = Number(raw);
+        else if (field === 'contains_pii') input[field] = ['true','yes','1','y'].includes(String(raw).toLowerCase());
+        else input[field] = raw;
+      }
+      try { Object.assign(row.parsed, classificationPatch(input, row.existingEntity ?? null, catalog)); }
+      catch (error: any) { row.errors.push({ row: row.rowNumber, message: error.message }); }
+    }
+  },
+
   beforeCommit: async (entities: any[], context: CsvImportContext) => {
-    // Load IT Ops settings from tenant metadata
-    const tenantRows = await context.manager.query(
-      `SELECT metadata FROM tenants WHERE id = $1 LIMIT 1`,
-      [context.tenantId],
-    );
-    const settings = tenantRows[0]?.metadata?.it_ops || {};
-
-    // Helper to build bidirectional lookup map (code -> code, label -> code)
-    const buildLookup = (items: Array<{ code: string; label: string }>) => {
-      const map = new Map<string, string>();
-      for (const item of items || []) {
-        map.set(item.code.toLowerCase(), item.code);
-        map.set(item.label.toLowerCase(), item.code);
-      }
-      return map;
-    };
-
-    // Build lookup maps for settings-backed fields
-    const categoryLookup = buildLookup(settings.application_categories || []);
-    const lifecycleLookup = buildLookup(settings.lifecycle_states || []);
-    const dataClassLookup = buildLookup(settings.data_classes || []);
-    const accessMethodsLookup = buildLookup(settings.access_methods || []);
-
-    // Criticality label to code mapping (hardcoded enum)
-    const criticalityLookup = new Map<string, string>([
-      // Codes map to themselves
-      ['business_critical', 'business_critical'],
-      ['high', 'high'],
-      ['medium', 'medium'],
-      ['low', 'low'],
-      // Common labels
-      ['business critical', 'business_critical'],
-      ['critical', 'business_critical'],
-    ]);
-
-    // Resolve fields
+    // Effective catalogs (defaults included), the same ones the export writes names from.
+    const settings = await requireImportCatalogs(context);
     for (const entity of entities) {
-      // Category (settings-backed)
-      if (entity.category) {
-        const input = String(entity.category).trim().toLowerCase();
-        const resolved = categoryLookup.get(input);
-        if (resolved) entity.category = resolved;
-      }
-
-      // Lifecycle (settings-backed)
-      if (entity.lifecycle) {
-        const input = String(entity.lifecycle).trim().toLowerCase();
-        const resolved = lifecycleLookup.get(input);
-        if (resolved) entity.lifecycle = resolved;
-      }
-
-      // Data Class (settings-backed)
-      if (entity.data_class) {
-        const input = String(entity.data_class).trim().toLowerCase();
-        const resolved = dataClassLookup.get(input);
-        if (resolved) entity.data_class = resolved;
-      }
-
-      // Criticality (enum)
-      if (entity.criticality) {
-        const input = String(entity.criticality).trim().toLowerCase();
-        const resolved = criticalityLookup.get(input);
-        if (resolved) entity.criticality = resolved;
-      }
-
-      // Access Methods (array, settings-backed)
-      if (Array.isArray(entity.access_methods)) {
-        entity.access_methods = entity.access_methods.map((item: string) => {
-          const input = String(item).trim().toLowerCase();
-          return accessMethodsLookup.get(input) || item;
-        });
-      }
+      if (entity.category) entity.category = resolveCatalogCode(entity.category, settings.applicationCategories);
+      if (entity.lifecycle) entity.lifecycle = resolveCatalogCode(entity.lifecycle, settings.lifecycleStates);
+      if (Array.isArray(entity.access_methods)) entity.access_methods = entity.access_methods.map((item: string) => resolveCatalogCode(item, settings.accessMethods) ?? item);
     }
   },
 };

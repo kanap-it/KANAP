@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { useItOpsSettings } from './useItOpsSettings';
+import i18n from '../i18n';
+import { useLocalizedItOpsSettings } from './useLocalizedItOpsSettings';
 import { ItOpsEnumOption } from '../services/itOpsSettings';
 
 type FieldKey =
@@ -25,7 +26,8 @@ type FieldKey =
   | 'incidentCategories';
 
 export function useItOpsEnumOptions() {
-  const { data } = useItOpsSettings();
+  // Display projection: names and descriptions localized for the user; editors use the raw settings hook.
+  const { data } = useLocalizedItOpsSettings();
   const settings = data;
 
   const byField = useMemo<Record<FieldKey, ItOpsEnumOption[]>>(() => ({
@@ -56,7 +58,7 @@ export function useItOpsEnumOptions() {
     const list = byField[field] || [];
     const found = list.find((o) => o.code === code);
     if (!found) return String(code);
-    return found.deprecated ? `${found.label} (deprecated)` : found.label;
+    return found.deprecated ? `${found.label} (${i18n.t('common:enumEditor.retiredSuffix')})` : found.label;
   }, [byField]);
 
   return { settings, byField, labelFor };

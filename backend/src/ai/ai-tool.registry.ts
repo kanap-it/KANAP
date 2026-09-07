@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { Features } from '../config/features';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { ItOpsSettingsService } from '../it-ops-settings/it-ops-settings.service';
 import { AiMutationPreviewService } from './ai-mutation-preview.service';
 import { AiEntityService } from './ai-entity.service';
 import { AiPolicyService } from './ai-policy.service';
@@ -119,6 +120,8 @@ const GetFilterValuesInputSchema = z.object({
   entity_type: AiQueryEntityTypeSchema,
   fields: z.array(z.string().trim().min(1)).min(1).max(10),
 });
+
+const GetApplicationClassificationCatalogInputSchema = z.object({}).strict();
 
 const WebSearchInputSchema = z.object({
   query: z.string().trim().min(1).max(256),
@@ -261,6 +264,7 @@ export class AiToolRegistry {
     private readonly braveSearch: BraveSearchService,
     private readonly previews: AiMutationPreviewService,
     private readonly mutationOperations: AiMutationOperationRegistry,
+    @Optional() private readonly itOpsSettings?: ItOpsSettingsService,
   ) {
     this.definitions = new Map<AiToolName, AiToolDefinition<any, any>>([
       [
@@ -363,6 +367,29 @@ export class AiToolRegistry {
           execute: async (context, input) => {
             await this.policy.assertEntityTypeReadAccess(context, input.entity_type, context.manager);
             return this.queryExecutor.executeFilterValues(context, input);
+          },
+        },
+      ],
+      [
+        'get_application_classification_catalog',
+        {
+          name: 'get_application_classification_catalog',
+          category: 'authoritative',
+          description: 'Return the complete tenant application-classification catalog: business criticality levels (with their optional maximum tolerable downtime in minutes, an attribute of the level and not of the application), cyber and confidentiality severity ranks, recovery-wave order and deprecated historical levels. Lists are ordered from most to least severe; waves in restoration order. Use it before interpreting, filtering, sorting, or writing a classification. Codes are authoritative; deprecated values remain readable but cannot be newly assigned.',
+          inputSchema: GetApplicationClassificationCatalogInputSchema,
+          inputSummary: {},
+          surfaces: ['chat', 'mcp'],
+          readOnly: true,
+          execute: async (context) => {
+            await this.policy.assertEntityTypeReadAccess(context, 'applications', context.manager);
+            if (!this.itOpsSettings) throw new BadRequestException('Application classification catalog is unavailable.');
+            const catalog = await this.itOpsSettings.getClassificationCatalog(context.tenantId, { manager: context.manager });
+            return {
+              ...catalog,
+              durationUnit: 'minutes',
+              assignmentPolicy: 'Only active levels may be newly assigned. Deprecated levels remain readable for historical records.',
+              businessPolicy: 'Business criticality is chosen directly among the tenant levels. Level definitions may mention a maximum tolerable downtime; applications do not store a downtime of their own.',
+            };
           },
         },
       ],
@@ -728,8 +755,11 @@ export class AiToolRegistry {
       case 'query_entities':
       case 'aggregate_entities':
       case 'get_filter_values':
+      case 'get_application_classification_catalog':
       case 'get_entity_detail':
-        return avail.readableEntityTypes.length > 0;
+        return toolName === 'get_application_classification_catalog'
+          ? avail.readableEntityTypes.includes('applications')
+          : avail.readableEntityTypes.length > 0;
       case 'get_entity_context':
         return AI_CONTEXT_ENTITY_TYPES.some((type) => avail.readableEntityTypes.includes(type));
       case 'get_entity_comments':

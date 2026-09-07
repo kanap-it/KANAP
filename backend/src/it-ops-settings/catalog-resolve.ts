@@ -1,0 +1,43 @@
+import { BadRequestException } from '@nestjs/common';
+import { catalogAliases, normalizeAlias, type CatalogTranslations } from './catalog-codes';
+
+export type CatalogOptionLike = { code: string; label?: string | null; deprecated?: boolean; translations?: CatalogTranslations };
+
+/**
+ * Shared resolution policy for catalog values coming from the API, CSV or Plaid: an input matches an
+ * entry when it equals its code or its name (trimmed, case-insensitive). Exactly one entry must match;
+ * several matches are an ambiguity and are refused rather than letting "the last alias win".
+ */
+export function findCatalogOption<T extends CatalogOptionLike>(input: unknown, options: T[]): T | null {
+  const key = normalizeAlias(input);
+  if (!key) return null;
+  const matches = options.filter((option) => catalogAliases(option).includes(key));
+  const distinct = [...new Map(matches.map((option) => [option.code, option])).values()];
+  if (distinct.length > 1) throw new BadRequestException(`"${String(input)}" matches several values (${distinct.map((option) => option.label || option.code).join(', ')}); use the exact name of one of them`);
+  return distinct[0] ?? null;
+}
+
+/** Resolves to a code; unknown values are returned as typed so the caller decides (tolerant import) or throws. */
+export function resolveCatalogCode<T extends CatalogOptionLike>(input: unknown, options: T[], mode: 'strict' | 'tolerant' = 'tolerant'): string | null {
+  if (input === null || input === undefined || String(input).trim() === '') return null;
+  const option = findCatalogOption(input, options);
+  if (option) return option.code;
+  if (mode === 'strict') throw new BadRequestException(`Unknown value "${String(input)}"; use one of ${options.map((item) => item.label || item.code).join(', ')}`);
+  return String(input).trim();
+}
+
+/** Import hooks need the effective catalogs; the entity CSV service preloads them under the tenant lock. */
+export async function requireImportCatalogs(context: { itOpsSettings?: import('./it-ops-settings.service').ItOpsSettings }): Promise<import('./it-ops-settings.service').ItOpsSettings> {
+  if (!context.itOpsSettings) throw new Error('CSV import context is missing the IT Ops catalogs');
+  return context.itOpsSettings;
+}
+
+/** Replaces catalog codes by names on an export row (arrays element-wise); unknown codes stay as they are. */
+export function exportCatalogLabels(row: Record<string, any>, fields: Record<string, CatalogOptionLike[]>): void {
+  for (const [field, options] of Object.entries(fields)) {
+    const value = row[field];
+    if (value === null || value === undefined) continue;
+    const labelOf = (code: unknown) => options.find((option) => option.code === String(code))?.label || String(code);
+    row[field] = Array.isArray(value) ? value.map(labelOf) : labelOf(value);
+  }
+}

@@ -41,13 +41,14 @@ Navigieren Sie zu **IT-Landschaft > Anwendungen**, um Ihre Liste zu sehen. Klick
 **Pflichtfelder**:
 - **Name**: Ein wiedererkennbarer Name für die Anwendung oder den Dienst
 - **Kategorie**: Der Hauptzweck dieser Anwendung (siehe Kategorien oben)
-- **Kritikalität**: Wie wichtig dies für Ihr Unternehmen ist (Geschäftskritisch, Hoch, Mittel, Niedrig)
 - **Lebenszyklus**: Aktueller Status (Aktiv, Vorgeschlagen, Veraltet, Außer Betrieb oder ein in den Einstellungen definierter benutzerdefinierter Code)
 
 **Dringend empfohlen**:
 - **Lieferant**: Der Lieferant, der die Software bereitstellt (verknüpft mit Ihren Lieferanten-Stammdaten)
 - **Herausgeber**: Der Software-Herausgeber (z. B. Microsoft, SAP, Oracle)
 - **Beschreibung**: Was diese Anwendung tut
+
+Klassifizierungsfelder sind beim Anlegen optional. **Geschäftskritikalität**, Cyberkritikalität, Datenvertraulichkeit und Wiederanlaufwelle werden aus den Stufen gewählt, die Ihre Organisation unter **IT-Landschaft > Einstellungen** definiert hat; jede Option zeigt die Definition der Stufe. Die Werte bleiben offen, bis Sie sie auswählen.
 
 **Optional aber nützlich**:
 - **Version**: Aktuelle Versionskennung (Freitext, z. B. „4.2.1", „2023", „Q1 2024")
@@ -84,7 +85,7 @@ Das Anwendungsraster bietet eine umfassende Ansicht Ihres Anwendungsportfolios.
 - **Kategorie**: Der Hauptzweck der Anwendung
 - **Umgebungen**: Farbige Chips, die aktive Umgebungen zeigen (Prod, Pre-prod, QA, Test, Dev, Sandbox). Bewegen Sie den Mauszeiger darüber für Basis-URL und Lebenszyklus.
 - **Lebenszyklus**: Aktueller Status
-- **Kritikalität**: Stufe der geschäftlichen Bedeutung
+- **Geschäftskritikalität**: Stufe der geschäftlichen Bedeutung
 - **Herausgeber**: Software-Herausgeber
 - **Abgeleitete Benutzer (J)**: Berechnete Benutzeranzahl für das aktuelle Jahr (basierend auf der in der Eigenschaftsleiste festgelegten Zielgruppe)
 - **Erstellt**: Wann der Datensatz erstellt wurde
@@ -102,6 +103,7 @@ Das Anwendungsraster bietet eine umfassende Ansicht Ihres Anwendungsportfolios.
 - **OPEX-Positionen** / **CAPEX-Positionen** / **Verträge**: Verknüpfte Ausgaben und Verträge
 - **Komponenten**: Unteranwendungen (wenn dies eine Suite ist)
 - **Datenklasse** / **Enthält PII** / **Datenhaltung**: Compliance-Informationen
+- **Cyberkritikalität**, **Wiederanlaufwelle**, **RTO**, **RPO**, **Prüfstatus/-datum**: Klassifizierungs- und Kontinuitätsfelder
 
 **Filterung**:
 - Schnellsuche: gleicht Name und Editor/Herausgeber ab
@@ -111,7 +113,7 @@ Das Anwendungsraster bietet eine umfassende Ansicht Ihres Anwendungsportfolios.
 **Aktionen**:
 - **Neue App / Dienst**: Einen neuen Eintrag erstellen (`applications:manager`)
 - **CSV importieren**: Massenimport aus CSV-Datei (`applications:admin`)
-- **CSV exportieren**: Liste als CSV exportieren (`applications:admin`)
+- **CSV exportieren**: Liste als CSV exportieren (`applications:admin`). Katalogbasierte Spalten (Kategorie, Lebenszyklus, Kritikalität, Cyberkritikalität, Wiederherstellungswelle, Datenklasse, Zugriffsmethoden) werden mit ihren Namen exportiert; der Import akzeptiert einen Namen oder den internen Code.
 - **Element kopieren**: Eine ausgewählte Anwendung mit allen Kernbeziehungen duplizieren (`applications:manager`). Siehe [Anwendungen kopieren](#anwendungen-kopieren) für Details.
 - **Ausgewählte löschen**: Ausgewählte Anwendungen entfernen (`applications:admin`)
 
@@ -127,7 +129,7 @@ Die Kopfzeile zeigt:
 - **Anwendungsname** (an Ort und Stelle bearbeitbar)
 - **Referenz**: kurze Kennung, die Sie kopieren können
 - **Lebenszyklus**-Chip: klicken zum Ändern
-- **Kritikalitäts**-Chip: klicken zum Ändern
+- **Geschäftskritikalitäts**-Chip: zeigt die Stufe und öffnet ein Menü mit den Stufen der Organisation
 - **Versions**-Chip (wenn eine Version festgelegt ist): klicken zum Kopieren
 - **Go-Live**-Datum
 - **Link senden**: Einen teilbaren Link zu diesem Arbeitsbereich kopieren
@@ -235,7 +237,7 @@ Der Reiter Betrieb erfasst, wie Benutzer auf die Anwendung zugreifen und wer sie
 Der Reiter Compliance erfasst Datenschutz- und regulatorische Informationen.
 
 **Was Sie bearbeiten können**:
-- **Datenklasse** (erforderlich): Sensibilitätsstufe (Öffentlich, Intern, Vertraulich, Eingeschränkt oder ein in den Einstellungen definierter benutzerdefinierter Code)
+- **Datenklasse**: Vertraulichkeitsstufe (Öffentlich, Intern, Vertraulich, Eingeschränkt oder ein in den Einstellungen definierter benutzerdefinierter Code)
 - **Letzter DR-Test**: Datum des letzten Disaster-Recovery-Tests
 - **Enthält PII**: Ob die Anwendung personenbezogene Daten speichert
 - **Datenhaltung**: Länder, in denen Daten gespeichert werden (Mehrfachauswahl, ISO-Codes + Namen)
@@ -243,6 +245,30 @@ Der Reiter Compliance erfasst Datenschutz- und regulatorische Informationen.
 **Tipp**: Datenklassen sind in **IT-Landschaft > Einstellungen** konfigurierbar. Passen Sie sie an die Datenklassifizierungsrichtlinie Ihrer Organisation an.
 
 ---
+
+### Klassifizierung und Kontinuität
+
+Der Bereich Compliance erfasst auch die Entscheidungen zu Kontinuität und Klassifizierung der Anwendung. Fehlende Werte werden als **Nicht festgelegt** angezeigt; KANAP ersetzt sie nicht durch eine Standardstufe.
+
+Der Reiter ist in vier Blöcke gegliedert, in der Reihenfolge einer Business-Impact-Analyse.
+
+**Kritikalität**:
+- Die **Geschäftskritikalität** wird aus den von Ihrer Organisation definierten Stufen gewählt. Jede Option zeigt die Definition der Stufe, in der Regel die Unterbrechung, die die Aktivität tolerieren kann. Die Stufe ist eine stabile Referenz: Das Umbenennen einer Stufe, das Ändern ihrer Definition oder das Umsortieren des Katalogs in den Einstellungen verschiebt nie eine Anwendung auf eine andere Stufe.
+- Die **Cyberkritikalität** wird unabhängig gewählt. Das Auswahlmenü zeigt die Beschreibung jeder Stufe; wählen Sie die Stufe mit den höchsten plausiblen Folgen. Verwechseln Sie Cyberkritikalität nicht mit dem Risikoniveau!
+
+**Daten**:
+- **Datenvertraulichkeit** verwendet den Datenklassenkatalog der Organisation.
+- **Enthält personenbezogene Daten** und **Datenresidenz** vervollständigen das Datenbild.
+
+**Kontinuität und Wiederanlauf**:
+- Die **Wiederherstellungswelle** bezeichnet die Reihenfolge der Wiederherstellung, keine Dauer und keinen Schweregrad.
+- Das **RTO** ist das Ziel für die Wiederherstellungszeit. Das **RPO** ist der zulässige Datenverlust und darf null sein. Erreicht das RTO die maximal tolerierbare Ausfallzeit, die auf der gewählten Geschäftsstufe definiert ist, zeigt KANAP einen Hinweis, behält aber beide Werte.
+- **Letzter Wiederherstellungstest** enthält das Datum des letzten Tests. Ein Link aus diesem Bereich verwendet die einzige **Wissensdatenbank** im Reiter Übersicht und erzeugt keinen doppelten Datensatz. Ältere URL-Links bleiben unter Verknüpfungen verfügbar.
+
+**Review**:
+- Die **Begründung** dokumentiert, warum die Stufen gewählt wurden und worauf der Wiederherstellungsplan beruht.
+- Das Review ist ein Zeitstempel: **Als geprüft markieren** hält fest, wer die Klassifizierung wann geprüft hat. Die Aktion steht zur Verfügung, sobald Geschäftskritikalität, Cyberkritikalität, Datenvertraulichkeit, Wiederanlaufwelle und Begründung vorhanden sind.
+- Prüfdatum und Prüfer bleiben danach sichtbar. Ändert sich nach dem Review ein Klassifizierungswert, eine Wiederanlaufreferenz oder die Datenresidenz, zeigt der Reiter **Seit der Prüfung geändert** und die Liste **Erneut prüfen**. Eine Änderung von Name oder Herausgeber hat keine Auswirkung. Eine Änderung des Katalogs in den Einstellungen macht ein Review nie ungültig.
 
 ### Verknüpfungen
 
@@ -296,6 +322,8 @@ Die neue Version wird als separate Anwendung erstellt mit:
 - Kopierten Daten basierend auf Ihren Auswahlen
 - Duplizierten Schnittstellen, die auf die neue Version verweisen
 
+Klassifizierungs- und Kontinuitätswerte werden kopiert, die neue Version beginnt jedoch mit einem zurückgesetzten Review und ohne kopierten letzten Wiederherstellungstest.
+
 ### Was kopiert wird
 
 | Option | Standard |
@@ -338,7 +366,7 @@ Verwenden Sie dies, wenn Sie ein unabhängiges Duplikat einer Anwendung erstelle
 3. Das System erstellt eine Kopie mit „ (Kopie)" angehängt an den Namen
 4. Sie werden zur neuen Anwendung navigiert, um Änderungen vorzunehmen
 
-**Was kopiert wird**: Alle Kernfelder (außer dem Datum des letzten DR-Tests), Verantwortliche, Unternehmen, Abteilungen, Suites, OPEX/CAPEX-Positionen, Verträge, Verknüpfungen, Datenhaltung und Supportkontakte.
+**Was kopiert wird**: Alle Kernfelder (außer dem Datum des letzten DR-Tests), einschließlich Klassifizierungs- und Kontinuitätswerten, Verantwortliche, Unternehmen, Abteilungen, Suites, OPEX/CAPEX-Positionen, Verträge, Verknüpfungen, Datenhaltung und Supportkontakte. Das Review der Kopie wird zurückgesetzt.
 
 **Was NICHT kopiert wird**: Bereitstellungen, Schnittstellen, Server-Zuweisungen, Anhänge, Versionsfelder (Version, Go-Live-Datum, Support-Ende).
 
@@ -419,7 +447,7 @@ Aus der Anwendungsliste:
 2. **Importeinstellungen wählen**:
    - **Modus**:
      - `Anreichern` (Standard): Leere Zellen erhalten vorhandene Werte -- nur aktualisieren, was Sie angeben
-     - `Ersetzen`: Leere Zellen löschen vorhandene Werte -- vollständiger Ersatz aller Felder
+     - `Ersetzen`: Angegebene Felder werden aktualisiert; leere Klassifizierungszellen behalten den vorhandenen Wert, `__CLEAR__` löscht ihn ausdrücklich
    - **Operation**:
      - `Upsert` (Standard): Neue Anwendungen erstellen oder vorhandene aktualisieren
      - `Nur aktualisieren`: Nur vorhandene Anwendungen ändern, neue überspringen
@@ -441,7 +469,7 @@ Aus der Anwendungsliste:
 | `category` | Hauptzweck | Nein | Akzeptiert Code oder Bezeichnung aus den Einstellungen |
 | `supplier_name` | Lieferantenname | Nein | Muss mit vorhandenem Lieferanten übereinstimmen |
 | `editor` | Software-Herausgeber | Nein | Freitext (z. B. Microsoft, SAP) |
-| `criticality` | Geschäftliche Bedeutung | Nein | `business_critical`, `high`, `medium`, `low` |
+| `criticality` | Geschäftskritikalität | Nein | Akzeptiert Code oder Bezeichnung aus den Einstellungen; `__CLEAR__` löscht den Wert |
 | `lifecycle` | Aktueller Status | Nein | Akzeptiert Code oder Bezeichnung aus den Einstellungen |
 | `is_suite` | Kann Unteranwendungen haben | Nein | `true` oder `false` |
 | `status` | Aktiviert/deaktiviert | Nein | `enabled` oder `disabled` |
@@ -474,6 +502,18 @@ Aus der Anwendungsliste:
 | `last_dr_test` | Datum des letzten DR-Tests | Datumsformat: YYYY-MM-DD |
 | `contains_pii` | Speichert personenbezogene Daten | `true` oder `false` |
 | `data_residency` | Datenspeicherländer | Nur Export (ISO-Codes) |
+
+**Klassifizierungsfelder**:
+
+| CSV-Spalte | Beschreibung | Hinweise |
+|------------|-------------|---------|
+| `criticality` | Stufe der Geschäftskritikalität | Mandantencode oder eindeutige Bezeichnung |
+| `cyber_criticality` | Cyber-Folgenstufe | Mandantencode oder eindeutige Bezeichnung |
+| `recovery_wave` | Wiederherstellungsreihenfolge | Mandantencode oder eindeutige Bezeichnung |
+| `rto_minutes` / `rpo_minutes` | Wiederherstellungsziele | Ganze Minuten; RPO darf null sein |
+| `classification_justification` | Begründung | Freitext |
+
+Eine leere Klassifizierungszelle behält im Modus Anreichern und Ersetzen den vorhandenen Wert; verwenden Sie `__CLEAR__`, um eine Klassifizierung zu löschen.
 
 **Verantwortlichen-Felder**:
 
@@ -509,7 +549,7 @@ Das System normalisiert Werte automatisch beim Import, sodass `Line-of-business`
 
 Anwendungen werden nach **Name** (Groß-/Kleinschreibung ignorierend) abgeglichen. Wenn ein Treffer gefunden wird:
 - Mit `Anreichern`-Modus: Nur nicht-leere CSV-Werte aktualisieren die Anwendung
-- Mit `Ersetzen`-Modus: Alle Felder werden aktualisiert, leere Werte löschen vorhandene Daten
+- Mit `Ersetzen`-Modus: Angegebene Felder werden aktualisiert; leere Klassifizierungszellen behalten den vorhandenen Wert, `__CLEAR__` löscht ihn ausdrücklich
 
 Wenn Sie die Spalte `id` mit einer gültigen UUID einschließen, verwendet der Abgleich zuerst die ID und greift dann auf den Namen zurück.
 
@@ -534,9 +574,9 @@ Wenn Sie die Spalte `id` mit einer gültigen UUID einschließen, verwendet der A
 
 ```csv
 name;category;supplier_name;criticality;lifecycle;go_live_date;external_facing
-Salesforce CRM;Line-of-business;Salesforce Inc;business_critical;Active;2020-01-15;true
+Salesforce CRM;Line-of-business;Salesforce Inc;Critical;Active;2020-01-15;true
 Microsoft 365;Productivity;Microsoft;high;active;2019-06-01;false
-Custom ERP;lob;;medium;Active;2018-03-20;false
+Custom ERP;lob;;Moderate;Active;2018-03-20;false
 ```
 
 ---

@@ -29,10 +29,33 @@ Each list appears as an expandable panel. Click a panel header to expand it and 
 Each list has its own controls at the top:
 
 - **Add item** - Inserts a new row at the top of the list, focused and ready to type.
-- **Save changes** - Saves your edits to the server. Enabled when you have unsaved changes.
-- **Reset** - Reverts the list to the last saved state (not factory defaults).
+- Edits save automatically about a second and a half after your last change, once every row is valid. A saving indicator shows next to the list.
 
 For long lists (more than 25 rows), the table virtualizes rows, showing about 20 at a time with smooth scrolling and sticky headers.
+
+### Names are the identity of a value
+
+You only ever see and type **names**. KANAP generates a stable internal code from the name when a value is first saved and keeps it forever, so renaming a value never breaks the records that use it. The code is visible to integrators in the API and can be used in CSV files, but the CSV export writes names and the import accepts either.
+
+Because names identify values, a few rules apply within a list:
+
+- every value needs a name, and two values cannot have the same name (case does not matter);
+- a name cannot be identical to the internal code of another value in the same list;
+- names of **Access methods** cannot contain a comma or a semicolon, because the CSV export lists them in one comma-separated cell.
+
+A list that breaks one of these rules is not saved until you fix it; the row shows what is wrong.
+
+### Removing a value
+
+**Remove** deletes a value that nothing uses. When records still reference the value, KANAP shows how many (applications, assets, interfaces, connections, sites, incidents, subnets…), with a link to the filtered list where a list can be filtered on that field, and offers **No longer offered** instead: the value stays visible on the records that already use it and is no longer proposed for new ones. A value in use is never removed, even through the API.
+
+Built-in values that KANAP manages itself (the four lifecycle statuses, the Workgroup and N/A domains) cannot be edited or removed. Default network zones and asset types can be edited and retired but not removed: the server would add them back.
+
+### Translating your values
+
+The values you type are shown as is in every language. To show them in the language of each user, use the **Translate** action on a row: the dialog shows the base name (and description for classification levels) and one field per language. A field left empty uses the automatic translation when the value is still a KANAP default, otherwise the base text. Saving translations never changes the base text, and a translated name can be used in CSV files and the API like the name itself, which is why it must not duplicate another value of the list.
+
+Editors always show and edit the base text; when the displayed name differs for your language, the row says so ("Shown: …").
 
 ---
 
@@ -42,7 +65,7 @@ For long lists (more than 25 rows), the table virtualizes rows, showing about 20
 
 Cloud providers available for Assets and cloud-type Locations (e.g., AWS, Azure, GCP).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Where used**:
 - Assets workspace → Overview tab → **Provider** field
@@ -52,7 +75,7 @@ Cloud providers available for Assets and cloud-type Locations (e.g., AWS, Azure,
 
 Location hosting models (e.g., On-prem, Colocation, Public Cloud, Private Cloud, SaaS).
 
-**Columns**: Label, Code, Category (On-prem/Colocation or Cloud/SaaS), Deprecated flag
+**Columns**: Name, Category (On-prem/Colocation or Cloud/SaaS), No longer offered
 
 **Where used**:
 - Locations workspace → Overview tab → **Hosting Type** field
@@ -69,7 +92,7 @@ The category determines which fields appear when editing a Location:
 
 A two-level catalog of connection protocols organized by category, with typical ports.
 
-**Columns**: Category (e.g., Database, Remote Access), Label, Code, Typical ports, Deprecated flag
+**Columns**: Category (e.g., Database, Remote Access), Name, Typical ports, No longer offered
 
 **Where used**:
 - Connections workspace → **Connection Type** selector
@@ -82,7 +105,7 @@ Default categories include: Application, Authentication, Backup, Database, Email
 
 Active Directory or DNS domains that assets can belong to. Used to compute the fully qualified domain name (FQDN) for each asset.
 
-**Columns**: Name, Code, DNS Suffix, Deprecated flag
+**Columns**: Name, DNS suffix, No longer offered
 
 **Where used**:
 - Assets workspace → Technical tab → **Domain** selector
@@ -92,7 +115,7 @@ Active Directory or DNS domains that assets can belong to. Used to compute the f
 - **Workgroup** - For standalone assets not joined to a domain
 - **N/A** - For asset types where domain membership doesn't apply (e.g., network devices, racks)
 
-**Auto-fill behavior**: When adding a new domain, the Code and DNS Suffix fields auto-fill based on the Name you enter. You can override these values if needed.
+**Auto-fill behavior**: When adding a new domain, the DNS suffix auto-fills from the name you enter until you edit it yourself.
 
 **Example**: A domain named "Corporate AD" with DNS suffix `corp.example.com` would produce an FQDN of `hostname.corp.example.com` for an asset with hostname `web-server-01`.
 
@@ -100,7 +123,7 @@ Active Directory or DNS domains that assets can belong to. Used to compute the f
 
 Source and target entities for data flows and access patterns (e.g., Internal Users, Internet, Partner Networks, External Systems).
 
-**Columns**: Label, Code, Graph Tier, Deprecated flag
+**Columns**: Name, Graph tier, No longer offered
 
 **Where used**:
 - Connections workspace → **Source Entity** and **Target Entity** fields
@@ -120,7 +143,7 @@ Graph Tier controls the preferred vertical band in Connection Map when **Role-ba
 
 Types of IP addresses that can be assigned to assets. Useful for distinguishing between different network interfaces like host IPs, management interfaces, and storage networks.
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Default values**: Host, IPMI, Management, iSCSI
 
@@ -136,7 +159,7 @@ Assets can have multiple IP addresses, each with its own type. For example, a ph
 
 Network zones used to categorize subnets and describe asset connectivity (e.g., LAN, DMZ, Industrial LAN, WiFi, Public Cloud, Guest, Management, Storage, VPN).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Where used**:
 - Subnets list → **Network Zone** selector
@@ -146,7 +169,7 @@ Network zones used to categorize subnets and describe asset connectivity (e.g., 
 
 Define network subnets with CIDR notation, optional VLAN assignments, and network zone classification. Each subnet belongs to a specific Location.
 
-**Columns**: Location, CIDR, VLAN (1-4094), Network Zone, Description, Deprecated flag
+**Columns**: Location, CIDR, VLAN (1-4094), Network zone, Description, No longer offered
 
 **Where used**:
 - Assets workspace → Technical tab → **Subnet** selector
@@ -162,7 +185,7 @@ Define network subnets with CIDR notation, optional VLAN assignments, and networ
 
 Catalog of operating systems for Assets, including support lifecycle dates.
 
-**Columns**: Name, Code, Standard Support end date, Extended Support end date, Deprecated flag
+**Columns**: Name, Standard support end date, Extended support end date, No longer offered
 
 **Where used**:
 - Assets workspace → Technical tab → **Operating System** selector (helper text shows support dates)
@@ -175,7 +198,7 @@ Default entries include Windows Server versions, Ubuntu LTS, RHEL, Debian, and S
 
 Roles assigned to assets when linking them to application instances (e.g., Web server, Database server, Worker).
 
-**Columns**: Label, Code, Graph Tier, Deprecated flag
+**Columns**: Name, Graph tier, No longer offered
 
 **Where used**:
 - Applications workspace → Servers tab → **Role** dropdown when linking an asset to an instance
@@ -190,7 +213,7 @@ Default built-in examples:
 
 Logical types for infrastructure assets (e.g., Physical server, Virtual machine, Container, Serverless, Appliance).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Where used**:
 - Assets workspace → Overview tab → **Type** field
@@ -203,7 +226,7 @@ Logical types for infrastructure assets (e.g., Physical server, Virtual machine,
 
 Methods by which users access applications (e.g., Web browser, Mobile app, VDI session).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Default values**: Web, Locally installed application, Mobile application, Proprietary HMI (industrial interface), Terminal / CLI, VDI / Remote Desktop, Kiosk
 
@@ -216,7 +239,7 @@ Methods by which users access applications (e.g., Web browser, Mobile app, VDI s
 
 Categories that describe the primary purpose of each application or service.
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Default values**: Line-of-business, Productivity, Security, Analytics, Development, Integration, Infrastructure
 
@@ -230,7 +253,7 @@ Categories that describe the primary purpose of each application or service.
 
 Data classification levels for Applications and Interfaces.
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Locked codes**: The built-in levels (Public, Internal, Confidential, Restricted) cannot be deleted or deprecated.
 
@@ -239,11 +262,28 @@ Data classification levels for Applications and Interfaces.
 - Interfaces workspace → Overview tab → **Data Class** field
 - Applications list → **Data Class** column
 
+### Classifications and continuity
+
+This editor configures the levels used to classify applications. It is available to `settings:admin` users from the **Apps, Services & Interfaces** section and opens as a single dialog with one list per catalog:
+
+- **Business criticality**: the levels an application can be assigned. Each level has a name, a description shown under the name when choosing a level, an optional **maximum tolerable downtime** in minutes, and a **No longer offered** flag. The downtime documents the level and triggers a warning on an application whose RTO reaches it; it is an attribute of the level, not a value entered on applications.
+- **Cyber criticality**: independent consequence levels.
+- **Data confidentiality**: the Data Classes catalog, with descriptions.
+- **Recovery waves**: ordered restoration stages. The order does not represent severity or a time estimate.
+
+**Order is the position in the list.** Severity catalogs are listed from the most critical level at the top to the least critical at the bottom; recovery waves in restoration order. Use the arrows to move a level; the position drives the sort order of lists, the "highest level" rule used by interfaces and connections, and the order of the pickers. **Add level** appends at the bottom.
+
+**Changing the catalog never changes applications.** An application stores the code of its level. Renaming a level, editing its description or downtime, and reordering the catalog leave every application on the same level and do not invalidate reviews. A level still used by an application, interface or connection cannot be removed; mark it **No longer offered** instead: it stays visible on existing records and is no longer proposed for new ones.
+
+Codes are generated from names and never shown; the naming rules above apply.
+
+The business levels also power operational criticality on interfaces and connections. Missing derived inputs are marked incomplete; they are not treated as the lowest level.
+
 ### Integration Patterns
 
 Integration patterns for Interface legs (e.g., REST API, File batch, Queue, DB staging).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Where used**:
 - Interface legs → **Pattern** field
@@ -252,7 +292,7 @@ Integration patterns for Interface legs (e.g., REST API, File batch, Queue, DB s
 
 Authentication modes for Interface bindings (e.g., Service account, OAuth2, API key, Certificate).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Where used**:
 - Interface bindings → **Auth Mode** field
@@ -261,7 +301,7 @@ Authentication modes for Interface bindings (e.g., Service account, OAuth2, API 
 
 Business data categories for Interfaces (e.g., Master Data, Transactional, Reporting, Control).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Where used**:
 - Interfaces workspace → **Data Category** field
@@ -270,7 +310,7 @@ Business data categories for Interfaces (e.g., Master Data, Transactional, Repor
 
 Payload formats for Interface legs (e.g., CSV, JSON, XML, IDoc, Binary).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Where used**:
 - Interface legs → **Format** field
@@ -279,7 +319,7 @@ Payload formats for Interface legs (e.g., CSV, JSON, XML, IDoc, Binary).
 
 Technical protocols for Interface bindings (e.g., HTTP/REST, gRPC, SFTP, Kafka, Database).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Where used**:
 - Interface bindings → **Protocol** field (legacy bindings)
@@ -288,7 +328,7 @@ Technical protocols for Interface bindings (e.g., HTTP/REST, gRPC, SFTP, Kafka, 
 
 Trigger mechanisms for Interface legs (e.g., Event-based, Scheduled, Real-time, Manual).
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Where used**:
 - Interface legs → **Trigger** field
@@ -297,7 +337,7 @@ Trigger mechanisms for Interface legs (e.g., Event-based, Scheduled, Real-time, 
 
 Shared lifecycle states for Applications, App Instances, Interfaces, Interface Bindings, and Assets.
 
-**Columns**: Label, Code, Deprecated flag
+**Columns**: Name, No longer offered
 
 **Locked codes**: The built-in statuses (Proposed, Active, Deprecated, Retired) cannot be deleted or have their codes changed.
 
@@ -308,7 +348,7 @@ Shared lifecycle states for Applications, App Instances, Interfaces, Interface B
 
 ## How changes affect existing data
 
-- **Existing records keep their stored codes** - Changing a label only changes what users see, not the underlying data.
+- **Existing records keep their value** - Renaming only changes what users see, not the underlying data.
 - **Deprecated values**:
   - Remain valid for records that already use them.
   - Are hidden from dropdowns when creating new records.
@@ -349,7 +389,7 @@ This approach lets you evolve your taxonomy over time without breaking existing 
 
 ## Tips
 
-- **Align labels with your terminology** - Review the defaults and rename labels to match how your organization talks about these concepts. Codes stay the same; only the display text changes.
+- **Align names with your terminology** - Review the defaults and rename values to match how your organization talks about these concepts. Records keep their link to the value; only the name changes.
 - **Deprecate gradually** - When transitioning away from a value, mark it deprecated rather than deleting it. This keeps historical data intact while steering users toward new options.
 - **Coordinate Data Classes with security** - Changes to Data Classes should align with your information security policies. Discuss with compliance before adding or renaming classification levels.
 - **Use typical ports as documentation** - The Connection Types "Typical ports" field is informational. Fill it in to help users understand what ports each connection type commonly uses.

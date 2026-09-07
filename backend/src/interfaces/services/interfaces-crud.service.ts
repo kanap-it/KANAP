@@ -23,7 +23,6 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import {
   InterfacesBaseService,
   ServiceOpts,
-  CRITICALITIES,
 } from './interfaces-base.service';
 
 /**
@@ -214,12 +213,13 @@ export class InterfacesCrudService extends InterfacesBaseService {
       tenantId,
       opts?.manager,
     );
-    const criticality = body.criticality
-      ? this.normalizeEnum(body.criticality, CRITICALITIES, 'criticality')
-      : this.computeDefaultCriticality(sourceApp, targetApp);
+    const inheritedCriticality = await this.computeDefaultCriticality(sourceApp, targetApp, tenantId, opts?.manager);
+    const criticality = Object.prototype.hasOwnProperty.call(body, 'criticality')
+      ? await this.normalizeCriticality(body.criticality, tenantId, opts?.manager)
+      : inheritedCriticality.code;
 
     const dataCategory = await this.normalizeDataCategory(body.data_category, tenantId, opts?.manager);
-    const dataClass = await this.normalizeDataClass(body.data_class ?? 'internal', tenantId, opts?.manager);
+    const dataClass = await this.normalizeDataClass(body.data_class ?? null, tenantId, opts?.manager);
     const routeType = this.normalizeRouteType(body.integration_route_type ?? 'direct');
 
     const entity = repo.create({
@@ -235,6 +235,9 @@ export class InterfacesCrudService extends InterfacesBaseService {
       lifecycle,
       overview_notes: this.normalizeNullable(body.overview_notes),
       criticality,
+      classification_incomplete: Object.prototype.hasOwnProperty.call(body, 'criticality')
+        ? false
+        : inheritedCriticality.incomplete,
       impact_of_failure: this.normalizeNullable(body.impact_of_failure),
       business_objects: body.business_objects ?? null,
       main_use_cases: this.normalizeNullable(body.main_use_cases),
@@ -323,7 +326,15 @@ export class InterfacesCrudService extends InterfacesBaseService {
       );
     }
     if (has('overview_notes')) existing.overview_notes = this.normalizeNullable(body.overview_notes);
-    if (has('criticality')) existing.criticality = this.normalizeEnum(body.criticality, CRITICALITIES, 'criticality');
+    if (has('criticality')) {
+      existing.criticality = await this.normalizeCriticality(
+        body.criticality,
+        tenantId,
+        opts?.manager,
+        existing.criticality,
+      );
+      existing.classification_incomplete = false;
+    }
     if (has('impact_of_failure')) existing.impact_of_failure = this.normalizeNullable(body.impact_of_failure);
     if (has('business_objects')) existing.business_objects = body.business_objects ?? null;
     if (has('main_use_cases')) existing.main_use_cases = this.normalizeNullable(body.main_use_cases);
@@ -335,7 +346,7 @@ export class InterfacesCrudService extends InterfacesBaseService {
       existing.error_handling_summary = this.normalizeNullable(body.error_handling_summary);
     }
     if (has('data_class')) {
-      existing.data_class = await this.normalizeDataClass(body.data_class, tenantId, opts?.manager);
+      existing.data_class = await this.normalizeDataClass(body.data_class, tenantId, opts?.manager, existing.data_class);
     }
     if (has('contains_pii')) existing.contains_pii = this.parseBoolean(body.contains_pii);
     if (has('pii_description')) existing.pii_description = this.normalizeNullable(body.pii_description);
@@ -503,6 +514,7 @@ export class InterfacesCrudService extends InterfacesBaseService {
       lifecycle: source.lifecycle,
       overview_notes: source.overview_notes,
       criticality: source.criticality,
+      classification_incomplete: source.classification_incomplete,
       impact_of_failure: source.impact_of_failure,
       business_objects: source.business_objects,
       main_use_cases: source.main_use_cases,

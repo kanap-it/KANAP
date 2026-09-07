@@ -86,10 +86,11 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
       // Backwards compatibility aliases
       source_server_id: conn.source_asset_id,
       destination_server_id: conn.destination_asset_id,
-      effective_criticality: effective?.effective_criticality ?? conn.criticality,
-      effective_data_class: effective?.effective_data_class ?? conn.data_class,
+      effective_criticality: effective ? effective.effective_criticality : conn.criticality,
+      effective_data_class: effective ? effective.effective_data_class : conn.data_class,
       effective_contains_pii: effective?.effective_contains_pii ?? conn.contains_pii,
       derived_interface_count: effective?.derived_interface_count ?? 0,
+      classification_incomplete: effective?.classification_incomplete ?? false,
       protocol_codes: protocols.map((p) => p.connection_type_code),
       protocols: protocols.map((p) => ({
         code: p.connection_type_code,
@@ -155,8 +156,8 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
     const topology = body.topology ? this.normalizeTopology(body.topology) : 'server_to_server';
     const lifecycle = await this.normalizeLifecycle(body.lifecycle, tenant, mg, 'active');
     const protocols = await this.normalizeProtocols(body.protocols ?? body.protocol_codes, tenant, mg);
-    const criticality = this.normalizeCriticality(body.criticality);
-    const data_class = await this.normalizeDataClass(body.data_class, tenant, mg);
+    const criticality = await this.normalizeCriticality(body.criticality ?? null, tenant, mg);
+    const data_class = await this.normalizeDataClass(body.data_class ?? null, tenant, mg);
     const contains_pii = this.normalizeContainsPii(body.contains_pii);
     const risk_mode = this.normalizeRiskMode(body.risk_mode);
     if (risk_mode === 'derived') {
@@ -284,11 +285,11 @@ export class ConnectionsCrudService extends ConnectionsBaseService {
       existing.lifecycle,
     );
     const criticality = body.hasOwnProperty('criticality')
-      ? this.normalizeCriticality(body.criticality)
-      : existing.criticality || 'medium';
+      ? await this.normalizeCriticality(body.criticality, tenant, mg, existing.criticality)
+      : existing.criticality;
     const data_class = body.hasOwnProperty('data_class')
-      ? await this.normalizeDataClass(body.data_class, tenant, mg)
-      : existing.data_class || 'internal';
+      ? await this.normalizeDataClass(body.data_class, tenant, mg, existing.data_class)
+      : existing.data_class;
     const contains_pii = body.hasOwnProperty('contains_pii')
       ? this.normalizeContainsPii(body.contains_pii)
       : existing.contains_pii ?? false;

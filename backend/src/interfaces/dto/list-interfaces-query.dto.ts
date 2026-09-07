@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ListQuerySchema, ListQuery } from '../../common/dto/list-query.dto';
-import { IntegrationRouteTypes, CriticalityLevels, InterfaceLifecycles } from './create-interface.dto';
+import { IntegrationRouteTypes } from './create-interface.dto';
 
 /**
  * Extended query schema for listing interfaces.
@@ -35,7 +35,7 @@ export const ListInterfacesQuerySchema = ListQuerySchema.extend({
     }),
 
   /** Filter by criticality */
-  criticality: z.enum(CriticalityLevels).optional(),
+  criticality: z.string().trim().min(1).optional(),
 
   /** Filter by data classification */
   data_class: z.string().optional(),
@@ -78,7 +78,7 @@ export class ListInterfacesQueryDto implements ListInterfacesQuery {
   interface_reference?: string;
   integration_route_type?: (typeof IntegrationRouteTypes)[number];
   lifecycle?: string[];
-  criticality?: (typeof CriticalityLevels)[number];
+  criticality?: string;
   data_class?: string;
   contains_pii?: boolean;
 

@@ -128,6 +128,7 @@ The core read tools are:
 - `query_entities`
 - `aggregate_entities`
 - `get_filter_values`
+- `get_application_classification_catalog`
 - `get_entity_detail`
 - `get_entity_context`
 - `get_entity_comments`
@@ -138,6 +139,16 @@ The core read tools are:
 Structured query and aggregate tools are authoritative for counts, filters, and
 complete lists. Discovery tools are intentionally treated as ranked and
 incomplete.
+
+Application classification has a dedicated catalog read. `get_application_classification_catalog`
+uses the tenant and `applications:reader` scope and returns business levels
+(with the optional downtime that documents each level), cyber levels, data
+classes, recovery waves, explicit ranks/orders and deprecation flags, ordered
+from most to least severe. It is authoritative for labels and ranks;
+`get_filter_values` only reports values observed on accessible applications.
+Application queries can filter, sort, group, aggregate, and count business
+level/rank, cyber level/rank, data class, recovery wave/order, RTO, RPO, and
+review state.
 
 ## Write Model
 
@@ -162,6 +173,14 @@ Live write-preview coverage includes:
 - GLPI ticket import into a KANAP task
 - grouped mutation plans and undo previews where a reversible operation supports
   reversal
+
+Application classification create/update previews use the normal application
+mutation service. They can set or clear business criticality, cyber,
+confidentiality, recovery wave, RTO/RPO and justification, by tenant code or
+exact label; a downtime mentioned by the user maps to the level whose
+definition covers it, never to an application field. The preview flags when an
+existing human review becomes stale. Plaid cannot edit classification catalogs,
+publish settings, or implicitly mark an application reviewed.
 
 Writes go through existing domain services where practical, so normal validation,
 workflow rules, side effects, and audit logging still apply. AI-originated domain

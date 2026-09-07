@@ -44,8 +44,11 @@ export class InterfaceEntity {
   @Column('text', { nullable: true })
   overview_notes!: string | null;
 
-  @Column('text', { default: 'medium' })
-  criticality!: 'business_critical' | 'high' | 'medium' | 'low';
+  @Column('text', { nullable: true })
+  criticality!: string | null;
+
+  @Column('boolean', { default: false })
+  classification_incomplete!: boolean;
 
   @Column('text', { nullable: true })
   impact_of_failure!: string | null;
@@ -65,8 +68,8 @@ export class InterfaceEntity {
   @Column('text', { nullable: true })
   error_handling_summary!: string | null;
 
-  @Column('text', { default: 'internal' })
-  data_class!: string;
+  @Column('text', { nullable: true })
+  data_class!: string | null;
 
   @Column('boolean', { default: false })
   contains_pii!: boolean;

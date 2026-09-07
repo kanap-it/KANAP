@@ -1,0 +1,26 @@
+{
+  "businessCriticalityLevels": {
+    "business_critical": { "label": "Kritisch", "description": "Die Aktivität toleriert höchstens vier Stunden Unterbrechung." },
+    "high": { "label": "Hoch", "description": "Die Aktivität toleriert mehr als vier Stunden bis zu einem Tag Unterbrechung." },
+    "medium": { "label": "Mittel", "description": "Die Aktivität toleriert mehr als einen bis zu drei Tage Unterbrechung." },
+    "low": { "label": "Niedrig", "description": "Die Aktivität toleriert mehr als drei Tage Unterbrechung." }
+  },
+  "cyberCriticalityLevels": {
+    "low": { "label": "Niedrig", "description": "Begrenzte, lokale Folgen einer Kompromittierung." },
+    "moderate": { "label": "Mittel", "description": "Erheblicher, aber begrenzter Schaden." },
+    "high": { "label": "Hoch", "description": "Großer Schaden für Daten, eine wichtige Aktivität oder mehrere Systeme." },
+    "critical": { "label": "Kritisch", "description": "Katastrophale Folgen, schwerer Schaden für Menschen oder Umwelt oder eine weitreichende Kompromittierung der Informationssysteme." }
+  },
+  "dataClasses": {
+    "public": { "label": "Öffentlich", "description": "Informationen, die zur öffentlichen Bekanntgabe freigegeben sind." },
+    "internal": { "label": "Intern", "description": "Informationen für die interne Nutzung; eine Offenlegung hat begrenzte Folgen." },
+    "confidential": { "label": "Vertraulich", "description": "Eine Offenlegung könnte erheblichen Schaden verursachen; der Zugriff ist auf autorisierte Empfänger beschränkt." },
+    "restricted": { "label": "Eingeschränkt", "description": "Eine Offenlegung könnte schweren Schaden verursachen; der Zugriff ist strikt auf den erforderlichen Personenkreis beschränkt." }
+  },
+  "recoveryWaves": {
+    "foundation": { "label": "V0 — Grundlage", "description": "Gemeinsame Voraussetzungen und grundlegende Dienste." },
+    "vital": { "label": "V1 — Lebenswichtige Aktivitäten", "description": "Lebenswichtige Aktivitäten nach ihren Voraussetzungen wiederherstellen." },
+    "priority": { "label": "V2 — Prioritäre Aktivitäten", "description": "Prioritäre Aktivitäten wiederherstellen." },
+    "normal": { "label": "V3 — Normalbetrieb", "description": "Zum Normalbetrieb zurückkehren." }
+  }
+}

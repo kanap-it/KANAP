@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   IntegrationRouteTypes,
-  CriticalityLevels,
 } from './create-interface.dto';
 
 /**
@@ -40,7 +39,7 @@ export const UpdateInterfaceSchema = z.object({
   overview_notes: z.string().nullable().optional(),
 
   /** Criticality level */
-  criticality: z.enum(CriticalityLevels).optional(),
+  criticality: z.string().trim().min(1).nullable().optional(),
 
   /** Impact of failure description */
   impact_of_failure: z.string().nullable().optional(),
@@ -61,7 +60,7 @@ export const UpdateInterfaceSchema = z.object({
   error_handling_summary: z.string().nullable().optional(),
 
   /** Data classification level */
-  data_class: z.string().optional(),
+  data_class: z.string().trim().min(1).nullable().optional(),
 
   /** Contains personally identifiable information */
   contains_pii: z.boolean().optional(),

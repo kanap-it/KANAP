@@ -1,3 +1,4 @@
+import useApplicationClassificationCatalog from '../../hooks/useApplicationClassificationCatalog';
 import React from 'react';
 import {
   Alert,
@@ -321,6 +322,8 @@ function buildLinks(
 }
 
 export default function ConnectionMapPage() {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
+  const businessLabel = (code?: string | null) => classificationCatalog?.businessCriticalityLevels.find((item) => item.code === code)?.label || code || 'Not set';
   const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const { byField, labelFor, settings } = useItOpsEnumOptions();
@@ -1008,20 +1011,7 @@ export default function ConnectionMapPage() {
   );
 
   const renderLifecycleChip = (value?: string) => labelFor('lifecycleStatus', value) || (value || '-');
-  const renderCriticality = (value?: string) => {
-    switch (String(value || '')) {
-      case 'business_critical':
-        return 'Business critical';
-      case 'high':
-        return 'High';
-      case 'medium':
-        return 'Medium';
-      case 'low':
-        return 'Low';
-      default:
-        return value || '-';
-    }
-  };
+  const renderCriticality = businessLabel;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>

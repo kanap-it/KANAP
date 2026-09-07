@@ -32,6 +32,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../../api';
 import { KanapDialog, PropertyRow, StatusDot } from '../../../components/design';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
+import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
 import {
   dialogBorderedFieldSx,
   drawerAutocompleteListboxSx,
@@ -272,6 +273,7 @@ export default function InterfaceBindingsMatrix({
   legs,
   integrationRouteType,
 }: Props) {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
   const { t } = useTranslation(['it', 'common']);
   const theme = useTheme();
   const { byField, labelFor } = useItOpsEnumOptions();
@@ -2006,7 +2008,7 @@ export default function InterfaceBindingsMatrix({
                             {`Lifecycle: ${link.connection.lifecycle}`}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            {`Criticality: ${link.connection.criticality}`}
+                            {`Criticality: ${classificationCatalog?.businessCriticalityLevels.find((item) => item.code === link.connection.criticality)?.label || link.connection.criticality || 'Not set'}`}
                           </Typography>
                           <Typography variant="body2" color={link.connection.contains_pii ? 'warning.main' : 'text.secondary'}>
                             {link.connection.contains_pii ? 'Contains PII' : 'No PII'}

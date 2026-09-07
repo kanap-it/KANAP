@@ -60,7 +60,7 @@ function createHarness() {
       return [];
     },
   };
-  const itOpsSettings = new ItOpsSettingsService(tenantRepo as any, locationRepo as any);
+  const itOpsSettings = new ItOpsSettingsService(tenantRepo as any, locationRepo as any, {} as any);
   const service = new AiBusinessRecordMutationSupportService(
     {} as any,
     {} as any,

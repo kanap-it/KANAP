@@ -118,7 +118,7 @@ export class LocationsService {
       throw new BadRequestException('hosting_type is required');
     }
     const settings =
-      opts?.settings ?? (await this.itOpsSettings.getSettings(tenantId, { manager: opts?.manager }));
+      opts?.settings ?? (await this.itOpsSettings.getSettingsForWrite(tenantId, opts?.manager));
     const allowed = new Set((settings.hostingTypes || []).map((item) => item.code));
     if (!allowed.has(normalized)) {
       throw new BadRequestException(`Invalid hosting_type "${value}"`);
@@ -132,7 +132,7 @@ export class LocationsService {
     opts?: { manager?: EntityManager; settings?: ItOpsSettings },
   ): Promise<HostingCategory> {
     const settings =
-      opts?.settings ?? (await this.itOpsSettings.getSettings(tenantId, { manager: opts?.manager }));
+      opts?.settings ?? (await this.itOpsSettings.getSettingsForWrite(tenantId, opts?.manager));
     const option = (settings.hostingTypes || []).find((item) => item.code === hostingType);
     return option?.category === 'on_prem' ? 'on_prem' : 'cloud';
   }
@@ -147,7 +147,7 @@ export class LocationsService {
     if (!text) return null;
     const normalized = text.toLowerCase();
     const settings =
-      opts?.settings ?? (await this.itOpsSettings.getSettings(tenantId, { manager: opts?.manager }));
+      opts?.settings ?? (await this.itOpsSettings.getSettingsForWrite(tenantId, opts?.manager));
     const allowed = new Set((settings.serverProviders || []).map((item) => item.code));
     if (!allowed.has(normalized)) {
       throw new BadRequestException(`Invalid provider "${value}"`);
@@ -346,7 +346,7 @@ export class LocationsService {
     if (!body || typeof body !== 'object') throw new BadRequestException('Body is required');
     const name = this.normalizeRequired(body.name, 'name');
     await this.ensureUniqueName(name, tenant, null, mg);
-    const settings = await this.itOpsSettings.getSettings(tenant, { manager: mg });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenant, mg);
     const hostingType = await this.resolveHostingType(body.hosting_type, tenant, { manager: mg, settings });
     const category = await this.getHostingCategory(hostingType, tenant, { manager: mg, settings });
     const operatingCompany = category === 'on_prem' ? await this.resolveOperatingCompany(body.operating_company_id, tenant, mg) : null;
@@ -406,7 +406,7 @@ export class LocationsService {
       await this.ensureUniqueName(name, tenant, existing.id, mg);
       existing.name = name;
     }
-    const settings = await this.itOpsSettings.getSettings(tenant, { manager: mg });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenant, mg);
     let category = await this.getHostingCategory(existing.hosting_type, tenant, { manager: mg, settings });
     if (has('hosting_type')) {
       const nextType = await this.resolveHostingType(body.hosting_type, tenant, { manager: mg, settings });

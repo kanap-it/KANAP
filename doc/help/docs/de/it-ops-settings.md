@@ -25,8 +25,31 @@ Einstellungen sind in drei zusammenklappbare Abschnitte gruppiert:
 Jede Liste hat eigene Steuerungen oben:
 
 - **Element hinzufügen** - Fügt eine neue Zeile oben in die Liste ein, fokussiert und bereit zum Tippen.
-- **Änderungen speichern** - Speichert Ihre Bearbeitungen auf dem Server. Aktiviert bei ungespeicherten Änderungen.
-- **Zurücksetzen** - Setzt die Liste auf den letzten gespeicherten Zustand zurück (nicht Werkseinstellungen).
+- Bearbeitungen werden etwa eineinhalb Sekunden nach Ihrer letzten Änderung automatisch gespeichert, sobald alle Zeilen gültig sind. Neben der Liste erscheint eine Speicheranzeige.
+
+### Namen sind die Identität eines Werts
+
+Sie sehen und tippen ausschließlich **Namen**. KANAP erzeugt beim ersten Speichern eines Werts einen stabilen internen Code aus dem Namen und behält ihn dauerhaft bei, sodass das Umbenennen eines Werts nie die Datensätze beschädigt, die ihn verwenden. Der Code ist für Integratoren in der API sichtbar und kann in CSV-Dateien verwendet werden; der CSV-Export schreibt jedoch Namen, und der Import akzeptiert beides.
+
+Weil Namen die Werte identifizieren, gelten innerhalb einer Liste einige Regeln:
+
+- jeder Wert braucht einen Namen, und zwei Werte dürfen nicht denselben Namen tragen (Groß- und Kleinschreibung spielt keine Rolle);
+- ein Name darf nicht mit dem internen Code eines anderen Werts derselben Liste identisch sein;
+- Namen von **Zugriffsmethoden** dürfen weder Komma noch Semikolon enthalten, da der CSV-Export sie in einer einzigen, durch Kommas getrennten Zelle auflistet.
+
+Eine Liste, die gegen eine dieser Regeln verstößt, wird erst gespeichert, wenn Sie den Fehler behoben haben; die Zeile zeigt an, was nicht stimmt.
+
+### Einen Wert entfernen
+
+**Entfernen** löscht einen Wert, den nichts verwendet. Wenn noch Datensätze auf den Wert verweisen, zeigt KANAP an, wie viele (Anwendungen, Assets, Schnittstellen, Verbindungen, Standorte, Vorfälle, Subnetze…), mit einem Link zur gefilterten Liste, sofern sich eine Liste nach diesem Feld filtern lässt, und bietet stattdessen **Nicht mehr anbieten** an: Der Wert bleibt bei den Datensätzen sichtbar, die ihn bereits verwenden, und wird für neue nicht mehr vorgeschlagen. Ein verwendeter Wert wird nie entfernt, auch nicht über die API.
+
+Integrierte Werte, die KANAP selbst verwaltet (die vier Lebenszyklus-Status, die Domänen Workgroup und N/A), können weder bearbeitet noch entfernt werden. Standard-Netzwerkzonen und -Asset-Typen können bearbeitet und zurückgezogen, aber nicht entfernt werden: Der Server würde sie wieder hinzufügen.
+
+### Ihre Werte übersetzen
+
+Die Werte, die Sie eingeben, werden in allen Sprachen unverändert angezeigt. Um sie in der Sprache des jeweiligen Benutzers anzuzeigen, verwenden Sie die Aktion **Übersetzen** in einer Zeile: Der Dialog zeigt den Basisnamen (und bei Klassifizierungsstufen die Beschreibung) sowie ein Feld pro Sprache. Ein leer gelassenes Feld verwendet die automatische Übersetzung, solange der Wert noch ein KANAP-Standardwert ist, andernfalls den Basistext. Das Speichern von Übersetzungen ändert den Basistext nie, und ein übersetzter Name kann in CSV-Dateien und in der API wie der Name selbst verwendet werden; deshalb darf er keinen anderen Wert der Liste duplizieren.
+
+Editoren zeigen und bearbeiten immer den Basistext; wenn der angezeigte Name in Ihrer Sprache abweicht, weist die Zeile darauf hin („Angezeigt: …“).
 
 ---
 
@@ -109,6 +132,23 @@ Kategorien, die den Hauptzweck jeder Anwendung oder jedes Dienstes beschreiben. 
 
 Datenklassifizierungsstufen für Anwendungen und Schnittstellen. Gesperrte Codes: Öffentlich, Intern, Vertraulich, Eingeschränkt.
 
+### Klassifizierungen und Kontinuität
+
+Dieser Editor konfiguriert die Stufen, mit denen Anwendungen klassifiziert werden. Er steht Benutzern mit `settings:admin` im Bereich **Apps, Services & Schnittstellen** zur Verfügung und öffnet sich als einzelner Dialog mit einer Liste pro Katalog:
+
+- **Geschäftskritikalität**: die Stufen, die einer Anwendung zugewiesen werden können. Jede Stufe hat einen Namen, eine Beschreibung, die bei der Auswahl unter dem Namen angezeigt wird, eine optionale **maximal tolerierbare Ausfallzeit (MTD)** in Minuten und die Markierung **Nicht mehr anbieten**. Die Ausfallzeit dokumentiert die Stufe und löst bei einer Anwendung, deren RTO sie erreicht, einen Hinweis aus; sie ist ein Attribut der Stufe, kein Wert, der auf Anwendungen eingegeben wird.
+- **Cyberkritikalität**: unabhängige Folgenstufen.
+- **Datenvertraulichkeit**: der Datenklassenkatalog, mit Beschreibungen.
+- **Wiederherstellungswellen**: geordnete Wiederherstellungsstufen; die Reihenfolge ist weder Schweregrad noch Zeitangabe.
+
+**Die Reihenfolge ist die Position in der Liste.** Schweregrad-Kataloge sind von der kritischsten Stufe oben bis zur am wenigsten kritischen unten sortiert; Wiederanlaufwellen in Wiederherstellungsreihenfolge. Verschieben Sie eine Stufe mit den Pfeilen; die Position bestimmt die Sortierung der Listen, die Regel „höchste Stufe“ für Schnittstellen und Verbindungen sowie die Reihenfolge in den Auswahlmenüs. **Stufe hinzufügen** fügt unten an.
+
+**Änderungen am Katalog ändern nie Anwendungen.** Eine Anwendung speichert den Code ihrer Stufe. Das Umbenennen einer Stufe, das Bearbeiten ihrer Beschreibung oder Ausfallzeit und das Umsortieren des Katalogs lassen jede Anwendung auf derselben Stufe und machen Reviews nicht ungültig. Eine Stufe, die noch von einer Anwendung, Schnittstelle oder Verbindung verwendet wird, kann nicht entfernt werden; markieren Sie sie stattdessen mit **Nicht mehr anbieten**: Sie bleibt bei bestehenden Datensätzen sichtbar und wird für neue nicht mehr vorgeschlagen.
+
+Codes werden aus den Namen erzeugt und nie angezeigt; es gelten die oben beschriebenen Namensregeln.
+
+Die Business-Stufen liefern auch die operative Kritikalität für Schnittstellen und Verbindungen. Unvollständige Ableitungen werden als unvollständig gekennzeichnet; sie werden nicht als niedrigste Stufe behandelt.
+
 ### Integrationsmuster
 
 Integrationsmuster für Schnittstellenabschnitte (z. B. REST API, Datei-Batch, Queue, DB-Staging).
@@ -141,15 +181,41 @@ Gemeinsame Lebenszyklus-Zustände für Anwendungen, App-Instanzen, Schnittstelle
 
 ## Wie Änderungen bestehende Daten beeinflussen
 
-- **Bestehende Datensätze behalten ihre gespeicherten Codes** - Eine Änderung einer Bezeichnung ändert nur die Anzeige, nicht die zugrundeliegenden Daten.
+- **Bestehende Datensätze behalten ihren Wert** - Ein Umbenennen ändert nur die Anzeige, nicht die zugrundeliegenden Daten.
 - **Veraltete Werte**: Bleiben für Datensätze gültig, die sie bereits verwenden. Werden in Dropdowns beim Erstellen neuer Datensätze ausgeblendet.
 - **Neue Werte** werden sofort in den relevanten Dropdowns verfügbar und serverseitig validiert.
 
 ---
 
+## Schnellreferenz: Welche Liste speist welches Feld?
+
+| Liste | Verwendung |
+|------|------------|
+| **Zugriffsmethoden** | Anwendungen (Reiter Technik und Support → Zugriffsmethoden) |
+| **Anwendungskategorien** | Anwendungen (Kategorie) |
+| **Cloud-Anbieter** | Assets (Anbieter), Standorte (Cloud-Anbieter) |
+| **Verbindungstypen** | Verbindungen (Verbindungstyp) |
+| **Datenklassen** | Anwendungen (Compliance), Schnittstellen (Übersicht), Anwendungsliste |
+| **Domänen** | Assets (Technik → Domäne, FQDN) |
+| **Entitäten** | Verbindungen (Quell-/Zielentität), Verbindungsübersicht (Graph-Ebene) |
+| **Hosting-Typen** | Standorte (Übersicht) |
+| **Integrationsmuster** | Schnittstellenabschnitte (Muster) |
+| **Schnittstellen-Authentifizierungsmodi** | Schnittstellenbindungen (Authentifizierungsmodus) |
+| **Schnittstellen-Datenkategorien** | Schnittstellen (Datenkategorie) |
+| **Schnittstellen-Datenformate** | Schnittstellenabschnitte (Format) |
+| **Schnittstellen-Protokolle** | Schnittstellenbindungen (Protokoll) |
+| **Schnittstellen-Auslösertypen** | Schnittstellenabschnitte (Auslöser) |
+| **IP-Adresstypen** | Assets (Technik → IP-Adressen → Typ) |
+| **Lebenszyklus-Status** | Anwendungen, App-Instanzen, Schnittstellen, Bindungen, Assets |
+| **Netzwerkzonen** | Subnetze (Netzwerkzone), Assets (automatisch aus Subnetz) |
+| **Betriebssysteme** | Assets (Technik) |
+| **Subnetze** | Assets (Technik → IP-Adressen → Subnetzauswahl) |
+| **Serverrollen** | Anwendungen → Reiter Server (Rolle beim Verknüpfen), Verbindungsübersicht (Graph-Ebene) |
+| **Asset-Typen** | Assets (Übersicht → Typ) |
+
 ## Tipps
 
-- **Bezeichnungen an Ihre Terminologie anpassen** - Überprüfen Sie die Standards und benennen Sie Bezeichnungen um, damit sie der Sprache Ihrer Organisation entsprechen.
+- **Namen an Ihre Terminologie anpassen** - Überprüfen Sie die Standards und benennen Sie Werte um, damit sie der Sprache Ihrer Organisation entsprechen. Datensätze behalten ihre Verknüpfung mit dem Wert; nur der Name ändert sich.
 - **Schrittweise veralten** - Markieren Sie Werte als veraltet statt sie zu löschen, wenn Sie davon abrücken. Dies hält historische Daten intakt.
 - **Datenklassen mit der Sicherheitsabteilung abstimmen** - Änderungen an Datenklassen sollten mit Ihren Informationssicherheitsrichtlinien übereinstimmen.
 - **Typische Ports als Dokumentation verwenden** - Das Feld „Typische Ports" bei Verbindungstypen ist informativ. Füllen Sie es aus, damit Benutzer verstehen, welche Ports jeder Verbindungstyp üblicherweise verwendet.

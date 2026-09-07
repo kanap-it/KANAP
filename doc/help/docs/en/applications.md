@@ -41,13 +41,14 @@ Navigate to **IT Landscape > Applications** to see your list. Click **New App / 
 **Required fields**:
 - **Name**: A recognizable name for the application or service
 - **Category**: The primary purpose of this application (see categories above)
-- **Criticality**: How important this is to your business (Business critical, High, Medium, Low)
 - **Lifecycle**: Current status (Active, Proposed, Deprecated, Retired, or any custom code defined in Settings)
 
 **Strongly recommended**:
 - **Supplier**: The supplier providing the software (links to your Suppliers master data)
 - **Publisher**: The software publisher (e.g., Microsoft, SAP, Oracle)
 - **Description**: What this application does
+
+Classification fields are optional when you create an application. **Business criticality**, cyber criticality, data confidentiality and recovery wave are chosen among the levels your organization defined in **IT Landscape > Settings**; each option shows the level's definition. Values remain unset until you choose them.
 
 **Optional but useful**:
 - **Version**: Current version identifier (free text, e.g., "4.2.1", "2023", "Q1 2024")
@@ -102,6 +103,7 @@ The Applications grid provides a comprehensive view of your application portfoli
 - **OPEX Items** / **CAPEX Items** / **Contracts**: Linked spend and contracts
 - **Components**: Child applications (if this is a suite)
 - **Data Class** / **Contains PII** / **Data Residency**: Compliance information
+- **Cyber criticality**, **Recovery wave**, **RTO**, **RPO**, **Review state/date**: Classification and continuity fields
 
 **Filtering**:
 - Quick search: matches name and editor/publisher
@@ -111,7 +113,7 @@ The Applications grid provides a comprehensive view of your application portfoli
 **Actions**:
 - **New App / Service**: Create a new entry (`applications:manager`)
 - **Import CSV**: Bulk import from CSV file (`applications:admin`)
-- **Export CSV**: Export the list to CSV (`applications:admin`)
+- **Export CSV**: Export the list to CSV (`applications:admin`). Catalog-backed columns (category, lifecycle, criticality, cyber criticality, recovery wave, data class, access methods) are exported as their names; the import accepts a name or the internal code.
 - **Copy item**: Duplicate a selected application with all its core relations (`applications:manager`). See [Copying applications](#copying-applications) for what is and is not copied.
 - **Delete Selected**: Remove selected applications (`applications:admin`)
 
@@ -127,7 +129,7 @@ The header shows:
 - **Application name** (editable in place)
 - **Reference**: short identifier you can copy
 - **Lifecycle** chip: click to change
-- **Criticality** chip: click to change
+- **Business criticality** chip: shows the level and opens a menu of the organization's levels
 - **Version** chip (if a version is set): click to copy
 - **Go live** date
 - **Send link**: copy a shareable link to this workspace
@@ -235,12 +237,36 @@ The Operations tab captures how users access the application and who supports it
 The Compliance tab captures data protection and regulatory information.
 
 **What you can edit**:
-- **Data class** (required): sensitivity level (Public, Internal, Confidential, Restricted, or any custom code defined in Settings)
+- **Data class**: confidentiality level (Public, Internal, Confidential, Restricted, or any custom code defined in Settings)
 - **Last DR test**: date of the most recent disaster recovery test
 - **Contains PII**: whether the application stores personally identifiable information
 - **Data residency**: countries where data is stored (multi-select, ISO codes + names)
 
 **Tip**: Data Classes are configurable in **IT Landscape > Settings**. Customize them to match your organization's data classification policy.
+
+### Classification and continuity
+
+The Compliance area also records the application's continuity and classification decisions. Missing values are shown as **Not set**; KANAP does not substitute a default level.
+
+The tab is organized in four blocks, in the order of a business impact analysis.
+
+**Criticality**:
+- **Business criticality** is chosen among the levels defined by your organization. Each option shows the level's definition, typically the interruption the activity can tolerate. The level is a stable reference: renaming a level, changing its definition or reordering the catalog in Settings never moves an application to another level.
+- **Cyber criticality** is selected independently. The picker shows each level's description; use the level whose plausible consequences are highest. Do not confuse cyber criticality with the level of risk.
+
+**Data**:
+- **Data confidentiality** uses the organization's data-class catalog.
+- **Contains personal data** and **Data residency** complete the data picture.
+
+**Continuity and recovery**:
+- **Recovery wave** identifies the order in which the application is restored. It does not imply a duration or severity.
+- **RTO** is the target time to restore service. **RPO** is the acceptable data-loss duration and may be zero. If the RTO reaches the maximum tolerable downtime defined on the chosen business level, KANAP shows a warning but keeps both values.
+- **Last recovery test** records the most recent test date. A link opened from this area uses the single existing **Knowledge** section in Overview; it does not create a duplicate record. Older URL links remain available under Relations.
+
+**Review**:
+- **Justification** records the reasoning behind the levels and what the recovery plan relies on.
+- The review is a timestamp: **Mark as reviewed** records who reviewed the classification and when. It is available once business criticality, cyber criticality, data confidentiality, recovery wave and the justification are present.
+- The review date and reviewer stay visible afterwards. When a classification value, a recovery reference or the data residency changes after the review, the tab shows **Changed since review** and the list shows **Review needed**. Editing the application name or publisher does not affect it. Changing the catalog in Settings never invalidates a review.
 
 ---
 
@@ -296,6 +322,8 @@ The new version is created as a separate application with:
 - Copied data based on your selections
 - Duplicated interfaces pointing to the new version
 
+Classification and continuity values are copied, but the new version starts with a reset review and no copied last recovery test.
+
 ### What gets copied
 
 | Option | Default |
@@ -338,7 +366,7 @@ Use this when you want to create an independent duplicate of an application -- t
 3. The system creates a copy with " (copy)" appended to the name
 4. You're navigated to the new application to make changes
 
-**What gets copied**: All core fields (except last DR test date), owners, companies, departments, suites, OPEX/CAPEX items, contracts, links, data residency, and support contacts.
+**What gets copied**: All core fields (except last DR test date), including classification and continuity values, owners, companies, departments, suites, OPEX/CAPEX items, contracts, links, data residency, and support contacts. The copied application's review is reset.
 
 **What does NOT get copied**: Deployments, interfaces, server assignments, attachments, version fields (version, go-live date, end of support).
 
@@ -419,7 +447,7 @@ From the Applications list:
 2. **Choose import settings**:
    - **Mode**:
      - `Enrich` (default): Empty cells preserve existing values -- only update what you specify
-     - `Replace`: Empty cells clear existing values -- full replacement of all fields
+     - `Replace`: Supplied fields are replaced; blank classification cells preserve their values and `__CLEAR__` explicitly clears them
    - **Operation**:
      - `Upsert` (default): Create new applications or update existing ones
      - `Update only`: Only modify existing applications, skip new ones
@@ -441,7 +469,7 @@ From the Applications list:
 | `category` | Primary purpose | No | Accepts code or label from Settings |
 | `supplier_name` | Vendor name | No | Must match existing supplier |
 | `editor` | Software publisher | No | Free text (e.g., Microsoft, SAP) |
-| `criticality` | Business importance | No | `business_critical`, `high`, `medium`, `low` |
+| `criticality` | Business criticality | No | Accepts code or label from Settings; `__CLEAR__` clears it |
 | `lifecycle` | Current status | No | Accepts code or label from Settings |
 | `is_suite` | Can have child apps | No | `true` or `false` |
 | `status` | Enabled/disabled | No | `enabled` or `disabled` |
@@ -474,6 +502,18 @@ From the Applications list:
 | `last_dr_test` | Last DR test date | Date format: YYYY-MM-DD |
 | `contains_pii` | Stores personal data | `true` or `false` |
 | `data_residency` | Data storage countries | Export only (ISO codes) |
+
+**Classification fields**:
+
+| CSV Column | Description | Notes |
+|------------|-------------|-------|
+| `criticality` | Business criticality level | Tenant catalog code or unambiguous label |
+| `cyber_criticality` | Cyber consequence level | Tenant catalog code or unambiguous label |
+| `recovery_wave` | Recovery order | Tenant catalog code or unambiguous label |
+| `rto_minutes` / `rpo_minutes` | Recovery objectives | Whole minutes; RPO may be zero |
+| `classification_justification` | Classification reasoning | Free text |
+
+A blank classification cell preserves the existing value in both Enrich and Replace modes; use the literal `__CLEAR__` to clear a classification.
 
 **Owner fields**:
 
@@ -509,7 +549,7 @@ The system automatically normalizes values during import, so `Line-of-business`,
 
 Applications are matched by **name** (case-insensitive). When a match is found:
 - With `Enrich` mode: Only non-empty CSV values update the application
-- With `Replace` mode: All fields are updated, empty values clear existing data
+- With `Replace` mode: All supplied fields are updated; blank classification cells preserve existing classifications, and `__CLEAR__` explicitly clears them
 
 If you include the `id` column with a valid UUID, matching uses ID first, then falls back to name.
 
@@ -534,9 +574,9 @@ If you include the `id` column with a valid UUID, matching uses ID first, then f
 
 ```csv
 name;category;supplier_name;criticality;lifecycle;go_live_date;external_facing
-Salesforce CRM;Line-of-business;Salesforce Inc;business_critical;Active;2020-01-15;true
+Salesforce CRM;Line-of-business;Salesforce Inc;Critical;Active;2020-01-15;true
 Microsoft 365;Productivity;Microsoft;high;active;2019-06-01;false
-Custom ERP;lob;;medium;Active;2018-03-20;false
+Custom ERP;lob;;Moderate;Active;2018-03-20;false
 ```
 
 ---

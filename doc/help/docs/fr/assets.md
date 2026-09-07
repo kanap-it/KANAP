@@ -316,7 +316,7 @@ Pour les champs configurés dans **Cartographie SI > Paramètres**, vous pouvez 
 | Domaine | `corp`, `dmz` | `Corporate Domain`, `DMZ` |
 | Type d'adresse IP | `host`, `ipmi`, `mgmt` | `Host IP`, `IPMI`, `Management` |
 
-Le système normalise automatiquement les valeurs lors de l'import, donc `Virtual Machine`, `virtual machine` et `vm` se résolvent tous vers le même type d'actif.
+Le système normalise automatiquement les valeurs lors de l'import, donc `Virtual Machine`, `virtual machine` et `vm` se résolvent tous vers le même type d'actif. Une valeur qui correspond à plusieurs entrées est refusée plutôt que devinée. L'export CSV écrit les noms pour ces colonnes, si bien qu'un fichier exporté peut être réimporté tel quel.
 
 ### Correspondance et mises à jour
 

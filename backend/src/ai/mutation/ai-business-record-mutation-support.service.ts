@@ -13,6 +13,7 @@ import { ConnectionsService } from '../../connections/services/connections.servi
 import { ContractsService } from '../../contracts/contracts.service';
 import { InterfacesService } from '../../interfaces/services/interfaces.service';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
+import { ClassificationCatalog, resolveClassificationOption } from '../../it-ops-settings/classification-catalog';
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
 import { SpendItemsService } from '../../spend/spend-items.service';
@@ -71,6 +72,7 @@ type FieldKind =
   | 'integer'
   | 'json'
   | 'application_category'
+  | 'application_classification'
   | 'non_negative_decimal'
   | 'percent'
   | 'relation'
@@ -85,6 +87,8 @@ type FieldConfig = {
   requiredOnCreate?: boolean;
   enumValues?: readonly string[];
   relationTarget?: RelationTarget;
+  classificationAxis?: 'business' | 'cyber' | 'confidentiality' | 'recovery';
+  minimum?: number;
 };
 
 type EntityConfig = {
@@ -111,6 +115,9 @@ type NormalizedFields = {
 const ENVIRONMENTS = ['prod', 'pre_prod', 'qa', 'test', 'dev', 'sandbox'] as const;
 const STATUS_STATES = ['enabled', 'disabled'] as const;
 const APPLICATION_LIFECYCLES = ['active', 'planned', 'in_development', 'retired'] as const;
+// Operational interface/connection criticality uses tenant business codes at the
+// service boundary; this legacy list remains only for their existing AI schema
+// until those mutation configs become catalog-aware.
 const CRITICALITIES = ['business_critical', 'high', 'medium', 'low'] as const;
 const USERS_MODES = ['manual', 'it_users', 'headcount'] as const;
 const PROJECT_STATUSES = ['waiting_list', 'planned', 'in_progress', 'in_testing', 'on_hold', 'done', 'cancelled'] as const;
@@ -161,8 +168,13 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
       predecessor_id: { label: 'Predecessor', kind: 'relation', nullable: true, relationTarget: 'applications', aliases: ['predecessor'] },
       lifecycle: { label: 'Lifecycle', kind: 'enum', enumValues: APPLICATION_LIFECYCLES },
       environment: { label: 'Environment', kind: 'enum', enumValues: ENVIRONMENTS },
-      criticality: { label: 'Criticality', kind: 'enum', enumValues: CRITICALITIES },
-      data_class: { label: 'Data Class', kind: 'text', nullable: true },
+      criticality: { label: 'Business criticality', kind: 'application_classification', classificationAxis: 'business', nullable: true, aliases: ['business_criticality'] },
+      cyber_criticality: { label: 'Cyber Criticality', kind: 'application_classification', classificationAxis: 'cyber', nullable: true, aliases: ['cyber'] },
+      data_class: { label: 'Data Confidentiality', kind: 'application_classification', classificationAxis: 'confidentiality', nullable: true, aliases: ['confidentiality'] },
+      recovery_wave: { label: 'Recovery Wave', kind: 'application_classification', classificationAxis: 'recovery', nullable: true, aliases: ['wave'] },
+      rto_minutes: { label: 'RTO (minutes)', kind: 'integer', nullable: true, minimum: 1, aliases: ['rto'] },
+      rpo_minutes: { label: 'RPO (minutes)', kind: 'integer', nullable: true, minimum: 0, aliases: ['rpo'] },
+      classification_justification: { label: 'Classification Justification', kind: 'text', nullable: true, aliases: ['justification'] },
       hosting_model: { label: 'Hosting Model', kind: 'text', nullable: true },
       external_facing: { label: 'External Facing', kind: 'boolean' },
       is_suite: { label: 'Suite', kind: 'boolean' },
@@ -288,14 +300,14 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
       integration_route_type: { label: 'Integration Route Type', kind: 'enum', enumValues: INTERFACE_ROUTES },
       lifecycle: { label: 'Lifecycle', kind: 'text' },
       overview_notes: { label: 'Overview Notes', kind: 'text', nullable: true },
-      criticality: { label: 'Criticality', kind: 'enum', enumValues: CRITICALITIES },
+      criticality: { label: 'Operational criticality', kind: 'application_classification', classificationAxis: 'business', nullable: true },
       impact_of_failure: { label: 'Impact of Failure', kind: 'text', nullable: true },
       business_objects: { label: 'Business Objects', kind: 'json', nullable: true },
       main_use_cases: { label: 'Main Use Cases', kind: 'text', nullable: true },
       functional_rules: { label: 'Functional Rules', kind: 'text', nullable: true },
       core_transformations_summary: { label: 'Core Transformations Summary', kind: 'text', nullable: true },
       error_handling_summary: { label: 'Error Handling Summary', kind: 'text', nullable: true },
-      data_class: { label: 'Data Class', kind: 'text' },
+      data_class: { label: 'Data confidentiality', kind: 'application_classification', classificationAxis: 'confidentiality', nullable: true },
       contains_pii: { label: 'Contains PII', kind: 'boolean' },
       pii_description: { label: 'PII Description', kind: 'text', nullable: true },
       typical_data: { label: 'Typical Data', kind: 'text', nullable: true },
@@ -322,8 +334,8 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
       servers: { label: 'Servers', kind: 'relation', nullable: true, relationTarget: 'assets' },
       protocol_codes: { label: 'Protocol Codes', kind: 'array_text', requiredOnCreate: true, aliases: ['protocols'] },
       lifecycle: { label: 'Lifecycle', kind: 'text' },
-      criticality: { label: 'Criticality', kind: 'enum', enumValues: CRITICALITIES },
-      data_class: { label: 'Data Class', kind: 'text' },
+      criticality: { label: 'Operational criticality', kind: 'application_classification', classificationAxis: 'business', nullable: true },
+      data_class: { label: 'Data confidentiality', kind: 'application_classification', classificationAxis: 'confidentiality', nullable: true },
       contains_pii: { label: 'Contains PII', kind: 'boolean' },
       risk_mode: { label: 'Risk Mode', kind: 'enum', enumValues: RISK_MODES },
     },
@@ -498,6 +510,8 @@ export class AiBusinessRecordMutationSupportService {
     field: FieldConfig,
     rawValue: unknown,
     fieldsSoFar: Record<string, unknown>,
+    catalog?: ClassificationCatalog,
+    existing?: Record<string, unknown> | null,
   ): Promise<{ value: unknown; displayValue: string | null }> {
     const nullable = this.normalizeNullableInput(rawValue, field);
     if (nullable.empty) {
@@ -540,7 +554,9 @@ export class AiBusinessRecordMutationSupportService {
     }
     if (field.kind === 'integer') {
       const parsed = Number(rawValue);
-      if (!Number.isInteger(parsed)) throw new BadRequestException(`${field.label} must be an integer.`);
+      if (!Number.isInteger(parsed) || parsed > 2147483647 || (field.minimum !== undefined && parsed < field.minimum)) {
+        throw new BadRequestException(`${field.label} must be an integer${field.minimum !== undefined ? ` from ${field.minimum} to 2147483647` : ''}.`);
+      }
       return { value: parsed, displayValue: String(parsed) };
     }
     if (field.kind === 'non_negative_decimal' || field.kind === 'percent') {
@@ -567,6 +583,17 @@ export class AiBusinessRecordMutationSupportService {
         manager: context.manager,
       });
       return { value: option.code, displayValue: option.label || option.code };
+    }
+    if (field.kind === 'application_classification') {
+      if (!catalog || !field.classificationAxis) throw new BadRequestException('Application classification catalog is unavailable.');
+      const options = field.classificationAxis === 'business' ? catalog.businessCriticalityLevels : field.classificationAxis === 'cyber'
+        ? catalog.cyberCriticalityLevels
+        : field.classificationAxis === 'confidentiality'
+          ? catalog.dataClasses
+          : catalog.recoveryWaves;
+      const value = resolveClassificationOption(rawValue, options, existing?.[fieldName] as string | null | undefined);
+      const option = options.find((item) => item.code === value);
+      return { value, displayValue: option?.label ?? value };
     }
     if (field.kind === 'array_text') {
       const values = Array.isArray(rawValue)
@@ -609,11 +636,15 @@ export class AiBusinessRecordMutationSupportService {
     entityType: AiBusinessRecordEntityType,
     rawFields: Record<string, unknown>,
     mode: 'create' | 'update',
+    existing?: Record<string, unknown> | null,
   ): Promise<NormalizedFields> {
     const config = this.getConfig(entityType);
     const fields: Record<string, unknown> = {};
     const displayValues: Record<string, string | null> = {};
     const fieldLabels: Record<string, string> = {};
+    const catalog = ['applications', 'interfaces', 'connections'].includes(entityType)
+      ? await this.itOpsSettings.getClassificationCatalog(context.tenantId, { manager: context.manager })
+      : undefined;
 
     for (const [rawName, rawValue] of Object.entries(rawFields)) {
       if (rawValue === undefined) continue;
@@ -624,7 +655,7 @@ export class AiBusinessRecordMutationSupportService {
       if (Object.prototype.hasOwnProperty.call(fields, resolved.name)) {
         throw new BadRequestException(`Field ${resolved.name} was provided more than once.`);
       }
-      const normalized = await this.normalizeFieldValue(context, entityType, resolved.name, resolved.config, rawValue, fields);
+      const normalized = await this.normalizeFieldValue(context, entityType, resolved.name, resolved.config, rawValue, fields, catalog, existing);
       fields[resolved.name] = normalized.value;
       displayValues[resolved.name] = normalized.displayValue;
       fieldLabels[resolved.name] = resolved.config.label;
@@ -937,6 +968,9 @@ export class AiBusinessRecordMutationSupportService {
   ): Promise<AiPreparedMutationPreview> {
     const entityType = requireEntityType(input.entity_type);
     const normalized = await this.normalizeFields(context, entityType, coerceRecord(input.fields, 'fields'), 'create');
+    const classification = entityType === 'applications'
+      ? this.applicationClassificationPreviewState(normalized.fields, null)
+      : null;
     const title = this.titleForPendingCreate(entityType, normalized.fields);
     return {
       targetEntityType: entityType,
@@ -947,6 +981,7 @@ export class AiBusinessRecordMutationSupportService {
         fields: normalized.fields,
         display_values: normalized.displayValues,
         field_labels: normalized.fieldLabels,
+        ...(classification ? { classification } : {}),
       },
       currentValues: {
         target_ref: null,
@@ -989,7 +1024,7 @@ export class AiBusinessRecordMutationSupportService {
     rawFields: Record<string, unknown>,
     opts: { sourcePreviewId: string | null },
   ): Promise<AiPreparedMutationPreview> {
-    const normalized = await this.normalizeFields(context, entityType, rawFields, 'update');
+    const normalized = await this.normalizeFields(context, entityType, rawFields, 'update', target.row);
     const requestedFieldNames = Object.keys(normalized.fields);
     const currentValues = this.pickFieldValues(entityType, target.row, requestedFieldNames);
     const changedFieldNames = requestedFieldNames.filter((fieldName) => !sameValue(currentValues[fieldName], normalized.fields[fieldName]));
@@ -1007,6 +1042,9 @@ export class AiBusinessRecordMutationSupportService {
       fieldLabels[fieldName] = normalized.fieldLabels[fieldName];
       previousValues[fieldName] = currentValues[fieldName];
     }
+    const classification = entityType === 'applications'
+      ? this.applicationClassificationPreviewState(nextFields, target.row)
+      : null;
 
     return {
       targetEntityType: entityType,
@@ -1018,6 +1056,7 @@ export class AiBusinessRecordMutationSupportService {
         display_values: nextDisplayValues,
         field_labels: fieldLabels,
         source_preview_id: opts.sourcePreviewId,
+        ...(classification ? { classification } : {}),
       },
       currentValues: {
         target_ref: target.ref,
@@ -1025,6 +1064,20 @@ export class AiBusinessRecordMutationSupportService {
         values: previousValues,
         display_values: previousValues,
       },
+    };
+  }
+
+  private applicationClassificationPreviewState(
+    fields: Record<string, unknown>,
+    existing: Record<string, unknown> | null,
+  ): Record<string, unknown> {
+    const hasClassificationInput = Object.keys(fields).some((field) => [
+      'criticality', 'cyber_criticality', 'data_class', 'recovery_wave',
+      'rto_minutes', 'rpo_minutes', 'classification_justification',
+    ].includes(field));
+    return {
+      has_classification_input: hasClassificationInput,
+      invalidates_review: !!existing?.classification_review && hasClassificationInput,
     };
   }
 
@@ -1076,6 +1129,14 @@ export class AiBusinessRecordMutationSupportService {
         format: 'text',
       };
     }
+    const classification = mutation.classification && typeof mutation.classification === 'object'
+      ? mutation.classification as Record<string, unknown>
+      : null;
+    if (classification?.invalidates_review) {
+      changes.classification_review_state = {
+        label: 'Classification Review', from: 'Reviewed', to: 'Stale after this change', format: 'text',
+      };
+    }
 
     return {
       target: {
@@ -1094,8 +1155,9 @@ export class AiBusinessRecordMutationSupportService {
     const mutation = preview.mutation_input ?? {};
     const action = String(mutation.action || '');
     const fields = coerceRecord(mutation.fields, 'mutation_input.fields');
+    const executionFields = fields;
     if (action === 'create') {
-      const saved = await this.createRecord(context, entityType, fields);
+      const saved = await this.createRecord(context, entityType, executionFields);
       const snapshot = await this.getRecordSnapshot(context, entityType, String((saved as any).id));
       const ref = this.referenceFromRow(entityType, snapshot);
       preview.target_entity_id = ref.id;
@@ -1119,7 +1181,7 @@ export class AiBusinessRecordMutationSupportService {
       }
     }
     const before = { ...live };
-    await this.updateRecord(context, entityType, preview.target_entity_id, fields);
+    await this.updateRecord(context, entityType, preview.target_entity_id, executionFields);
     const after = await this.getRecordSnapshot(context, entityType, preview.target_entity_id);
     await this.logAiAudit(context, preview, entityType, 'update', before, after);
   }

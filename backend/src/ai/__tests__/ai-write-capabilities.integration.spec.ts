@@ -696,11 +696,19 @@ async function testBusinessTaskFinancialWritesAndRbac(harness: Harness) {
     const createdSpendId = spendExecution.target.entity_id;
     assert.ok(createdSpendId, 'created spend item id should be populated after approval');
 
+    await assert.rejects(
+      () => executeToolPreview(harness, context(seed, runner, 'business-update'), 'update_business_record', {
+        entity_type: 'applications',
+        ref: seed.applicationId,
+        fields: { business_mtd_minutes: 1440 },
+      }),
+      /business_mtd_minutes is not writable for applications/,
+    );
     const updateAppPreview = await executeToolPreview(harness, context(seed, runner, 'business-update'), 'update_business_record', {
       entity_type: 'applications',
       ref: seed.applicationId,
       fields: {
-        criticality: 'high',
+        criticality: 'High',
         description: `Updated app description ${seed.tag}`,
       },
     });

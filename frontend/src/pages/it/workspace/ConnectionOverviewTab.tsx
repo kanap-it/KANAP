@@ -1,3 +1,4 @@
+import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
 import React from 'react';
 import {
   Autocomplete,
@@ -29,12 +30,6 @@ import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
 const NOTES_DEBOUNCE_MS = 900;
 
-const CRITICALITIES = [
-  { code: 'low', label: 'Low' },
-  { code: 'medium', label: 'Medium' },
-  { code: 'high', label: 'High' },
-  { code: 'business_critical', label: 'Business critical' },
-];
 
 type AssetSummary = {
   id: string;
@@ -130,6 +125,8 @@ export default function ConnectionOverviewTab({
   onProtocolsChange,
   onLinkedInterfacesChanged,
 }: Props) {
+  const { data: classificationCatalog } = useApplicationClassificationCatalog();
+  const CRITICALITIES = [{ code: '', label: 'Not set' }, ...(classificationCatalog?.businessCriticalityLevels || [])];
   const { t } = useTranslation(['it', 'common']);
   const navigate = useNavigate();
   const { settings, labelFor } = useItOpsEnumOptions();
@@ -443,7 +440,7 @@ export default function ConnectionOverviewTab({
                     {CRITICALITIES.find((c) => c.code === row.interface_criticality)?.label || row.interface_criticality || '—'}
                   </TableCell>
                   <TableCell sx={{ fontSize: 13 }}>
-                    {labelFor('dataClass', row.interface_data_class || '') || row.interface_data_class || '—'}
+                    {classificationCatalog?.dataClasses.find((item) => item.code === row.interface_data_class)?.label || row.interface_data_class || '—'}
                   </TableCell>
                   <TableCell sx={{ fontSize: 13 }}>{row.interface_contains_pii ? 'Yes' : 'No'}</TableCell>
                 </TableRow>
