@@ -29,6 +29,9 @@ import type {
 } from '../../components/settings';
 import useItOpsSettings from '../../hooks/useItOpsSettings';
 import { useVirtualRows } from '../../hooks/useVirtualRows';
+import { useCatalogRemoval } from '../../components/settings/useCatalogRemoval';
+import { catalogListIssues } from '../../components/settings/catalogValidation';
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import api from '../../api';
 import {
   ConnectionTypeOption,
@@ -100,6 +103,7 @@ const listsEqual = (a: ItOpsEnumOption[], b: ItOpsEnumOption[]): boolean => {
     if ((left.category || undefined) !== (right.category || undefined)) return false;
     if (((left as any).graph_tier || undefined) !== ((right as any).graph_tier || undefined)) return false;
     if (((left as any).typicalPorts || undefined) !== ((right as any).typicalPorts || undefined)) return false;
+    if (!!(left as any).is_physical !== !!(right as any).is_physical) return false;
   }
   return true;
 };
@@ -227,6 +231,11 @@ interface OperatingSystemsEditorProps {
   hideAddButton?: boolean;
 }
 
+function IssueText({ issue }: { issue?: string }) {
+  const { t } = useTranslation('common');
+  return issue ? <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.25 }}>{t(`enumEditor.${issue}`)}</Typography> : null;
+}
+
 const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
   items,
   onChange,
@@ -270,11 +279,13 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
       return next;
     });
   };
+  const removal = useCatalogRemoval('operatingSystems');
+  const issues = React.useMemo(() => catalogListIssues(localItems), [localItems]);
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={0.5} sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Operating Systems</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Operating Systems</Typography>
         <Typography variant="body2" color="text.secondary">
           Catalog of operating systems available for Servers, with standard and extended support end dates.
         </Typography>
@@ -283,12 +294,11 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
         <Table size="small" stickyHeader={useVirtual}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: '22%' }}>Name</TableCell>
-              <TableCell sx={{ width: '18%' }}>Code</TableCell>
-              <TableCell sx={{ width: '20%' }}>Standard Support</TableCell>
-              <TableCell sx={{ width: '20%' }}>Extended Support</TableCell>
-              <TableCell sx={{ width: '10%' }}>Deprecated</TableCell>
-              <TableCell align="right" sx={{ width: '10%' }}>Actions</TableCell>
+              <TableCell sx={{ width: '30%' }}>Name</TableCell>
+              <TableCell sx={{ width: '20%' }}>Standard support</TableCell>
+              <TableCell sx={{ width: '20%' }}>Extended support</TableCell>
+              <TableCell sx={{ width: '15%' }}>No longer offered</TableCell>
+              <TableCell align="right" sx={{ width: '15%' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -304,11 +314,9 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
             )}
             {visibleItems.map((item: any) => (
               <TableRow key={item.localId}>
-                <TableCell>
-                  <TextField value={item.label} onChange={(e) => handleUpdate(item.localId, { label: e.target.value })} size="small" fullWidth placeholder="Display name" />
-                </TableCell>
-                <TableCell>
-                  <TextField value={item.code} onChange={(e) => handleUpdate(item.localId, { code: e.target.value })} size="small" fullWidth placeholder="slug_code" />
+                <TableCell sx={{ verticalAlign: 'top' }}>
+                  <TextField value={item.label} onChange={(e) => handleUpdate(item.localId, { label: e.target.value })} size="small" fullWidth placeholder="e.g., Windows Server 2025" inputProps={{ 'aria-label': 'Name' }} />
+                  <IssueText issue={issues.get(localItems.indexOf(item))} />
                 </TableCell>
                 <TableCell>
                   <DateEUField label="Standard Support" valueYmd={item.standardSupportEnd || ''} onChangeYmd={(next) => handleUpdate(item.localId, { standardSupportEnd: next })} />
@@ -317,10 +325,10 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
                   <DateEUField label="Extended Support" valueYmd={item.extendedSupportEnd || ''} onChangeYmd={(next) => handleUpdate(item.localId, { extendedSupportEnd: next })} />
                 </TableCell>
                 <TableCell>
-                  <FormControlLabel control={<Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} />} label="Deprecated" />
+                  <Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `No longer offered ${item.label}` }} />
                 </TableCell>
                 <TableCell align="right">
-                  <Button size="small" color="error" onClick={() => handleRemove(item.localId)}>Remove</Button>
+                  <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -330,6 +338,7 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
           </TableBody>
         </Table>
       </TableContainer>
+      {removal.dialog}
     </Paper>
   );
 });
@@ -388,10 +397,13 @@ const ConnectionTypesEditor = React.memo(function ConnectionTypesEditor({
     [commitToParent]
   );
 
+  const removal = useCatalogRemoval('connectionTypes');
+  const issues = React.useMemo(() => catalogListIssues(localItems), [localItems]);
+
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={0.5} sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Connection Types</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Connection Types</Typography>
         <Typography variant="body2" color="text.secondary">
           Two-level catalog (category + entry) with typical ports.
         </Typography>
@@ -400,12 +412,11 @@ const ConnectionTypesEditor = React.memo(function ConnectionTypesEditor({
         <Table size="small" stickyHeader={useVirtual}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: '20%' }}>Category</TableCell>
-              <TableCell sx={{ width: '20%' }}>Label</TableCell>
-              <TableCell sx={{ width: '15%' }}>Code</TableCell>
+              <TableCell sx={{ width: '22%' }}>Category</TableCell>
+              <TableCell sx={{ width: '28%' }}>Name</TableCell>
               <TableCell sx={{ width: '25%' }}>Typical ports</TableCell>
-              <TableCell sx={{ width: '10%' }}>Deprecated</TableCell>
-              <TableCell align="right" sx={{ width: '10%' }}>Actions</TableCell>
+              <TableCell sx={{ width: '12%' }}>No longer offered</TableCell>
+              <TableCell align="right" sx={{ width: '13%' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -422,11 +433,10 @@ const ConnectionTypesEditor = React.memo(function ConnectionTypesEditor({
             {visibleItems.map((item: any) => (
               <TableRow key={item.localId}>
                 <TableCell><TextField value={item.category || ''} onChange={(e) => handleUpdate(item.localId, { category: e.target.value })} size="small" fullWidth placeholder="Category" /></TableCell>
-                <TableCell><TextField value={item.label} onChange={(e) => handleUpdate(item.localId, { label: e.target.value })} size="small" fullWidth placeholder="Label" /></TableCell>
-                <TableCell><TextField value={item.code} onChange={(e) => handleUpdate(item.localId, { code: e.target.value })} size="small" fullWidth placeholder="code" /></TableCell>
+                <TableCell sx={{ verticalAlign: 'top' }}><TextField value={item.label} onChange={(e) => handleUpdate(item.localId, { label: e.target.value })} size="small" fullWidth placeholder="e.g., HTTPS" inputProps={{ 'aria-label': 'Name' }} /><IssueText issue={issues.get(localItems.indexOf(item))} /></TableCell>
                 <TableCell><TextField value={item.typicalPorts || ''} onChange={(e) => handleUpdate(item.localId, { typicalPorts: e.target.value })} size="small" fullWidth placeholder="e.g., 80, 443" /></TableCell>
-                <TableCell><FormControlLabel control={<Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} />} label="Deprecated" /></TableCell>
-                <TableCell align="right"><Button size="small" color="error" onClick={() => handleRemove(item.localId)}>Remove</Button></TableCell>
+                <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `No longer offered ${item.label}` }} /></TableCell>
+                <TableCell align="right"><Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button></TableCell>
               </TableRow>
             ))}
             {useVirtual && paddingBottom > 0 && (
@@ -435,6 +445,7 @@ const ConnectionTypesEditor = React.memo(function ConnectionTypesEditor({
           </TableBody>
         </Table>
       </TableContainer>
+      {removal.dialog}
     </Paper>
   );
 });
@@ -497,10 +508,12 @@ const SubnetsEditor = React.memo(function SubnetsEditor({
     [commitToParent]
   );
 
+  const removal = useCatalogRemoval('subnets');
+
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={0.5} sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Subnets</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Subnets</Typography>
         <Typography variant="body2" color="text.secondary">
           Define network subnets with VLAN assignments. Each subnet belongs to a network zone.
         </Typography>
@@ -514,7 +527,7 @@ const SubnetsEditor = React.memo(function SubnetsEditor({
               <TableCell sx={{ width: '10%' }}>VLAN</TableCell>
               <TableCell sx={{ width: '16%' }}>Network Zone</TableCell>
               <TableCell sx={{ width: '20%' }}>Description</TableCell>
-              <TableCell sx={{ width: '8%' }}>Deprecated</TableCell>
+              <TableCell sx={{ width: '8%' }}>No longer offered</TableCell>
               <TableCell align="right" sx={{ width: '10%' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -552,8 +565,8 @@ const SubnetsEditor = React.memo(function SubnetsEditor({
                   </TextField>
                 </TableCell>
                 <TableCell><TextField value={item.description || ''} onChange={(e) => handleUpdate(item.localId, { description: e.target.value })} size="small" fullWidth placeholder="Description" /></TableCell>
-                <TableCell><FormControlLabel control={<Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} />} label="" /></TableCell>
-                <TableCell align="right"><Button size="small" color="error" onClick={() => handleRemove(item.localId)}>Remove</Button></TableCell>
+                <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `No longer offered ${item.cidr}` }} /></TableCell>
+                <TableCell align="right"><Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.cidr || '', key: item.location_id && item.cidr ? { location_id: item.location_id, cidr: item.cidr } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button></TableCell>
               </TableRow>
             ))}
             {useVirtual && paddingBottom > 0 && (
@@ -562,6 +575,7 @@ const SubnetsEditor = React.memo(function SubnetsEditor({
           </TableBody>
         </Table>
       </TableContainer>
+      {removal.dialog}
     </Paper>
   );
 });
@@ -617,24 +631,24 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
     [commitToParent]
   );
 
+  // The DNS suffix follows the name until it is edited by hand; the code is generated by the server.
   const handleLabelChange = React.useCallback(
-    (localId: string, newLabel: string, currentCode: string, currentDnsSuffix: string, prevLabel: string) => {
+    (localId: string, newLabel: string, currentDnsSuffix: string, prevLabel: string) => {
       const updates: Partial<DomainOption> = { label: newLabel };
-      const autoCodeFromPrev = (prevLabel || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       const autoSuffixFromPrev = (prevLabel || '').toLowerCase().replace(/\s+/g, '');
-      const autoCodeFromNew = newLabel.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       const autoSuffixFromNew = newLabel.toLowerCase().replace(/\s+/g, '');
-      if (!currentCode || currentCode === autoCodeFromPrev) updates.code = autoCodeFromNew;
       if (!currentDnsSuffix || currentDnsSuffix === autoSuffixFromPrev) updates.dns_suffix = autoSuffixFromNew;
       handleUpdate(localId, updates);
     },
     [handleUpdate]
   );
+  const removal = useCatalogRemoval('domains');
+  const issues = React.useMemo(() => catalogListIssues(localItems, { skipCodes: new Set(localItems.filter((row: any) => row.system).map((row: any) => String(row.code).toLowerCase())) }), [localItems]);
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={0.5} sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Domains</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Domains</Typography>
         <Typography variant="body2" color="text.secondary">
           Define Active Directory or DNS domains for assets. System entries cannot be modified.
         </Typography>
@@ -643,11 +657,10 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
         <Table size="small" stickyHeader={useVirtual}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: '25%' }}>Name</TableCell>
-              <TableCell sx={{ width: '20%' }}>Code</TableCell>
-              <TableCell sx={{ width: '30%' }}>DNS Suffix</TableCell>
-              <TableCell sx={{ width: '10%' }}>Deprecated</TableCell>
-              <TableCell align="right" sx={{ width: '15%' }}>Actions</TableCell>
+              <TableCell sx={{ width: '32%' }}>Name</TableCell>
+              <TableCell sx={{ width: '33%' }}>DNS suffix</TableCell>
+              <TableCell sx={{ width: '15%' }}>No longer offered</TableCell>
+              <TableCell align="right" sx={{ width: '20%' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -665,15 +678,14 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
               const isSystem = !!item.system;
               return (
                 <TableRow key={item.localId}>
-                  <TableCell><TextField value={item.label || ''} onChange={(e) => handleLabelChange(item.localId, e.target.value, item.code || '', item.dns_suffix || '', item.label || '')} size="small" fullWidth placeholder="Display name" disabled={isSystem} InputProps={{ readOnly: isSystem }} /></TableCell>
-                  <TableCell><TextField value={item.code || ''} onChange={(e) => handleUpdate(item.localId, { code: e.target.value.toLowerCase().replace(/\s+/g, '-') })} size="small" fullWidth placeholder="code" disabled={isSystem} InputProps={{ readOnly: isSystem }} /></TableCell>
+                  <TableCell sx={{ verticalAlign: 'top' }}><TextField value={item.label || ''} onChange={(e) => handleLabelChange(item.localId, e.target.value, item.dns_suffix || '', item.label || '')} size="small" fullWidth placeholder="e.g., Corporate AD" disabled={isSystem} InputProps={{ readOnly: isSystem }} inputProps={{ 'aria-label': 'Name' }} /><IssueText issue={issues.get(localItems.indexOf(item))} /></TableCell>
                   <TableCell><TextField value={item.dns_suffix || ''} onChange={(e) => handleUpdate(item.localId, { dns_suffix: e.target.value.toLowerCase() })} size="small" fullWidth placeholder="e.g., corp.example.com" disabled={isSystem} InputProps={{ readOnly: isSystem }} /></TableCell>
-                  <TableCell><FormControlLabel control={<Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} disabled={isSystem} />} label="" /></TableCell>
+                  <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} disabled={isSystem} inputProps={{ 'aria-label': `No longer offered ${item.label}` }} /></TableCell>
                   <TableCell align="right">
                     {isSystem ? (
-                      <Typography variant="caption" color="text.secondary">System</Typography>
+                      <Typography variant="caption" color="text.secondary">Built-in</Typography>
                     ) : (
-                      <Button size="small" color="error" onClick={() => handleRemove(item.localId)}>Remove</Button>
+                      <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button>
                     )}
                   </TableCell>
                 </TableRow>
@@ -685,6 +697,7 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
           </TableBody>
         </Table>
       </TableContainer>
+      {removal.dialog}
     </Paper>
   );
 });
@@ -708,7 +721,7 @@ type SettingsState = {
   errorMessage: string | null;
 };
 
-const initialState: SettingsState = {
+export const initialState: SettingsState = {
   enums: emptyEnums,
   operatingSystems: [],
   connectionTypes: [],
@@ -734,6 +747,7 @@ type Action =
   | { type: 'resetSubnets' }
   | { type: 'resetDomains' }
   | { type: 'setPending'; id: ListId | null }
+  | { type: 'saved'; id: ListId; sent: any[]; saved: ItOpsSettings }
   | { type: 'setSuccess'; message: string }
   | { type: 'setError'; message: string | null };
 
@@ -753,11 +767,11 @@ function hydrateFromSettings(settings: ItOpsSettings) {
   };
 }
 
-function reducer(state: SettingsState, action: Action): SettingsState {
+export function reducer(state: SettingsState, action: Action): SettingsState {
   switch (action.type) {
     case 'hydrate': {
       const next = hydrateFromSettings(action.payload);
-      return { ...state, ...next, dirty: {}, pending: null, successMessage: '', errorMessage: null };
+      return { ...state, ...next, dirty: {}, pending: null, errorMessage: null };
     }
     case 'setEnum': {
       const enums = { ...state.enums, [action.id]: action.items };
@@ -810,6 +824,20 @@ function reducer(state: SettingsState, action: Action): SettingsState {
       const dom = withLocalIds(sortDomains(state.baseline.domains || []), 'domain');
       return { ...state, domains: dom, dirty: { ...state.dirty, domains: false } };
     }
+    case 'saved': {
+      // Reconcile only the list that was sent: rows are matched by code, new rows by position (order is preserved by
+      // the server). A draft edited since the send keeps its edits and stays dirty; it just learns its generated codes.
+      const savedList: any[] = ((action.saved as any)[action.id] as any[]) || [];
+      const baseline = { ...(state.baseline || action.saved), [action.id]: savedList, lockedCodes: action.saved.lockedCodes, protectedCodes: action.saved.protectedCodes } as ItOpsSettings;
+      const currentList: any[] = action.id === 'operatingSystems' ? state.operatingSystems : action.id === 'connectionTypes' ? state.connectionTypes : action.id === 'subnets' ? state.subnets : action.id === 'domains' ? state.domains : state.enums[action.id as EnumListId] || [];
+      const untouched = JSON.stringify(stripLocalIds(currentList)) === JSON.stringify(action.sent);
+      const matchSaved = (row: any, index: number) => (row.code ? savedList.find((candidate) => candidate.code === row.code) : undefined) ?? savedList[index];
+      const nextList = untouched
+        ? currentList.map((row: any, index: number) => ({ ...(matchSaved(row, index) ?? row), localId: row.localId }))
+        : currentList.map((row: any, index: number) => (!row.code && action.sent[index] && !action.sent[index].code && savedList[index]?.code ? { ...row, code: savedList[index].code } : row));
+      const listState = action.id === 'operatingSystems' ? { operatingSystems: nextList } : action.id === 'connectionTypes' ? { connectionTypes: nextList } : action.id === 'subnets' ? { subnets: nextList } : action.id === 'domains' ? { domains: nextList } : { enums: { ...state.enums, [action.id]: nextList } };
+      return { ...state, ...listState, baseline, dirty: { ...state.dirty, [action.id]: !untouched }, pending: null, errorMessage: null };
+    }
     case 'setPending':
       return { ...state, pending: action.id || null };
     case 'setSuccess':
@@ -839,72 +867,75 @@ export default function ItOperationsSettingsPage() {
     },
   });
 
+  // Hydrate from the query on first load, or when nothing is being edited: a refetch must never replace a draft.
+  const hasDrafts = Object.values(state.dirty).some(Boolean) || state.pending !== null;
   React.useEffect(() => {
-    if (data) dispatch({ type: 'hydrate', payload: data });
+    if (!data) return;
+    if (state.baseline === null || (!hasDrafts && data !== state.baseline)) dispatch({ type: 'hydrate', payload: data });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   const mutation = useMutation({
-    mutationFn: (payload: Partial<ItOpsSettings>) => updateItOpsSettings(payload),
-    onSuccess: (next: ItOpsSettings) => {
-      queryClient.invalidateQueries({ queryKey: ['it-ops-settings'] });
-      dispatch({ type: 'hydrate', payload: next });
+    mutationFn: ({ id, rows }: { id: ListId; rows: any[] }) => updateItOpsSettings({ [id]: rows } as Partial<ItOpsSettings>),
+    onSuccess: (next: ItOpsSettings, variables) => {
+      queryClient.setQueryData(['it-ops-settings'], next);
+      dispatch({ type: 'saved', id: variables.id, sent: variables.rows, saved: next });
       dispatch({ type: 'setSuccess', message: 'IT Landscape settings updated successfully' });
     },
     onError: (error) => {
-      dispatch({ type: 'setError', message: error instanceof Error ? error.message : 'Failed to update settings' });
+      dispatch({ type: 'setError', message: getApiErrorMessage(error, t, 'Failed to update settings') });
     },
     onSettled: () => dispatch({ type: 'setPending', id: null }),
   });
 
   const submitting = mutation.isPending;
-  const errorMessage = state.errorMessage || (mutation.error ? 'Failed to update settings' : null);
+  const errorMessage = state.errorMessage;
 
   const handleSaveEnum = (id: EnumListId) => {
     const current = state.enums[id] || [];
     const sorted = withLocalIds(sortEnum(current), id);
     dispatch({ type: 'setEnum', id, items: sorted });
     dispatch({ type: 'setPending', id });
-    mutation.mutate({ [id]: stripLocalIds(sorted) });
+    mutation.mutate({ id, rows: stripLocalIds(sorted) });
   };
 
   const handleSaveOperatingSystems = () => {
     const sorted = withLocalIds(sortOperatingSystems(state.operatingSystems), 'os');
     dispatch({ type: 'setOperatingSystems', items: sorted });
     dispatch({ type: 'setPending', id: 'operatingSystems' });
-    mutation.mutate({ operatingSystems: stripLocalIds(sorted) });
+    mutation.mutate({ id: 'operatingSystems', rows: stripLocalIds(sorted) });
   };
 
   const handleSaveConnections = () => {
     const sorted = withLocalIds(sortConnectionTypes(state.connectionTypes), 'ct');
     dispatch({ type: 'setConnectionTypes', items: sorted });
     dispatch({ type: 'setPending', id: 'connectionTypes' });
-    mutation.mutate({ connectionTypes: stripLocalIds(sorted) });
+    mutation.mutate({ id: 'connectionTypes', rows: stripLocalIds(sorted) });
   };
 
   const handleSaveSubnets = () => {
     const sorted = withLocalIds(sortSubnets(state.subnets), 'subnet');
     dispatch({ type: 'setSubnets', items: sorted });
     dispatch({ type: 'setPending', id: 'subnets' });
-    mutation.mutate({ subnets: stripLocalIds(sorted) });
+    mutation.mutate({ id: 'subnets', rows: stripLocalIds(sorted) });
   };
 
   const handleSaveDomains = () => {
     const sorted = withLocalIds(sortDomains(state.domains), 'domain');
     dispatch({ type: 'setDomains', items: sorted });
     dispatch({ type: 'setPending', id: 'domains' });
-    mutation.mutate({ domains: stripLocalIds(sorted) });
+    mutation.mutate({ id: 'domains', rows: stripLocalIds(sorted) });
   };
 
   // Debounced autosave: each dirty list saves ~1.5s after the last edit, but
   // only once every row is complete — half-typed rows stay local until filled.
+  // Codes are generated by the server; a list is sent once every name is present and the names are valid
+  // (unique, not another row's code, no comma where the CSV serializes the list with commas).
   const listReadyToSave = (id: ListId): boolean => {
-    const hasCodeAndLabel = (rows: Array<{ code?: string; label?: string }>) =>
-      rows.every((row) => String(row.code || '').trim() !== '' && String(row.label || '').trim() !== '');
     if (id === 'subnets') return state.subnets.every((row) => String(row.cidr || '').trim() !== '');
-    if (id === 'operatingSystems') return hasCodeAndLabel(state.operatingSystems);
-    if (id === 'connectionTypes') return hasCodeAndLabel(state.connectionTypes);
-    if (id === 'domains') return hasCodeAndLabel(state.domains);
-    return hasCodeAndLabel(state.enums[id as EnumListId] || []);
+    const rows: any[] = id === 'operatingSystems' ? state.operatingSystems : id === 'connectionTypes' ? state.connectionTypes : id === 'domains' ? state.domains : state.enums[id as EnumListId] || [];
+    const skipCodes = new Set((state.baseline?.lockedCodes?.[id] || []).map((code) => code.toLowerCase()));
+    return catalogListIssues(rows, { forbidComma: id === 'accessMethods', skipCodes }).size === 0;
   };
 
   React.useEffect(() => {
@@ -923,6 +954,13 @@ export default function ItOperationsSettingsPage() {
       });
     }, 1500);
     return () => clearTimeout(timer);
+  });
+
+  // Locked rows come from the server (lifecycle statuses, system domains); protected rows are defaults it re-adds.
+  const editorGuards = (id: EnumListId) => ({
+    usageList: id,
+    lockedCodes: state.baseline?.lockedCodes?.[id] ?? enumSections.find((section) => section.id === id)?.lockedCodes,
+    protectedCodes: state.baseline?.protectedCodes?.[id],
   });
 
   const makeEmptyEnumRow = (id: EnumListId): ItOpsEnumOption => {
@@ -1027,15 +1065,15 @@ export default function ItOperationsSettingsPage() {
                       dirty={dirty}
                     />
                     {enumSection.kind === 'hosting' ? (
-                      <HostingTypeEditor items={items as HostingTypeItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton />
+                      <HostingTypeEditor items={items as HostingTypeItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton {...editorGuards(enumSection.id)} />
                     ) : enumSection.kind === 'serverKind' ? (
-                      <AssetKindEditor items={items as AssetKindItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton />
+                      <AssetKindEditor items={items as AssetKindItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton {...editorGuards(enumSection.id)} />
                     ) : enumSection.kind === 'serverRole' ? (
-                      <ServerRoleEditor items={items as ServerRoleItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton />
+                      <ServerRoleEditor items={items as ServerRoleItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton {...editorGuards(enumSection.id)} />
                     ) : enumSection.kind === 'entity' ? (
-                      <EntityEditor items={items as EntityItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton />
+                      <EntityEditor items={items as EntityItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton {...editorGuards(enumSection.id)} />
                     ) : (
-                      <EnumEditor title={enumSection.title} description={enumSection.description} items={items} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} lockedCodes={enumSection.lockedCodes} hideAddButton />
+                      <EnumEditor title={enumSection.title} description={enumSection.description} items={items} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton forbidComma={enumSection.id === 'accessMethods'} {...editorGuards(enumSection.id)} />
                     )}
                   </SettingsSection>
                 );

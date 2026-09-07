@@ -5,7 +5,7 @@ import {
 } from '../common/csv';
 import { allocateItemNumbers } from '../common/item-number.service';
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
-import { DEFAULT_INCIDENT_CATEGORIES } from '../it-ops-settings/it-ops-settings.service';
+import { findCatalogOption, requireImportCatalogs } from '../it-ops-settings/catalog-resolve';
 import { INCIDENT_SEVERITIES, INCIDENT_STATUSES } from './incident.entity';
 import { incidentVisibleToViewer, type IncidentViewer } from './incident-visibility';
 
@@ -412,25 +412,12 @@ export const incidentCsvConfig: CsvEntityConfig = {
       delete entity[REVIEW_ENTITY_PROPERTY];
     }
 
-    const tenantRows = await context.manager.query(
-      `SELECT metadata FROM tenants WHERE id = $1 LIMIT 1`,
-      [context.tenantId],
-    );
-    // Tenants that never edited the list have nothing stored: the settings
-    // service serves the defaults in that case, so the import must too.
-    const storedCategories: Array<{ code: string; label: string }> | undefined =
-      tenantRows[0]?.metadata?.it_ops?.incident_categories;
-    const categories = storedCategories && storedCategories.length > 0 ? storedCategories : DEFAULT_INCIDENT_CATEGORIES;
-
-    const categoryLookup = new Map<string, string>();
-    for (const item of categories) {
-      categoryLookup.set(item.code.toLowerCase(), item.code);
-      categoryLookup.set(item.label.toLowerCase(), item.code);
-    }
+    // Effective catalog (defaults included), the same one the export writes names from.
+    const categories = (await requireImportCatalogs(context)).incidentCategories;
 
     for (const entity of entities) {
       if (entity.category) {
-        const resolved = categoryLookup.get(String(entity.category).trim().toLowerCase());
+        const resolved = findCatalogOption(entity.category, categories)?.code;
         if (!resolved) {
           throw new Error(
             `${incidentLabel(entity)}: unknown category "${entity.category}". ` +

@@ -29,10 +29,27 @@ Cada lista aparece como un panel expandible. Haga clic en el encabezado de un pa
 Cada lista tiene sus propios controles en la parte superior:
 
 - **Añadir elemento** - Inserta una nueva fila en la parte superior de la lista, enfocada y lista para escribir.
-- **Guardar cambios** - Guarda sus ediciones en el servidor. Se habilita cuando tiene cambios sin guardar.
-- **Restablecer** - Revierte la lista al último estado guardado (no a los valores de fábrica).
+- Las ediciones se guardan automáticamente alrededor de un segundo y medio después de su último cambio, una vez que todas las filas son válidas. Un indicador de guardado se muestra junto a la lista.
 
 Para listas largas (más de 25 filas), la tabla virtualiza filas, mostrando unas 20 a la vez con desplazamiento suave y encabezados fijos.
+
+### Los nombres son la identidad de un valor
+
+Usted solo ve y escribe **nombres**. KANAP genera un código interno estable a partir del nombre cuando un valor se guarda por primera vez y lo conserva para siempre, de modo que renombrar un valor nunca rompe los registros que lo usan. El código es visible para los integradores en la API y puede usarse en archivos CSV, pero la exportación CSV escribe nombres y la importación acepta cualquiera de los dos.
+
+Como los nombres identifican los valores, dentro de una lista se aplican algunas reglas:
+
+- todo valor necesita un nombre, y dos valores no pueden tener el mismo nombre (las mayúsculas y minúsculas no importan);
+- un nombre no puede ser idéntico al código interno de otro valor de la misma lista;
+- los nombres de los **Métodos de acceso** no pueden contener una coma ni un punto y coma, porque la exportación CSV los lista en una sola celda separada por comas.
+
+Una lista que incumple una de estas reglas no se guarda hasta que la corrija; la fila muestra qué está mal.
+
+### Eliminar un valor
+
+**Eliminar** borra un valor que nada utiliza. Cuando todavía hay registros que hacen referencia al valor, KANAP muestra cuántos (aplicaciones, activos, interfaces, conexiones, ubicaciones, incidentes, subredes…), con un enlace a la lista filtrada cuando una lista se puede filtrar por ese campo, y ofrece **Dejar de proponer** en su lugar: el valor sigue visible en los registros que ya lo usan y ya no se propone para los nuevos. Un valor en uso nunca se elimina, ni siquiera a través de la API.
+
+Los valores integrados que KANAP gestiona por sí mismo (los cuatro estados del ciclo de vida, los dominios Workgroup y N/A) no se pueden editar ni eliminar. Las zonas de red y los tipos de activo predeterminados se pueden editar y retirar, pero no eliminar: el servidor los volvería a añadir.
 
 ---
 
@@ -42,7 +59,7 @@ Para listas largas (más de 25 filas), la tabla virtualiza filas, mostrando unas
 
 Proveedores cloud disponibles para Activos y Ubicaciones de tipo cloud (p. ej., AWS, Azure, GCP).
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Activos → pestaña Visión general → campo **Proveedor**
@@ -52,7 +69,7 @@ Proveedores cloud disponibles para Activos y Ubicaciones de tipo cloud (p. ej., 
 
 Modelos de alojamiento de ubicaciones (p. ej., Local, Coubicación, Nube pública, Nube privada, SaaS).
 
-**Columnas**: Etiqueta, Código, Categoría (Local/Coubicación o Nube/SaaS), Indicador de obsoleto
+**Columnas**: Nombre, Categoría (Local/Coubicación o Nube/SaaS), Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Ubicaciones → pestaña Visión general → campo **Tipo de alojamiento**
@@ -69,7 +86,7 @@ La categoría determina qué campos aparecen al editar una Ubicación:
 
 Un catálogo de dos niveles de protocolos de conexión organizados por categoría, con puertos típicos.
 
-**Columnas**: Categoría (p. ej., Base de datos, Acceso remoto), Etiqueta, Código, Puertos típicos, Indicador de obsoleto
+**Columnas**: Categoría (p. ej., Base de datos, Acceso remoto), Nombre, Puertos típicos, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Conexiones → selector de **Tipo de conexión**
@@ -82,7 +99,7 @@ Las categorías predeterminadas incluyen: Aplicación, Autenticación, Respaldo,
 
 Dominios Active Directory o DNS a los que pueden pertenecer los activos. Se usan para calcular el nombre de dominio completamente cualificado (FQDN) de cada activo.
 
-**Columnas**: Nombre, Código, Sufijo DNS, Indicador de obsoleto
+**Columnas**: Nombre, Sufijo DNS, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Activos → pestaña Técnico → selector de **Dominio**
@@ -92,7 +109,7 @@ Dominios Active Directory o DNS a los que pueden pertenecer los activos. Se usan
 - **Workgroup** - Para activos independientes no unidos a un dominio
 - **N/A** - Para tipos de activo donde la pertenencia a dominio no aplica (p. ej., dispositivos de red, racks)
 
-**Comportamiento de auto-relleno**: Al añadir un nuevo dominio, los campos Código y Sufijo DNS se auto-rellenan basándose en el Nombre que introduzca. Puede sobrescribir estos valores si es necesario.
+**Comportamiento de auto-relleno**: Al añadir un nuevo dominio, el sufijo DNS se auto-rellena a partir del nombre que introduzca hasta que usted lo edite.
 
 **Ejemplo**: Un dominio llamado "Corporate AD" con sufijo DNS `corp.example.com` produciría un FQDN de `hostname.corp.example.com` para un activo con hostname `web-server-01`.
 
@@ -100,7 +117,7 @@ Dominios Active Directory o DNS a los que pueden pertenecer los activos. Se usan
 
 Entidades de origen y destino para flujos de datos y patrones de acceso (p. ej., Usuarios internos, Internet, Redes de partners, Sistemas externos).
 
-**Columnas**: Etiqueta, Código, Nivel del grafo, Indicador de obsoleto
+**Columnas**: Nombre, Nivel del grafo, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Conexiones → campos de **Entidad de origen** y **Entidad de destino**
@@ -120,7 +137,7 @@ El Nivel del grafo controla la banda vertical preferida en el Mapa de conexiones
 
 Tipos de direcciones IP que pueden asignarse a activos. Útil para distinguir entre diferentes interfaces de red como IPs de host, interfaces de gestión y redes de almacenamiento.
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Valores predeterminados**: Host, IPMI, Gestión, iSCSI
 
@@ -136,7 +153,7 @@ Los activos pueden tener múltiples direcciones IP, cada una con su propio tipo.
 
 Zonas de red usadas para categorizar subredes y describir la conectividad de activos (p. ej., LAN, DMZ, LAN industrial, WiFi, Nube pública, Invitados, Gestión, Almacenamiento, VPN).
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Lista de subredes → selector de **Zona de red**
@@ -146,7 +163,7 @@ Zonas de red usadas para categorizar subredes y describir la conectividad de act
 
 Defina subredes de red con notación CIDR, asignaciones VLAN opcionales y clasificación por zona de red. Cada subred pertenece a una Ubicación específica.
 
-**Columnas**: Ubicación, CIDR, VLAN (1-4094), Zona de red, Descripción, Indicador de obsoleto
+**Columnas**: Ubicación, CIDR, VLAN (1-4094), Zona de red, Descripción, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Activos → pestaña Técnico → selector de **Subred**
@@ -162,7 +179,7 @@ Defina subredes de red con notación CIDR, asignaciones VLAN opcionales y clasif
 
 Catálogo de sistemas operativos para Activos, incluyendo fechas del ciclo de vida de soporte.
 
-**Columnas**: Nombre, Código, Fecha de fin de soporte estándar, Fecha de fin de soporte extendido, Indicador de obsoleto
+**Columnas**: Nombre, Fecha de fin de soporte estándar, Fecha de fin de soporte extendido, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Activos → pestaña Técnico → selector de **Sistema operativo** (el texto de ayuda muestra las fechas de soporte)
@@ -175,7 +192,7 @@ Las entradas predeterminadas incluyen versiones de Windows Server, Ubuntu LTS, R
 
 Roles asignados a activos al vincularlos a instancias de aplicación (p. ej., Servidor web, Servidor de base de datos, Worker).
 
-**Columnas**: Etiqueta, Código, Nivel del grafo, Indicador de obsoleto
+**Columnas**: Nombre, Nivel del grafo, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Aplicaciones → pestaña Servidores → desplegable de **Rol** al vincular un activo a una instancia
@@ -190,7 +207,7 @@ Ejemplos predeterminados integrados:
 
 Tipos lógicos para activos de infraestructura (p. ej., Servidor físico, Máquina virtual, Contenedor, Serverless, Appliance).
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Activos → pestaña Visión general → campo **Tipo**
@@ -203,7 +220,7 @@ Tipos lógicos para activos de infraestructura (p. ej., Servidor físico, Máqui
 
 Métodos por los cuales los usuarios acceden a las aplicaciones (p. ej., Navegador web, App móvil, Sesión VDI).
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Valores predeterminados**: Web, Aplicación instalada localmente, Aplicación móvil, HMI propietario (interfaz industrial), Terminal / CLI, VDI / Escritorio remoto, Kiosk
 
@@ -216,7 +233,7 @@ Métodos por los cuales los usuarios acceden a las aplicaciones (p. ej., Navegad
 
 Categorías que describen el propósito principal de cada aplicación o servicio.
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Valores predeterminados**: Línea de negocio, Productividad, Seguridad, Analítica, Desarrollo, Integración, Infraestructura
 
@@ -230,7 +247,7 @@ Categorías que describen el propósito principal de cada aplicación o servicio
 
 Niveles de clasificación de datos para Aplicaciones e Interfaces.
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Códigos bloqueados**: Los niveles integrados (Público, Interno, Confidencial, Restringido) no pueden eliminarse ni marcarse como obsoletos.
 
@@ -252,7 +269,7 @@ Este editor configura los niveles utilizados para clasificar las aplicaciones. E
 
 **Cambiar el catálogo nunca cambia las aplicaciones.** Una aplicación guarda el código de su nivel. Renombrar un nivel, editar su descripción o su duración y reordenar el catálogo dejan cada aplicación en el mismo nivel y no invalidan las revisiones. Un nivel que todavía usa una aplicación, interfaz o conexión no se puede eliminar; márquelo como **Dejar de proponer**: sigue visible en los registros existentes y ya no se propone para los nuevos.
 
-Los códigos son identificadores estables que se muestran como referencia. Los nombres deben ser únicos dentro de un catálogo, porque la importación CSV y la API aceptan tanto el código como el nombre.
+Los códigos se generan a partir de los nombres y nunca se muestran; se aplican las reglas de nombres indicadas arriba.
 
 Los niveles de negocio también alimentan la criticidad operativa de interfaces y conexiones. Las derivaciones incompletas se señalan como tales; no se tratan como el nivel más bajo.
 
@@ -260,7 +277,7 @@ Los niveles de negocio también alimentan la criticidad operativa de interfaces 
 
 Patrones de integración para rutas de Interfaz (p. ej., REST API, Lote de archivos, Cola, Staging BD).
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Rutas de interfaz → campo **Patrón**
@@ -269,7 +286,7 @@ Patrones de integración para rutas de Interfaz (p. ej., REST API, Lote de archi
 
 Modos de autenticación para enlaces de Interfaz (p. ej., Cuenta de servicio, OAuth2, Clave API, Certificado).
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Enlaces de interfaz → campo **Modo de autenticación**
@@ -278,7 +295,7 @@ Modos de autenticación para enlaces de Interfaz (p. ej., Cuenta de servicio, OA
 
 Categorías de datos de negocio para Interfaces (p. ej., Datos maestros, Transaccional, Informes, Control).
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Interfaces → campo **Categoría de datos**
@@ -287,7 +304,7 @@ Categorías de datos de negocio para Interfaces (p. ej., Datos maestros, Transac
 
 Formatos de carga para rutas de Interfaz (p. ej., CSV, JSON, XML, IDoc, Binario).
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Rutas de interfaz → campo **Formato**
@@ -296,7 +313,7 @@ Formatos de carga para rutas de Interfaz (p. ej., CSV, JSON, XML, IDoc, Binario)
 
 Protocolos técnicos para enlaces de Interfaz (p. ej., HTTP/REST, gRPC, SFTP, Kafka, Base de datos).
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Enlaces de interfaz → campo **Protocolo** (enlaces legado)
@@ -305,7 +322,7 @@ Protocolos técnicos para enlaces de Interfaz (p. ej., HTTP/REST, gRPC, SFTP, Ka
 
 Mecanismos de disparo para rutas de Interfaz (p. ej., Basado en eventos, Programado, Tiempo real, Manual).
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Rutas de interfaz → campo **Disparador**
@@ -314,7 +331,7 @@ Mecanismos de disparo para rutas de Interfaz (p. ej., Basado en eventos, Program
 
 Estados de ciclo de vida compartidos para Aplicaciones, Instancias de app, Interfaces, Enlaces de interfaz y Activos.
 
-**Columnas**: Etiqueta, Código, Indicador de obsoleto
+**Columnas**: Nombre, Dejar de proponer
 
 **Códigos bloqueados**: Los estados integrados (Propuesto, Activo, Obsoleto, Retirado) no pueden eliminarse ni tener sus códigos modificados.
 
@@ -325,7 +342,7 @@ Estados de ciclo de vida compartidos para Aplicaciones, Instancias de app, Inter
 
 ## Cómo afectan los cambios a los datos existentes
 
-- **Los registros existentes conservan sus códigos almacenados** - Cambiar una etiqueta solo cambia lo que ven los usuarios, no los datos subyacentes.
+- **Los registros existentes conservan su valor** - Renombrar solo cambia lo que ven los usuarios, no los datos subyacentes.
 - **Valores obsoletos**:
   - Permanecen válidos para registros que ya los utilizan.
   - Se ocultan de los desplegables al crear nuevos registros.
@@ -366,7 +383,7 @@ Este enfoque le permite evolucionar su taxonomía con el tiempo sin romper los r
 
 ## Consejos
 
-- **Alinee las etiquetas con su terminología** - Revise los valores predeterminados y renombre las etiquetas para que coincidan con cómo su organización habla de estos conceptos. Los códigos permanecen iguales; solo cambia el texto visible.
+- **Alinee los nombres con su terminología** - Revise los valores predeterminados y renombre los valores para que coincidan con cómo su organización habla de estos conceptos. Los registros conservan su vínculo con el valor; solo cambia el nombre.
 - **Marque como obsoleto gradualmente** - Al dejar de usar un valor, márquelo como obsoleto en lugar de eliminarlo. Esto mantiene los datos históricos intactos mientras dirige a los usuarios hacia nuevas opciones.
 - **Coordine las Clases de datos con seguridad** - Los cambios en las Clases de datos deben alinearse con sus políticas de seguridad de la información. Consulte con conformidad antes de añadir o renombrar niveles de clasificación.
 - **Use los puertos típicos como documentación** - El campo "Puertos típicos" de los Tipos de conexión es informativo. Complételo para ayudar a los usuarios a entender qué puertos usa comúnmente cada tipo de conexión.

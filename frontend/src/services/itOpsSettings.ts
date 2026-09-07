@@ -100,6 +100,10 @@ export type ItOpsSettings = {
   businessCriticalityLevels: BusinessCriticalityLevel[];
   cyberCriticalityLevels: ClassificationLevel[];
   recoveryWaves: RecoveryWave[];
+  /** Server-managed rows the editors must not edit nor remove. */
+  lockedCodes?: Record<string, string[]>;
+  /** Default rows the server re-adds after removal: editable and retirable, never removable. */
+  protectedCodes?: Record<string, string[]>;
 };
 
 export type ClassificationSettingsPatch = ApplicationClassificationCatalog;
@@ -117,6 +121,16 @@ export async function updateItOpsSettings(payload: Partial<ItOpsSettings>): Prom
 export async function fetchApplicationClassificationCatalog(): Promise<ApplicationClassificationCatalog> {
   const res = await api.get('/applications/classification-catalog');
   return res.data as ApplicationClassificationCatalog;
+}
+
+export type CatalogUsageRecord = 'applications' | 'assets' | 'interfaces' | 'connections' | 'app_instances' | 'interface_bindings' | 'locations' | 'incidents' | 'server_assignments' | 'subnets';
+export type CatalogUsage = { total: number; usage: Array<{ record: CatalogUsageRecord; count: number; listPath?: string }> };
+export type CatalogUsageKey = { code: string } | { location_id: string; cidr: string };
+
+/** Records referencing one catalog value; the same counts protect removal on save. */
+export async function fetchCatalogUsage(list: string, key: CatalogUsageKey): Promise<CatalogUsage> {
+  const res = await api.get('/it-ops/settings/usage', { params: { list, ...key } });
+  return res.data as CatalogUsage;
 }
 
 export async function resetItOpsSettingsToDefaults(): Promise<ItOpsSettings> {

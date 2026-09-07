@@ -198,7 +198,7 @@ export abstract class InterfacesBaseService {
     if (!code) {
       throw new BadRequestException('data_category is required');
     }
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.interfaceDataCategories || []).map((o) => o.code));
     if (!allowed.has(code)) {
       throw new BadRequestException(`Invalid data_category "${value}"`);
@@ -251,7 +251,7 @@ export abstract class InterfacesBaseService {
     manager?: EntityManager,
     fallback?: string,
   ): Promise<Lifecycle> {
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = (settings.lifecycleStates || []).map((item) => item.code);
     const fallbackCode = this.pickLifecycleFallback(fallback ?? 'active', allowed);
     if (value === undefined || value === null || String(value).trim() === '') {
@@ -286,7 +286,7 @@ export abstract class InterfacesBaseService {
     if (!code) {
       throw new BadRequestException(`${label} is required`);
     }
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const list = (settings as any)?.[settingsKey] || [];
     const allowed = new Set((list as Array<{ code: string }>).map((o) => o.code));
     if (!allowed.has(code)) {
@@ -332,7 +332,7 @@ export abstract class InterfacesBaseService {
     // Clear any existing legs for safety
     await legRepo.delete({ interface_id: intf.id } as any);
 
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const triggerDefault = (settings.interfaceTriggerTypes[0]?.code ?? 'event_based').toLowerCase();
     const patternDefault = (settings.interfacePatterns[0]?.code ?? 'rest_api_sync').toLowerCase();
     const formatDefault = (settings.interfaceFormats[0]?.code ?? 'json').toLowerCase();

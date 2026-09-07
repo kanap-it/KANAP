@@ -87,13 +87,13 @@ async function main() {
     const expression=classificationSqlExpressions('a');
     const grouped=await manager.query(`SELECT ${expression.classification_review_state} AS state,count(*)::int AS count FROM applications a WHERE a.tenant_id=$1 GROUP BY 1`,[tenantA]); assert.equal(grouped.reduce((n:any,r:any)=>n+r.count,0),2);
     const copied=await crud.copyApplication(app.id,'Copy',userId,{manager}); assert.equal(copied.criticality,'high'); assert.equal(copied.classification_review,null); assert.equal(copied.last_dr_test,null);
-    const context:any={manager,tenantId:tenantA,params:{dryRun:true,mode:'replace',operation:'upsert'}};
+    const context:any={manager,tenantId:tenantA,params:{dryRun:true,mode:'replace',operation:'upsert'},itOpsSettings:await settings.getSettings(tenantA,{manager})};
     const csvRows:any[]=[{rowNumber:2,raw:{criticality:'__CLEAR__',cyber_criticality:''},parsed:{},existingEntity:updated,errors:[]}];
     await applicationCsvConfig.afterValidate!(csvRows,context); assert.deepEqual(csvRows[0].errors,[]); assert.equal(csvRows[0].parsed.criticality,null); assert.equal(csvRows[0].parsed.cyber_criticality,undefined);
     const byNameRows:any[]=[{rowNumber:3,raw:{criticality:'Elevée'},parsed:{},existingEntity:updated,errors:[]}]; await applicationCsvConfig.afterValidate!(byNameRows,context); assert.deepEqual(byNameRows[0].errors,[]); assert.equal(byNameRows[0].parsed.criticality,'high');
     const badRows:any[]=[{rowNumber:4,raw:{criticality:'no_such_level'},parsed:{},existingEntity:updated,errors:[]}]; await applicationCsvConfig.afterValidate!(badRows,context); assert.match(badRows[0].errors[0].message,/Unknown or ambiguous/);
     const resolver = new CsvResolverService();
-    const csv = new ApplicationsCsvService(manager.getRepository(Application), null as any, null as any, new CsvExportService(resolver), new CsvImportService(resolver,new CsvJsonValidators()),resolver,audit,list);
+    const csv = new ApplicationsCsvService(manager.getRepository(Application), null as any, null as any, new CsvExportService(resolver), new CsvImportService(resolver,new CsvJsonValidators()),resolver,audit,list,settings);
     await manager.query(`INSERT INTO application_data_residency(tenant_id,application_id,country_iso) VALUES ($1,$2,'FR')`,[tenantA,app.id]);
     const residencyRevision = Number((await manager.getRepository(Application).findOneByOrFail({id:app.id})).classification_revision);
     await crud.reviewClassification(app.id,residencyRevision,userId,{manager});
@@ -108,7 +108,7 @@ async function main() {
     const dry=await csv.import(file,{dryRun:true,mode:'enrich',operation:'upsert'},{manager,tenantId:tenantA,userId}); assert.equal(dry.ok,true,JSON.stringify(dry.errors));
     const applied=await csv.import(file,{dryRun:false,mode:'enrich',operation:'upsert'},{manager,tenantId:tenantA,userId}); assert.equal(applied.ok,true,JSON.stringify(applied.errors));
     const imported=await manager.getRepository(Application).findOneByOrFail({name:'CSV Atlas',tenant_id:tenantA}); assert.equal(imported.criticality,'business_critical'); assert.equal(imported.cyber_criticality,'high'); assert.equal(imported.rpo_minutes,0);
-    const exported=await csv.export({manager,tenantId:tenantA,fields:['name','criticality','cyber_criticality'],query:{filters:JSON.stringify({name:{filterType:'text',type:'equals',filter:'CSV Atlas'}})}}); assert.equal(exported.rowCount,1); assert.match(exported.content,/CSV Atlas/);
+    const exported=await csv.export({manager,tenantId:tenantA,fields:['name','criticality','cyber_criticality'],query:{filters:JSON.stringify({name:{filterType:'text',type:'equals',filter:'CSV Atlas'}})}}); assert.equal(exported.rowCount,1); assert.match(exported.content,/High;CSV Atlas;Critical/,'export writes catalog names, not codes'); assert.doesNotMatch(exported.content,/business_critical/);
     const importedAudit=await manager.query("SELECT source FROM audit_log WHERE record_id=$1 AND table_name='applications'",[imported.id]); assert.ok(importedAudit.length);
     await manager.query(`SELECT set_config('app.current_tenant',$1,true)`,[tenantB]);
     await assert.rejects(()=>crud.get(app.id,{manager}),/not found/i);

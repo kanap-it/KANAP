@@ -140,7 +140,7 @@ export abstract class ConnectionsBaseService {
     manager?: EntityManager,
     fallback: string = 'active',
   ): Promise<string> {
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = (settings.lifecycleStates || []).map((item) => item.code);
     const normalized = String(value ?? '').trim().toLowerCase();
     const fallbackCode = allowed.includes(fallback) ? fallback : allowed[0] || 'active';
@@ -234,7 +234,7 @@ export abstract class ConnectionsBaseService {
   }
 
   protected async validateEntityCode(code: string, tenantId: string, manager?: EntityManager) {
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.entities || []).map((e) => e.code));
     if (!allowed.has(code)) {
       throw new BadRequestException(`Invalid entity "${code}"`);
@@ -251,7 +251,7 @@ export abstract class ConnectionsBaseService {
     if (list.length === 0) {
       throw new BadRequestException('At least one protocol is required');
     }
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.connectionTypes || []).map((o) => o.code));
     for (const code of list) {
       if (!allowed.has(code)) {
@@ -293,7 +293,7 @@ export abstract class ConnectionsBaseService {
     if (byCode.size === 0) {
       throw new BadRequestException('At least one protocol is required');
     }
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.connectionTypes || []).map((o) => o.code));
     for (const code of byCode.keys()) {
       if (!allowed.has(code)) {
@@ -315,7 +315,7 @@ export abstract class ConnectionsBaseService {
     if (value == null) return null;
     const normalized = String(value).trim().toLowerCase();
     if (!normalized) return null;
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.pathHopFunctions || []).map((o: any) => String(o.code).toLowerCase()));
     if (!allowed.has(normalized)) {
       throw new BadRequestException(`Invalid path-hop function "${value}"`);
@@ -338,7 +338,7 @@ export abstract class ConnectionsBaseService {
     if (normalized.length === 0) {
       throw new BadRequestException('At least one protocol is required for each leg');
     }
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.connectionTypes || []).map((o: any) => o.code));
     for (const code of normalized) {
       if (!allowed.has(code)) {

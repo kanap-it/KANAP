@@ -71,7 +71,7 @@ export class InterfaceBindingsService {
     manager?: EntityManager,
     fallback: string = 'proposed',
   ): Promise<BindingLifecycle> {
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = (settings.lifecycleStates || []).map((item) => item.code);
     const fallbackCode = this.pickLifecycleFallback(fallback, allowed);
     if (value === undefined || value === null || String(value).trim() === '') {
@@ -98,7 +98,7 @@ export class InterfaceBindingsService {
     if (value == null || value === '') return null;
     const code = String(value || '').trim().toLowerCase();
     if (!code) return null;
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.interfaceAuthModes || []).map((o) => o.code));
     if (!allowed.has(code)) {
       throw new BadRequestException(`Invalid authentication_mode "${value}"`);

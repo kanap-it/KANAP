@@ -96,7 +96,7 @@ export class AppAssetAssignmentsService {
     if (!normalized) {
       throw new BadRequestException('role is required');
     }
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.serverRoles || []).map((item) => item.code));
     if (!allowed.has(normalized)) {
       throw new BadRequestException(`Invalid role "${value}"`);
@@ -148,7 +148,7 @@ export class AppAssetAssignmentsService {
        ORDER BY a.name ASC`,
       [instanceId],
     );
-    const settings = await this.itOpsSettings.getSettings(instance.tenant_id, { manager: mg });
+    const settings = await this.itOpsSettings.getSettingsForWrite(instance.tenant_id, mg);
     return {
       items: rows.map((row) => ({
         id: row.id,

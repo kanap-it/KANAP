@@ -316,7 +316,7 @@ For fields configured in **IT Landscape > Settings**, you can use either the int
 | Domain | `corp`, `dmz` | `Corporate Domain`, `DMZ` |
 | IP Address Type | `host`, `ipmi`, `mgmt` | `Host IP`, `IPMI`, `Management` |
 
-The system automatically normalizes values during import, so `Virtual Machine`, `virtual machine`, and `vm` all resolve to the same asset type.
+The system automatically normalizes values during import, so `Virtual Machine`, `virtual machine`, and `vm` all resolve to the same asset type. A value that matches several entries is refused rather than guessed. The CSV export writes names for these columns, so an exported file can be imported back as is.
 
 ### Matching and updates
 

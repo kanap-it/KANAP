@@ -9,6 +9,8 @@ import { KanapDialog } from '../../../components/design';
 import type { ApplicationClassificationCatalog, BusinessCriticalityLevel, ClassificationLevel, ItOpsSettings, RecoveryWave } from '../../../services/itOpsSettings';
 import { updateItOpsSettings } from '../../../services/itOpsSettings';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { useCatalogRemoval } from '../../../components/settings/useCatalogRemoval';
+import { catalogListIssues } from '../../../components/settings/catalogValidation';
 
 type Props = { settings: ItOpsSettings };
 type Kind = 'business' | 'level' | 'wave';
@@ -24,11 +26,14 @@ function stripCatalog(settings: ItOpsSettings): ApplicationClassificationCatalog
 
 const fieldSx = { '& input': { fontSize: 12, py: 0.5 } } as const;
 const headerSx = { fontSize: 11, fontWeight: 500, color: 'kanap.text.tertiary' } as const;
-const columns = (kind: Kind) => kind === 'business' ? '52px 110px 140px minmax(180px,1fr) 105px 84px' : '52px 110px 140px minmax(180px,1fr) 84px';
+const columns = (kind: Kind) => kind === 'business' ? '52px 150px minmax(180px,1fr) 105px 84px 80px' : '52px 150px minmax(180px,1fr) 84px 80px';
 
-/** Rows are the order: first = most severe (or first restored). The server assigns ranks from that order. */
-function LevelRows<T extends ClassificationLevel | BusinessCriticalityLevel | RecoveryWave>({ rows, kind, help, onChange }: { rows: T[]; kind: Kind; help: string; onChange: (rows: T[]) => void }) {
+/** Rows are the order: first = most severe (or first restored). The server assigns ranks from that order and generates codes from names. */
+function LevelRows<T extends ClassificationLevel | BusinessCriticalityLevel | RecoveryWave>({ rows, kind, help, usageList, onChange }: { rows: T[]; kind: Kind; help: string; usageList: string; onChange: (rows: T[]) => void }) {
+  const { t } = useTranslation('common');
   const patch = (index: number, next: Partial<T>) => onChange(rows.map((row, i) => i === index ? { ...row, ...next } : row));
+  const removal = useCatalogRemoval(usageList);
+  const issues = catalogListIssues(rows);
   const move = (index: number, delta: number) => {
     const next = [...rows];
     const [row] = next.splice(index, 1);
@@ -39,24 +44,28 @@ function LevelRows<T extends ClassificationLevel | BusinessCriticalityLevel | Re
     <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{help}</Typography>
     <Box sx={{ display: 'grid', gridTemplateColumns: columns(kind), gap: 1, alignItems: 'center' }}>
       <span />
-      <Typography sx={headerSx}>{classificationText('Code')}</Typography>
       <Typography sx={headerSx}>{classificationText('Name')}</Typography>
       <Typography sx={headerSx}>{classificationText('Description')}</Typography>
       {kind === 'business' && <Typography sx={headerSx}>{classificationText('Maximum tolerable downtime (minutes)')}</Typography>}
       <Typography sx={headerSx}>{classificationText('No longer offered')}</Typography>
+      <span />
     </Box>
     {rows.map((row, index) => <Box key={index} sx={{ display: 'grid', gridTemplateColumns: columns(kind), gap: 1, alignItems: 'center' }}>
       <Box sx={{ display: 'flex' }}>
         <IconButton size="small" aria-label={classificationText('Move up')} disabled={index === 0} onClick={() => move(index, -1)} sx={{ p: 0.25, color: 'kanap.text.secondary' }}><KeyboardArrowUpIcon sx={{ fontSize: 18 }} /></IconButton>
         <IconButton size="small" aria-label={classificationText('Move down')} disabled={index === rows.length - 1} onClick={() => move(index, 1)} sx={{ p: 0.25, color: 'kanap.text.secondary' }}><KeyboardArrowDownIcon sx={{ fontSize: 18 }} /></IconButton>
       </Box>
-      <TextField value={row.code} onChange={(e) => patch(index, { code: e.target.value } as Partial<T>)} placeholder="e.g., tier_1" size="small" sx={fieldSx} inputProps={{ 'aria-label': classificationText('Code') }} />
-      <TextField value={row.label} onChange={(e) => patch(index, { label: e.target.value } as Partial<T>)} placeholder="e.g., Tier 1" size="small" sx={fieldSx} inputProps={{ 'aria-label': classificationText('Name') }} />
+      <Box>
+        <TextField value={row.label} onChange={(e) => patch(index, { label: e.target.value } as Partial<T>)} placeholder="e.g., Tier 1" size="small" sx={fieldSx} inputProps={{ 'aria-label': classificationText('Name') }} fullWidth />
+        {issues.get(index) && <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.25 }}>{t(`enumEditor.${issues.get(index)}`)}</Typography>}
+      </Box>
       <TextField value={row.description || ''} onChange={(e) => patch(index, { description: e.target.value } as Partial<T>)} placeholder={classificationText('Shown under the name when choosing a level')} size="small" sx={fieldSx} inputProps={{ 'aria-label': classificationText('Description') }} />
       {kind === 'business' && <TextField value={(row as BusinessCriticalityLevel).maxMtdMinutes ?? ''} onChange={(e) => patch(index, { maxMtdMinutes: e.target.value === '' ? null : Number(e.target.value) } as unknown as Partial<T>)} placeholder={classificationText('No limit')} type="number" size="small" sx={fieldSx} inputProps={{ 'aria-label': classificationText('Maximum tolerable downtime (minutes)'), min: 1 }} />}
       <Checkbox checked={!!row.deprecated} onChange={(e) => patch(index, { deprecated: e.target.checked } as Partial<T>)} size="small" inputProps={{ 'aria-label': `${classificationText('No longer offered')} ${row.label}` }} />
+      <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: row.label || row.code, key: row.code ? { code: row.code } : null, onRemove: () => onChange(rows.filter((_, i) => i !== index)), onRetire: () => patch(index, { deprecated: true } as Partial<T>) })}>{t('enumEditor.remove')}</Button>
     </Box>)}
     <Button variant="action" sx={{ alignSelf: 'flex-start' }} onClick={() => onChange([...rows, ({ code: '', label: '', description: '', deprecated: false, ...(kind === 'wave' ? { order: rows.length } : { rank: 0 }), ...(kind === 'business' ? { maxMtdMinutes: null } : {}) } as T)])}>{classificationText('Add level')}</Button>
+    {removal.dialog}
   </Stack>;
 }
 
@@ -75,7 +84,7 @@ export default function ClassificationCatalogSettings({ settings }: Props) {
       setOpen(false);
     },
   });
-  const invalid = [...draft.businessCriticalityLevels, ...draft.cyberCriticalityLevels, ...draft.dataClasses, ...draft.recoveryWaves].some((row) => !row.code.trim() || !row.label.trim());
+  const invalid = ([draft.businessCriticalityLevels, draft.cyberCriticalityLevels, draft.dataClasses, draft.recoveryWaves] as Array<Array<{ code: string; label: string }>>).some((rows) => catalogListIssues(rows).size > 0);
   const severityHelp = classificationText('From the most critical level at the top to the least critical at the bottom.');
   const sections: Array<{ key: keyof ApplicationClassificationCatalog; title: string; kind: Kind; help: string }> = [
     { key: 'businessCriticalityLevels', title: classificationText('Business criticality'), kind: 'business', help: `${severityHelp} ${classificationText('The maximum tolerable downtime documents each level and warns when an RTO exceeds it.')}` },
@@ -97,7 +106,7 @@ export default function ClassificationCatalogSettings({ settings }: Props) {
         <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{classificationText('Renaming, reordering or retiring a level never changes the applications that use it.')}</Typography>
         {sections.map((section) => <Box key={section.key}>
           <Typography sx={{ fontSize: 14, fontWeight: 500, mb: 0.5 }}>{section.title}</Typography>
-          <LevelRows rows={draft[section.key] as any[]} kind={section.kind} help={section.help} onChange={(rows) => setDraft({ ...draft, [section.key]: rows })} />
+          <LevelRows rows={draft[section.key] as any[]} kind={section.kind} help={section.help} usageList={section.key} onChange={(rows) => setDraft({ ...draft, [section.key]: rows })} />
         </Box>)}
       </Stack>
     </KanapDialog>

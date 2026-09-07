@@ -246,6 +246,8 @@ export interface CsvImportContext {
   isAdmin?: boolean;
   /** Register viewer (userId + incidents:admin). Used to hide confidential incidents. */
   viewer?: { userId: string | null; isAdmin: boolean };
+  /** Effective IT Ops catalogs (defaults included), read with the tenant shared lock by the entity CSV service. */
+  itOpsSettings?: import('../../it-ops-settings/it-ops-settings.service').ItOpsSettings;
 }
 
 /**

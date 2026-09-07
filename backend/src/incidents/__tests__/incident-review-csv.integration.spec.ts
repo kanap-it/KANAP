@@ -8,6 +8,9 @@
  * rolled back afterwards.
  */
 import 'dotenv/config';
+import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
+import { Tenant } from '../../tenants/tenant.entity';
+import { Location } from '../../locations/location.entity';
 import * as assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { QueryRunner } from 'typeorm';
@@ -120,6 +123,7 @@ function createServices(manager: any) {
     new CsvExportService(resolver),
     new CsvImportService(resolver, new CsvJsonValidators()),
     integrated,
+    new ItOpsSettingsService(manager.getRepository(Tenant), manager.getRepository(Location), { log: async () => undefined } as any),
   );
   const incidents = new IncidentsService(
     manager.getRepository(Incident),

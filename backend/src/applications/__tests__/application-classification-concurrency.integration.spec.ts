@@ -112,6 +112,7 @@ async function main() {
     const csv = new ApplicationsCsvService(
       csvRunner.manager.getRepository(Application), null as any, null as any, null as any,
       failingImport as any, null as any, null as any, null as any,
+      { getSettings: async () => ({}) } as any,
     );
     const csvFailure = csv.import(
       { buffer: Buffer.from('name\nConcurrent Atlas\n'), originalname: 'rollback.csv' } as Express.Multer.File,

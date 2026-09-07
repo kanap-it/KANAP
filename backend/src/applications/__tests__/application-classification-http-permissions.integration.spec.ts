@@ -58,6 +58,28 @@ async function main() {
     assert.equal(catalog.businessMtdPresets, undefined);
 
     assert.equal((await request(reader, '/it-ops/settings', { method: 'PATCH', body: '{}' })).status, 403);
+    assert.equal((await request(reader, '/it-ops/settings/usage?list=applicationCategories&code=analytics')).status, 403, 'usage needs settings:reader');
+
+    // Settings admin: lists the old controller silently dropped are persisted, codes are generated, usage is readable.
+    const settingsAdmin = await createIdentity('settings-admin', { settings: 'admin' });
+    const stamp = randomUUID().slice(0, 8);
+    const patched = await request(settingsAdmin, '/it-ops/settings', { method: 'PATCH', body: JSON.stringify({
+      accessMethods: [{ code: 'web', label: 'Web' }, { label: `Kiosk ${stamp}` }],
+      ipAddressTypes: [{ code: 'host', label: 'Host' }, { label: `Storage ${stamp}` }],
+      serverKinds: [{ code: 'vm', label: 'Virtual machine', is_physical: true }],
+    }) });
+    if (patched.status !== 200) throw new Error(`settings PATCH returned ${patched.status}: ${await patched.text()}`);
+    const saved: any = await patched.json();
+    assert.equal(saved.accessMethods.find((row: any) => row.label === `Kiosk ${stamp}`)?.code, `kiosk_${stamp}`, 'a code is generated from the name');
+    assert.equal(saved.ipAddressTypes.find((row: any) => row.label === `Storage ${stamp}`)?.code, `storage_${stamp}`);
+    assert.equal(saved.serverKinds.find((row: any) => row.code === 'vm')?.is_physical, true, 'is_physical reaches the server');
+    const usageResponse = await request(settingsAdmin, '/it-ops/settings/usage?list=accessMethods&code=web');
+    assert.equal(usageResponse.status, 200);
+    const usage: any = await usageResponse.json();
+    assert.ok(typeof usage.total === 'number' && Array.isArray(usage.usage));
+    const clash = await request(settingsAdmin, '/it-ops/settings', { method: 'PATCH', body: JSON.stringify({ accessMethods: [{ code: 'web', label: 'Web' }, { label: 'web' }] }) });
+    assert.equal(clash.status, 400);
+    assert.match(((await clash.json()) as any).message, /clashes with/);
     assert.equal((await request(reader, '/applications', { method: 'POST', body: JSON.stringify({ name: 'reader denied' }) })).status, 403);
     assert.equal((await request(reader, `/applications/${randomUUID()}/classification-review`, { method: 'POST', body: JSON.stringify({ expected_revision: 0 }) })).status, 403);
     assert.equal((await request(unrelated, '/applications/classification-catalog')).status, 403);

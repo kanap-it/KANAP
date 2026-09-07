@@ -1,4 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ItOpsSettingsService } from '../it-ops-settings/it-ops-settings.service';
+import { exportCatalogLabels } from '../it-ops-settings/catalog-resolve';
 import { randomUUID } from 'node:crypto';
 import { EntityManager } from 'typeorm';
 import {
@@ -73,6 +75,7 @@ export class IncidentsCsvService {
     private readonly exportSvc: CsvExportService,
     private readonly importSvc: CsvImportService,
     private readonly integratedDocs: IntegratedDocumentsService,
+    private readonly itOpsSettings: ItOpsSettingsService,
   ) {}
 
   async export(opts: {
@@ -95,6 +98,11 @@ export class IncidentsCsvService {
 
     if (rows.length > 0 && (!fields || fields.includes(REVIEW_COLUMN))) {
       await this.hydrateReviews(rows, manager, tenantId);
+    }
+    if (rows.length > 0) {
+      // Users never see codes: the category is exported as its name (import accepts either).
+      const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+      for (const row of rows) exportCatalogLabels(row, { category: settings.incidentCategories });
     }
 
     return this.exportSvc.export(incidentCsvConfig, rows, { manager, tenantId, scope, fields });
@@ -297,7 +305,8 @@ export class IncidentsCsvService {
     await opts.manager.query(`SAVEPOINT ${savepoint}`);
     let result: CsvImportResult;
     try {
-      result = await this.importSvc.import(this.buildCsvConfig(), file, params, opts);
+      const itOpsSettings = await this.itOpsSettings.getSettingsForWrite(opts.tenantId, opts.manager);
+      result = await this.importSvc.import(this.buildCsvConfig(), file, params, { ...opts, itOpsSettings });
     } catch (error) {
       await opts.manager.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);
       await opts.manager.query(`RELEASE SAVEPOINT ${savepoint}`);

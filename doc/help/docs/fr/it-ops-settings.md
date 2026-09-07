@@ -29,10 +29,27 @@ Chaque liste apparaît comme un panneau extensible. Cliquez sur un en-tête de p
 Chaque liste possède ses propres contrôles en haut :
 
 - **Ajouter un élément** - Insère une nouvelle ligne en haut de la liste, focalisée et prête à saisir.
-- **Enregistrer les modifications** - Enregistre vos modifications sur le serveur. Activé lorsque vous avez des modifications non enregistrées.
-- **Réinitialiser** - Revient au dernier état enregistré (pas aux valeurs d'usine).
+- Les modifications sont enregistrées automatiquement environ une seconde et demie après votre dernière saisie, dès que toutes les lignes sont valides. Un indicateur d'enregistrement s'affiche à côté de la liste.
 
 Pour les longues listes (plus de 25 lignes), le tableau virtualise les lignes, affichant environ 20 à la fois avec un défilement fluide et des en-têtes fixes.
+
+### Les noms identifient les valeurs
+
+Vous ne voyez et ne saisissez jamais que des **noms**. KANAP génère un code interne stable à partir du nom lors du premier enregistrement d'une valeur et le conserve définitivement : renommer une valeur ne casse donc jamais les enregistrements qui l'utilisent. Ce code est visible des intégrateurs dans l'API et peut être utilisé dans les fichiers CSV, mais l'export CSV écrit les noms et l'import accepte l'un comme l'autre.
+
+Parce que les noms identifient les valeurs, quelques règles s'appliquent au sein d'une liste :
+
+- chaque valeur doit avoir un nom, et deux valeurs ne peuvent pas porter le même nom (la casse n'est pas prise en compte) ;
+- un nom ne peut pas être identique au code interne d'une autre valeur de la même liste ;
+- les noms des **Méthodes d'accès** ne peuvent contenir ni virgule ni point-virgule, car l'export CSV les regroupe dans une seule cellule séparée par des virgules.
+
+Une liste qui enfreint l'une de ces règles n'est pas enregistrée tant que vous ne l'avez pas corrigée ; la ligne indique ce qui ne va pas.
+
+### Supprimer une valeur
+
+**Supprimer** efface une valeur que rien n'utilise. Lorsque des enregistrements référencent encore la valeur, KANAP indique combien (applications, actifs, interfaces, connexions, sites, incidents, sous-réseaux…), avec un lien vers la liste filtrée lorsqu'une liste peut être filtrée sur ce champ, et propose **Ne plus proposer** à la place : la valeur reste visible sur les enregistrements qui l'utilisent déjà et n'est plus proposée pour les nouveaux. Une valeur utilisée n'est jamais supprimée, même via l'API.
+
+Les valeurs intégrées que KANAP gère lui-même (les quatre statuts de cycle de vie, les domaines Workgroup et N/A) ne peuvent être ni modifiées ni supprimées. Les zones réseau et types d'actifs par défaut peuvent être modifiés et retirés, mais pas supprimés : le serveur les recréerait.
 
 ---
 
@@ -42,7 +59,7 @@ Pour les longues listes (plus de 25 lignes), le tableau virtualise les lignes, a
 
 Fournisseurs cloud disponibles pour les Actifs et les Sites de type cloud (ex. : AWS, Azure, GCP).
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Actifs > Onglet Vue d'ensemble > Champ **Fournisseur**
@@ -52,7 +69,7 @@ Fournisseurs cloud disponibles pour les Actifs et les Sites de type cloud (ex. :
 
 Modèles d'hébergement des sites (ex. : Sur site, Colocation, Cloud public, Cloud privé, SaaS).
 
-**Colonnes** : Libellé, Code, Catégorie (Sur site/Colocation ou Cloud/SaaS), Indicateur Obsolète
+**Colonnes** : Nom, Catégorie (Sur site/Colocation ou Cloud/SaaS), Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Sites > Onglet Vue d'ensemble > Champ **Type d'hébergement**
@@ -69,7 +86,7 @@ La catégorie détermine quels champs apparaissent lors de la modification d'un 
 
 Un catalogue à deux niveaux de protocoles de connexion organisés par catégorie, avec les ports typiques.
 
-**Colonnes** : Catégorie (ex. : Base de données, Accès distant), Libellé, Code, Ports typiques, Indicateur Obsolète
+**Colonnes** : Catégorie (ex. : Base de données, Accès distant), Nom, Ports typiques, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Connexions > Sélecteur **Type de connexion**
@@ -82,7 +99,7 @@ Les catégories par défaut incluent : Application, Authentification, Sauvegarde
 
 Domaines Active Directory ou DNS auxquels les actifs peuvent appartenir. Utilisés pour calculer le nom de domaine complet (FQDN) de chaque actif.
 
-**Colonnes** : Nom, Code, Suffixe DNS, Indicateur Obsolète
+**Colonnes** : Nom, Suffixe DNS, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Actifs > Onglet Technique > Sélecteur **Domaine**
@@ -92,7 +109,7 @@ Domaines Active Directory ou DNS auxquels les actifs peuvent appartenir. Utilis�
 - **Workgroup** - Pour les actifs autonomes non joints à un domaine
 - **N/A** - Pour les types d'actifs où l'appartenance au domaine ne s'applique pas (ex. : équipements réseau, baies)
 
-**Comportement de remplissage automatique** : Lors de l'ajout d'un nouveau domaine, les champs Code et Suffixe DNS se remplissent automatiquement à partir du Nom que vous saisissez. Vous pouvez remplacer ces valeurs si nécessaire.
+**Comportement de remplissage automatique** : Lors de l'ajout d'un nouveau domaine, le suffixe DNS se remplit automatiquement à partir du nom que vous saisissez, jusqu'à ce que vous le modifiiez vous-même.
 
 **Exemple** : Un domaine nommé « Corporate AD » avec le suffixe DNS `corp.example.com` produirait un FQDN de `hostname.corp.example.com` pour un actif avec le hostname `web-server-01`.
 
@@ -100,7 +117,7 @@ Domaines Active Directory ou DNS auxquels les actifs peuvent appartenir. Utilis�
 
 Entités source et cible pour les flux de données et les schémas d'accès (ex. : Utilisateurs internes, Internet, Réseaux partenaires, Systèmes externes).
 
-**Colonnes** : Libellé, Code, Niveau graphique, Indicateur Obsolète
+**Colonnes** : Nom, Niveau graphique, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Connexions > Champs **Entité source** et **Entité cible**
@@ -120,7 +137,7 @@ Le Niveau graphique contrôle la bande verticale préférée dans la Carte des c
 
 Types d'adresses IP pouvant être assignées aux actifs. Utile pour distinguer différentes interfaces réseau comme les IP host, les interfaces de gestion et les réseaux de stockage.
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Valeurs par défaut** : Host, IPMI, Management, iSCSI
 
@@ -136,7 +153,7 @@ Les actifs peuvent avoir plusieurs adresses IP, chacune avec son propre type. Pa
 
 Zones réseau utilisées pour catégoriser les sous-réseaux et décrire la connectivité des actifs (ex. : LAN, DMZ, LAN industriel, WiFi, Cloud public, Invité, Management, Stockage, VPN).
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
 - Liste des sous-réseaux > Sélecteur **Zone réseau**
@@ -146,7 +163,7 @@ Zones réseau utilisées pour catégoriser les sous-réseaux et décrire la conn
 
 Définissez les sous-réseaux avec la notation CIDR, des assignations VLAN optionnelles et la classification par zone réseau. Chaque sous-réseau appartient à un Site spécifique.
 
-**Colonnes** : Site, CIDR, VLAN (1-4094), Zone réseau, Description, Indicateur Obsolète
+**Colonnes** : Site, CIDR, VLAN (1-4094), Zone réseau, Description, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Actifs > Onglet Technique > Sélecteur **Sous-réseau**
@@ -162,7 +179,7 @@ Définissez les sous-réseaux avec la notation CIDR, des assignations VLAN optio
 
 Catalogue de systèmes d'exploitation pour les Actifs, incluant les dates de cycle de vie du support.
 
-**Colonnes** : Nom, Code, Date de fin de support standard, Date de fin de support étendu, Indicateur Obsolète
+**Colonnes** : Nom, Date de fin de support standard, Date de fin de support étendu, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Actifs > Onglet Technique > Sélecteur **Système d'exploitation** (le texte d'aide affiche les dates de support)
@@ -175,7 +192,7 @@ Les entrées par défaut incluent les versions Windows Server, Ubuntu LTS, RHEL,
 
 Rôles assignés aux actifs lors de leur liaison à des instances d'application (ex. : Serveur web, Serveur de base de données, Worker).
 
-**Colonnes** : Libellé, Code, Niveau graphique, Indicateur Obsolète
+**Colonnes** : Nom, Niveau graphique, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Applications > Onglet Serveurs > Menu déroulant **Rôle** lors de la liaison d'un actif à une instance
@@ -190,7 +207,7 @@ Exemples par défaut intégrés :
 
 Types logiques pour les actifs d'infrastructure (ex. : Serveur physique, Machine virtuelle, Conteneur, Serverless, Appliance).
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Actifs > Onglet Vue d'ensemble > Champ **Type**
@@ -203,7 +220,7 @@ Types logiques pour les actifs d'infrastructure (ex. : Serveur physique, Machine
 
 Méthodes par lesquelles les utilisateurs accèdent aux applications (ex. : Navigateur web, Application mobile, Session VDI).
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Valeurs par défaut** : Web, Application installée localement, Application mobile, IHM propriétaire (interface industrielle), Terminal / CLI, VDI / Bureau distant, Borne
 
@@ -216,7 +233,7 @@ Méthodes par lesquelles les utilisateurs accèdent aux applications (ex. : Navi
 
 Catégories qui décrivent l'objectif principal de chaque application ou service.
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Valeurs par défaut** : Métier, Productivité, Sécurité, Analytique, Développement, Intégration, Infrastructure
 
@@ -230,7 +247,7 @@ Catégories qui décrivent l'objectif principal de chaque application ou service
 
 Niveaux de classification des données pour les Applications et Interfaces.
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Codes verrouillés** : Les niveaux intégrés (Public, Interne, Confidentiel, Restreint) ne peuvent pas être supprimés ni rendus obsolètes.
 
@@ -252,7 +269,7 @@ Cet éditeur configure les niveaux utilisés pour classifier les applications. I
 
 **Modifier le catalogue ne modifie jamais les applications.** Une application enregistre le code de son niveau. Renommer un niveau, modifier sa description ou sa DMIA et réordonner le catalogue laissent chaque application sur le même niveau et n'invalident pas les revues. Un niveau encore utilisé par une application, une interface ou une connexion ne peut pas être supprimé ; marquez-le plutôt **Ne plus proposer** : il reste visible sur les enregistrements existants et n'est plus proposé pour les nouveaux.
 
-Les codes sont des identifiants stables affichés pour référence. Les noms doivent être uniques au sein d'un catalogue, car l'import CSV et l'API acceptent indifféremment le code ou le nom.
+Les codes sont générés à partir des noms et ne sont jamais affichés ; les règles de nommage ci-dessus s'appliquent.
 
 Les niveaux business alimentent aussi la criticité opérationnelle des interfaces et des connexions. Les dérivations incomplètes sont signalées comme telles ; elles ne sont pas traitées comme le niveau le plus faible.
 
@@ -260,7 +277,7 @@ Les niveaux business alimentent aussi la criticité opérationnelle des interfac
 
 Patterns d'intégration pour les legs d'interfaces (ex. : API REST, Batch fichier, File d'attente, Staging BDD).
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
 - Legs d'interfaces > Champ **Pattern**
@@ -269,7 +286,7 @@ Patterns d'intégration pour les legs d'interfaces (ex. : API REST, Batch fichie
 
 Modes d'authentification pour les liaisons d'interfaces (ex. : Compte de service, OAuth2, Clé API, Certificat).
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
 - Liaisons d'interfaces > Champ **Mode d'authentification**
@@ -278,7 +295,7 @@ Modes d'authentification pour les liaisons d'interfaces (ex. : Compte de service
 
 Catégories de données métier pour les Interfaces (ex. : Master Data, Transactionnel, Reporting, Contrôle).
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Interfaces > Champ **Catégorie de données**
@@ -287,7 +304,7 @@ Catégories de données métier pour les Interfaces (ex. : Master Data, Transact
 
 Formats de payload pour les legs d'interfaces (ex. : CSV, JSON, XML, IDoc, Binaire).
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
 - Legs d'interfaces > Champ **Format**
@@ -296,7 +313,7 @@ Formats de payload pour les legs d'interfaces (ex. : CSV, JSON, XML, IDoc, Binai
 
 Protocoles techniques pour les liaisons d'interfaces (ex. : HTTP/REST, gRPC, SFTP, Kafka, Base de données).
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
 - Liaisons d'interfaces > Champ **Protocole** (liaisons historiques)
@@ -305,7 +322,7 @@ Protocoles techniques pour les liaisons d'interfaces (ex. : HTTP/REST, gRPC, SFT
 
 Mécanismes de déclenchement pour les legs d'interfaces (ex. : Événementiel, Planifié, Temps réel, Manuel).
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
 - Legs d'interfaces > Champ **Déclencheur**
@@ -314,7 +331,7 @@ Mécanismes de déclenchement pour les legs d'interfaces (ex. : Événementiel, 
 
 États de cycle de vie partagés pour les Applications, Instances d'applications, Interfaces, Liaisons d'interfaces et Actifs.
 
-**Colonnes** : Libellé, Code, Indicateur Obsolète
+**Colonnes** : Nom, Ne plus proposer
 
 **Codes verrouillés** : Les statuts intégrés (Proposé, Actif, Obsolète, Retiré) ne peuvent pas être supprimés ni voir leur code modifié.
 
@@ -325,7 +342,7 @@ Mécanismes de déclenchement pour les legs d'interfaces (ex. : Événementiel, 
 
 ## Impact des modifications sur les données existantes
 
-- **Les enregistrements existants conservent leurs codes stockés** - Changer un libellé ne modifie que ce que les utilisateurs voient, pas les données sous-jacentes.
+- **Les enregistrements existants conservent leur valeur** - Renommer ne modifie que ce que les utilisateurs voient, pas les données sous-jacentes.
 - **Valeurs obsolètes** :
   - Restent valides pour les enregistrements qui les utilisent déjà.
   - Sont masquées des menus déroulants lors de la création de nouveaux enregistrements.
@@ -366,7 +383,7 @@ Cette approche vous permet de faire évoluer votre taxonomie au fil du temps san
 
 ## Conseils
 
-- **Alignez les libellés avec votre terminologie** - Revoyez les valeurs par défaut et renommez les libellés pour correspondre à la manière dont votre organisation parle de ces concepts. Les codes restent les mêmes ; seul le texte d'affichage change.
+- **Alignez les noms avec votre terminologie** - Revoyez les valeurs par défaut et renommez les valeurs pour correspondre à la manière dont votre organisation parle de ces concepts. Les enregistrements conservent leur lien avec la valeur ; seul le nom change.
 - **Rendez obsolète progressivement** - Lors de la transition vers une nouvelle valeur, marquez-la comme obsolète plutôt que de la supprimer. Cela préserve les données historiques tout en orientant les utilisateurs vers les nouvelles options.
 - **Coordonnez les classifications de données avec la sécurité** - Les modifications des classifications de données doivent être alignées avec vos politiques de sécurité de l'information. Consultez la conformité avant d'ajouter ou renommer les niveaux de classification.
 - **Utilisez les ports typiques comme documentation** - Le champ « Ports typiques » des Types de connexion est informatif. Remplissez-le pour aider les utilisateurs à comprendre quels ports chaque type de connexion utilise couramment.

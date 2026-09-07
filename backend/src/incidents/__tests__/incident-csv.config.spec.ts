@@ -56,6 +56,7 @@ function mockContext(
     userId: READER,
     isAdmin: false,
     viewer: viewer ?? { userId: READER, isAdmin: false },
+    itOpsSettings: { incidentCategories: [] } as any,
   };
 }
 

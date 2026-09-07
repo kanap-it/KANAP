@@ -1,5 +1,7 @@
 import { ApplicationsListService } from './services/applications-list.service';
 import { classificationReadState } from './services/application-classification';
+import { ItOpsSettingsService } from '../it-ops-settings/it-ops-settings.service';
+import { exportCatalogLabels } from '../it-ops-settings/catalog-resolve';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager, In } from 'typeorm';
@@ -37,6 +39,7 @@ export class ApplicationsCsvService {
     private readonly resolver: CsvResolverService,
     private readonly audit: AuditService,
     private readonly listService: ApplicationsListService,
+    private readonly itOpsSettings: ItOpsSettingsService,
   ) {}
 
   /**
@@ -92,7 +95,15 @@ export class ApplicationsCsvService {
     if (!matching.ids.length) queryBuilder.andWhere('FALSE');
     else queryBuilder.andWhere('app.id = ANY(:ids)', { ids: matching.ids });
     const applications = await queryBuilder.getMany();
-    for (const app of applications) Object.assign(app, classificationReadState(app));
+    // Users never see codes: catalog-backed columns are exported as names (import accepts either).
+    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    for (const app of applications) {
+      Object.assign(app, classificationReadState(app));
+      exportCatalogLabels(app, {
+        category: settings.applicationCategories, lifecycle: settings.lifecycleStates, criticality: settings.businessCriticalityLevels,
+        cyber_criticality: settings.cyberCriticalityLevels, recovery_wave: settings.recoveryWaves, data_class: settings.dataClasses, access_methods: settings.accessMethods,
+      });
+    }
 
     // Load related data for export
     if (applications.length > 0) {
@@ -200,8 +211,9 @@ export class ApplicationsCsvService {
   }
 
   private async importLocked(file: Express.Multer.File, params: CsvImportParams, opts: { manager: EntityManager; tenantId: string; userId?: string | null }): Promise<CsvImportResult> {
-    // First run the base import
-    const result = await this.importSvc.import(applicationCsvConfig, file, params, opts);
+    // The tenant row is locked FOR UPDATE by import(): the catalogs read here cannot change underneath.
+    const itOpsSettings = await this.itOpsSettings.getSettings(opts.tenantId, { manager: opts.manager });
+    const result = await this.importSvc.import(applicationCsvConfig, file, params, { ...opts, itOpsSettings });
 
     // If successful and not dry run, handle owners and data residency
     if (result.ok && !params.dryRun) {

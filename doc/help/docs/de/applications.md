@@ -113,7 +113,7 @@ Das Anwendungsraster bietet eine umfassende Ansicht Ihres Anwendungsportfolios.
 **Aktionen**:
 - **Neue App / Dienst**: Einen neuen Eintrag erstellen (`applications:manager`)
 - **CSV importieren**: Massenimport aus CSV-Datei (`applications:admin`)
-- **CSV exportieren**: Liste als CSV exportieren (`applications:admin`)
+- **CSV exportieren**: Liste als CSV exportieren (`applications:admin`). Katalogbasierte Spalten (Kategorie, Lebenszyklus, Kritikalität, Cyberkritikalität, Wiederherstellungswelle, Datenklasse, Zugriffsmethoden) werden mit ihren Namen exportiert; der Import akzeptiert einen Namen oder den internen Code.
 - **Element kopieren**: Eine ausgewählte Anwendung mit allen Kernbeziehungen duplizieren (`applications:manager`). Siehe [Anwendungen kopieren](#anwendungen-kopieren) für Details.
 - **Ausgewählte löschen**: Ausgewählte Anwendungen entfernen (`applications:admin`)
 

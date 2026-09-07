@@ -24,7 +24,7 @@ export class AssetsValidationService {
     if (!code) {
       throw new BadRequestException('kind is required');
     }
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.serverKinds || []).map((o) => o.code));
     if (!allowed.has(code)) {
       throw new BadRequestException(`Invalid kind "${value}"`);
@@ -41,7 +41,7 @@ export class AssetsValidationService {
     if (!code) {
       throw new BadRequestException('provider is required');
     }
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.serverProviders || []).map((o) => o.code));
     if (!allowed.has(code)) {
       throw new BadRequestException(`Invalid provider "${value}"`);
@@ -57,7 +57,7 @@ export class AssetsValidationService {
     const normalized = this.normalizeNullable(value);
     if (!normalized) return null;
     const code = normalized.toLowerCase();
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set((settings.operatingSystems || []).map((o) => o.code));
     if (!allowed.has(code)) {
       throw new BadRequestException(`Invalid operating system "${value}"`);
@@ -73,7 +73,7 @@ export class AssetsValidationService {
     const normalized = this.normalizeNullable(value);
     if (!normalized) return null;
     const code = normalized.toLowerCase();
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = new Set(((settings as any).domains || []).map((d: any) => d.code));
     if (!allowed.has(code)) {
       throw new BadRequestException(`Invalid domain "${value}"`);
@@ -103,7 +103,7 @@ export class AssetsValidationService {
       return cleanHostname;
     }
 
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const domain = ((settings as any).domains || []).find((d: any) => d.code === domainCode);
 
     if (!domain || !domain.dns_suffix) {
@@ -156,7 +156,7 @@ export class AssetsValidationService {
     if (value == null) return null;
     if (!Array.isArray(value)) return null;
 
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowedTypes = new Set((settings.ipAddressTypes || []).map((t) => t.code));
     const allowedSubnets = new Set((settings.subnets || []).map((s) => s.cidr));
 
@@ -228,7 +228,7 @@ export class AssetsValidationService {
     manager?: EntityManager,
     fallback: string = 'active',
   ): Promise<string> {
-    const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+    const settings = await this.itOpsSettings.getSettingsForWrite(tenantId, manager);
     const allowed = (settings.lifecycleStates || []).map((item) => item.code);
     const fallbackCode = this.pickLifecycleFallback(fallback, allowed);
     if (value === undefined || value === null || String(value).trim() === '') {

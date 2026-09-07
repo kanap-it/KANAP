@@ -113,7 +113,7 @@ The Applications grid provides a comprehensive view of your application portfoli
 **Actions**:
 - **New App / Service**: Create a new entry (`applications:manager`)
 - **Import CSV**: Bulk import from CSV file (`applications:admin`)
-- **Export CSV**: Export the list to CSV (`applications:admin`)
+- **Export CSV**: Export the list to CSV (`applications:admin`). Catalog-backed columns (category, lifecycle, criticality, cyber criticality, recovery wave, data class, access methods) are exported as their names; the import accepts a name or the internal code.
 - **Copy item**: Duplicate a selected application with all its core relations (`applications:manager`). See [Copying applications](#copying-applications) for what is and is not copied.
 - **Delete Selected**: Remove selected applications (`applications:admin`)
 

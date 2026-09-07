@@ -33,6 +33,8 @@ export interface CsvImportOptions {
   isAdmin?: boolean;
   /** Register viewer (userId + incidents:admin). */
   viewer?: { userId: string | null; isAdmin: boolean };
+  /** Effective IT Ops catalogs for code/label resolution (see CsvImportContext). */
+  itOpsSettings?: import('../../it-ops-settings/it-ops-settings.service').ItOpsSettings;
 }
 
 /**
@@ -116,6 +118,7 @@ export class CsvImportService {
       userId: opts.userId,
       isAdmin: opts.isAdmin,
       viewer: opts.viewer ?? { userId: opts.userId ?? null, isAdmin: opts.isAdmin === true },
+      itOpsSettings: opts.itOpsSettings,
     };
 
     // Phase 1: Validate and parse all rows

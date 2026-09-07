@@ -25,8 +25,25 @@ Einstellungen sind in drei zusammenklappbare Abschnitte gruppiert:
 Jede Liste hat eigene Steuerungen oben:
 
 - **Element hinzufügen** - Fügt eine neue Zeile oben in die Liste ein, fokussiert und bereit zum Tippen.
-- **Änderungen speichern** - Speichert Ihre Bearbeitungen auf dem Server. Aktiviert bei ungespeicherten Änderungen.
-- **Zurücksetzen** - Setzt die Liste auf den letzten gespeicherten Zustand zurück (nicht Werkseinstellungen).
+- Bearbeitungen werden etwa eineinhalb Sekunden nach Ihrer letzten Änderung automatisch gespeichert, sobald alle Zeilen gültig sind. Neben der Liste erscheint eine Speicheranzeige.
+
+### Namen sind die Identität eines Werts
+
+Sie sehen und tippen ausschließlich **Namen**. KANAP erzeugt beim ersten Speichern eines Werts einen stabilen internen Code aus dem Namen und behält ihn dauerhaft bei, sodass das Umbenennen eines Werts nie die Datensätze beschädigt, die ihn verwenden. Der Code ist für Integratoren in der API sichtbar und kann in CSV-Dateien verwendet werden; der CSV-Export schreibt jedoch Namen, und der Import akzeptiert beides.
+
+Weil Namen die Werte identifizieren, gelten innerhalb einer Liste einige Regeln:
+
+- jeder Wert braucht einen Namen, und zwei Werte dürfen nicht denselben Namen tragen (Groß- und Kleinschreibung spielt keine Rolle);
+- ein Name darf nicht mit dem internen Code eines anderen Werts derselben Liste identisch sein;
+- Namen von **Zugriffsmethoden** dürfen weder Komma noch Semikolon enthalten, da der CSV-Export sie in einer einzigen, durch Kommas getrennten Zelle auflistet.
+
+Eine Liste, die gegen eine dieser Regeln verstößt, wird erst gespeichert, wenn Sie den Fehler behoben haben; die Zeile zeigt an, was nicht stimmt.
+
+### Einen Wert entfernen
+
+**Entfernen** löscht einen Wert, den nichts verwendet. Wenn noch Datensätze auf den Wert verweisen, zeigt KANAP an, wie viele (Anwendungen, Assets, Schnittstellen, Verbindungen, Standorte, Vorfälle, Subnetze…), mit einem Link zur gefilterten Liste, sofern sich eine Liste nach diesem Feld filtern lässt, und bietet stattdessen **Nicht mehr anbieten** an: Der Wert bleibt bei den Datensätzen sichtbar, die ihn bereits verwenden, und wird für neue nicht mehr vorgeschlagen. Ein verwendeter Wert wird nie entfernt, auch nicht über die API.
+
+Integrierte Werte, die KANAP selbst verwaltet (die vier Lebenszyklus-Status, die Domänen Workgroup und N/A), können weder bearbeitet noch entfernt werden. Standard-Netzwerkzonen und -Asset-Typen können bearbeitet und zurückgezogen, aber nicht entfernt werden: Der Server würde sie wieder hinzufügen.
 
 ---
 
@@ -122,7 +139,7 @@ Dieser Editor konfiguriert die Stufen, mit denen Anwendungen klassifiziert werde
 
 **Änderungen am Katalog ändern nie Anwendungen.** Eine Anwendung speichert den Code ihrer Stufe. Das Umbenennen einer Stufe, das Bearbeiten ihrer Beschreibung oder Ausfallzeit und das Umsortieren des Katalogs lassen jede Anwendung auf derselben Stufe und machen Reviews nicht ungültig. Eine Stufe, die noch von einer Anwendung, Schnittstelle oder Verbindung verwendet wird, kann nicht entfernt werden; markieren Sie sie stattdessen mit **Nicht mehr anbieten**: Sie bleibt bei bestehenden Datensätzen sichtbar und wird für neue nicht mehr vorgeschlagen.
 
-Codes sind stabile Kennungen und werden zur Referenz angezeigt. Namen müssen innerhalb eines Katalogs eindeutig sein, da CSV-Import und API sowohl den Code als auch den Namen akzeptieren.
+Codes werden aus den Namen erzeugt und nie angezeigt; es gelten die oben beschriebenen Namensregeln.
 
 Die Business-Stufen liefern auch die operative Kritikalität für Schnittstellen und Verbindungen. Unvollständige Ableitungen werden als unvollständig gekennzeichnet; sie werden nicht als niedrigste Stufe behandelt.
 
@@ -158,7 +175,7 @@ Gemeinsame Lebenszyklus-Zustände für Anwendungen, App-Instanzen, Schnittstelle
 
 ## Wie Änderungen bestehende Daten beeinflussen
 
-- **Bestehende Datensätze behalten ihre gespeicherten Codes** - Eine Änderung einer Bezeichnung ändert nur die Anzeige, nicht die zugrundeliegenden Daten.
+- **Bestehende Datensätze behalten ihren Wert** - Ein Umbenennen ändert nur die Anzeige, nicht die zugrundeliegenden Daten.
 - **Veraltete Werte**: Bleiben für Datensätze gültig, die sie bereits verwenden. Werden in Dropdowns beim Erstellen neuer Datensätze ausgeblendet.
 - **Neue Werte** werden sofort in den relevanten Dropdowns verfügbar und serverseitig validiert.
 
@@ -192,7 +209,7 @@ Gemeinsame Lebenszyklus-Zustände für Anwendungen, App-Instanzen, Schnittstelle
 
 ## Tipps
 
-- **Bezeichnungen an Ihre Terminologie anpassen** - Überprüfen Sie die Standards und benennen Sie Bezeichnungen um, damit sie der Sprache Ihrer Organisation entsprechen.
+- **Namen an Ihre Terminologie anpassen** - Überprüfen Sie die Standards und benennen Sie Werte um, damit sie der Sprache Ihrer Organisation entsprechen. Datensätze behalten ihre Verknüpfung mit dem Wert; nur der Name ändert sich.
 - **Schrittweise veralten** - Markieren Sie Werte als veraltet statt sie zu löschen, wenn Sie davon abrücken. Dies hält historische Daten intakt.
 - **Datenklassen mit der Sicherheitsabteilung abstimmen** - Änderungen an Datenklassen sollten mit Ihren Informationssicherheitsrichtlinien übereinstimmen.
 - **Typische Ports als Dokumentation verwenden** - Das Feld „Typische Ports" bei Verbindungstypen ist informativ. Füllen Sie es aus, damit Benutzer verstehen, welche Ports jeder Verbindungstyp üblicherweise verwendet.

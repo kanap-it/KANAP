@@ -316,7 +316,7 @@ Para campos configurados en **Panorama IT > Configuración**, puede usar tanto e
 | Dominio | `corp`, `dmz` | `Corporate Domain`, `DMZ` |
 | Tipo de dirección IP | `host`, `ipmi`, `mgmt` | `Host IP`, `IPMI`, `Management` |
 
-El sistema normaliza automáticamente los valores durante la importación, por lo que `Virtual Machine`, `virtual machine` y `vm` se resuelven al mismo tipo de activo.
+El sistema normaliza automáticamente los valores durante la importación, por lo que `Virtual Machine`, `virtual machine` y `vm` se resuelven al mismo tipo de activo. Un valor que coincide con varias entradas se rechaza en lugar de adivinarse. La exportación CSV escribe nombres en estas columnas, de modo que un archivo exportado se puede volver a importar tal cual.
 
 ### Coincidencia y actualizaciones
 

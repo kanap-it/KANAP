@@ -1,4 +1,5 @@
-import { catalogFromMetadata } from '../it-ops-settings/classification-catalog';
+import { catalogFromMetadata, catalogToMetadata } from '../it-ops-settings/classification-catalog';
+import { requireImportCatalogs, resolveCatalogCode } from '../it-ops-settings/catalog-resolve';
 import { CLASSIFICATION_INPUT_FIELDS, classificationPatch } from './services/application-classification';
 import {
   ArrayStrategy,
@@ -496,8 +497,8 @@ export const applicationCsvConfig: CsvEntityConfig = {
    * Accepts both codes and labels for: category, lifecycle, data_class, criticality
    */
   afterValidate: async (rows, context) => {
-    const tenants = await context.manager.query('SELECT metadata FROM tenants WHERE id = $1', [context.tenantId]);
-    const catalog = catalogFromMetadata(tenants[0]?.metadata?.it_ops);
+    const settings = await requireImportCatalogs(context);
+    const catalog = catalogFromMetadata(catalogToMetadata(settings));
     for (const row of rows) {
       // Persist this through the relation handler, never as an application column.
       delete row.parsed._data_residency_csv;
@@ -519,59 +520,12 @@ export const applicationCsvConfig: CsvEntityConfig = {
   },
 
   beforeCommit: async (entities: any[], context: CsvImportContext) => {
-    // Load IT Ops settings from tenant metadata
-    const tenantRows = await context.manager.query(
-      `SELECT metadata FROM tenants WHERE id = $1 LIMIT 1`,
-      [context.tenantId],
-    );
-    const settings = tenantRows[0]?.metadata?.it_ops || {};
-
-    // Helper to build bidirectional lookup map (code -> code, label -> code)
-    const buildLookup = (items: Array<{ code: string; label: string }>) => {
-      const map = new Map<string, string>();
-      for (const item of items || []) {
-        map.set(item.code.toLowerCase(), item.code);
-        map.set(item.label.toLowerCase(), item.code);
-      }
-      return map;
-    };
-
-    // Build lookup maps for settings-backed fields
-    const categoryLookup = buildLookup(settings.application_categories || []);
-    const lifecycleLookup = buildLookup(settings.lifecycle_states || []);
-    const dataClassLookup = buildLookup(settings.data_classes || []);
-    const accessMethodsLookup = buildLookup(settings.access_methods || []);
-
-    // Resolve fields
+    // Effective catalogs (defaults included), the same ones the export writes names from.
+    const settings = await requireImportCatalogs(context);
     for (const entity of entities) {
-      // Category (settings-backed)
-      if (entity.category) {
-        const input = String(entity.category).trim().toLowerCase();
-        const resolved = categoryLookup.get(input);
-        if (resolved) entity.category = resolved;
-      }
-
-      // Lifecycle (settings-backed)
-      if (entity.lifecycle) {
-        const input = String(entity.lifecycle).trim().toLowerCase();
-        const resolved = lifecycleLookup.get(input);
-        if (resolved) entity.lifecycle = resolved;
-      }
-
-      // Data Class (settings-backed)
-      if (entity.data_class) {
-        const input = String(entity.data_class).trim().toLowerCase();
-        const resolved = dataClassLookup.get(input);
-        if (resolved) entity.data_class = resolved;
-      }
-
-      // Access Methods (array, settings-backed)
-      if (Array.isArray(entity.access_methods)) {
-        entity.access_methods = entity.access_methods.map((item: string) => {
-          const input = String(item).trim().toLowerCase();
-          return accessMethodsLookup.get(input) || item;
-        });
-      }
+      if (entity.category) entity.category = resolveCatalogCode(entity.category, settings.applicationCategories);
+      if (entity.lifecycle) entity.lifecycle = resolveCatalogCode(entity.lifecycle, settings.lifecycleStates);
+      if (Array.isArray(entity.access_methods)) entity.access_methods = entity.access_methods.map((item: string) => resolveCatalogCode(item, settings.accessMethods) ?? item);
     }
   },
 };

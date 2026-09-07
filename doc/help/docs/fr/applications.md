@@ -113,7 +113,7 @@ La grille Applications offre une vue complète de votre portefeuille applicatif.
 **Actions** :
 - **Nouvelle app / Service** : Créer une nouvelle entrée (`applications:manager`)
 - **Import CSV** : Import en masse depuis un fichier CSV (`applications:admin`)
-- **Export CSV** : Exporter la liste en CSV (`applications:admin`)
+- **Export CSV** : Exporter la liste en CSV (`applications:admin`). Les colonnes issues des catalogues (catégorie, cycle de vie, criticité, criticité cyber, vague de reprise, classification de données, méthodes d'accès) sont exportées avec leurs noms ; l'import accepte un nom ou le code interne.
 - **Copier l'élément** : Dupliquer une application sélectionnée avec toutes ses relations principales (`applications:manager`). Voir [Copier des applications](#copier-des-applications) pour ce qui est et n'est pas copié.
 - **Supprimer la sélection** : Supprimer les applications sélectionnées (`applications:admin`)
 

@@ -113,7 +113,7 @@ La cuadrícula de Aplicaciones proporciona una vista completa de su portafolio d
 **Acciones**:
 - **Nueva App / Servicio**: Crear una nueva entrada (`applications:manager`)
 - **Importar CSV**: Importación masiva desde archivo CSV (`applications:admin`)
-- **Exportar CSV**: Exportar la lista a CSV (`applications:admin`)
+- **Exportar CSV**: Exportar la lista a CSV (`applications:admin`). Las columnas respaldadas por catálogos (categoría, ciclo de vida, criticidad, criticidad cibernética, ola de recuperación, clase de datos, métodos de acceso) se exportan con sus nombres; la importación acepta un nombre o el código interno.
 - **Copiar elemento**: Duplicar una aplicación seleccionada con todas sus relaciones principales (`applications:manager`). Consulte [Copiar aplicaciones](#copiar-aplicaciones) para saber qué se copia y qué no.
 - **Eliminar seleccionadas**: Eliminar aplicaciones seleccionadas (`applications:admin`)
 
