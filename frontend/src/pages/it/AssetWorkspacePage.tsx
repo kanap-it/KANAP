@@ -49,7 +49,7 @@ import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { KanapDialog, PropertyGroup, PropertyRow, useKanapDialogs } from '../../components/design';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
-import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, nakedInputHoverSx } from '../../theme/formSx';
+import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx } from '../../theme/formSx';
 import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
 import { getDotColor, LIFECYCLE_COLORS } from '../../utils/statusColors';
 import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
@@ -184,13 +184,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 const contentFieldSx = {
   width: '100%',
   maxWidth: 520,
-  ...nakedInputHoverSx,
   '& .MuiInputBase-root': {
     fontSize: 13,
   },
-  '& .MuiInput-underline:before': { display: 'none' },
-  '& .MuiInput-underline:after': { display: 'none' },
-  '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' },
 } as const;
 
 const denseTableSx = {

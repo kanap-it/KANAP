@@ -7,6 +7,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { tableCellTextFieldSx } from '../../../theme/formSx';
 import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../../api';
 import { useTranslation } from 'react-i18next';
@@ -47,9 +48,7 @@ const cellSx = {
   py: '8px',
 } as const;
 
-const inputSx = {
-  '& input': { fontSize: 13, padding: '4px 0', color: 'kanap.text.primary' },
-} as const;
+const inputSx = tableCellTextFieldSx;
 
 function sortByName(rows: SubItem[]): SubItem[] {
   return [...rows].sort((a, b) =>

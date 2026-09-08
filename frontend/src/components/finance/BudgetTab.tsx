@@ -12,6 +12,7 @@ import { useFreezeState } from '../../hooks/useFreezeState';
 import useAutosave from '../../hooks/useAutosave';
 import YearTabs from '../navigation/YearTabs';
 import FormattedNumberField from '../inputs/FormattedNumberField';
+import { drawerMenuItemSx, drawerSelectSx, tableCellFieldSx } from '../../theme/formSx';
 import BudgetTrendChart from './BudgetTrendChart';
 import { FinanceModuleConfig } from './config';
 import { patchYearlyTotalsCache } from './yearlyTotals';
@@ -333,7 +334,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
                 variant="standard"
                 disabled={loading || isFrozen(m)}
                 InputProps={{ disableUnderline: true, readOnly: isFrozen(m) }}
-                sx={{ '& input': { fontSize: 15, fontWeight: 500, py: '4px' } }}
+                sx={{ maxWidth: 220, '& .MuiInputBase-input': { fontSize: '15px !important', fontWeight: 500 } }}
               />
             </Box>
           ))}
@@ -343,13 +344,13 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
           {/* Spread-from-annual helper */}
           <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 1.5, bgcolor: 'kanap.bg.drawer', border: '1px solid', borderColor: 'kanap.border.soft', borderRadius: '8px', p: 1.5 }}>
             <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', alignSelf: 'center' }}>{t(`${config.i18nPrefix}.budget.spreadHelper`)}</Typography>
-            <TextField select size="small" variant="standard" value={spreadMeasure} onChange={(e) => setSpreadMeasure(e.target.value as MeasureKey)} InputProps={{ disableUnderline: true }} sx={{ minWidth: 120 }}>
-              {MEASURES.map((m) => <MenuItem key={m.key} value={m.key}>{labelFor(m)}</MenuItem>)}
+            <TextField select size="small" variant="standard" value={spreadMeasure} onChange={(e) => setSpreadMeasure(e.target.value as MeasureKey)} InputProps={{ disableUnderline: true }} sx={[drawerSelectSx, { width: 'auto', minWidth: 120 }]}>
+              {MEASURES.map((m) => <MenuItem key={m.key} value={m.key} sx={drawerMenuItemSx}>{labelFor(m)}</MenuItem>)}
             </TextField>
             <FormattedNumberField value={spreadAmount} onChange={(e) => setSpreadAmount(e.target.value as unknown as number | '')} variant="standard" size="small" placeholder="e.g., 120000" InputProps={{ disableUnderline: true }} sx={{ width: 120 }} />
-            <TextField select size="small" variant="standard" value={spreadProfile} onChange={(e) => setSpreadProfile(e.target.value as 'flat' | '4-4-5')} InputProps={{ disableUnderline: true }} sx={{ minWidth: 90 }}>
-              <MenuItem value="flat">{t(`${config.i18nPrefix}.budget.profileFlat`)}</MenuItem>
-              <MenuItem value="4-4-5">{t(`${config.i18nPrefix}.budget.profile445`)}</MenuItem>
+            <TextField select size="small" variant="standard" value={spreadProfile} onChange={(e) => setSpreadProfile(e.target.value as 'flat' | '4-4-5')} InputProps={{ disableUnderline: true }} sx={[drawerSelectSx, { width: 'auto', minWidth: 90 }]}>
+              <MenuItem value="flat" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.budget.profileFlat`)}</MenuItem>
+              <MenuItem value="4-4-5" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.budget.profile445`)}</MenuItem>
             </TextField>
             <Button size="small" variant="contained" onClick={() => void applySpread()} disabled={!spreadAmount}>{t(`${config.i18nPrefix}.budget.spreadApply`)}</Button>
           </Box>
@@ -401,14 +402,14 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
                           {new Date(year, mi, 1).toLocaleString(locale, { month: 'short' })}
                         </Box>
                         {([...MEASURES.map((m) => ({ col: m.key as AmountCol, fr: frozen[m.freezeKey] })), { col: 'forecast' as AmountCol, fr: false }]).map(({ col, fr }) => (
-                          <Box component="td" key={col} sx={{ px: 0.5, py: 0.25 }}>
+                          <Box component="td" key={col} sx={{ px: 0.5, py: '2px' }}>
                             <FormattedNumberField
                               value={months[mi]?.[col] ?? 0}
                               onChange={(e) => onMonthChange(mi, col, e.target.value as unknown as number | '')}
-                              variant="standard" size="small"
+                              variant="standard" size="small" fullWidth
                               disabled={loading || fr}
                               InputProps={{ disableUnderline: true, readOnly: fr }}
-                              inputProps={{ style: { textAlign: 'right', padding: '2px 0' } }}
+                              sx={tableCellFieldSx}
                             />
                           </Box>
                         ))}

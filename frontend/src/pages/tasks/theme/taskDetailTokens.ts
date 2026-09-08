@@ -157,6 +157,8 @@ export const kanapPalette = {
   border: {
     default: { light: '#E5E7EB', dark: 'rgba(255,255,255,0.08)' },
     soft: { light: '#F1F2F4', dark: 'rgba(255,255,255,0.05)' },
+    /** Hover border for form fields: one notch darker than `default`. */
+    strong: { light: '#D1D5DB', dark: 'rgba(255,255,255,0.16)' },
   },
   text: {
     primary: { light: '#111827', dark: '#E5E7EB' },

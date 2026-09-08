@@ -158,46 +158,113 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
         },
       },
     },
+    // Form fields are bordered boxes by default (charter, decision 2026-09-08):
+    // 1px border, 6px radius, ~32px tall, teal border on focus. The theme owns
+    // the box; call sites only opt out (`inlineControlSx`, `fieldResetSx`) or
+    // compact it (`tableCellFieldSx`). `variant="standard"` is the app default,
+    // so this override is what every TextField / Select / Autocomplete gets.
     MuiInput: {
       styleOverrides: {
-        root: {
+        root: ({ theme }) => ({
           marginTop: '0px !important',
-          '&:before': {
-            borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : '#D1D5DB'}`,
+          boxSizing: 'border-box',
+          border: `1px solid ${theme.palette.kanap.border.default}`,
+          borderRadius: 6,
+          padding: '5px 8px',
+          backgroundColor: theme.palette.kanap.bg.primary,
+          color: theme.palette.kanap.text.primary,
+          transition: 'border-color 120ms ease, background-color 120ms ease',
+          '&::before, &::after': { display: 'none' },
+          '&:hover:not(.Mui-disabled):not(.Mui-readOnly):not(.Mui-focused)': {
+            borderColor: theme.palette.kanap.border.strong,
           },
-          '&:hover:not(.Mui-disabled):before': {
-            borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.2)' : '#9CA3AF'}`,
+          '&.Mui-focused, &:focus-within': { borderColor: theme.palette.kanap.teal },
+          '&.Mui-error, &.Mui-error.Mui-focused': { borderColor: theme.palette.kanap.danger },
+          '&.Mui-readOnly': {
+            backgroundColor: theme.palette.kanap.bg.drawer,
+            '&.Mui-focused, &:focus-within': { borderColor: theme.palette.kanap.border.default },
           },
-          '&.Mui-focused:after': {
-            borderBottomWidth: '1.5px',
+          '&.Mui-disabled': {
+            backgroundColor: theme.palette.kanap.bg.drawer,
+            color: theme.palette.kanap.text.secondary,
           },
-        },
-        input: {
+          // Select arrow sits inside the padding box, not on the border.
+          '& .MuiSelect-icon': { right: 8 },
+          // Adornment buttons (e.g. the DateEUField calendar) must not inflate the box.
+          '& .MuiInputAdornment-root': { height: 20, maxHeight: 'none' },
+          '& .MuiInputAdornment-root .MuiIconButton-root': { padding: 1, margin: '-2px 0' },
+        }),
+        input: ({ theme }) => ({
           'fontSize': '14px !important' as any,
           'fontWeight': '400 !important' as any,
-          'padding': '6px 0 7px !important' as any,
-          // Keep MUI's reserved room for the dropdown arrow (24px icon at right: 0),
-          // which the shorthand above would otherwise wipe out.
-          '&.MuiSelect-select': { paddingRight: '24px !important' },
-        },
+          'paddingTop': '0 !important' as any,
+          'paddingBottom': '0 !important' as any,
+          'paddingLeft': '0 !important' as any,
+          // paddingRight is left alone: MUI reserves room for the Select arrow
+          // and the Autocomplete indicators there.
+          '&::placeholder': { color: theme.palette.kanap.text.tertiary, opacity: 1 },
+          '&.MuiSelect-select': { paddingRight: '24px !important', minHeight: '1.4375em' },
+        }),
       },
     },
     MuiSelect: {
       defaultProps: { variant: 'standard' },
       styleOverrides: {
-        icon: {
-          color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280',
+        // MUI paints a grey focus background on the select display; wrong inside a box.
+        select: { '&:focus': { backgroundColor: 'transparent' } },
+        icon: ({ theme }) => ({
+          color: theme.palette.kanap.text.secondary,
           fontSize: 18,
           right: 0,
           top: 'calc(50% - 9px)',
+        }),
+      },
+    },
+    MuiAutocomplete: {
+      styleOverrides: {
+        root: {
+          // Autocomplete's own `.MuiAutocomplete-root .MuiInput-root { paddingBottom: 1 }`
+          // beats the MuiInput root override on specificity, so restate the box padding here.
+          '& .MuiInput-root': { paddingBottom: 5 },
+          '&.MuiAutocomplete-hasPopupIcon .MuiInput-root, &.MuiAutocomplete-hasClearIcon .MuiInput-root': {
+            paddingRight: 38,
+          },
+          '&.MuiAutocomplete-hasPopupIcon.MuiAutocomplete-hasClearIcon .MuiInput-root': {
+            paddingRight: 64,
+          },
         },
+        endAdornment: { right: 8 },
+        // Match the Select arrow: 18px, secondary text color.
+        popupIndicator: ({ theme }) => ({
+          color: theme.palette.kanap.text.secondary,
+          padding: 2,
+          '& .MuiSvgIcon-root': { fontSize: 18 },
+        }),
+        clearIndicator: ({ theme }) => ({
+          color: theme.palette.kanap.text.secondary,
+          padding: 2,
+          '& .MuiSvgIcon-root': { fontSize: 16 },
+        }),
+        tag: { margin: 2 },
       },
     },
     MuiOutlinedInput: {
       styleOverrides: {
-        root: { borderRadius: 6 },
+        root: ({ theme }) => ({
+          borderRadius: 6,
+          backgroundColor: theme.palette.kanap.bg.primary,
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.kanap.border.default },
+          '&:hover:not(.Mui-disabled):not(.Mui-focused) .MuiOutlinedInput-notchedOutline': {
+            borderColor: theme.palette.kanap.border.strong,
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: theme.palette.kanap.teal,
+            borderWidth: 1,
+          },
+          '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.kanap.danger },
+        }),
         notchedOutline: { '& legend': { maxWidth: '100%' } },
-        input: { padding: '8.5px 14px' },
+        input: { padding: '5px 8px', fontSize: 14 },
       },
     },
     // Ripple is the Material press-ink that sticks when a Menu/Popover captures

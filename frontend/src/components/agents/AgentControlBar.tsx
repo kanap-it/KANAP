@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import KanapDialog from '../design/KanapDialog';
-import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx } from '../../theme/formSx';
+import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, inlineControlSx } from '../../theme/formSx';
 import { LifecycleText, ReasonDialog } from './agentControlPrimitives';
 import { RUN_MODES, useAgentRunState, type RunModeKey } from './agentRunState';
 
@@ -101,7 +101,7 @@ export default function AgentControlBar({ agentKey, onTest }: { agentKey: string
               displayEmpty
               value={runMode ?? ''}
               disabled={data.updateAgentStatusMutation.isPending}
-              sx={[drawerSelectSx, { width: 'auto', minWidth: 168, mr: 0.5 }]}
+              sx={[drawerSelectSx, inlineControlSx, { width: 'auto', minWidth: 168, mr: 0.5 }]}
               MenuProps={compactSelectMenuProps}
               onChange={(event) => setRunMode(event.target.value as RunModeKey)}
               inputProps={{ 'aria-label': t('monitor.runMode') }}

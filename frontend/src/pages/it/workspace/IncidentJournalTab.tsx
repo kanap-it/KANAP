@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { incidentsApi, type IncidentEntry } from '../../../api/endpoints/incidents';
 import { useLocale } from '../../../i18n/useLocale';
 import { formatShortDateTime } from '../../../lib/dateFormat';
+import { fieldResetSx } from '../../../theme/formSx';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { formatRelativeTime } from '../../../utils/portfolioI18n';
 import IncidentDateTimeField from './IncidentDateTimeField';
@@ -26,10 +27,13 @@ const journalComposerSx = {
   '&:focus-within': { borderColor: 'kanap.teal' },
 } as const;
 
-const journalEditorSx = {
-  '& .MuiInputBase-root': { p: '14px 16px', fontSize: 14, lineHeight: 1.6, alignItems: 'flex-start' },
-  '& textarea::placeholder': { color: 'kanap.text.tertiary', opacity: 1 },
-} as const;
+const journalEditorSx = [
+  fieldResetSx,
+  {
+    '& .MuiInputBase-root': { p: '14px 16px', fontSize: 14, lineHeight: 1.6, alignItems: 'flex-start' },
+    '& textarea::placeholder': { color: 'kanap.text.tertiary', opacity: 1 },
+  },
+] as const;
 
 const journalFooterSx = {
   borderTop: '1px solid',
@@ -168,6 +172,7 @@ export default function IncidentJournalTab({ incidentId, canAdd, onEntryAdded }:
                   setOccurredAt(next);
                 }}
                 disabled={submitting}
+                inline
               />
             </Box>
             <Box sx={{ flex: 1 }} />

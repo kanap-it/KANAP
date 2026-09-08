@@ -12,8 +12,6 @@ import {
   drawerFieldValueSx,
   drawerMenuItemSx,
   drawerSelectSx,
-  nakedFieldPlaceholderSx,
-  nakedInputHoverSx,
   selectPlaceholderSx,
 } from '../../../theme/formSx';
 import { getDotColor, INCIDENT_SEVERITY_COLORS, INCIDENT_STATUS_COLORS } from '../../../utils/statusColors';
@@ -86,7 +84,7 @@ function DrawerTextField({
       variant="standard"
       fullWidth
       InputProps={{ disableUnderline: true }}
-      sx={[drawerFieldValueSx, nakedInputHoverSx, nakedFieldPlaceholderSx]}
+      sx={drawerFieldValueSx}
     />
   );
 }

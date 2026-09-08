@@ -4,8 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import EnumAutocomplete from './EnumAutocomplete';
-import { FieldLabel, mergeSx } from '../design';
-import { nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
 
 export type RelatedObjectType = 'project' | 'spend_item' | 'contract' | 'capex_item' | 'incident' | null;
 
@@ -141,7 +140,7 @@ export default function RelatedObjectSelect({
         <EnumAutocomplete
           label=""
           hideLabel={hideLabel}
-          textFieldSx={hideLabel ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx) : undefined}
+          textFieldSx={undefined}
           value={relationType ?? STANDALONE_VALUE}
           onChange={handleTypeChange}
           options={TYPE_OPTIONS}
@@ -175,7 +174,7 @@ export default function RelatedObjectSelect({
               placeholder={hideLabel ? t('selects.notSet') : 'Search...'}
               size={size}
               variant="standard"
-              sx={hideLabel ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx) : undefined}
+              sx={undefined}
               InputProps={{
                 ...params.InputProps,
                 ...(hideLabel ? { disableUnderline: true } : {}),

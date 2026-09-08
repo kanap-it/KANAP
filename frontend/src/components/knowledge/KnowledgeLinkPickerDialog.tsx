@@ -13,6 +13,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { fieldResetSx } from '../../theme/formSx';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
@@ -192,13 +193,13 @@ export default function KnowledgeLinkPickerDialog({
             placeholder={t('knowledgePanel.searchByNameOrRef')}
             variant="standard"
             InputProps={{ disableUnderline: true }}
-            sx={(theme) => ({
+            sx={[fieldResetSx, (theme) => ({
               px: 1,
               py: 0.75,
               borderRadius: '6px',
               bgcolor: theme.palette.kanap.bg.composer,
               '& input': { fontSize: 13, py: 0 },
-            })}
+            })]}
           />
 
           {error && (

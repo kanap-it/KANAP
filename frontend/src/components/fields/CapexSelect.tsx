@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
 import { useLocale } from '../../i18n/useLocale';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type CapexItem = {
   id: string;
@@ -106,7 +106,7 @@ const CapexSelect = React.forwardRef<HTMLInputElement, CapexSelectProps>(functio
         <TextField
           {...params}
           variant="standard"
-          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          sx={textFieldSx}
           inputRef={ref}
           placeholder={naked && selectedItems.length === 0 ? t('common:selects.notSet') : undefined}
           error={error}

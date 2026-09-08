@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { IncidentStatus } from '../../../api/endpoints/incidents';
+import { longFormSurfaceFieldSx } from '../../../theme/formSx';
 
 /** Lifecycle order; the status control only moves forward, backward moves go through Reopen. */
 export const INCIDENT_STATUS_FLOW: IncidentStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
@@ -53,20 +54,8 @@ export const incidentSectionLabelSx = {
   display: 'block',
 } as const;
 
-/** Long-form composer surface (same treatment as the OPEX/CAPEX overview). */
-export const incidentComposerSx = {
-  '& .MuiInputBase-root': {
-    bgcolor: 'kanap.bg.composer',
-    border: '1px solid',
-    borderColor: 'kanap.border.default',
-    borderRadius: '8px',
-    p: '14px 16px',
-    fontSize: 14,
-    lineHeight: 1.6,
-    alignItems: 'flex-start',
-    '&.Mui-focused': { borderColor: 'kanap.teal' },
-    '&.Mui-readOnly': { bgcolor: 'kanap.bg.drawer' },
-    '&.Mui-readOnly.Mui-focused': { borderColor: 'kanap.border.default' },
-  },
-  '& textarea::placeholder': { color: 'kanap.text.tertiary', opacity: 1 },
-} as const;
+/** Long-form composer surface: the shared one without its min height / max width. */
+export const incidentComposerSx = [
+  longFormSurfaceFieldSx,
+  { maxWidth: 'none', '& .MuiInputBase-root': { minHeight: 0 } },
+] as const;

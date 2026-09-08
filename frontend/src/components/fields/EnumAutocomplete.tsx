@@ -2,8 +2,8 @@ import React from 'react';
 import { Autocomplete, Box, TextField } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type Option = string | { label: string; value: string };
 
@@ -65,7 +65,7 @@ export default function EnumAutocomplete({
             ...params.InputProps,
             ...(naked ? { disableUnderline: true } : {}),
           }}
-          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          sx={textFieldSx}
         />
       )}
       ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}

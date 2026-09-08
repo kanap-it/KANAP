@@ -50,6 +50,7 @@ import { useLocale } from '../../i18n/useLocale';
 import { formatShortDateTime } from '../../lib/dateFormat';
 import { useTenant } from '../../tenant/TenantContext';
 import { StatusDot, useKanapDialogs } from '../../components/design';
+import { fieldResetSx } from '../../theme/formSx';
 import {
   PROJECT_ORIGIN_TABS,
   buildOriginPath,
@@ -1563,6 +1564,7 @@ export default function TaskWorkspacePage() {
                 variant="standard"
                 fullWidth
                 placeholder={t('portfolio:workspace.task.title.placeholder')}
+                sx={fieldResetSx}
                 InputProps={{
                   disableUnderline: true,
                   sx: { fontSize: '1.5rem', fontWeight: 500 },

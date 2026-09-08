@@ -25,7 +25,7 @@ import {
   parseEntityTaskListFilters,
   type EntityTaskListFilters,
 } from '../pages/tasks/entityTaskList';
-import { drawerMenuItemSx, drawerSelectSx } from '../theme/formSx';
+import { drawerMenuItemSx, drawerSelectSx, inlineControlSx } from '../theme/formSx';
 
 type Task = {
   id: string;
@@ -157,11 +157,11 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
     replaceListFilters({ status: 'all', phase: 'all' });
   };
 
-  const filterSelectSx = {
-    ...drawerSelectSx,
-    width: 'auto',
-    minWidth: 128,
-  } as const;
+  const filterSelectSx = [
+    drawerSelectSx,
+    inlineControlSx,
+    { width: 'auto', minWidth: 128 },
+  ] as const;
 
   const title = filteredTasks.length !== tasks.length
     ? t('portfolio:shared.entityTasksPanel.titleFiltered', { count: filteredTasks.length, total: tasks.length })

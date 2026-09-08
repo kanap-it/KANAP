@@ -8,8 +8,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 interface TeamMember {
   user_id: string;
@@ -194,7 +194,7 @@ export default function TeamMemberMultiSelect({
             placeholder={t('selects.addTeamMember')}
             size="small"
             variant={hideLabel ? 'standard' : undefined}
-            sx={hideLabel ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+            sx={textFieldSx}
             InputProps={{
               ...params.InputProps,
               ...(hideLabel ? { disableUnderline: true } : {}),

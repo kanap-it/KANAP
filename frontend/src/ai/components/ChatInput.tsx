@@ -1,5 +1,6 @@
 import React, { useCallback, useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import { Box, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { fieldResetSx } from '../../theme/formSx';
 import SendIcon from '@mui/icons-material/ArrowUpwardRounded';
 import StopIcon from '@mui/icons-material/StopRounded';
 import AttachFileIcon from '@mui/icons-material/AttachFileOutlined';
@@ -415,18 +416,20 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               InputProps={{
                 disableUnderline: true,
               }}
-              sx={(theme) => ({
-                '& .MuiInputBase-root': {
-                  fontSize: 14,
-                  lineHeight: 1.55,
-                  color: theme.palette.kanap.text.primary,
-                  padding: 0,
-                },
-                '& textarea::placeholder': {
-                  color: theme.palette.kanap.text.tertiary,
-                  opacity: 1,
-                },
-              })}
+              sx={[
+                fieldResetSx,
+                (theme) => ({
+                  '& .MuiInputBase-root': {
+                    fontSize: 14,
+                    lineHeight: 1.55,
+                    color: theme.palette.kanap.text.primary,
+                  },
+                  '& textarea::placeholder': {
+                    color: theme.palette.kanap.text.tertiary,
+                    opacity: 1,
+                  },
+                }),
+              ]}
             />
           </Box>
 

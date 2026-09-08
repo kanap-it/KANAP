@@ -62,10 +62,9 @@ KANAP uses MUI, but only through constrained patterns:
 - Do not use `Select label="..."`.
 - Do not use `MuiDrawer` for contained side panels.
 - Use label-above-value form rows with `PropertyRow`.
-- Use `Select variant="standard" disableUnderline`.
-- Use `TextField variant="standard"` with underline disabled.
-- Use the same naked `PropertyRow` treatment for one-line scalar fields in content tabs; reserve bordered inputs for dialogs and defined long-form editor/composer surfaces.
-- Underline-disabled editable fields need concrete data-shape placeholders and a subtle 120ms `kanap.bg.composer` background on hover, whether empty or populated. Use a single hover layer on the outer editable value, 4px radius, about `margin: -3px -6px` and `padding: 3px 6px` so the highlight extends beyond the text; reset the background on `:focus-within`.
+- Every form field is a discreet bordered box drawn by the theme (`MuiInput` override): 1px `kanap.border.default`, 6px radius, ~32px, teal border on focus, `kanap.bg.drawer` when read-only. Write `TextField variant="standard"` / `Select` with no field sx; never draw or remove the border by hand.
+- Only inline controls (filter selects, composer-footer selects, click-to-edit titles) use `inlineControlSx`; inputs inside a custom surface use `fieldResetSx`; editable table cells use `tableCellFieldSx` / `tableCellTextFieldSx`.
+- Empty editable fields need concrete data-shape placeholders (`e.g., server1`), never instruction copy.
 - Use tertiary `Not set` only for display/read-only empty values, not as a generic editable-field placeholder.
 - Use shared `sx` constants for repeated drawer/select/date/menu styling; do not paste large repeated inline `sx` objects.
 - Required asterisks are orange, not red.

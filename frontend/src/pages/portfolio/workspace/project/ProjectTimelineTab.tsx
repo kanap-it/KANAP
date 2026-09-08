@@ -27,6 +27,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { tableCellTextFieldSx } from '../../../../theme/formSx';
 import type { SxProps, Theme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -350,7 +351,7 @@ function CompactPhaseDateField({
             </InputAdornment>
           ),
         }}
-        sx={(theme) => ({
+        sx={[tableCellTextFieldSx, (theme) => ({
           '& .MuiInputBase-root': {
             color: theme.palette.kanap.text.primary,
             fontFamily: theme.typography.fontFamily,
@@ -369,7 +370,7 @@ function CompactPhaseDateField({
           '& .MuiInputAdornment-root': {
             m: 0,
           },
-        })}
+        })]}
       />
     </Box>
   );
@@ -770,7 +771,7 @@ function SortablePhaseRow({
                 );
               }
             }}
-            sx={{ flex: 1, minWidth: 0 }}
+            sx={[tableCellTextFieldSx, { flex: 1, minWidth: 0 }]}
           >
             <MenuItem value="pending"><PhaseStatusValue status="pending" /></MenuItem>
             <MenuItem value="in_progress"><PhaseStatusValue status="in_progress" /></MenuItem>
@@ -933,11 +934,10 @@ function SortablePhaseRow({
                         disabled={!canManage}
                         renderValue={(value) => <TaskStatusValue status={String(value)} />}
                         onChange={(event) => onTaskUpdate(task.id, { status: String(event.target.value) })}
-                        sx={{
+                        sx={[tableCellTextFieldSx, {
                           fontSize: 13,
-                          '&:before, &:after': { display: 'none' },
-                          '& .MuiSelect-select': { padding: '0 22px 0 0 !important', minHeight: '20px !important', display: 'flex', alignItems: 'center', overflow: 'hidden' },
-                        }}
+                          '& .MuiSelect-select': { minHeight: '20px !important', display: 'flex', alignItems: 'center', overflow: 'hidden' },
+                        }]}
                       >
                         {getTaskStatusOptions(t).map((option) => (
                           <MenuItem key={option.value} value={option.value}>
@@ -1343,6 +1343,7 @@ export default function ProjectTimelineTab({
                         fullWidth
                         disabled={!canManage}
                         InputProps={{ disableUnderline: true }}
+                        sx={tableCellTextFieldSx}
                         onChange={(event) => {
                           const nextName = event.target.value;
                           onSetForm((prev: any) => ({
@@ -1374,12 +1375,12 @@ export default function ProjectTimelineTab({
                         valueYmd={milestone.target_date || ''}
                         label=""
                         sx={{ minWidth: 150 }}
-                        textFieldSx={{
+                        textFieldSx={[tableCellTextFieldSx, {
                           '& .MuiInputBase-input': { minWidth: 78 },
                           '& .MuiInputAdornment-root': { ml: 0 },
                           '& .MuiButtonBase-root': { p: '2px' },
                           '& .MuiButtonBase-root .MuiSvgIcon-root': { fontSize: 16 },
-                        }}
+                        }]}
                         disabled={!canManage || !!linkedPhase}
                         onChangeYmd={async (value) => {
                           onSetForm((prev: any) => ({
@@ -1407,6 +1408,7 @@ export default function ProjectTimelineTab({
                         value={milestone.status || 'pending'}
                         fullWidth
                         disabled={!canManage}
+                        sx={tableCellTextFieldSx}
                         onChange={async (event) => {
                           const nextStatus = event.target.value;
                           onSetForm((prev: any) => ({
