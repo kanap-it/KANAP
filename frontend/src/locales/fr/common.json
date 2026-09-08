@@ -163,8 +163,16 @@
     "topIncreasesYvsYminus1": "Plus fortes hausses (A vs A-1)",
     "settings": {
       "title": "Paramètres du tableau de bord",
-      "description": "Activez ou désactivez les tuiles pour personnaliser votre tableau de bord. Glisser pour réorganiser (bientôt disponible).",
-      "resetToDefaults": "Rétablir les valeurs par défaut"
+      "description": "Activez ou désactivez les tuiles, ajustez leurs options et glissez-les pour les réorganiser.",
+      "resetToDefaults": "Rétablir les valeurs par défaut",
+      "dragToReorder": "Glisser pour réorganiser",
+      "options": {
+        "limit": "Nombre d'éléments",
+        "showOverdue": "Afficher la section « En retard »",
+        "days": "Jours affichés",
+        "scope": "Périmètre",
+        "thresholdDays": "Seuil (jours)"
+      }
     },
     "quickCreate": {
       "createTask": "Créer une tâche",
@@ -230,7 +238,7 @@
       "hoursAgo": "Il y a {{count}}h",
       "daysAgo": "Il y a {{count}}j",
       "staleTasks": "Tâches en stagnation",
-      "noStaleTasks": "Aucune tâche en stagnation dans le périmètre {{scope}}",
+      "noStaleTasks": "Aucune tâche en stagnation. Périmètre : {{scope}}",
       "daysStale": "{{count}}j en stagnation",
       "standaloneTask": "Tâche autonome",
       "updated": "Mis à jour le {{date}}",
@@ -265,9 +273,9 @@
       "loadError": "Impossible de charger cette tuile.",
       "clearHistory": "Effacer l'historique",
       "scope": {
-        "my": "personnel",
-        "team": "équipe",
-        "all": "global"
+        "my": "Les miennes",
+        "team": "Mon équipe",
+        "all": "Tout le monde"
       },
       "entityTypes": {
         "project": "Projet",
@@ -283,7 +291,10 @@
         "incident": "Incident",
         "location": "Site",
         "document": "Document"
-      }
+      },
+      "myTimeTitle": "Mon temps",
+      "newRequestsTitle": "Nouvelles demandes",
+      "statusChangesTitle": "Changements de statut de projet"
     },
     "welcome": "Bienvenue"
   },

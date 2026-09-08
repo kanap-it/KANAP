@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
 import { useTranslation } from 'react-i18next';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { projectStatusLabel } from './tileLabels';
 import { getDotColor, getPillBg, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
 
 interface MyContributionProject {
@@ -32,7 +33,7 @@ interface ProjectsIContributeTileProps {
 export default function ProjectsIContributeTile({ config }: ProjectsIContributeTileProps) {
   const navigate = useNavigate();
   const { t } = useTranslation('common');
-  const limit = Math.min((config.limit as number) || 5, 5);
+  const limit = Math.min((config.limit as number) || 5, 10);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard', 'my-contribution-projects', limit],
@@ -90,7 +91,7 @@ export default function ProjectsIContributeTile({ config }: ProjectsIContributeT
                       const bgColor = getPillBg(muiColor, theme.palette.mode);
                       return { display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500, color: textColor, bgcolor: bgColor };
                     }}>
-                      {project.status.replace('_', ' ')}
+                      {projectStatusLabel(t, project.status)}
                     </Box>
                   </Box>
                 }

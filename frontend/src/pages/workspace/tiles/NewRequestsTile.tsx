@@ -29,7 +29,7 @@ export default function NewRequestsTile({ config }: NewRequestsTileProps) {
   const navigate = useNavigate();
   const { t } = useTranslation('common');
   const locale = useLocale();
-  const limit = Math.min((config.limit as number) || 5, 5);
+  const limit = Math.min((config.limit as number) || 5, 10);
   const days = (config.days as number) || 7;
 
   const cutoffDate = new Date();

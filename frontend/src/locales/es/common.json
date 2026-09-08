@@ -163,8 +163,16 @@
     "topIncreasesYvsYminus1": "Mayores incrementos (A vs A-1)",
     "settings": {
       "title": "Configuración del panel",
-      "description": "Active o desactive mosaicos para personalizar su panel. Arrastrar para reordenar (próximamente).",
-      "resetToDefaults": "Restablecer valores predeterminados"
+      "description": "Active o desactive los mosaicos, ajuste sus opciones y arrástrelos para reordenarlos.",
+      "resetToDefaults": "Restablecer valores predeterminados",
+      "dragToReorder": "Arrastrar para reordenar",
+      "options": {
+        "limit": "Máx. elementos",
+        "showOverdue": "Mostrar la sección «Atrasadas»",
+        "days": "Días mostrados",
+        "scope": "Ámbito",
+        "thresholdDays": "Umbral (días)"
+      }
     },
     "quickCreate": {
       "createTask": "Crear tarea",
@@ -230,7 +238,7 @@
       "hoursAgo": "Hace {{count}}h",
       "daysAgo": "Hace {{count}}d",
       "staleTasks": "Tareas estancadas",
-      "noStaleTasks": "Ninguna tarea estancada en el ámbito {{scope}}",
+      "noStaleTasks": "Ninguna tarea estancada. Ámbito: {{scope}}",
       "daysStale": "{{count}}d estancada",
       "standaloneTask": "Tarea independiente",
       "updated": "Actualizado el {{date}}",
@@ -265,9 +273,9 @@
       "loadError": "No se pudo cargar este mosaico.",
       "clearHistory": "Borrar historial",
       "scope": {
-        "my": "personal",
-        "team": "equipo",
-        "all": "global"
+        "my": "Mías",
+        "team": "Mi equipo",
+        "all": "Todos"
       },
       "entityTypes": {
         "project": "Proyecto",
@@ -283,7 +291,10 @@
         "incident": "Incidente",
         "location": "Ubicación",
         "document": "Documento"
-      }
+      },
+      "myTimeTitle": "Mi tiempo",
+      "newRequestsTitle": "Nuevas solicitudes",
+      "statusChangesTitle": "Cambios de estado de proyecto"
     },
     "welcome": "Bienvenido"
   },

@@ -4,15 +4,21 @@ export type PermissionLevel = 'reader' | 'contributor' | 'member' | 'admin';
 
 export interface ConfigFieldSchema {
   type: 'number' | 'boolean' | 'select';
-  label: string;
+  /** i18n key (common namespace) for the option label. */
+  labelKey: string;
   min?: number;
   max?: number;
   options?: string[];
+  /** i18n key prefix (common namespace) for select option labels, e.g. `dashboard.tiles.scope`. */
+  optionLabelKey?: string;
 }
 
 export interface TileDefinition {
   component: ComponentType<{ config: Record<string, unknown> }>;
+  /** English fallback; the UI shows `titleKey`. */
   title: string;
+  /** i18n key (common namespace) for the tile name without parameters. */
+  titleKey: string;
   icon: string;
   defaultConfig: Record<string, unknown>;
   configSchema: Record<string, ConfigFieldSchema>;
@@ -44,68 +50,75 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
   'my-tasks': {
     component: Placeholder, // Will be replaced
     title: 'My Tasks',
+    titleKey: 'dashboard.myTasks',
     icon: 'Task',
     defaultConfig: { limit: 5, showOverdue: true },
     configSchema: {
-      limit: { type: 'number', label: 'Max items', min: 3, max: 20 },
-      showOverdue: { type: 'boolean', label: 'Show overdue section' },
+      limit: { type: 'number', labelKey: 'dashboard.settings.options.limit', min: 3, max: 10 },
+      showOverdue: { type: 'boolean', labelKey: 'dashboard.settings.options.showOverdue' },
     },
     requiredPermissions: [{ resource: 'tasks', level: 'reader' }],
   },
   'projects-i-lead': {
     component: Placeholder,
     title: 'Projects I Lead',
+    titleKey: 'dashboard.tiles.projectsILead',
     icon: 'Leaderboard',
     defaultConfig: { limit: 5 },
     configSchema: {
-      limit: { type: 'number', label: 'Max items', min: 3, max: 20 },
+      limit: { type: 'number', labelKey: 'dashboard.settings.options.limit', min: 3, max: 10 },
     },
     requiredPermissions: [{ resource: 'portfolio_projects', level: 'reader' }],
   },
   'projects-i-contribute': {
     component: Placeholder,
     title: 'Projects I Contribute To',
+    titleKey: 'dashboard.tiles.projectsIContribute',
     icon: 'Groups',
     defaultConfig: { limit: 5 },
     configSchema: {
-      limit: { type: 'number', label: 'Max items', min: 3, max: 20 },
+      limit: { type: 'number', labelKey: 'dashboard.settings.options.limit', min: 3, max: 10 },
     },
     requiredPermissions: [{ resource: 'portfolio_projects', level: 'reader' }],
   },
   'recently-viewed': {
     component: Placeholder,
     title: 'Recently Viewed',
+    titleKey: 'dashboard.tiles.recentlyViewed',
     icon: 'History',
     defaultConfig: { limit: 5 },
     configSchema: {
-      limit: { type: 'number', label: 'Max items', min: 1, max: 10 },
+      limit: { type: 'number', labelKey: 'dashboard.settings.options.limit', min: 1, max: 10 },
     },
     // No requiredPermissions - always visible
   },
   'my-time-last-week': {
     component: Placeholder,
     title: 'My Time Last Week',
+    titleKey: 'dashboard.tiles.myTimeTitle',
     icon: 'AccessTime',
     defaultConfig: { days: 7 },
     configSchema: {
-      days: { type: 'number', label: 'Days to show', min: 7, max: 30 },
+      days: { type: 'number', labelKey: 'dashboard.settings.options.days', min: 7, max: 30 },
     },
     requiredPermissions: [{ resource: 'portfolio_projects', level: 'reader' }],
   },
   'new-requests': {
     component: Placeholder,
     title: 'New Requests',
+    titleKey: 'dashboard.tiles.newRequestsTitle',
     icon: 'Inbox',
     defaultConfig: { limit: 5, days: 7 },
     configSchema: {
-      limit: { type: 'number', label: 'Max items', min: 3, max: 20 },
-      days: { type: 'number', label: 'Days to show', min: 1, max: 30 },
+      limit: { type: 'number', labelKey: 'dashboard.settings.options.limit', min: 3, max: 10 },
+      days: { type: 'number', labelKey: 'dashboard.settings.options.days', min: 1, max: 30 },
     },
     requiredPermissions: [{ resource: 'portfolio_requests', level: 'reader' }],
   },
   'knowledge-overview': {
     component: Placeholder,
     title: 'Knowledge',
+    titleKey: 'dashboard.tiles.knowledge',
     icon: 'Description',
     defaultConfig: {},
     configSchema: {},
@@ -114,6 +127,7 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
   'application-compliance': {
     component: Placeholder,
     title: 'Compliance',
+    titleKey: 'dashboard.tiles.compliance',
     icon: 'VerifiedUser',
     defaultConfig: {},
     configSchema: {},
@@ -123,31 +137,34 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
   'team-activity': {
     component: Placeholder,
     title: 'Team Activity',
+    titleKey: 'dashboard.tiles.teamActivity',
     icon: 'Update',
     defaultConfig: { limit: 5 },
     configSchema: {
-      limit: { type: 'number', label: 'Max items', min: 1, max: 5 },
+      limit: { type: 'number', labelKey: 'dashboard.settings.options.limit', min: 1, max: 5 },
     },
     requiredPermissions: [{ resource: 'portfolio_projects', level: 'reader' }],
   },
   'global-status-changes': {
     component: Placeholder,
     title: 'Project Status Changes',
+    titleKey: 'dashboard.tiles.statusChangesTitle',
     icon: 'SwapHoriz',
     defaultConfig: { days: 5 },
     configSchema: {
-      days: { type: 'number', label: 'Days to show', min: 1, max: 14 },
+      days: { type: 'number', labelKey: 'dashboard.settings.options.days', min: 1, max: 14 },
     },
     requiredPermissions: [{ resource: 'portfolio_projects', level: 'reader' }],
   },
   'stale-tasks': {
     component: Placeholder,
     title: 'Stale Tasks',
+    titleKey: 'dashboard.tiles.staleTasks',
     icon: 'Warning',
     defaultConfig: { scope: 'my', thresholdDays: 90 },
     configSchema: {
-      scope: { type: 'select', label: 'Scope', options: ['my', 'team', 'all'] },
-      thresholdDays: { type: 'number', label: 'Threshold (days)', min: 30, max: 365 },
+      scope: { type: 'select', labelKey: 'dashboard.settings.options.scope', options: ['my', 'team', 'all'], optionLabelKey: 'dashboard.tiles.scope' },
+      thresholdDays: { type: 'number', labelKey: 'dashboard.settings.options.thresholdDays', min: 30, max: 365 },
     },
     requiredPermissions: [{ resource: 'tasks', level: 'reader' }],
   },

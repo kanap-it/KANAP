@@ -14,6 +14,7 @@ import { useLocale } from '../../../i18n/useLocale';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { taskPriorityLabel } from './tileLabels';
 import { ACTIVE_TASK_STATUSES } from '../../tasks/task.constants';
 
 interface Task {
@@ -50,7 +51,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
   const { profile } = useAuth();
   const { t } = useTranslation('common');
   const locale = useLocale();
-  const limit = Math.min((config.limit as number) || 5, 5);
+  const limit = Math.min((config.limit as number) || 5, 10);
   const showOverdue = config.showOverdue !== false;
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -128,7 +129,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
             />
             {task.priority_level !== 'normal' && (
               <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.75rem', ml: 1 }}>
-                {task.priority_level}
+                {taskPriorityLabel(t, task.priority_level)}
               </Box>
             )}
           </ListItemButton>
@@ -163,7 +164,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
         <Box>
           {showOverdue && overdueTasks.length > 0 && (
             <>
-              <Typography variant="caption" color="error" fontWeight={600} sx={{ pl: 2 }}>
+              <Typography variant="caption" color="error" fontWeight={500} sx={{ pl: 2 }}>
                 {t('dashboard.tiles.overdue')}
               </Typography>
               {renderTaskList(overdueTasks, '')}
@@ -172,7 +173,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
           )}
           {dueThisWeek.length > 0 && (
             <>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ pl: 2 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ pl: 2 }}>
                 {t('dashboard.tiles.dueThisWeek')}
               </Typography>
               {renderTaskList(dueThisWeek, '')}
@@ -181,7 +182,7 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
           )}
           {laterTasks.length > 0 && (
             <>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ pl: 2 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ pl: 2 }}>
                 {t('dashboard.tiles.later')}
               </Typography>
               {renderTaskList(laterTasks, '')}
