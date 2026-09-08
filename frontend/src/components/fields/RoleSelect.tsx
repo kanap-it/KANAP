@@ -66,7 +66,6 @@ export default function RoleSelect({
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {isLoading ? <CircularProgress size={16} /> : null}

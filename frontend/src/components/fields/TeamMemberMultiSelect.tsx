@@ -197,7 +197,6 @@ export default function TeamMemberMultiSelect({
             sx={textFieldSx}
             InputProps={{
               ...params.InputProps,
-              ...(hideLabel ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {isLoading ? <CircularProgress color="inherit" size={16} /> : null}

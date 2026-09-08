@@ -53,15 +53,7 @@ import {
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import type { InterfaceDetail, InterfaceLeg } from '../components/interface-workspace/types';
 import { getDotColor, LIFECYCLE_COLORS } from '../../../utils/statusColors';
-import {
-  dialogBorderedFieldSx,
-  drawerAutocompleteListboxSx,
-  drawerFieldValueSx,
-  drawerMenuItemSx,
-  drawerSelectSx,
-  editableFieldValueSx,
-  longFormSurfaceFieldSx,
-} from '../../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx, longFormSurfaceFieldSx } from '../../../theme/formSx';
 
 export type InterfaceMappingTabHandle = {
   save: () => Promise<boolean>;
@@ -381,38 +373,17 @@ const mappingRulesFilterSx = {
 
 const mappingRulesSearchSx = {
   width: { xs: '100%', sm: 260 },
-  '& .MuiInputBase-root': {
-    height: 32,
-    fontSize: 13,
-    bgcolor: 'kanap.bg.composer',
-    border: '1px solid',
-    borderColor: 'kanap.border.default',
-    borderRadius: '6px',
-    px: 1,
-  },
-  '& .MuiInputBase-input': {
-    py: 0,
-  },
-  '& .MuiOutlinedInput-notchedOutline': {
-    border: 0,
-  },
+  '& .MuiInputBase-root': { fontSize: 13 },
 } as const;
 
 const mappingRulesSelectSx = {
+  ...drawerSelectSx,
+  width: 'auto',
   minWidth: { xs: '100%', sm: 250 },
-  height: 32,
-  px: 1,
-  border: '1px solid',
-  borderColor: 'kanap.border.default',
-  borderRadius: '6px',
-  bgcolor: 'kanap.bg.composer',
-  color: 'kanap.text.primary',
-  fontSize: 13,
   '& .MuiSelect-select': {
-    py: 0,
+    ...drawerSelectSx['& .MuiSelect-select'],
     display: 'flex',
     alignItems: 'center',
-    minHeight: '30px !important',
   },
 } as const;
 
@@ -1879,7 +1850,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                   value={selectedGroupId}
                   onChange={(event) => setSelectedGroupId(String(event.target.value) as GroupFilterKey)}
                   variant="standard"
-                  disableUnderline
                   sx={mappingRulesSelectSx}
                   renderValue={(value) => {
                     if (value === ALL_GROUPS_KEY) return 'All rules';
@@ -2107,8 +2077,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                 }))}
                 placeholder="Business document"
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                sx={drawerFieldValueSx}
                 fullWidth
               />
             </PropertyRow>
@@ -2122,10 +2091,9 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                 }))}
                 placeholder="Optional context"
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
                 multiline
                 minRows={3}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                sx={drawerFieldValueSx}
                 fullWidth
               />
             </PropertyRow>
@@ -2185,8 +2153,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                   }))}
                   placeholder="Customer identifier"
                   variant="standard"
-                  InputProps={{ disableUnderline: true }}
-                  sx={editableFieldValueSx}
+                  sx={drawerFieldValueSx}
                   disabled={!canManage || saving}
                   fullWidth
                 />
@@ -2211,8 +2178,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                     }))}
                     placeholder="customer_id"
                     variant="standard"
-                    InputProps={{ disableUnderline: true }}
-                    sx={editableFieldValueSx}
+                    sx={drawerFieldValueSx}
                     disabled={!canManage || saving}
                     fullWidth
                   />
@@ -2233,7 +2199,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                       return selectedGroup?.title || 'Ungrouped';
                     }}
                     variant="standard"
-                    disableUnderline
                     sx={drawerSelectSx}
                     disabled={!canManage || saving}
                     fullWidth
@@ -2255,7 +2220,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                       form: { ...current.form, lifecycle: String(event.target.value) },
                     }))}
                     variant="standard"
-                    disableUnderline
                     sx={drawerSelectSx}
                     disabled={!canManage || saving}
                     fullWidth
@@ -2276,7 +2240,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                       form: { ...current.form, operation_kind_choice: String(event.target.value) },
                     }))}
                     variant="standard"
-                    disableUnderline
                     sx={drawerSelectSx}
                     disabled={!canManage || saving}
                     fullWidth
@@ -2305,7 +2268,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                       return selectedLeg ? legLabel(selectedLeg) : 'All legs';
                     }}
                     variant="standard"
-                    disableUnderline
                     sx={drawerSelectSx}
                     disabled={!canManage || saving}
                     fullWidth
@@ -2343,7 +2305,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                       return values.map((value) => formatEnvironment(value)).join(', ');
                     }}
                     variant="standard"
-                    disableUnderline
                     sx={drawerSelectSx}
                     disabled={!canManage || saving || environmentOptions.length === 0}
                     fullWidth
@@ -2371,8 +2332,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                       }))}
                       placeholder="Custom operation"
                       variant="standard"
-                      InputProps={{ disableUnderline: true }}
-                      sx={editableFieldValueSx}
+                      sx={drawerFieldValueSx}
                       disabled={!canManage || saving}
                       fullWidth
                     />
@@ -2407,9 +2367,8 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                           onChange={(event) => updateRuleBindingRow('source_bindings', binding.id, { path: event.target.value })}
                           placeholder={index === 0 ? 'origin.customerId' : 'Source path'}
                           variant="standard"
-                          InputProps={{ disableUnderline: true }}
                           inputProps={{ 'aria-label': `Source ${index + 1}` }}
-                          sx={[editableFieldValueSx, { gridColumn: { xs: '1 / -1', sm: 'auto' } }]}
+                          sx={[drawerFieldValueSx, { gridColumn: { xs: '1 / -1', sm: 'auto' } }]}
                           disabled={!canManage || saving}
                           fullWidth
                         />
@@ -2427,8 +2386,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                               {...params}
                               placeholder="Type"
                               variant="standard"
-                              InputProps={{ ...params.InputProps, disableUnderline: true }}
-                              sx={editableFieldValueSx}
+                              sx={drawerFieldValueSx}
                             />
                           )}
                         />
@@ -2470,9 +2428,8 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                           onChange={(event) => updateRuleBindingRow('target_bindings', binding.id, { path: event.target.value })}
                           placeholder={index === 0 ? 'destination.customerId' : 'Target path'}
                           variant="standard"
-                          InputProps={{ disableUnderline: true }}
                           inputProps={{ 'aria-label': `Target ${index + 1}` }}
-                          sx={[editableFieldValueSx, { gridColumn: { xs: '1 / -1', sm: 'auto' } }]}
+                          sx={[drawerFieldValueSx, { gridColumn: { xs: '1 / -1', sm: 'auto' } }]}
                           disabled={!canManage || saving}
                           fullWidth
                         />
@@ -2490,8 +2447,7 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                               {...params}
                               placeholder="Type"
                               variant="standard"
-                              InputProps={{ ...params.InputProps, disableUnderline: true }}
-                              sx={editableFieldValueSx}
+                              sx={drawerFieldValueSx}
                             />
                           )}
                         />
@@ -2522,7 +2478,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                   }))}
                   placeholder="order.amount > 0"
                   variant="standard"
-                  InputProps={{ disableUnderline: true }}
                   multiline
                   minRows={2}
                   sx={[longFormSurfaceFieldSx, mappingConditionFieldSx]}
@@ -2540,7 +2495,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                   }))}
                   placeholder="Business validation or transformation rule"
                   variant="standard"
-                  InputProps={{ disableUnderline: true }}
                   multiline
                   minRows={2}
                   sx={[longFormSurfaceFieldSx, mappingComposerFieldSx]}
@@ -2558,7 +2512,6 @@ export default forwardRef<InterfaceMappingTabHandle, Props>(function InterfaceMa
                   }))}
                   placeholder="Additional notes"
                   variant="standard"
-                  InputProps={{ disableUnderline: true }}
                   multiline
                   minRows={2}
                   sx={[longFormSurfaceFieldSx, mappingComposerFieldSx]}

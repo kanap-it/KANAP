@@ -19,7 +19,7 @@ import api from '../../api';
 import ContactSelect from '../fields/ContactSelect';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
-import { editableFieldValueSx, drawerSelectSx, drawerMenuItemSx, inlineControlSx } from '../../theme/formSx';
+import { drawerFieldValueSx, drawerSelectSx, drawerMenuItemSx, inlineControlSx } from '../../theme/formSx';
 import RelationsSectionTitle from '../../pages/portfolio/components/RelationsSectionTitle';
 
 type SupplierContactRole = 'commercial' | 'technical' | 'support' | 'other';
@@ -164,7 +164,7 @@ export default function ItemContactsSection({ itemType, itemId, canManage }: Pro
               value={selectedContact}
               onChange={setSelectedContact}
               disabled={attaching}
-              textFieldSx={editableFieldValueSx}
+              textFieldSx={drawerFieldValueSx}
             />
           </Box>
           {selectedContact && (
@@ -177,7 +177,6 @@ export default function ItemContactsSection({ itemType, itemId, canManage }: Pro
                 if (role) void attach({ contactId: selectedContact, role });
               }}
               disabled={attaching}
-              InputProps={{ disableUnderline: true }}
               SelectProps={{
                 displayEmpty: true,
                 renderValue: () => (

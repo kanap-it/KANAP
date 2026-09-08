@@ -130,7 +130,6 @@ export default function BusinessProcessCategoryMultiSelect({
             error={error}
             InputProps={{
               ...params.InputProps,
-              ...(naked ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {(isLoading || isFetching) ? <CircularProgress color="inherit" size={16} /> : null}

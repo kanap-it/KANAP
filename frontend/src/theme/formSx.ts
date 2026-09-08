@@ -33,9 +33,6 @@ export const nakedControlHoverSx = {
   cursor: 'pointer',
 } as const;
 
-/** @deprecated The theme colors placeholders; no-op kept for call sites until PR2 cleanup. */
-export const nakedFieldPlaceholderSx = {} as const;
-
 /**
  * Pure reset for an input that lives inside a custom surface (chat composer,
  * journal composer, picker search boxes): the surrounding surface draws the
@@ -218,12 +215,6 @@ export const drawerFieldValueSx = {
     minWidth: '100% !important',
   },
 } as const;
-
-/** @deprecated Same as `drawerFieldValueSx`; the hover surface is gone. Kept until PR2 cleanup. */
-export const editableFieldValueSx = drawerFieldValueSx;
-
-/** @deprecated The theme draws the box on every form field; no-op kept until PR2 cleanup. */
-export const dialogBorderedFieldSx = {} as const;
 
 export const longFormSurfaceFieldSx = {
   width: '100%',

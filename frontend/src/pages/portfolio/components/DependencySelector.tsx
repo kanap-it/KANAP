@@ -6,7 +6,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
-import { drawerAutocompleteListboxSx, editableFieldValueSx } from '../../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
 
 interface Dependency {
   id: string;
@@ -33,7 +33,7 @@ interface TargetOption {
 
 const relationControlSx = { maxWidth: 420 } as const;
 const relationWideControlSx = { maxWidth: 640 } as const;
-const relationAutocompleteSx = [editableFieldValueSx, { width: '100%' }, relationControlSx] as const;
+const relationAutocompleteSx = [drawerFieldValueSx, { width: '100%' }, relationControlSx] as const;
 
 export default function DependencySelector({
   entityType,
@@ -139,7 +139,6 @@ export default function DependencySelector({
             }}
             InputProps={{
               ...params.InputProps,
-              disableUnderline: true,
               endAdornment: (
                 <>
                   {isLoading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -147,7 +146,7 @@ export default function DependencySelector({
                 </>
               ),
             }}
-            sx={editableFieldValueSx}
+            sx={drawerFieldValueSx}
           />
         )}
         ListboxProps={{ sx: drawerAutocompleteListboxSx }}

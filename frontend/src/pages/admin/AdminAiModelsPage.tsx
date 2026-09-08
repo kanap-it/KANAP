@@ -35,7 +35,7 @@ import {
   aiAdminApi,
   aiModelConfigsApi,
 } from '../../ai/aiApi';
-import { drawerMenuItemSx, drawerSelectSx, editableFieldValueSx } from '../../theme/formSx';
+import { drawerMenuItemSx, drawerSelectSx, drawerFieldValueSx } from '../../theme/formSx';
 
 export const AI_MODEL_CONFIGS_QUERY_KEY = ['ai-model-configs'];
 
@@ -494,15 +494,13 @@ export default function AdminAiModelsPage() {
                 variant="standard"
                 value={draft.name}
                 placeholder={t('aiModels.dialog.namePlaceholder')}
-                InputProps={{ disableUnderline: true }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
                 onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
               />
             </PropertyRow>
             <PropertyRow label={t('aiModels.dialog.provider')}>
               <Select
                 variant="standard"
-                disableUnderline
                 value={draft.provider}
                 sx={drawerSelectSx}
                 onChange={(event) => handleProviderChange(event.target.value)}
@@ -518,8 +516,7 @@ export default function AdminAiModelsPage() {
                 variant="standard"
                 value={draft.model}
                 placeholder={t('aiModels.dialog.modelPlaceholder')}
-                InputProps={{ disableUnderline: true }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
                 onChange={(event) => setDraft((prev) => ({ ...prev, model: event.target.value }))}
               />
             </PropertyRow>
@@ -530,8 +527,7 @@ export default function AdminAiModelsPage() {
                   variant="standard"
                   value={draft.endpoint_url}
                   placeholder={t('aiModels.dialog.endpointPlaceholder')}
-                  InputProps={{ disableUnderline: true }}
-                  sx={editableFieldValueSx}
+                  sx={drawerFieldValueSx}
                   onChange={(event) => setDraft((prev) => ({ ...prev, endpoint_url: event.target.value }))}
                 />
               </PropertyRow>
@@ -588,8 +584,7 @@ export default function AdminAiModelsPage() {
                   value={draft.price_input}
                   placeholder={t('aiModels.dialog.priceInputPlaceholder')}
                   error={priceInput === undefined}
-                  InputProps={{ disableUnderline: true }}
-                  sx={editableFieldValueSx}
+                  sx={drawerFieldValueSx}
                   onChange={(event) => setDraft((prev) => ({ ...prev, price_input: event.target.value }))}
                 />
               </PropertyRow>
@@ -608,8 +603,7 @@ export default function AdminAiModelsPage() {
                   value={draft.price_output}
                   placeholder={t('aiModels.dialog.priceOutputPlaceholder')}
                   error={priceOutput === undefined}
-                  InputProps={{ disableUnderline: true }}
-                  sx={editableFieldValueSx}
+                  sx={drawerFieldValueSx}
                   onChange={(event) => setDraft((prev) => ({ ...prev, price_output: event.target.value }))}
                 />
               </PropertyRow>
@@ -628,8 +622,7 @@ export default function AdminAiModelsPage() {
                 value={draft.timeout_seconds}
                 placeholder={t('aiModels.dialog.timeoutPlaceholder')}
                 error={timeoutInvalid}
-                InputProps={{ disableUnderline: true }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
                 onChange={(event) => setDraft((prev) => ({ ...prev, timeout_seconds: event.target.value }))}
               />
             </PropertyRow>

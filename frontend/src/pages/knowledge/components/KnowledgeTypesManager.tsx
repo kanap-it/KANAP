@@ -22,7 +22,6 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { KanapDialog, PropertyRow } from '../../../components/design';
-import { dialogBorderedFieldSx } from '../../../theme/formSx';
 
 type DocumentTypeItem = {
   id: string;
@@ -139,8 +138,6 @@ export default function KnowledgeTypesManager() {
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder={t('typesManager.fields.name')}
                 fullWidth
-                InputProps={{ disableUnderline: true }}
-                sx={dialogBorderedFieldSx}
               />
             </PropertyRow>
             <PropertyRow label={t('typesManager.fields.description')} sx={{ flex: 1 }}>
@@ -150,8 +147,6 @@ export default function KnowledgeTypesManager() {
                 onChange={(e) => setNewDescription(e.target.value)}
                 placeholder={t('typesManager.fields.description')}
                 fullWidth
-                InputProps={{ disableUnderline: true }}
-                sx={dialogBorderedFieldSx}
               />
             </PropertyRow>
             <Button

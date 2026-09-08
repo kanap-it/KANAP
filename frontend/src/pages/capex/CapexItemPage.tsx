@@ -586,7 +586,6 @@ export default function CapexItemPage() {
                   onChange={(e) => updateCreateForm({ notes: e.target.value })}
                   multiline minRows={4} fullWidth variant="standard"
                   placeholder={t('capex.fields.notesPlaceholder', 'e.g., approved investment rationale')}
-                  InputProps={{ disableUnderline: true }}
                   sx={composerSx}
                   disabled={createSubmitting}
                 />
@@ -601,7 +600,6 @@ export default function CapexItemPage() {
                   onChange={(e) => patchDebounced({ notes: e.target.value })}
                   multiline minRows={4} fullWidth variant="standard"
                   placeholder={t('capex.fields.notesPlaceholder', 'e.g., approved investment rationale')}
-                  InputProps={{ disableUnderline: true }}
                   sx={composerSx}
                 />
               </Box>

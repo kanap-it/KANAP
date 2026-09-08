@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import KanapDialog from '../../components/design/KanapDialog';
 import { PropertyRow } from '../../components/design';
-import { dialogBorderedFieldSx } from '../../theme/formSx';
 import {
   ActionButtons,
   actionAgentDefinitionId,
@@ -432,18 +431,14 @@ function ApprovalReasonField({
         variant="standard"
         value={value}
         placeholder={t('approvals.reasonPlaceholder')}
-        InputProps={{ disableUnderline: true }}
         inputProps={{ maxLength: 500 }}
-        sx={[
-          dialogBorderedFieldSx,
-          {
+        sx={{
             width: '100%',
             '& .MuiInputBase-input': {
               fontSize: 13,
               lineHeight: 1.45,
             },
-          },
-        ]}
+          }}
         onChange={(event) => onChange(event.target.value)}
       />
     </PropertyRow>

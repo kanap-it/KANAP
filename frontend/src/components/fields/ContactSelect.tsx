@@ -138,7 +138,6 @@ const ContactSelect = React.forwardRef<HTMLInputElement, ContactSelectProps>(fun
           sx={textFieldSx}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isFetching || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}

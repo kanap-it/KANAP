@@ -537,7 +537,6 @@ export const ProjectScoringEditor = forwardRef<ProjectScoringEditorHandle, Props
               disabled={readOnly}
               fullWidth
               helperText={t('editors.scoring.helper.justification')}
-              InputProps={{ disableUnderline: true }}
               sx={[longFormSurfaceFieldSx, { '& .MuiInputBase-root': { minHeight: 0 } }]}
             />
           </Stack>

@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
-import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, editableFieldValueSx } from '../../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
 import { RelevantWebsitesList, useKanapDialogs } from '../../../components/design';
 import RelationsSectionTitle from '../components/RelationsSectionTitle';
 
@@ -66,7 +66,7 @@ const relationTagSx = {
 
 const relationControlSx = { maxWidth: 420 } as const;
 const relationWideControlSx = { maxWidth: 640 } as const;
-const relationAutocompleteSx = [editableFieldValueSx, { width: '100%' }, relationControlSx] as const;
+const relationAutocompleteSx = [drawerFieldValueSx, { width: '100%' }, relationControlSx] as const;
 
 const endpointBaseByType: Record<EntityType, string> = {
   request: '/portfolio/requests',
@@ -469,7 +469,6 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 }}
                 InputProps={{
                   ...params.InputProps,
-                  disableUnderline: true,
                   endAdornment: (
                     <>
                       {loadingOpexOptions ? <CircularProgress color="inherit" size={16} /> : null}
@@ -477,7 +476,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                     </>
                   ),
                 }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
               />
             )}
             ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -515,7 +514,6 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 }}
                 InputProps={{
                   ...params.InputProps,
-                  disableUnderline: true,
                   endAdornment: (
                     <>
                       {loadingCapexOptions ? <CircularProgress color="inherit" size={16} /> : null}
@@ -523,7 +521,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                     </>
                   ),
                 }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
               />
             )}
             ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -581,7 +579,6 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 }}
                 InputProps={{
                   ...params.InputProps,
-                  disableUnderline: true,
                   endAdornment: (
                     <>
                       {loadingApplications ? <CircularProgress color="inherit" size={16} /> : null}
@@ -589,7 +586,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                     </>
                   ),
                 }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
               />
             )}
             ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -636,7 +633,6 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 }}
                 InputProps={{
                   ...params.InputProps,
-                  disableUnderline: true,
                   endAdornment: (
                     <>
                       {loadingAssets ? <CircularProgress color="inherit" size={16} /> : null}
@@ -644,7 +640,7 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                     </>
                   ),
                 }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
               />
             )}
             ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -790,8 +786,6 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 autoFocus
                 inputRef={linkNameInputRef}
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={dialogBorderedFieldSx}
               />
               <TextField
                 aria-label={t('editors.relations.fields.url')}
@@ -799,8 +793,6 @@ export default forwardRef<PortfolioRelationsEditorHandle, Props>(function Portfo
                 value={linkDraft.url}
                 onChange={(event) => setLinkDraft((prev) => ({ ...prev, url: event.target.value }))}
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={dialogBorderedFieldSx}
               />
             </Stack>
           </DialogContent>

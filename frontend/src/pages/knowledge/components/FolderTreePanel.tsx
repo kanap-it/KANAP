@@ -26,7 +26,7 @@ import { useAuth } from '../../../auth/AuthContext';
 import { useTenant } from '../../../tenant/TenantContext';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { KanapDialog, PropertyRow } from '../../../components/design';
-import { dialogBorderedFieldSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
+import { drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 
 type FolderNode = {
   id: string;
@@ -715,8 +715,6 @@ const FolderTreePanel = React.memo(function FolderTreePanel({
               onChange={(e) => setNewFolderName(e.target.value)}
               placeholder={t('folderTree.fields.folderName')}
               fullWidth
-              InputProps={{ disableUnderline: true }}
-              sx={dialogBorderedFieldSx}
             />
           </PropertyRow>
           <PropertyRow label={t('folderTree.fields.parentFolder')}>
@@ -726,8 +724,7 @@ const FolderTreePanel = React.memo(function FolderTreePanel({
               value={newFolderParentId}
               onChange={(e) => setNewFolderParentId(e.target.value)}
               fullWidth
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+              sx={drawerSelectSx}
             >
               <MenuItem value="" sx={drawerMenuItemSx}>{t('folderTree.values.root')}</MenuItem>
               {flatFolders.map((folder) => (

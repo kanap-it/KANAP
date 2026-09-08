@@ -145,7 +145,6 @@ function ConversationItem({
           }}
           onBlur={commitRename}
           inputProps={{ maxLength: 160 }}
-          InputProps={{ disableUnderline: true }}
           sx={[fieldResetSx, (theme) => ({
             flex: 1,
             minWidth: 0,
@@ -343,7 +342,6 @@ export default function ChatConversationList({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             InputProps={{
-              disableUnderline: true,
               startAdornment: (
                 <InputAdornment position="start" sx={{ mr: 0.75 }}>
                   <SearchIcon sx={{ fontSize: 16, color: 'kanap.text.tertiary' }} />

@@ -158,7 +158,6 @@ export default function IncidentJournalTab({ incidentId, canAdd, onEntryAdded }:
             fullWidth
             variant="standard"
             placeholder={t('workspace.incident.journal.placeholder')}
-            InputProps={{ disableUnderline: true }}
             disabled={submitting}
             sx={journalEditorSx}
           />

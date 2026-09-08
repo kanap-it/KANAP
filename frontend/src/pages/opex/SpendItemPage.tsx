@@ -575,7 +575,6 @@ export default function SpendItemPage() {
                   onChange={(e) => updateCreateForm({ description: e.target.value })}
                   multiline minRows={3} fullWidth variant="standard"
                   placeholder={t('opex.fields.descriptionPlaceholder', 'e.g., annual subscription for monitoring')}
-                  InputProps={{ disableUnderline: true }}
                   sx={composerSx}
                   disabled={createSubmitting}
                 />
@@ -587,7 +586,6 @@ export default function SpendItemPage() {
                   onChange={(e) => updateCreateForm({ notes: e.target.value })}
                   multiline minRows={3} fullWidth variant="standard"
                   placeholder={t('opex.fields.notesPlaceholder', 'e.g., renewal negotiated in Q3')}
-                  InputProps={{ disableUnderline: true }}
                   sx={composerSx}
                   disabled={createSubmitting}
                 />
@@ -602,7 +600,6 @@ export default function SpendItemPage() {
                   onChange={(e) => patchDebounced({ description: e.target.value })}
                   multiline minRows={3} fullWidth variant="standard"
                   placeholder={t('opex.fields.descriptionPlaceholder', 'e.g., annual subscription for monitoring')}
-                  InputProps={{ disableUnderline: true }}
                   sx={composerSx}
                 />
               </Box>
@@ -613,7 +610,6 @@ export default function SpendItemPage() {
                   onChange={(e) => patchDebounced({ notes: e.target.value })}
                   multiline minRows={3} fullWidth variant="standard"
                   placeholder={t('opex.fields.notesPlaceholder', 'e.g., renewal negotiated in Q3')}
-                  InputProps={{ disableUnderline: true }}
                   sx={composerSx}
                 />
               </Box>

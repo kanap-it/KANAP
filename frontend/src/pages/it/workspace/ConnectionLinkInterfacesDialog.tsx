@@ -134,7 +134,6 @@ export default function ConnectionLinkInterfacesDialog({
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by interface, env, endpoint..."
           autoFocus
-          InputProps={{ disableUnderline: true }}
           sx={(theme) => ({
             '& input': { fontSize: 13, padding: '8px 12px' },
             border: `1px solid ${theme.palette.kanap.border.default}`,

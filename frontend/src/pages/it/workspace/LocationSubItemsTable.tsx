@@ -250,7 +250,6 @@ export default function LocationSubItemsTable({ locationId, canManage, onCountCh
                     variant="standard"
                     fullWidth
                     autoFocus
-                    InputProps={{ disableUnderline: true }}
                     sx={inputSx}
                   />
                 </Box>
@@ -261,7 +260,6 @@ export default function LocationSubItemsTable({ locationId, canManage, onCountCh
                     placeholder="Optional description"
                     variant="standard"
                     fullWidth
-                    InputProps={{ disableUnderline: true }}
                     sx={inputSx}
                   />
                 </Box>
@@ -340,7 +338,6 @@ function SubItemRow({
           variant="standard"
           fullWidth
           disabled={!canManage}
-          InputProps={{ disableUnderline: true }}
           sx={inputSx}
         />
       </Box>
@@ -356,7 +353,6 @@ function SubItemRow({
           variant="standard"
           fullWidth
           disabled={!canManage}
-          InputProps={{ disableUnderline: true }}
           sx={inputSx}
         />
       </Box>

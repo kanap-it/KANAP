@@ -14,7 +14,7 @@ import AgentControlBar from '../../components/agents/AgentControlBar';
 import AgentStatusStrip from '../../components/agents/AgentStatusStrip';
 import KanapDialog from '../../components/design/KanapDialog';
 import { PropertyRow } from '../../components/design';
-import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, inlineControlSx, longFormSurfaceFieldSx, pageSelectSx } from '../../theme/formSx';
+import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, drawerFieldValueSx, inlineControlSx, longFormSurfaceFieldSx, pageSelectSx } from '../../theme/formSx';
 import {
   aiAgentControlApi,
   aiModelConfigsApi,
@@ -1773,8 +1773,7 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
                 maxRows={4}
                 value={agentForm.mission}
                 placeholder={t('settings.purposePlaceholder')}
-                InputProps={{ disableUnderline: true }}
-                sx={[editableFieldValueSx, personaLimits.purposeOverLimit ? { '& .MuiInputBase-input': { color: 'error.main' } } : null]}
+                sx={[drawerFieldValueSx, personaLimits.purposeOverLimit ? { '& .MuiInputBase-input': { color: 'error.main' } } : null]}
                 onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault(); }}
                 onChange={(event) => updateAgent('mission', event.target.value.replace(/\n/g, ' '))}
               />
@@ -1796,7 +1795,6 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
                 maxRows={24}
                 value={agentForm.instructionsDraft}
                 placeholder={t('settings.instructionsPlaceholder')}
-                InputProps={{ disableUnderline: true }}
                 sx={agentPersonaFieldSx}
                 onChange={(event) => applyAgentForm({
                   instructionsDraft: event.target.value,
@@ -1807,7 +1805,6 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
             <SettingsField label={t('settings.replyLanguage')} info={t('settings.replyLanguageInfo')}>
               <Select
                 variant="standard"
-                disableUnderline
                 value={agentForm.outputStyleLanguage}
                 sx={pageSelectSx}
                 onChange={(event) => updateAgent('outputStyleLanguage', event.target.value)}
@@ -1851,7 +1848,6 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
               <Stack spacing={1} sx={{ pt: 0.5, maxWidth: 520 }}>
                 <Select
                   variant="standard"
-                  disableUnderline
                   value={agentForm.sharedContextProfileId ?? ''}
                   displayEmpty
                   disabled={sharedContextProfiles.length === 0}
@@ -1957,7 +1953,6 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
                   <Typography variant="caption" color="text.secondary">{t('settings.effectivePromptHint')}</Typography>
                   <Select
                     variant="standard"
-                    disableUnderline
                     value={effectivePromptTask}
                     onChange={(event) => setEffectivePromptTask(event.target.value as EffectivePromptTaskKey)}
                     sx={[drawerSelectSx, inlineControlSx, { minWidth: 150, width: 'auto', flexShrink: 0 }]}
@@ -2297,8 +2292,7 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
                 variant="standard"
                 value={sharedContextDraftName}
                 placeholder={t('settings.sharedContextDialog.namePlaceholder')}
-                InputProps={{ disableUnderline: true }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
                 onChange={(event) => setSharedContextDraftName(event.target.value)}
               />
             </SettingsField>
@@ -2310,7 +2304,6 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
                 minRows={6}
                 value={sharedContextDraftLines}
                 placeholder={t('settings.sharedContextDialog.linesPlaceholder')}
-                InputProps={{ disableUnderline: true }}
                 sx={agentPersonaFieldSx}
                 onChange={(event) => setSharedContextDraftLines(event.target.value)}
               />

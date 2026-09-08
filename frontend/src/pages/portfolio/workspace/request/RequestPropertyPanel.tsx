@@ -44,7 +44,6 @@ type RequestPropertyPanelProps = {
   streams: Array<{ id: string; name: string; category_id: string }>;
 };
 
-const standardInputProps = { disableUnderline: true } as const;
 
 export default function RequestPropertyPanel({
   canManage,
@@ -129,7 +128,6 @@ export default function RequestPropertyPanel({
               }
             }}
             variant="standard"
-            InputProps={standardInputProps}
             required
             fullWidth
           />
@@ -142,7 +140,6 @@ export default function RequestPropertyPanel({
               onChange={(event) => onStatusChange(String(event.target.value))}
               disabled={coreFieldsDisabled}
               variant="standard"
-              disableUnderline
               sx={drawerSelectSx}
             >
               {statusOptions.map((option) => (
@@ -160,7 +157,6 @@ export default function RequestPropertyPanel({
             onChange={(event) => onSourceChange(String(event.target.value))}
             disabled={coreFieldsDisabled}
             variant="standard"
-            disableUnderline
             displayEmpty
             renderValue={(v) => (v ? (sources.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
@@ -180,7 +176,6 @@ export default function RequestPropertyPanel({
             onChange={(event) => onCategoryChange(String(event.target.value))}
             disabled={coreFieldsDisabled}
             variant="standard"
-            disableUnderline
             displayEmpty
             renderValue={(v) => (v ? (categories.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
@@ -200,7 +195,6 @@ export default function RequestPropertyPanel({
             onChange={(event) => onStreamChange(String(event.target.value))}
             disabled={coreFieldsDisabled || !form?.category_id}
             variant="standard"
-            disableUnderline
             displayEmpty
             renderValue={(v) => (v ? (filteredStreams.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}

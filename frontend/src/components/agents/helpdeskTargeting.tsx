@@ -19,7 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { aiAgentControlApi, type AiAgentControlRefItem } from '../../ai/aiApi';
-import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, pageSelectSx } from '../../theme/formSx';
+import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, drawerFieldValueSx, pageSelectSx } from '../../theme/formSx';
 import { getDotColor } from '../../utils/statusColors';
 import { StatusDot } from '../design';
 
@@ -458,8 +458,7 @@ function ReferenceCatalogAutocomplete({
             size="small"
             variant="standard"
             placeholder={t(`settings.targetingFields.${field}`)}
-            InputProps={{ ...params.InputProps, disableUnderline: true }}
-            sx={editableFieldValueSx}
+            sx={drawerFieldValueSx}
           />
         )}
       />
@@ -664,8 +663,8 @@ export function HelpdeskTargetingFilterBuilder({
                   variant="standard"
                   type="number"
                   value={filter.amount}
-                  InputProps={{ disableUnderline: true, inputProps: { min: 1 } }}
-                  sx={[editableFieldValueSx, { maxWidth: 92 }]}
+                  InputProps={{ inputProps: { min: 1 } }}
+                  sx={[drawerFieldValueSx, { maxWidth: 92 }]}
                   onChange={(event) => updateFilter(filter.id, { amount: event.target.value })}
                 />
                 <Select

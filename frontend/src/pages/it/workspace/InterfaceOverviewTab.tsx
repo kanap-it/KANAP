@@ -12,12 +12,7 @@ import BusinessProcessSelect from '../../../components/fields/BusinessProcessSel
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import { PropertyRow } from '../../../components/design';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
-import {
-  dialogBorderedFieldSx,
-  drawerFieldValueSx,
-  drawerMenuItemSx,
-  drawerSelectSx,
-} from '../../../theme/formSx';
+import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 import type { InterfaceDetail } from '../components/interface-workspace/types';
 
 type Props = {
@@ -81,8 +76,7 @@ export default function InterfaceOverviewTab({
                 placeholder="e.g., PLM to ERP item master sync"
                 required
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                sx={drawerFieldValueSx}
               />
             </PropertyRow>
             <PropertyRow label="Interface code" valueSx={{ maxWidth: 360 }}>
@@ -91,8 +85,7 @@ export default function InterfaceOverviewTab({
                 onChange={(event) => void onPatch({ interface_id: event.target.value })}
                 placeholder="e.g., ERP-ORDERS-SYNC"
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                sx={drawerFieldValueSx}
               />
             </PropertyRow>
             <PropertyRow label="Business process" valueSx={{ maxWidth: 560 }}>
@@ -100,7 +93,7 @@ export default function InterfaceOverviewTab({
                 value={data?.business_process_id || null}
                 onChange={(value) => void onPatch({ business_process_id: value || null })}
                 hideLabel
-                textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                textFieldSx={drawerFieldValueSx}
                 placeholder="Select process"
               />
             </PropertyRow>
@@ -109,7 +102,7 @@ export default function InterfaceOverviewTab({
                 value={data?.source_application_id || null}
                 onChange={(value) => void onPatch({ source_application_id: value || '' })}
                 hideLabel
-                textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                textFieldSx={drawerFieldValueSx}
                 placeholder="Select source"
               />
             </PropertyRow>
@@ -118,7 +111,7 @@ export default function InterfaceOverviewTab({
                 value={data?.target_application_id || null}
                 onChange={(value) => void onPatch({ target_application_id: value || '' })}
                 hideLabel
-                textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                textFieldSx={drawerFieldValueSx}
                 placeholder="Select target"
               />
             </PropertyRow>
@@ -129,7 +122,7 @@ export default function InterfaceOverviewTab({
                 onChange={(value) => void onPatch({ data_category: value })}
                 options={dataCategoryOptions}
                 hideLabel
-                textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                textFieldSx={drawerFieldValueSx}
               />
             </PropertyRow>
             <PropertyRow label="Route type" valueSx={{ maxWidth: 280 }}>
@@ -144,8 +137,7 @@ export default function InterfaceOverviewTab({
                   });
                 }}
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerSelectSx, dialogBorderedFieldSx]}
+                sx={drawerSelectSx}
               >
                 {routeOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value} sx={drawerMenuItemSx}>

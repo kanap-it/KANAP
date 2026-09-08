@@ -117,7 +117,6 @@ const SpendItemSelect = React.forwardRef<HTMLInputElement, SpendItemSelectProps>
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {isLoading ? <CircularProgress color="inherit" size={20} /> : null}

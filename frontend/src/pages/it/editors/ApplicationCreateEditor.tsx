@@ -142,10 +142,10 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
     <Stack spacing={2}>
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
       <PropertyRow label="Name" required>
-        <TextField value={name} onChange={(e) => { setName(e.target.value); markDirty(); }} required fullWidth variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
+        <TextField value={name} onChange={(e) => { setName(e.target.value); markDirty(); }} required fullWidth variant="standard" sx={drawerFieldValueSx} />
       </PropertyRow>
       <PropertyRow label="Description">
-        <TextField value={description} onChange={(e) => { setDescription(e.target.value); markDirty(); }} fullWidth variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
+        <TextField value={description} onChange={(e) => { setDescription(e.target.value); markDirty(); }} fullWidth variant="standard" sx={drawerFieldValueSx} />
       </PropertyRow>
       <PropertyRow label="Supplier">
         <SupplierSelect value={supplierId} onChange={(v) => { setSupplierId(v); markDirty(); }} hideLabel textFieldSx={drawerFieldValueSx} />
@@ -162,7 +162,7 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
         />
       </PropertyRow>
       <PropertyRow label="Publisher">
-        <TextField value={editor} onChange={(e) => { setEditor(e.target.value); markDirty(); }} fullWidth variant="standard" InputProps={{ disableUnderline: true }} sx={drawerFieldValueSx} />
+        <TextField value={editor} onChange={(e) => { setEditor(e.target.value); markDirty(); }} fullWidth variant="standard" sx={drawerFieldValueSx} />
       </PropertyRow>
       <PropertyRow label={classificationText("Business criticality")}>
         <EnumAutocomplete label={classificationText("Business criticality")} value={criticality || ''} onChange={(v) => { setCriticality(v || null); markDirty(); }} options={(classificationCatalog?.businessCriticalityLevels || []).filter((item) => !item.deprecated).map((item) => ({ label: item.label, value: item.code }))} hideLabel textFieldSx={drawerFieldValueSx} />
@@ -204,7 +204,6 @@ export default forwardRef<ApplicationCreateEditorHandle, Props>(function Applica
           placeholder="e.g., 4.2.1, 2023, Q1 2024"
           size="small"
           variant="standard"
-          InputProps={{ disableUnderline: true }}
           sx={drawerFieldValueSx}
         />
       </PropertyRow>

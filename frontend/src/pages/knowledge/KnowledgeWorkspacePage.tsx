@@ -1973,7 +1973,6 @@ export default function KnowledgeWorkspacePage() {
                       placeholder={t('workspace.fields.titlePlaceholder')}
                       sx={fieldResetSx}
                       InputProps={{
-                        disableUnderline: true,
                         sx: {
                           fontSize: '1.5rem',
                           fontWeight: 500,

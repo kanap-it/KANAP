@@ -403,7 +403,6 @@ export default function LocationContactsTab({ locationId, canManage }: Props) {
                       placeholder="Description"
                       variant="standard"
                       fullWidth
-                      InputProps={{ disableUnderline: true }}
                       sx={inputSx}
                     />
                   </Box>
@@ -416,7 +415,6 @@ export default function LocationContactsTab({ locationId, canManage }: Props) {
                       variant="standard"
                       fullWidth
                       autoFocus
-                      InputProps={{ disableUnderline: true }}
                       sx={inputSx}
                     />
                   </Box>
@@ -508,7 +506,6 @@ function InternalRow({
           variant="standard"
           fullWidth
           disabled={!canManage}
-          InputProps={{ disableUnderline: true }}
           sx={inputSx}
         />
       </Box>
@@ -549,7 +546,6 @@ function ExternalRow({
           variant="standard"
           fullWidth
           disabled={!canManage}
-          InputProps={{ disableUnderline: true }}
           sx={inputSx}
         />
       </Box>
@@ -594,7 +590,6 @@ function LinkRowComponent({
           variant="standard"
           fullWidth
           disabled={!canManage}
-          InputProps={{ disableUnderline: true }}
           sx={inputSx}
         />
       </Box>
@@ -609,7 +604,6 @@ function LinkRowComponent({
           variant="standard"
           fullWidth
           disabled={!canManage}
-          InputProps={{ disableUnderline: true }}
           sx={inputSx}
         />
       </Box>

@@ -59,12 +59,7 @@ import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { useLocale } from '../../i18n/useLocale';
 import { formatShortDate } from '../../lib/dateFormat';
 import { getDotColor, KNOWLEDGE_STATUS_COLORS } from '../../utils/statusColors';
-import {
-  dialogBorderedFieldSx,
-  drawerAutocompleteListboxSx,
-  drawerMenuItemSx,
-  drawerSelectSx,
-} from '../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerMenuItemSx, drawerSelectSx } from '../../theme/formSx';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
@@ -1362,8 +1357,6 @@ export default function KnowledgePage() {
               value={newLibraryName}
               onChange={(e) => setNewLibraryName(e.target.value)}
               placeholder={t('dialogs.createLibrary.fields.libraryName')}
-              InputProps={{ disableUnderline: true }}
-              sx={dialogBorderedFieldSx}
             />
           </PropertyRow>
           {createLibraryMutation.isError && (
@@ -1409,8 +1402,6 @@ export default function KnowledgePage() {
                     value={librarySettingsName}
                     onChange={(e) => setLibrarySettingsName(e.target.value)}
                     placeholder={t('dialogs.editLibrary.fields.libraryName')}
-                    InputProps={{ disableUnderline: true }}
-                    sx={dialogBorderedFieldSx}
                   />
                 </PropertyRow>
                 <Typography variant="body2" color="text.secondary">
@@ -1431,8 +1422,6 @@ export default function KnowledgePage() {
                         {...params}
                         variant="standard"
                         placeholder={t('dialogs.editLibrary.fields.owner')}
-                        InputProps={{ ...params.InputProps, disableUnderline: true }}
-                        sx={dialogBorderedFieldSx}
                       />
                     )}
                   />
@@ -1451,8 +1440,7 @@ export default function KnowledgePage() {
                     variant="standard"
                     value={librarySettingsAccessMode}
                     onChange={(event) => handleLibraryAccessModeChange(event.target.value as 'default' | 'restricted')}
-                    InputProps={{ disableUnderline: true }}
-                    sx={[drawerSelectSx, dialogBorderedFieldSx]}
+                    sx={drawerSelectSx}
                   >
                     <MenuItem value="default" sx={drawerMenuItemSx}>{t('dialogs.editLibrary.values.accessModeDefault')}</MenuItem>
                     <MenuItem value="restricted" sx={drawerMenuItemSx}>{t('dialogs.editLibrary.values.accessModeRestricted')}</MenuItem>
@@ -1478,8 +1466,6 @@ export default function KnowledgePage() {
                             {...params}
                             variant="standard"
                             placeholder={t('dialogs.editLibrary.fields.readers')}
-                            InputProps={{ ...params.InputProps, disableUnderline: true }}
-                            sx={dialogBorderedFieldSx}
                           />
                         )}
                       />
@@ -1501,8 +1487,6 @@ export default function KnowledgePage() {
                             {...params}
                             variant="standard"
                             placeholder={t('dialogs.editLibrary.fields.writers')}
-                            InputProps={{ ...params.InputProps, disableUnderline: true }}
-                            sx={dialogBorderedFieldSx}
                           />
                         )}
                       />
@@ -1556,8 +1540,7 @@ export default function KnowledgePage() {
               fullWidth
               value={selectedTemplateId}
               onChange={(e) => setSelectedTemplateId(e.target.value)}
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+              sx={drawerSelectSx}
             >
               {groupedTemplates.map((group) => ([
                 <ListSubheader key={`${group.typeName}-header`} disableSticky>

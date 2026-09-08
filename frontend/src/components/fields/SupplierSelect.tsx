@@ -127,7 +127,6 @@ const SupplierSelect = React.forwardRef<HTMLInputElement, SupplierSelectProps>(f
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}

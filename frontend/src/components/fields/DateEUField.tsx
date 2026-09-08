@@ -120,7 +120,6 @@ export default function DateEUField({ label, valueYmd = '', onChangeYmd, disable
         sx={textFieldSx}
         inputProps={{ inputMode: 'numeric' }}
         InputProps={{
-          ...(naked ? { disableUnderline: true } : {}),
           endAdornment: (
             <InputAdornment position="end">
               <IconButton size="small" onClick={openPicker} aria-label="Open calendar" tabIndex={-1}>

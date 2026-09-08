@@ -64,7 +64,7 @@ import {
   type TargetingFilter,
 } from '../../components/agents/helpdeskTargeting';
 import { aiAgentControlApi } from '../../ai/aiApi';
-import { compactSelectMenuProps, dialogBorderedFieldSx, drawerMenuItemSx, pageSelectSx } from '../../theme/formSx';
+import { compactSelectMenuProps, drawerMenuItemSx, pageSelectSx } from '../../theme/formSx';
 import { useLocale } from '../../i18n/useLocale';
 import { helpdeskScopeFiltered } from '../../components/agents/agentRunState';
 import { useAgentControlData } from './useAgentControlData';
@@ -615,8 +615,7 @@ export default function AgentsOverviewPage() {
               size="small"
               variant="standard"
               value={wizardForm.name}
-              InputProps={{ disableUnderline: true }}
-              sx={[dialogBorderedFieldSx, { width: '100%' }]}
+              sx={{ width: '100%' }}
               onChange={(event) => updateWizard('name', event.target.value)}
             />
           </PropertyRow>
@@ -627,8 +626,7 @@ export default function AgentsOverviewPage() {
               multiline
               minRows={2}
               value={wizardForm.description}
-              InputProps={{ disableUnderline: true }}
-              sx={[dialogBorderedFieldSx, { width: '100%', '& .MuiInputBase-root': { alignItems: 'flex-start' } }]}
+              sx={{ width: '100%', '& .MuiInputBase-root': { alignItems: 'flex-start' } }}
               onChange={(event) => updateWizard('description', event.target.value)}
             />
           </PropertyRow>

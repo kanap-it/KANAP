@@ -76,7 +76,6 @@ export default function MultiRoleSelect({
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {isLoading ? <CircularProgress size={16} /> : null}

@@ -177,7 +177,6 @@ export default function RelatedObjectSelect({
               sx={undefined}
               InputProps={{
                 ...params.InputProps,
-                ...(hideLabel ? { disableUnderline: true } : {}),
                 endAdornment: (
                   <>
                     {isLoading ? <CircularProgress color="inherit" size={20} /> : null}

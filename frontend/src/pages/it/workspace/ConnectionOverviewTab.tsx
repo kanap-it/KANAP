@@ -357,7 +357,6 @@ export default function ConnectionOverviewTab({
                   {...params}
                   variant="standard"
                   placeholder="Add a server"
-                  InputProps={{ ...params.InputProps, disableUnderline: true }}
                   sx={{ '& input': { fontSize: 13, padding: '4px 0 !important' } }}
                 />
               )}
@@ -394,7 +393,6 @@ export default function ConnectionOverviewTab({
                 {...params}
                 variant="standard"
                 placeholder="Add a protocol"
-                InputProps={{ ...params.InputProps, disableUnderline: true }}
                 sx={{ '& input': { fontSize: 13, padding: '4px 0 !important' } }}
               />
             )}

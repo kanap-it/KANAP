@@ -12,7 +12,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useLocale } from '../../i18n/useLocale';
 import { aiAgentControlApi, AiSharedContextProfile } from '../../ai/aiApi';
 import { SHARED_CONTEXT_PROFILES_QUERY_KEY } from './useAgentControlData';
-import { editableFieldValueSx, longFormSurfaceFieldSx } from '../../theme/formSx';
+import { drawerFieldValueSx, longFormSurfaceFieldSx } from '../../theme/formSx';
 
 function profileLines(profile: AiSharedContextProfile): string[] {
   const content = profile.content_json as { lines?: unknown } | null;
@@ -169,8 +169,7 @@ export default function SharedContextProfilesPage() {
                 variant="standard"
                 value={draftName}
                 placeholder={t('settings.sharedContextDialog.namePlaceholder')}
-                InputProps={{ disableUnderline: true }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
                 onChange={(event) => setDraftName(event.target.value)}
               />
             </PropertyRow>
@@ -180,8 +179,7 @@ export default function SharedContextProfilesPage() {
                 variant="standard"
                 value={draftDescription}
                 placeholder={t('sharedContext.descriptionPlaceholder')}
-                InputProps={{ disableUnderline: true }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
                 onChange={(event) => setDraftDescription(event.target.value)}
               />
             </PropertyRow>
@@ -193,7 +191,6 @@ export default function SharedContextProfilesPage() {
                 minRows={6}
                 value={draftLines}
                 placeholder={t('settings.sharedContextDialog.linesPlaceholder')}
-                InputProps={{ disableUnderline: true }}
                 sx={[longFormSurfaceFieldSx, { maxWidth: 'none' }]}
                 onChange={(event) => setDraftLines(event.target.value)}
               />

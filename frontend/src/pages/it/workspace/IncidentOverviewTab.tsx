@@ -67,7 +67,7 @@ export default function IncidentOverviewTab({
           placeholder={readOnly
             ? t('workspace.incident.drawer.notSet')
             : t('workspace.incident.overview.descriptionPlaceholder')}
-          InputProps={{ disableUnderline: true, readOnly }}
+          InputProps={{ readOnly }}
           sx={incidentComposerSx}
         />
       </Box>

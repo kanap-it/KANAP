@@ -22,9 +22,7 @@ type Props = {
 
 const fieldSx = {
   '& .MuiInputBase-root': { fontSize: 13 },
-  '& input': { fontSize: 13, padding: '4px 0' },
-  '&:before': { display: 'none' },
-  '&:after': { display: 'none' },
+  '& input': { fontSize: 13 },
 } as const;
 
 /**
@@ -181,7 +179,6 @@ export default function ConnectionEndpointPicker({
               {...params}
               variant="standard"
               placeholder={value.entity_code ? `entity:${value.entity_code} (switch to pick a server)` : 'e.g., AST-12 or hostname'}
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               sx={fieldSx}
             />
           )}
@@ -194,7 +191,6 @@ export default function ConnectionEndpointPicker({
           disabled={disabled || entities.length === 0}
           value={value.entity_code || ''}
           onChange={(e) => handleEntityPick(e.target.value)}
-          InputProps={{ disableUnderline: true }}
           sx={drawerSelectSx}
           SelectProps={{ displayEmpty: true }}
           helperText={
