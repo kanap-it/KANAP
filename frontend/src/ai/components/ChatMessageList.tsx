@@ -335,7 +335,6 @@ function InlineEditor({
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         inputRef={taRef}
-        InputProps={{ disableUnderline: true }}
         sx={[
           fieldResetSx,
           (theme) => ({

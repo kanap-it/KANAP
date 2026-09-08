@@ -4,7 +4,7 @@ import api from '../../../api';
 import { useAuth } from '../../../auth/AuthContext';
 import { PropertyRow } from '../../../components/design';
 import DateEUField from '../../../components/fields/DateEUField';
-import { editableFieldValueSx, longFormSurfaceFieldSx } from '../../../theme/formSx';
+import { drawerFieldValueSx, longFormSurfaceFieldSx } from '../../../theme/formSx';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
@@ -170,8 +170,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
           placeholder="Serial number"
           size="small"
           variant="standard"
-          InputProps={{ disableUnderline: true }}
-          sx={editableFieldValueSx}
+          sx={drawerFieldValueSx}
           fullWidth
         />
       </PropertyRow>
@@ -184,8 +183,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
           placeholder="Manufacturer"
           size="small"
           variant="standard"
-          InputProps={{ disableUnderline: true }}
-          sx={editableFieldValueSx}
+          sx={drawerFieldValueSx}
           fullWidth
         />
       </PropertyRow>
@@ -198,8 +196,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
           placeholder="Model"
           size="small"
           variant="standard"
-          InputProps={{ disableUnderline: true }}
-          sx={editableFieldValueSx}
+          sx={drawerFieldValueSx}
           fullWidth
         />
       </PropertyRow>
@@ -212,7 +209,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
           onChangeYmd={setPurchaseDate}
           disabled={saving || readOnly}
           size="small"
-          textFieldSx={editableFieldValueSx}
+          textFieldSx={drawerFieldValueSx}
         />
       </PropertyRow>
 
@@ -224,8 +221,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
           placeholder="Rack location"
           size="small"
           variant="standard"
-          InputProps={{ disableUnderline: true }}
-          sx={editableFieldValueSx}
+          sx={drawerFieldValueSx}
           fullWidth
         />
       </PropertyRow>
@@ -238,8 +234,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
           placeholder="Rack unit"
           size="small"
           variant="standard"
-          InputProps={{ disableUnderline: true }}
-          sx={editableFieldValueSx}
+          sx={drawerFieldValueSx}
           fullWidth
         />
       </PropertyRow>
@@ -255,7 +250,6 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
           maxRows={12}
           placeholder="Hardware notes"
           variant="standard"
-          InputProps={{ disableUnderline: true }}
           sx={longFormSurfaceFieldSx}
           fullWidth
         />

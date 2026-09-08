@@ -83,7 +83,6 @@ function DrawerTextField({
       disabled={disabled}
       variant="standard"
       fullWidth
-      InputProps={{ disableUnderline: true }}
       sx={drawerFieldValueSx}
     />
   );
@@ -116,7 +115,6 @@ export default function IncidentPropertiesDrawer({
             value={values.category || ''}
             onChange={(event) => onChange({ category: event.target.value || null })}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerSelectSx}
             disabled={disabled}
           >
@@ -134,7 +132,6 @@ export default function IncidentPropertiesDrawer({
             value={values.severity}
             onChange={(event) => onChange({ severity: event.target.value as IncidentSeverity })}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             SelectProps={{
               displayEmpty: true,
               renderValue: (selected) => (selected
@@ -164,7 +161,6 @@ export default function IncidentPropertiesDrawer({
               value={values.status}
               onChange={(event) => onChange({ status: event.target.value as IncidentStatus })}
               variant="standard"
-              InputProps={{ disableUnderline: true }}
               SelectProps={{
                 renderValue: (selected) => (
                   <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>

@@ -26,7 +26,7 @@ import ServerSelect from '../../../components/fields/ServerSelect';
 import DateEUField from '../../../components/fields/DateEUField';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
-import { dialogBorderedFieldSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
+import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 import { getDotColor, LIFECYCLE_COLORS } from '../../../utils/statusColors';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { useTranslation } from 'react-i18next';
@@ -463,7 +463,6 @@ export default function DeploymentsEditor({
               value={deploymentDraft.environment}
               onChange={(event) => setDeploymentDraft((prev) => ({ ...prev, environment: event.target.value }))}
               variant="standard"
-              disableUnderline
               disabled={!!deploymentDraft.id}
               sx={drawerSelectSx}
             >
@@ -479,7 +478,6 @@ export default function DeploymentsEditor({
               value={deploymentDraft.lifecycle}
               onChange={(event) => setDeploymentDraft((prev) => ({ ...prev, lifecycle: event.target.value }))}
               variant="standard"
-              disableUnderline
               sx={drawerSelectSx}
             >
               {lifecycleOptions.map((option) => (
@@ -493,8 +491,7 @@ export default function DeploymentsEditor({
               onChange={(event) => setDeploymentDraft((prev) => ({ ...prev, base_url: event.target.value }))}
               variant="standard"
               fullWidth
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              sx={drawerFieldValueSx}
             />
           </PropertyRow>
           <PropertyRow
@@ -519,8 +516,7 @@ export default function DeploymentsEditor({
               fullWidth
               multiline
               minRows={3}
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              sx={drawerFieldValueSx}
             />
           </PropertyRow>
         </Stack>
@@ -542,7 +538,7 @@ export default function DeploymentsEditor({
                 onChange={(value) => setAssignmentDraft((prev) => (prev ? { ...prev, server_id: value } : prev))}
                 allowClusters={false}
                 hideLabel
-                textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                textFieldSx={drawerFieldValueSx}
               />
             </PropertyRow>
             <PropertyRow label="Role" required>
@@ -550,7 +546,6 @@ export default function DeploymentsEditor({
                 value={assignmentDraft.role}
                 onChange={(event) => setAssignmentDraft((prev) => (prev ? { ...prev, role: event.target.value } : prev))}
                 variant="standard"
-                disableUnderline
                 sx={drawerSelectSx}
               >
                 {serverRoleOptions.map((option) => (
@@ -565,7 +560,7 @@ export default function DeploymentsEditor({
                 onChangeYmd={(value) => setAssignmentDraft((prev) => (prev ? { ...prev, since_date: value } : prev))}
                 size="small"
                 hideLabel
-                textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                textFieldSx={drawerFieldValueSx}
               />
             </PropertyRow>
             <PropertyRow label="Notes">
@@ -576,8 +571,7 @@ export default function DeploymentsEditor({
                 fullWidth
                 multiline
                 minRows={3}
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                sx={drawerFieldValueSx}
               />
             </PropertyRow>
           </Stack>

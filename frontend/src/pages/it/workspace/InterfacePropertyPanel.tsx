@@ -234,7 +234,6 @@ export default function InterfacePropertyPanel({
               }
             }}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerFieldValueSx}
             placeholder="e.g., ERP-ORDERS-SYNC"
             disabled={disabled}
@@ -321,7 +320,6 @@ export default function InterfacePropertyPanel({
                 <TextField
                   {...params}
                   variant="standard"
-                  InputProps={{ ...params.InputProps, disableUnderline: true }}
                   sx={drawerFieldValueSx}
                   placeholder="Add companies"
                 />
@@ -407,7 +405,6 @@ export default function InterfacePropertyPanel({
                 }
               }}
               variant="standard"
-              InputProps={{ disableUnderline: true }}
               sx={drawerFieldValueSx}
               placeholder="e.g., customer contact data"
               disabled={disabled}
@@ -431,7 +428,6 @@ export default function InterfacePropertyPanel({
               <TextField
                 {...params}
                 variant="standard"
-                InputProps={{ ...params.InputProps, disableUnderline: true }}
                 sx={drawerFieldValueSx}
                 placeholder="Add countries"
               />

@@ -20,7 +20,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { aiAgentControlApi } from '../../ai/aiApi';
 import type { AiAgentControlRefItem, AiMonitoringTargetingModel, AiMonitoringTargetingPredicate } from '../../ai/aiApi';
-import { compactSelectMenuProps, drawerMenuItemSx, editableFieldValueSx, pageSelectSx } from '../../theme/formSx';
+import { compactSelectMenuProps, drawerMenuItemSx, drawerFieldValueSx, pageSelectSx } from '../../theme/formSx';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
 import { getDotColor } from '../../utils/statusColors';
 import { StatusDot } from '../design';
@@ -384,8 +384,7 @@ function MonitoringReferenceAutocomplete({
           size="small"
           variant="standard"
           placeholder={values.length === 0 ? t(`settings.monitoringTargetingFields.${field}`) : undefined}
-          InputProps={{ ...params.InputProps, disableUnderline: true }}
-          sx={editableFieldValueSx}
+          sx={drawerFieldValueSx}
         />
       )}
     />
@@ -597,8 +596,8 @@ export function MonitoringTargetingFilterBuilder({
                 variant="standard"
                 type="number"
                 value={filter.amount}
-                InputProps={{ disableUnderline: true, inputProps: { min: 1 } }}
-                sx={[editableFieldValueSx, { maxWidth: 92 }]}
+                InputProps={{ inputProps: { min: 1 } }}
+                sx={[drawerFieldValueSx, { maxWidth: 92 }]}
                 onChange={(event) => updateFilter(filter.id, { amount: event.target.value })}
               />
               <Typography variant="body2" color="text.secondary">

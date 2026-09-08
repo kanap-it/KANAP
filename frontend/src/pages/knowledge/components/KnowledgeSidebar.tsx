@@ -23,13 +23,7 @@ import { useLocale } from '../../../i18n/useLocale';
 import { getDotColor } from '../../../utils/statusColors';
 import { PropertyRow, StatusDot } from '../../../components/design';
 import { formatShortDateTime } from '../../../lib/dateFormat';
-import {
-  drawerAutocompleteListboxSx,
-  drawerMenuItemSx,
-  drawerSelectSx,
-  editableFieldValueSx,
-  longFormSurfaceFieldSx,
-} from '../../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerMenuItemSx, drawerSelectSx, drawerFieldValueSx, longFormSurfaceFieldSx } from '../../../theme/formSx';
 
 // Flat section styling (charter: no accordions/chevrons in property panels).
 const sectionHeaderSx = {
@@ -471,7 +465,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   onChange={(e) => onChange('status', e.target.value)}
                   disabled={managedMetadataDisabled}
                   fullWidth
-                  InputProps={{ disableUnderline: true }}
                   sx={drawerSelectSx}
                 >
                   {form.status === 'in_review' && (
@@ -496,7 +489,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   onChange={(e) => onChange('folder_id', e.target.value || null)}
                   disabled={managedMetadataDisabled}
                   fullWidth
-                  InputProps={{ disableUnderline: true }}
                   sx={drawerSelectSx}
                 >
                   <MenuItem value="" sx={drawerMenuItemSx}>{t('shared.unfiled')}</MenuItem>
@@ -520,7 +512,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     onChange={(e) => onChange('document_type_id', e.target.value || null)}
                     disabled={managedMetadataDisabled}
                     fullWidth
-                    InputProps={{ disableUnderline: true }}
                     sx={drawerSelectSx}
                   >
                     {documentTypeOptions.map((option) => (
@@ -547,7 +538,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     variant="standard"
                     value={activeDocumentType?.name || t('shared.document')}
                     fullWidth
-                    InputProps={{ readOnly: true, disableUnderline: true }}
+                    InputProps={{ readOnly: true }}
                   />
                 </PropertyRow>
               )}
@@ -561,7 +552,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   value={templateTitle || t('shared.none')}
                   disabled
                   fullWidth
-                  InputProps={{ disableUnderline: true }}
                 />
               </PropertyRow>
               {!!templateTitle && !!templateRef && (
@@ -580,7 +570,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                   disabled={disabled}
                   fullWidth
                   placeholder={t('sidebar.fields.summary')}
-                  InputProps={{ disableUnderline: true }}
                   sx={[longFormSurfaceFieldSx, sidebarLongFormSx]}
                 />
               </PropertyRow>
@@ -637,7 +626,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                             {...params}
                             variant="standard"
                             placeholder={t('sidebar.contributors.placeholders.owner')}
-                            InputProps={{ ...params.InputProps, disableUnderline: true }}
                           />
                         )}
                       />
@@ -661,7 +649,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                             {...params}
                             variant="standard"
                             placeholder={t('sidebar.contributors.placeholders.authors')}
-                            InputProps={{ ...params.InputProps, disableUnderline: true }}
                           />
                         )}
                       />
@@ -685,7 +672,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                             {...params}
                             variant="standard"
                             placeholder={t('sidebar.contributors.placeholders.reviewers')}
-                            InputProps={{ ...params.InputProps, disableUnderline: true }}
                           />
                         )}
                       />
@@ -709,7 +695,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                             {...params}
                             variant="standard"
                             placeholder={t('sidebar.contributors.placeholders.approvers')}
-                            InputProps={{ ...params.InputProps, disableUnderline: true }}
                           />
                         )}
                       />
@@ -849,7 +834,7 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                       )}
                       {canApproveWorkflow && (
                         <Stack spacing={1}>
-                          <PropertyRow label={t('sidebar.workflow.fields.decisionNote')} valueSx={editableFieldValueSx}>
+                          <PropertyRow label={t('sidebar.workflow.fields.decisionNote')} valueSx={drawerFieldValueSx}>
                             <TextField
                               variant="standard"
                               multiline
@@ -858,7 +843,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                               onChange={(e) => setWorkflowComment(e.target.value)}
                               placeholder={t('sidebar.workflow.fields.decisionNotePlaceholder')}
                               fullWidth
-                              InputProps={{ disableUnderline: true }}
                             />
                           </PropertyRow>
                           <Stack direction="row" spacing={1}>
@@ -989,7 +973,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                                 }}
                                 fullWidth
                                 disabled={!canManage}
-                                InputProps={{ disableUnderline: true }}
                                 sx={drawerSelectSx}
                               >
                                 <MenuItem value="" sx={drawerMenuItemSx}>{t('sidebar.classification.values.select')}</MenuItem>
@@ -1020,7 +1003,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                                 }}
                                 disabled={!canManage}
                                 fullWidth
-                                InputProps={{ disableUnderline: true }}
                                 sx={drawerSelectSx}
                               >
                                 <MenuItem value="" sx={drawerMenuItemSx}>{t('shared.none')}</MenuItem>
@@ -1108,7 +1090,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                                 {...params}
                                 variant="standard"
                                 placeholder={t('sidebar.relations.search', { value: key })}
-                                InputProps={{ ...params.InputProps, disableUnderline: true }}
                               />
                             )}
                             disabled={!canManage}
@@ -1178,7 +1159,6 @@ const KnowledgeSidebar = React.memo(function KnowledgeSidebar({
                     disabled={!canComment}
                     fullWidth
                     placeholder={t('sidebar.comments.fields.addComment')}
-                    InputProps={{ disableUnderline: true }}
                     sx={[longFormSurfaceFieldSx, sidebarLongFormSx]}
                   />
                 </PropertyRow>

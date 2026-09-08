@@ -42,7 +42,6 @@ export default function IncidentDateTimeField({ value, onChange, disabled = fals
       autoFocus={autoFocus}
       variant="standard"
       fullWidth
-      InputProps={{ disableUnderline: true }}
       sx={inline ? [drawerFieldValueSx, drawerDatePickerSx, inlineControlSx] : [drawerFieldValueSx, drawerDatePickerSx]}
     />
   );

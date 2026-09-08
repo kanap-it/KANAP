@@ -324,7 +324,6 @@ export default function ConnectionPathSection({
                       void callPatch(hop.id, { function_code: next });
                     }}
                     disabled={!canManage}
-                    InputProps={{ disableUnderline: true }}
                     sx={{ ...drawerSelectSx, minWidth: 160, flex: 1 }}
                     SelectProps={{ displayEmpty: true }}
                   >
@@ -429,7 +428,6 @@ export default function ConnectionPathSection({
                         debouncedPatch(hop.id, { port_override: next });
                       }}
                       placeholder={suggestedPortFor(hop) || 'e.g., 8443'}
-                      InputProps={{ disableUnderline: true }}
                       sx={{ '& input': { fontSize: 13, padding: '2px 0' } }}
                     />
                   </Box>
@@ -446,7 +444,6 @@ export default function ConnectionPathSection({
                         debouncedPatch(hop.id, { notes: next });
                       }}
                       placeholder="e.g., handles TLS termination"
-                      InputProps={{ disableUnderline: true }}
                       sx={{ '& input': { fontSize: 13, padding: '2px 0' } }}
                     />
                   </Box>

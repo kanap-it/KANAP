@@ -111,7 +111,6 @@ const DepartmentSelect = React.forwardRef<HTMLInputElement, DepartmentSelectProp
             sx={textFieldSx}
             InputProps={{
               ...params.InputProps,
-              ...(naked ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {(isLoading || isLoadingSelected) ? <CircularProgress size={20} /> : null}

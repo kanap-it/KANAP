@@ -127,7 +127,7 @@ export default function SpendPropertiesDrawer({
             isOptionEqualToValue={(option, value) => option.code === value.code}
             disabled={disabled}
             renderInput={(params) => (
-              <TextField {...params} variant="standard" InputProps={{ ...params.InputProps, disableUnderline: true }} />
+              <TextField {...params} variant="standard" />
             )}
           />
         </PropertyRow>

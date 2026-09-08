@@ -147,7 +147,6 @@ function LinkedObjectsField({
             variant="standard"
             InputProps={{
               ...params.InputProps,
-              disableUnderline: true,
               endAdornment: (
                 <>
                   {isFetching ? <CircularProgress color="inherit" size={16} /> : null}

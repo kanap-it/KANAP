@@ -225,7 +225,6 @@ export default function MetadataUserPicker({
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           variant="standard"
-          InputProps={{ disableUnderline: true }}
           sx={[fieldResetSx, (theme) => ({
             mb: 0.75,
             px: 0.75,

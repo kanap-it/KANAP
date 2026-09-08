@@ -26,12 +26,7 @@ import LocationContactsTab from './workspace/LocationContactsTab';
 import LocationRelationsTab from './workspace/LocationRelationsTab';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import { useLocationItemNav } from '../../hooks/useModuleItemNav';
-import {
-  drawerSelectSx,
-  drawerMenuItemSx,
-  drawerFieldValueSx,
-  dialogBorderedFieldSx,
-} from '../../theme/formSx';
+import { drawerSelectSx, drawerMenuItemSx, drawerFieldValueSx } from '../../theme/formSx';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 type TabKey = 'overview' | 'contacts' | 'relations';
@@ -508,8 +503,7 @@ export default function LocationWorkspacePage() {
                 required
                 size="small"
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                sx={drawerFieldValueSx}
               />
             </PropertyRow>
             <PropertyRow label="Hosting type" required valueSx={{ maxWidth: 520 }}>
@@ -519,8 +513,7 @@ export default function LocationWorkspacePage() {
                 onChange={(e) => setCreateHostingType(e.target.value)}
                 size="small"
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerSelectSx, dialogBorderedFieldSx]}
+                sx={drawerSelectSx}
               >
                 {hostingOptions.map((opt) => (
                   <MenuItem key={opt.code} value={opt.code} sx={drawerMenuItemSx}>

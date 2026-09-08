@@ -327,7 +327,6 @@ function CompactPhaseDateField({
         }}
         inputProps={{ readOnly: true }}
         InputProps={{
-          disableUnderline: true,
           endAdornment: (
             <InputAdornment position="end">
               <IconButton
@@ -751,7 +750,6 @@ function SortablePhaseRow({
             size="small"
             value={phase.status || 'pending'}
             fullWidth
-            disableUnderline
             disabled={!canManage}
             renderValue={(value) => <PhaseStatusValue status={String(value)} />}
             onChange={async (event) => {
@@ -930,7 +928,6 @@ function SortablePhaseRow({
                         value={task.status || 'open'}
                         fullWidth
                         variant="standard"
-                        disableUnderline
                         disabled={!canManage}
                         renderValue={(value) => <TaskStatusValue status={String(value)} />}
                         onChange={(event) => onTaskUpdate(task.id, { status: String(event.target.value) })}
@@ -1342,7 +1339,6 @@ export default function ProjectTimelineTab({
                         value={milestone.name}
                         fullWidth
                         disabled={!canManage}
-                        InputProps={{ disableUnderline: true }}
                         sx={tableCellTextFieldSx}
                         onChange={(event) => {
                           const nextName = event.target.value;
@@ -1404,7 +1400,6 @@ export default function ProjectTimelineTab({
                       <Select
                         size="small"
                         variant="standard"
-                        disableUnderline
                         value={milestone.status || 'pending'}
                         fullWidth
                         disabled={!canManage}

@@ -18,12 +18,7 @@ import api from '../../../api';
 import ApplicationSelect from '../../../components/fields/ApplicationSelect';
 import { PropertyRow } from '../../../components/design';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
-import {
-  dialogBorderedFieldSx,
-  drawerFieldValueSx,
-  drawerMenuItemSx,
-  drawerSelectSx,
-} from '../../../theme/formSx';
+import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 import type {
   ApplicationOption,
   InterfaceDetail,
@@ -167,7 +162,7 @@ export default function InterfaceFlowTab({
               value={data?.source_application_id || null}
               onChange={(value) => void onPatch({ source_application_id: value || '' })}
               hideLabel
-              textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              textFieldSx={drawerFieldValueSx}
               placeholder="Select source"
               disabled={disabled}
             />
@@ -177,7 +172,7 @@ export default function InterfaceFlowTab({
               value={data?.target_application_id || null}
               onChange={(value) => void onPatch({ target_application_id: value || '' })}
               hideLabel
-              textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              textFieldSx={drawerFieldValueSx}
               placeholder="Select target"
               disabled={disabled}
             />
@@ -194,8 +189,7 @@ export default function InterfaceFlowTab({
                 });
               }}
               variant="standard"
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+              sx={drawerSelectSx}
               disabled={disabled}
             >
               {routeOptions.map((option) => (
@@ -223,7 +217,6 @@ export default function InterfaceFlowTab({
                     variant="standard"
                     InputProps={{
                       ...params.InputProps,
-                      disableUnderline: true,
                       endAdornment: (
                         <>
                           {loadingEtlApps ? <CircularProgress color="inherit" size={18} /> : null}
@@ -231,7 +224,7 @@ export default function InterfaceFlowTab({
                         </>
                       ),
                     }}
-                    sx={[drawerFieldValueSx, dialogBorderedFieldSx, compactMiddlewareAutocompleteSx]}
+                    sx={[drawerFieldValueSx, compactMiddlewareAutocompleteSx]}
                     placeholder="Add middleware"
                   />
                 )}
@@ -277,7 +270,6 @@ export default function InterfaceFlowTab({
                       value={leg.trigger_type || ''}
                       onChange={(event) => handleLegChange(leg.id, { trigger_type: event.target.value })}
                       variant="standard"
-                      InputProps={{ disableUnderline: true }}
                       sx={drawerSelectSx}
                       disabled={disabled}
                     >
@@ -294,7 +286,6 @@ export default function InterfaceFlowTab({
                       value={leg.integration_pattern || ''}
                       onChange={(event) => handleLegChange(leg.id, { integration_pattern: event.target.value })}
                       variant="standard"
-                      InputProps={{ disableUnderline: true }}
                       sx={drawerSelectSx}
                       disabled={disabled}
                     >
@@ -311,7 +302,6 @@ export default function InterfaceFlowTab({
                       value={leg.data_format || ''}
                       onChange={(event) => handleLegChange(leg.id, { data_format: event.target.value })}
                       variant="standard"
-                      InputProps={{ disableUnderline: true }}
                       sx={drawerSelectSx}
                       disabled={disabled}
                     >
@@ -328,7 +318,6 @@ export default function InterfaceFlowTab({
                       defaultValue={leg.job_name || ''}
                       onBlur={(event) => handleLegChange(leg.id, { job_name: event.target.value || null })}
                       variant="standard"
-                      InputProps={{ disableUnderline: true }}
                       sx={drawerFieldValueSx}
                       placeholder="Optional"
                       disabled={disabled}

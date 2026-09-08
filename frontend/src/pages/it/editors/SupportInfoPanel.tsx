@@ -22,7 +22,7 @@ import { useAuth } from '../../../auth/AuthContext';
 import { PropertyRow } from '../../../components/design';
 import DateEUField from '../../../components/fields/DateEUField';
 import ContactSelect from '../../../components/fields/ContactSelect';
-import { drawerAutocompleteListboxSx, editableFieldValueSx, longFormSurfaceFieldSx } from '../../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerFieldValueSx, longFormSurfaceFieldSx } from '../../../theme/formSx';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
@@ -330,7 +330,6 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
                 variant="standard"
                 InputProps={{
                   ...params.InputProps,
-                  disableUnderline: true,
                   endAdornment: (
                     <>
                       {vendorsLoading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -338,7 +337,7 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
                     </>
                   ),
                 }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
               />
             )}
             ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -366,7 +365,6 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
                 variant="standard"
                 InputProps={{
                   ...params.InputProps,
-                  disableUnderline: true,
                   endAdornment: (
                     <>
                       {contractsLoading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -374,7 +372,7 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
                     </>
                   ),
                 }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
               />
             )}
             ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -390,8 +388,7 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
             placeholder="Support tier"
             size="small"
             variant="standard"
-            InputProps={{ disableUnderline: true }}
-            sx={editableFieldValueSx}
+            sx={drawerFieldValueSx}
             fullWidth
           />
         </PropertyRow>
@@ -404,7 +401,7 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
             onChangeYmd={setSupportExpiry}
             disabled={saving || readOnly}
             size="small"
-            textFieldSx={editableFieldValueSx}
+            textFieldSx={drawerFieldValueSx}
           />
         </PropertyRow>
 
@@ -419,7 +416,6 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
             maxRows={12}
             placeholder="Support notes"
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={longFormSurfaceFieldSx}
             fullWidth
           />
@@ -463,7 +459,7 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
                     onChange={(v) => void setContactRowContact(idx, v)}
                     showEmail={false}
                     hideLabel
-                    textFieldSx={editableFieldValueSx}
+                    textFieldSx={drawerFieldValueSx}
                     disabled={readOnly || saving}
                   />
                 </TableCell>
@@ -477,8 +473,7 @@ export default forwardRef<SupportInfoPanelHandle, Props>(function SupportInfoPan
                     size="small"
                     placeholder="Contact role"
                     variant="standard"
-                    InputProps={{ disableUnderline: true }}
-                    sx={editableFieldValueSx}
+                    sx={drawerFieldValueSx}
                     fullWidth
                     disabled={readOnly || saving}
                   />

@@ -11,7 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { KanapDialog, PropertyRow } from '../../../components/design';
-import { dialogBorderedFieldSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
+import { drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 
 type DocumentLibrary = {
   id: string;
@@ -216,8 +216,7 @@ export default function KnowledgeMoveDialog({
                 setTargetFolderId(null);
               }}
               disabled={!canChangeLibraryForSelection || libraryChangeBlocked}
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+              sx={drawerSelectSx}
             >
               {selectableLibraries.map((library) => (
                 <MenuItem key={library.id} value={library.id} sx={drawerMenuItemSx}>
@@ -235,8 +234,7 @@ export default function KnowledgeMoveDialog({
               value={targetFolderId ?? UNFILED_OPTION_VALUE}
               onChange={(e) => setTargetFolderId(e.target.value === UNFILED_OPTION_VALUE ? null : e.target.value)}
               disabled={!targetLibraryId || libraryChangeBlocked}
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+              sx={drawerSelectSx}
             >
               <MenuItem value={UNFILED_OPTION_VALUE} sx={drawerMenuItemSx}>{t('shared.unfiled')}</MenuItem>
               {flatFolders.map((folder) => (

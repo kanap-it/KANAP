@@ -249,7 +249,6 @@ export default function UnifiedActivityForm({
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               variant="standard"
-              disableUnderline
               disabled={submitting || readOnly}
               displayEmpty
               renderValue={(val) => {

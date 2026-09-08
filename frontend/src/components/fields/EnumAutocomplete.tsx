@@ -63,7 +63,6 @@ export default function EnumAutocomplete({
           placeholder={placeholder ?? (naked ? t('selects.notSet') : undefined)}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
           }}
           sx={textFieldSx}
         />

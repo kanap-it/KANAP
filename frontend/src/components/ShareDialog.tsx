@@ -377,7 +377,6 @@ export default function ShareDialog({
                 rows={3}
                 placeholder={t('share.addPersonalMessage')}
                 fullWidth
-                InputProps={{ disableUnderline: true }}
                 sx={fieldResetSx}
               />
             </Box>

@@ -361,7 +361,6 @@ export default function AdminAiPage() {
                     <PropertyRow label={t('aiAdmin.provider.modelSelector.label')}>
                       <Select
                         variant="standard"
-                        disableUnderline
                         value={form.chat_model_config_id}
                         displayEmpty
                         sx={[drawerSelectSx, { maxWidth: 420 }]}

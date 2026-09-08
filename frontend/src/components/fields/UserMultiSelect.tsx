@@ -146,7 +146,6 @@ export default function UserMultiSelect({
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || isLoadingMissing) ? <CircularProgress color="inherit" size={20} /> : null}

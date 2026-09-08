@@ -38,7 +38,7 @@ import TeamMemberMultiSelect from '../../components/fields/TeamMemberMultiSelect
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import { useApplicationNav } from '../../hooks/useApplicationNav';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
-import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../theme/formSx';
 import { CRITICALITY_COLORS, getDotColor, LIFECYCLE_COLORS } from '../../utils/statusColors';
 import { COUNTRY_OPTIONS } from '../../constants/isoOptions';
 import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
@@ -390,7 +390,6 @@ function ApplicationProperties({
             value={app.category || ''}
             onChange={(event) => onPatch({ category: event.target.value })}
             variant="standard"
-            disableUnderline
             disabled={!canManage}
             sx={drawerSelectSx}
           >
@@ -423,7 +422,6 @@ function ApplicationProperties({
             size="small"
             fullWidth
             disabled={!canManage}
-            InputProps={{ disableUnderline: true }}
             sx={drawerFieldValueSx}
           />
         </PropertyRow>
@@ -438,7 +436,6 @@ function ApplicationProperties({
             size="small"
             fullWidth
             disabled={!canManage}
-            InputProps={{ disableUnderline: true }}
             sx={drawerFieldValueSx}
           />
         </PropertyRow>
@@ -581,7 +578,6 @@ function ApplicationProperties({
             value={app.users_mode === 'manual' ? 'manual' : 'it_users'}
             onChange={(event) => onPatch({ users_mode: event.target.value })}
             variant="standard"
-            disableUnderline
             disabled={!canManage}
             sx={drawerSelectSx}
           >
@@ -599,7 +595,6 @@ function ApplicationProperties({
               size="small"
               fullWidth
               disabled={!canManage}
-              InputProps={{ disableUnderline: true }}
               sx={drawerFieldValueSx}
             />
           </PropertyRow>
@@ -970,7 +965,6 @@ function OperationsTab({
                   {...params}
                   variant="standard"
                   placeholder={(app.access_methods || []).length === 0 ? 'Not assigned' : undefined}
-                  InputProps={{ ...params.InputProps, disableUnderline: true }}
                   sx={drawerFieldValueSx}
                 />
               )}
@@ -1064,7 +1058,6 @@ function OperationsTab({
             multiline
             minRows={5}
             disabled={!canManage}
-            InputProps={{ disableUnderline: true }}
             placeholder="Add support notes..."
             sx={(theme) => ({
               ...drawerFieldValueSx,
@@ -1099,7 +1092,7 @@ function OperationsTab({
               compactOptions
               groupByCompany={false}
               hideLabel
-              textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              textFieldSx={drawerFieldValueSx}
             />
           </PropertyRow>
           <PropertyRow label="Role">
@@ -1108,8 +1101,7 @@ function OperationsTab({
               onChange={(event) => setContactDraft((prev) => ({ ...prev, role: event.target.value }))}
               variant="standard"
               fullWidth
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              sx={drawerFieldValueSx}
             />
           </PropertyRow>
         </Stack>
@@ -1180,7 +1172,6 @@ function ComplianceTab({
                 {...params}
                 variant="standard"
                 placeholder={selectedCountries.length === 0 ? 'Not set' : undefined}
-                InputProps={{ ...params.InputProps, disableUnderline: true }}
                 sx={drawerFieldValueSx}
               />
             )}

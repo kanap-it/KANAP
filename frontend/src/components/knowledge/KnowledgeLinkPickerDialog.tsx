@@ -192,7 +192,6 @@ export default function KnowledgeLinkPickerDialog({
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t('knowledgePanel.searchByNameOrRef')}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={[fieldResetSx, (theme) => ({
               px: 1,
               py: 0.75,

@@ -11,7 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import { KanapDialog, PropertyRow } from '../../../components/design';
-import { dialogBorderedFieldSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
+import { drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 
 type DocumentLibrary = {
   id: string;
@@ -196,8 +196,7 @@ export default function KnowledgeFolderMoveDialog({
                 setTargetFolderId(null);
               }}
               disabled={!canChangeLibrary || folderInTemplates}
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+              sx={drawerSelectSx}
             >
               {selectableLibraries.map((library) => (
                 <MenuItem key={library.id} value={library.id} sx={drawerMenuItemSx}>
@@ -215,8 +214,7 @@ export default function KnowledgeFolderMoveDialog({
               value={targetFolderId || ''}
               onChange={(e) => setTargetFolderId(e.target.value || null)}
               disabled={!targetLibraryId}
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerSelectSx, dialogBorderedFieldSx]}
+              sx={drawerSelectSx}
             >
               <MenuItem value="" sx={drawerMenuItemSx}>{t('folderMoveDialog.fields.topLevel')}</MenuItem>
               {flatFolders.map((folderOption) => (

@@ -333,7 +333,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
                 onChange={(e) => onFlatChange(m.key, (e.target.value as unknown as number | ''))}
                 variant="standard"
                 disabled={loading || isFrozen(m)}
-                InputProps={{ disableUnderline: true, readOnly: isFrozen(m) }}
+                InputProps={{ readOnly: isFrozen(m) }}
                 sx={{ maxWidth: 220, '& .MuiInputBase-input': { fontSize: '15px !important', fontWeight: 500 } }}
               />
             </Box>
@@ -344,11 +344,11 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
           {/* Spread-from-annual helper */}
           <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 1.5, bgcolor: 'kanap.bg.drawer', border: '1px solid', borderColor: 'kanap.border.soft', borderRadius: '8px', p: 1.5 }}>
             <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', alignSelf: 'center' }}>{t(`${config.i18nPrefix}.budget.spreadHelper`)}</Typography>
-            <TextField select size="small" variant="standard" value={spreadMeasure} onChange={(e) => setSpreadMeasure(e.target.value as MeasureKey)} InputProps={{ disableUnderline: true }} sx={[drawerSelectSx, { width: 'auto', minWidth: 120 }]}>
+            <TextField select size="small" variant="standard" value={spreadMeasure} onChange={(e) => setSpreadMeasure(e.target.value as MeasureKey)} sx={[drawerSelectSx, { width: 'auto', minWidth: 120 }]}>
               {MEASURES.map((m) => <MenuItem key={m.key} value={m.key} sx={drawerMenuItemSx}>{labelFor(m)}</MenuItem>)}
             </TextField>
-            <FormattedNumberField value={spreadAmount} onChange={(e) => setSpreadAmount(e.target.value as unknown as number | '')} variant="standard" size="small" placeholder="e.g., 120000" InputProps={{ disableUnderline: true }} sx={{ width: 120 }} />
-            <TextField select size="small" variant="standard" value={spreadProfile} onChange={(e) => setSpreadProfile(e.target.value as 'flat' | '4-4-5')} InputProps={{ disableUnderline: true }} sx={[drawerSelectSx, { width: 'auto', minWidth: 90 }]}>
+            <FormattedNumberField value={spreadAmount} onChange={(e) => setSpreadAmount(e.target.value as unknown as number | '')} variant="standard" size="small" placeholder="e.g., 120000" sx={{ width: 120 }} />
+            <TextField select size="small" variant="standard" value={spreadProfile} onChange={(e) => setSpreadProfile(e.target.value as 'flat' | '4-4-5')} sx={[drawerSelectSx, { width: 'auto', minWidth: 90 }]}>
               <MenuItem value="flat" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.budget.profileFlat`)}</MenuItem>
               <MenuItem value="4-4-5" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.budget.profile445`)}</MenuItem>
             </TextField>
@@ -408,7 +408,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
                               onChange={(e) => onMonthChange(mi, col, e.target.value as unknown as number | '')}
                               variant="standard" size="small" fullWidth
                               disabled={loading || fr}
-                              InputProps={{ disableUnderline: true, readOnly: fr }}
+                              InputProps={{ readOnly: fr }}
                               sx={tableCellFieldSx}
                             />
                           </Box>

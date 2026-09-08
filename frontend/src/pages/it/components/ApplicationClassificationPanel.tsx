@@ -78,7 +78,7 @@ function HelpLabel({ text, help }: { text: string; help: string }) {
 /** Naked select over a tenant catalog: label at 13px, definition at 11px under each option. */
 function LevelSelect({ value, options, placeholder, ariaLabel, disabled, onChange }: { value: string | null; options: Option[]; placeholder: string; ariaLabel: string; disabled: boolean; onChange: (value: string | null) => void }) {
   const visible = options.filter((item) => !item.deprecated || item.code === value);
-  return <Select value={value || ''} renderValue={(selected) => options.find((item) => item.code === selected)?.label || selected || placeholder} onChange={(event) => onChange(event.target.value || null)} disabled={disabled} displayEmpty variant="standard" disableUnderline sx={drawerSelectSx} inputProps={{ 'aria-label': ariaLabel }}>
+  return <Select value={value || ''} renderValue={(selected) => options.find((item) => item.code === selected)?.label || selected || placeholder} onChange={(event) => onChange(event.target.value || null)} disabled={disabled} displayEmpty variant="standard" sx={drawerSelectSx} inputProps={{ 'aria-label': ariaLabel }}>
     <MenuItem value="" sx={drawerMenuItemSx}>{placeholder}</MenuItem>
     {visible.map((item) => <MenuItem key={item.code} value={item.code} sx={drawerMenuItemSx}><Box><Typography sx={{ fontSize: 13 }}>{item.label}{item.deprecated ? ` (${classificationText('No longer offered')})` : ''}</Typography>{item.description && <Typography sx={{ fontSize: 11, whiteSpace: 'normal', maxWidth: 440, color: 'text.secondary' }}>{item.description}</Typography>}</Box></MenuItem>)}
   </Select>;
@@ -170,7 +170,7 @@ export default function ApplicationClassificationPanel({ app, canManage, onPatch
         <Typography component="h2" sx={sectionTitleSx}>{classificationText('Review')}</Typography>
         <Stack spacing={1.25}>
           <PropertyRow label={classificationText('Justification')} sx={rowSx} valueSx={valueSx}>
-            <TextField defaultValue={app.classification_justification || ''} key={`${app.id}:justification`} onBlur={(event) => patch({ classification_justification: event.target.value.trim() || null })} disabled={!canManage} multiline minRows={3} placeholder={classificationText('Why these levels were chosen and what the recovery plan relies on')} variant="standard" fullWidth InputProps={{ disableUnderline: true }} sx={(theme) => ({ ...drawerFieldValueSx, p: 1, border: `1px solid ${theme.palette.kanap.border.default}`, borderRadius: '8px', bgcolor: theme.palette.kanap.bg.composer })} />
+            <TextField defaultValue={app.classification_justification || ''} key={`${app.id}:justification`} onBlur={(event) => patch({ classification_justification: event.target.value.trim() || null })} disabled={!canManage} multiline minRows={3} placeholder={classificationText('Why these levels were chosen and what the recovery plan relies on')} variant="standard" fullWidth sx={(theme) => ({ ...drawerFieldValueSx, p: 1, border: `1px solid ${theme.palette.kanap.border.default}`, borderRadius: '8px', bgcolor: theme.palette.kanap.bg.composer })} />
           </PropertyRow>
           <Stack direction="row" spacing={2} alignItems="center">
             <Box>

@@ -8,7 +8,7 @@ import { useAuth } from '../../../auth/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { KanapDialog, PropertyRow, RelevantWebsitesList, useKanapDialogs } from '../../../components/design';
-import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
 import IncidentRelationsSection from './IncidentRelationsSection';
 export type ApplicationRelationsPanelHandle = {
   save: () => Promise<void>;
@@ -508,7 +508,6 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
               {...params}
               placeholder="Select OPEX items"
               variant="standard"
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               sx={drawerFieldValueSx}
             />
           )}
@@ -541,7 +540,6 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
               {...params}
               placeholder="Select CAPEX items"
               variant="standard"
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               sx={drawerFieldValueSx}
             />
           )}
@@ -574,7 +572,6 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
               {...params}
               placeholder="Select contracts"
               variant="standard"
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               sx={drawerFieldValueSx}
             />
           )}
@@ -607,7 +604,6 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
               {...params}
               placeholder="Select projects"
               variant="standard"
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               sx={drawerFieldValueSx}
             />
           )}
@@ -645,7 +641,6 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
               variant="standard"
               InputProps={{
                 ...params.InputProps,
-                disableUnderline: true,
                 endAdornment: (
                   <>
                     {taskOptionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -787,8 +782,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
               inputRef={linkNameInputRef}
               variant="standard"
               fullWidth
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              sx={drawerFieldValueSx}
             />
           </PropertyRow>
           <PropertyRow label="URL" required>
@@ -797,8 +791,7 @@ export default forwardRef<ApplicationRelationsPanelHandle, Props>(function Appli
               onChange={(event) => setLinkDraft((prev) => ({ ...prev, url: event.target.value }))}
               variant="standard"
               fullWidth
-              InputProps={{ disableUnderline: true }}
-              sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+              sx={drawerFieldValueSx}
             />
           </PropertyRow>
         </Stack>

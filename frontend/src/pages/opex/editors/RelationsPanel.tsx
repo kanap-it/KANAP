@@ -12,7 +12,7 @@ import { useAuth } from '../../../auth/AuthContext';
 import ItemContactsSection from '../../../components/contacts/ItemContactsSection';
 import { RelevantWebsitesList, useKanapDialogs } from '../../../components/design';
 import RelationsSectionTitle from '../../portfolio/components/RelationsSectionTitle';
-import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, editableFieldValueSx } from '../../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
 
 export type RelationsPanelHandle = {
   isDirty: () => boolean;
@@ -27,7 +27,7 @@ type LinkItem = { id?: string; description?: string; url: string };
 const relationTagSx = { borderRadius: '6px', height: 24, '& .MuiChip-label': { px: '8px', fontSize: 12 } } as const;
 const relationControlSx = { maxWidth: 420 } as const;
 const relationWideControlSx = { maxWidth: 640 } as const;
-const relationAutocompleteSx = [editableFieldValueSx, { width: '100%' }, relationControlSx] as const;
+const relationAutocompleteSx = [drawerFieldValueSx, { width: '100%' }, relationControlSx] as const;
 
 function sameIds(a: Named[], b: Named[]) {
   const l = a.map((x) => x.id).sort();
@@ -227,10 +227,9 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
           variant="standard"
           InputProps={{
             ...params.InputProps,
-            disableUnderline: true,
             endAdornment: (<>{loadingOpts ? <CircularProgress color="inherit" size={16} /> : null}{params.InputProps.endAdornment}</>),
           }}
-          sx={editableFieldValueSx}
+          sx={drawerFieldValueSx}
         />
       )}
       ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -349,8 +348,8 @@ export default forwardRef<RelationsPanelHandle, Props>(function RelationsPanel({
           <DialogTitle>{editingLinkIndex === null ? t('opex.relations.addLinkTitle', 'Add link') : t('opex.relations.editLinkTitle', 'Edit link')}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ pt: 1 }}>
-              <TextField autoFocus aria-label={t('opex.relations.linkName', 'Name')} placeholder={t('opex.relations.linkDescriptionPlaceholder', 'e.g., vendor portal')} value={linkDraft.description} onChange={(e) => setLinkDraft((p) => ({ ...p, description: e.target.value }))} variant="standard" InputProps={{ disableUnderline: true }} sx={dialogBorderedFieldSx} />
-              <TextField aria-label={t('opex.relations.linkUrl', 'URL')} placeholder="https://..." value={linkDraft.url} onChange={(e) => setLinkDraft((p) => ({ ...p, url: e.target.value }))} variant="standard" InputProps={{ disableUnderline: true }} sx={dialogBorderedFieldSx} />
+              <TextField autoFocus aria-label={t('opex.relations.linkName', 'Name')} placeholder={t('opex.relations.linkDescriptionPlaceholder', 'e.g., vendor portal')} value={linkDraft.description} onChange={(e) => setLinkDraft((p) => ({ ...p, description: e.target.value }))} variant="standard" />
+              <TextField aria-label={t('opex.relations.linkUrl', 'URL')} placeholder="https://..." value={linkDraft.url} onChange={(e) => setLinkDraft((p) => ({ ...p, url: e.target.value }))} variant="standard" />
             </Stack>
           </DialogContent>
           <DialogActions>

@@ -22,9 +22,7 @@ type Props = {
 
 const fieldSx = {
   '& .MuiInputBase-root': { fontSize: 13 },
-  '& input': { fontSize: 13, padding: '4px 0' },
-  '&:before': { display: 'none' },
-  '&:after': { display: 'none' },
+  '& input': { fontSize: 13 },
 } as const;
 
 /**
@@ -161,7 +159,6 @@ export default function ConnectionHopEquipmentPicker({
               {...params}
               variant="standard"
               placeholder={value.entity_code ? `entity:${value.entity_code} (switch to pick a server)` : 'e.g., waf-prod-1 or AST-12'}
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               sx={fieldSx}
             />
           )}
@@ -174,7 +171,6 @@ export default function ConnectionHopEquipmentPicker({
           disabled={disabled || entities.length === 0}
           value={value.entity_code || ''}
           onChange={(e) => onChange({ asset_id: null, entity_code: e.target.value || null })}
-          InputProps={{ disableUnderline: true }}
           sx={drawerSelectSx}
           SelectProps={{ displayEmpty: true }}
           helperText={

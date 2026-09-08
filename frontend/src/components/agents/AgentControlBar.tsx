@@ -97,7 +97,6 @@ export default function AgentControlBar({ agentKey, onTest }: { agentKey: string
           {runModeSelectable ? (
             <Select
               variant="standard"
-              disableUnderline
               displayEmpty
               value={runMode ?? ''}
               disabled={data.updateAgentStatusMutation.isPending}

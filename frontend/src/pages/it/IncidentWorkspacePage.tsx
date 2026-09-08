@@ -23,7 +23,7 @@ import useAutosave from '../../hooks/useAutosave';
 import { useIncidentItemNav } from '../../hooks/useModuleItemNav';
 import { useLocale } from '../../i18n/useLocale';
 import { formatShortDate } from '../../lib/dateFormat';
-import { dialogBorderedFieldSx, drawerFieldValueSx, drawerMenuItemSx } from '../../theme/formSx';
+import { drawerFieldValueSx, drawerMenuItemSx } from '../../theme/formSx';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { downloadBlob } from '../../utils/downloadBlob';
 import { formatItemRef } from '../../utils/item-ref';
@@ -673,8 +673,7 @@ export function IncidentWorkspacePage() {
                 fullWidth
                 size="small"
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                sx={drawerFieldValueSx}
                 disabled={createSubmitting || !canEdit}
               />
             </PropertyRow>
@@ -690,7 +689,6 @@ export function IncidentWorkspacePage() {
                 fullWidth
                 variant="standard"
                 placeholder={t('workspace.incident.overview.descriptionPlaceholder')}
-                InputProps={{ disableUnderline: true }}
                 sx={incidentComposerSx}
                 disabled={createSubmitting || !canEdit}
               />

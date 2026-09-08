@@ -130,7 +130,6 @@ export default function LocationSelect({
             placeholder={placeholder ?? (naked ? t('selects.notSet') : undefined)}
             InputProps={{
               ...params.InputProps,
-              ...(naked ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {(isLoading || loadingSelected) && <CircularProgress size={18} />}

@@ -121,7 +121,6 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
           }}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || loadingSelected) ? <CircularProgress color="inherit" size={16} /> : null}
