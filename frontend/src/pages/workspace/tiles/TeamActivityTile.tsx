@@ -46,13 +46,14 @@ export default function TeamActivityTile({ config }: TeamActivityTileProps) {
   const { t } = useTranslation('common');
   const locale = useLocale();
   const relativeTime = useRelativeTime();
-  const limit = Math.min((config.limit as number) || 5, 5);
+  const limit = Math.min((config.limit as number) || 5, 10);
+  const days = Math.max(1, Math.min((config.days as number) || 7, 30));
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['dashboard', 'team-activity', limit],
+    queryKey: ['dashboard', 'team-activity', limit, days],
     queryFn: async () => {
       const res = await api.get<TeamActivityItem[]>('/dashboard/team-activity', {
-        params: { limit },
+        params: { limit, days },
       });
       return res.data;
     },
@@ -63,7 +64,7 @@ export default function TeamActivityTile({ config }: TeamActivityTileProps) {
 
   return (
     <DashboardTile
-      title={t('dashboard.tiles.teamActivity')}
+      title={t('dashboard.tiles.teamActivityDays', { days })}
       icon="Update"
       isLoading={isLoading}
       isError={isError}

@@ -6,6 +6,14 @@ import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { DashboardService } from './dashboard.service';
 import { DashboardDataService } from './dashboard-data.service';
 import { UpdateDashboardConfigDto } from './dto/update-dashboard-config.dto';
+import { resolveBusinessContributorScopeForUser } from '../auth/business-contributor-scope';
+
+/** Query numbers come in as strings; keep them inside the bounds the tiles offer (a negative LIMIT is a 500). */
+function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
+  const parsed = parseInt(String(raw ?? ''), 10);
+  const value = Number.isFinite(parsed) ? parsed : fallback;
+  return Math.min(max, Math.max(min, value));
+}
 
 @UseGuards(JwtAuthGuard)
 @Controller('dashboard')
@@ -48,6 +56,15 @@ export class DashboardController {
   // ==================== TILE DATA ENDPOINTS ====================
   // These require specific permissions based on the data they access
 
+  /** Same participant scope as the list endpoints: business contributors only see what they take part in. */
+  private participantScope(ctx: TenantRequest, resource: 'portfolio_projects' | 'tasks') {
+    return resolveBusinessContributorScopeForUser(
+      { manager: ctx.manager!, userId: ctx.userId!, tenantId: ctx.tenantId ?? null, isAdmin: ctx.isAdmin === true },
+      resource,
+      'reader',
+    );
+  }
+
   /**
    * Get projects where the current user is a lead or sponsor
    */
@@ -60,7 +77,7 @@ export class DashboardController {
   ) {
     return this.dataSvc.getMyLeadershipProjects(
       ctx.userId!,
-      parseInt(limit, 10) || 5,
+      clampInt(limit, 5, 1, 20),
       { manager: ctx.manager },
     );
   }
@@ -78,7 +95,7 @@ export class DashboardController {
   ) {
     return this.dataSvc.getMyContributionProjects(
       ctx.userId!,
-      parseInt(limit, 10) || 5,
+      clampInt(limit, 5, 1, 20),
       { manager: ctx.manager },
     );
   }
@@ -96,7 +113,7 @@ export class DashboardController {
   ) {
     return this.dataSvc.getTimeSummary(
       ctx.userId!,
-      parseInt(days, 10) || 7,
+      clampInt(days, 7, 1, 90),
       { manager: ctx.manager },
     );
   }
@@ -106,11 +123,13 @@ export class DashboardController {
   @Get('team-activity')
   async getTeamActivity(
     @Query('limit') limit: string = '5',
+    @Query('days') days: string = '7',
     @Tenant() ctx: TenantRequest,
   ) {
     return this.dataSvc.getTeamActivity(
       ctx.userId!,
-      Math.min(parseInt(limit, 10) || 5, 5),
+      clampInt(limit, 5, 1, 10),
+      clampInt(days, 7, 1, 30),
       { manager: ctx.manager },
     );
   }
@@ -124,9 +143,9 @@ export class DashboardController {
     @Tenant() ctx: TenantRequest,
   ) {
     return this.dataSvc.getProjectStatusChanges(
-      parseInt(days, 10) || 5,
-      Math.min(parseInt(limit, 10) || 5, 5),
-      { manager: ctx.manager },
+      clampInt(days, 5, 1, 30),
+      clampInt(limit, 5, 1, 10),
+      { manager: ctx.manager, accessScope: await this.participantScope(ctx, 'portfolio_projects') },
     );
   }
 
@@ -143,9 +162,9 @@ export class DashboardController {
     return this.dataSvc.getStaleTasks(
       ctx.userId!,
       safeScope,
-      parseInt(thresholdDays, 10) || 90,
-      Math.min(parseInt(limit, 10) || 5, 5),
-      { manager: ctx.manager },
+      clampInt(thresholdDays, 90, 1, 365),
+      clampInt(limit, 5, 1, 10),
+      { manager: ctx.manager, accessScope: await this.participantScope(ctx, 'tasks') },
     );
   }
 
@@ -158,7 +177,7 @@ export class DashboardController {
   ) {
     return this.dataSvc.getKnowledgeReviewItems(
       ctx.userId!,
-      Math.min(parseInt(limit, 10) || 5, 5),
+      clampInt(limit, 5, 1, 10),
       { manager: ctx.manager },
     );
   }
