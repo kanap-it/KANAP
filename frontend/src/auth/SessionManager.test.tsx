@@ -132,7 +132,7 @@ describe('SessionManager', () => {
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
-  it('keeps the current route when redirecting to login after idle expiration', async () => {
+  it('redirects to login without remembering the current route after idle expiration', async () => {
     vi.useRealTimers();
     window.localStorage.setItem('last_activity_at', String(Date.now() - 5_000));
     window.localStorage.setItem('refresh_ttl_ms', '1000');
@@ -149,18 +149,6 @@ describe('SessionManager', () => {
       expect(authState.logout).toHaveBeenCalledTimes(1);
     });
 
-    expect(navigateMock).toHaveBeenCalledWith(
-      '/login?sessionExpired=true&redirectTo=%2Fportfolio%2Ftasks%2F42%3Ffocus%3Dactivity%23comments',
-      {
-        replace: true,
-        state: {
-          from: expect.objectContaining({
-            pathname: '/portfolio/tasks/42',
-            search: '?focus=activity',
-            hash: '#comments',
-          }),
-        },
-      },
-    );
+    expect(navigateMock).toHaveBeenCalledWith('/login?sessionExpired=true', { replace: true });
   });
 });

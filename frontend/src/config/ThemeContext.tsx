@@ -204,6 +204,15 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
           // and the Autocomplete indicators there.
           '&::placeholder': { color: theme.palette.kanap.text.tertiary, opacity: 1 },
           '&.MuiSelect-select': { paddingRight: '24px !important', minHeight: '1.4375em' },
+          // Chrome paints autofilled inputs with its own pale-blue fill and dark
+          // text, which breaks the field box in both themes. Repaint with an
+          // inset shadow in the field background and keep our text color.
+          '&:-webkit-autofill, &:-webkit-autofill:hover, &:-webkit-autofill:focus': {
+            WebkitBoxShadow: `0 0 0 1000px ${theme.palette.kanap.bg.primary} inset`,
+            WebkitTextFillColor: theme.palette.kanap.text.primary,
+            caretColor: theme.palette.kanap.text.primary,
+            borderRadius: 0,
+          },
         }),
       },
     },
@@ -264,7 +273,15 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
           '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.kanap.danger },
         }),
         notchedOutline: { '& legend': { maxWidth: '100%' } },
-        input: { padding: '5px 8px', fontSize: 14 },
+        input: ({ theme }) => ({
+          padding: '5px 8px',
+          fontSize: 14,
+          '&:-webkit-autofill, &:-webkit-autofill:hover, &:-webkit-autofill:focus': {
+            WebkitBoxShadow: `0 0 0 1000px ${theme.palette.kanap.bg.primary} inset`,
+            WebkitTextFillColor: theme.palette.kanap.text.primary,
+            caretColor: theme.palette.kanap.text.primary,
+          },
+        }),
       },
     },
     // Ripple is the Material press-ink that sticks when a Menu/Popover captures

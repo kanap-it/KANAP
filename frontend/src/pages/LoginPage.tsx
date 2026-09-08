@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -7,9 +7,10 @@ import { useAuth } from '../auth/AuthContext';
 import AuthFrame from '../components/AuthFrame';
 import { useTenant } from '../tenant/TenantContext';
 import { useFeatures } from '../config/FeaturesContext';
-import { getLoginRedirectPath } from '../auth/loginRedirect';
 
 const marketingUrl = import.meta.env.VITE_MARKETING_URL ?? 'https://kanap.net';
+// Signing in always lands on the home page: no memory of the page the user was on.
+const postLoginPath = '/';
 
 export default function LoginPage() {
   const { t } = useTranslation(['auth', 'common']);
@@ -20,10 +21,6 @@ export default function LoginPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get('sessionExpired') === 'true';
-  const postLoginRedirectPath = useMemo(
-    () => getLoginRedirectPath(location.state, searchParams),
-    [location.state, searchParams],
-  );
   const [infoMessage, setInfoMessage] = useState<string | null>(() => {
     const state = location.state as any;
     if (state?.passwordResetSuccess) {
@@ -70,7 +67,7 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', { email: username, password });
       login(res.data as { access_token: string; expires_in: number; refresh_expires_in?: number });
-      navigate(postLoginRedirectPath, { replace: true });
+      navigate(postLoginPath, { replace: true });
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Login failed');
     }
@@ -79,7 +76,7 @@ export default function LoginPage() {
   const onMicrosoftSignIn = () => {
     const apiBase = (import.meta.env.VITE_API_URL as string | undefined) || '/api';
     const base = apiBase.replace(/\/$/, '');
-    const url = `${base}/auth/entra/login?redirectTo=${encodeURIComponent(postLoginRedirectPath)}`;
+    const url = `${base}/auth/entra/login?redirectTo=${encodeURIComponent(postLoginPath)}`;
     window.location.href = url;
   };
 
@@ -88,17 +85,20 @@ export default function LoginPage() {
       <Paper
         component="form"
         onSubmit={onSubmit}
-        elevation={4}
+        elevation={0}
         sx={{
           width: '100%',
           maxWidth: 420,
           p: { xs: 3, md: 4 },
-          borderRadius: 3,
+          borderRadius: '12px',
+          border: 1,
+          borderColor: 'kanap.border.default',
+          bgcolor: 'kanap.bg.primary',
         }}
       >
         <Stack spacing={3}>
           <Box>
-            <Typography variant="h5" sx={{ fontWeight: 600 }}>
+            <Typography variant="h5" sx={{ fontWeight: 500 }}>
               {t('auth:login.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -128,8 +128,6 @@ export default function LoginPage() {
                 fullWidth
                 autoComplete="username"
                 autoFocus
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiInputBase-input': { paddingLeft: '8px !important', paddingRight: '8px !important' } }}
               />
               <TextField
                 label={t('auth:login.passwordLabel')}
@@ -138,8 +136,6 @@ export default function LoginPage() {
                 type="password"
                 fullWidth
                 autoComplete="current-password"
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiInputBase-input': { paddingLeft: '8px !important', paddingRight: '8px !important' } }}
               />
             </Stack>
 
@@ -179,7 +175,7 @@ export default function LoginPage() {
                 >
                   {t('common:buttons.cancel')}
                 </Button>
-                <Button type="submit" variant="outlined" fullWidth>
+                <Button type="submit" variant="outlined" fullWidth sx={{ whiteSpace: 'nowrap' }}>
                   {t('auth:login.submit')}
                 </Button>
               </Stack>
