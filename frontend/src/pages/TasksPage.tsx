@@ -39,6 +39,8 @@ type TaskRow = {
   updated_at: string;
   assignee_user_id: string | null;
   assignee_name: string | null;
+  creator_id: string | null;
+  creator_name: string | null;
   related_object_type: string | null;
   related_object_id: string | null;
   related_object_name: string | null;
@@ -265,7 +267,7 @@ export default function TasksPage() {
 
   // Filter extraParams based on scope selection
   const extraParams = useMemo(() => {
-    if (taskScope === 'my') return { assigneeUserId: profile?.id };
+    if (taskScope === 'my') return { involvedUserId: profile?.id };
     if (taskScope === 'team' && hasTeam) return { teamId: myTeamConfig?.team_id };
     return {};
   }, [taskScope, profile?.id, hasTeam, myTeamConfig?.team_id]);
@@ -321,7 +323,7 @@ export default function TasksPage() {
     // Include task scope and derived params for workspace navigation
     sp.set('taskScope', scope);
     if (scope === 'my' && profileId) {
-      sp.set('assigneeUserId', profileId);
+      sp.set('involvedUserId', profileId);
     } else if (scope === 'team' && hasTeamNow && teamId) {
       sp.set('teamId', teamId);
     }
@@ -485,6 +487,15 @@ export default function TasksPage() {
       minWidth: 140,
       filter: 'agTextColumnFilter',
       cellRenderer: clickableCellRenderer,
+    },
+    {
+      field: 'creator_name',
+      headerName: t('tasks.columns.requestor'),
+      flex: 1,
+      minWidth: 140,
+      filter: 'agTextColumnFilter',
+      cellRenderer: clickableCellRenderer,
+      hide: true,
     },
     {
       field: 'due_date',

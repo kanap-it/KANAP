@@ -252,10 +252,17 @@ function buildWhereConditions(
     return false;
   };
 
-  // Apply scope filters (assigneeUserId or teamId)
+  // Apply scope filters (assigneeUserId, involvedUserId or teamId)
   if (query.assigneeUserId) {
     params.push(query.assigneeUserId);
     whereConditions += ` AND t.assignee_user_id = $${params.length}`;
+  }
+
+  // "My tasks": assigned to me or requested by me (mirrors the involvement
+  // scope of "My requests" / "My projects"; viewers are deliberately excluded)
+  if (query.involvedUserId) {
+    params.push(query.involvedUserId);
+    whereConditions += ` AND (t.assignee_user_id = $${params.length} OR t.creator_id = $${params.length})`;
   }
 
   if (query.teamId) {
@@ -747,12 +754,22 @@ export class TasksService {
       updated_at: 't.updated_at',
       due_date: 't.due_date',
       start_date: 't.start_date',
-      assignee_name: 'assignee_name',
-      creator_name: 'creator_name',
-      related_object_name: 'related_object_name',
+      // The ids query only projects id/item_number/priority_score, so sortable
+      // display names must be spelled out as expressions, not output aliases.
+      assignee_name: `COALESCE(u.first_name || ' ' || u.last_name, u.email)`,
+      creator_name: `COALESCE(uc.first_name || ' ' || uc.last_name, uc.email)`,
+      related_object_name: `CASE
+          WHEN t.related_object_type IS NULL THEN NULL
+          WHEN t.related_object_type = 'spend_item' THEN si.product_name
+          WHEN t.related_object_type = 'contract' THEN c.name
+          WHEN t.related_object_type = 'capex_item' THEN ci.description
+          WHEN t.related_object_type = 'incident' THEN ${incidentRelatedLabelSql('inc')}
+          WHEN t.related_object_type = 'project' THEN pp.name
+          ELSE ''
+        END`,
       related_object_type: 't.related_object_type',
       task_type_name: 'tt.name',
-      phase_name: 'phase_name',
+      phase_name: 'phase.name',
       priority_level: 't.priority_level',
       priority_score: 'priority_score',
       source_name: 'ps.name',

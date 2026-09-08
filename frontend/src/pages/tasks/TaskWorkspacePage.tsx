@@ -1218,18 +1218,18 @@ export default function TaskWorkspacePage() {
   const q = cleanedSearchParams.get('q') || '';
   const filters = cleanedSearchParams.get('filters') || '';
   // Read scope params for filtered navigation
-  const assigneeUserId = cleanedSearchParams.get('assigneeUserId') || undefined;
+  const involvedUserId = cleanedSearchParams.get('involvedUserId') || undefined;
   const teamId = cleanedSearchParams.get('teamId') || undefined;
   const applicationId = cleanedSearchParams.get('applicationId') || undefined;
   const assetId = cleanedSearchParams.get('assetId') || undefined;
   const navExtraParams = React.useMemo(() => {
     const params: Record<string, string | undefined> = {};
-    if (assigneeUserId) params.assigneeUserId = assigneeUserId;
+    if (involvedUserId) params.involvedUserId = involvedUserId;
     if (teamId) params.teamId = teamId;
     if (applicationId) params.applicationId = applicationId;
     if (assetId) params.assetId = assetId;
     return Object.keys(params).length > 0 ? params : undefined;
-  }, [assigneeUserId, applicationId, assetId, teamId]);
+  }, [involvedUserId, applicationId, assetId, teamId]);
   const navCurrentId = taskMatchesCurrentRoute ? task?.id || '' : '';
   const entityOrigin = origin.kind === 'tasks' ? null : origin;
   const entityListQuery = useQuery({

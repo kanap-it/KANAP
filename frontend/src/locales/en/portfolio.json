@@ -901,6 +901,7 @@
       "priority": "Priority",
       "score": "Score",
       "assignee": "Assignee",
+      "requestor": "Requestor",
       "dueDate": "Due date",
       "created": "Created",
       "lastChanged": "Last changed",

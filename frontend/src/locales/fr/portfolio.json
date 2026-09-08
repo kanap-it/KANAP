@@ -901,6 +901,7 @@
       "priority": "Priorité",
       "score": "Score",
       "assignee": "Assigné à",
+      "requestor": "Demandeur",
       "dueDate": "Échéance",
       "created": "Créé",
       "lastChanged": "Dernière modification",

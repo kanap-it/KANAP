@@ -150,7 +150,7 @@ export async function applyScopeToAiQuery(
   if (scope === 'me') {
     if (entityType === 'tasks') {
       return {
-        query: { ...query, assigneeUserId: context.userId },
+        query: { ...query, involvedUserId: context.userId },
         scope: { requested: scope, resolved: true },
       };
     }
