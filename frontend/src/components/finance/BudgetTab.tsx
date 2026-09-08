@@ -406,7 +406,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
                             <FormattedNumberField
                               value={months[mi]?.[col] ?? 0}
                               onChange={(e) => onMonthChange(mi, col, e.target.value as unknown as number | '')}
-                              variant="standard" size="small"
+                              variant="standard" size="small" fullWidth
                               disabled={loading || fr}
                               InputProps={{ disableUnderline: true, readOnly: fr }}
                               sx={tableCellFieldSx}

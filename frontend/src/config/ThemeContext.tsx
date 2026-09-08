@@ -234,6 +234,17 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
           },
         },
         endAdornment: { right: 8 },
+        // Match the Select arrow: 18px, secondary text color.
+        popupIndicator: ({ theme }) => ({
+          color: theme.palette.kanap.text.secondary,
+          padding: 2,
+          '& .MuiSvgIcon-root': { fontSize: 18 },
+        }),
+        clearIndicator: ({ theme }) => ({
+          color: theme.palette.kanap.text.secondary,
+          padding: 2,
+          '& .MuiSvgIcon-root': { fontSize: 16 },
+        }),
         tag: { margin: 2 },
       },
     },
