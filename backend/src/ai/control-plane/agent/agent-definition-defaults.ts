@@ -16,6 +16,7 @@ import {
   TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
   TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
 } from '../capability/capability-contract';
+import { DEFAULT_TICKET_ACTOR_ROLE } from '../providers/provider.types';
 import { normalizeServiceDeskScopePolicy } from './service-desk-targeting';
 
 const DEFAULT_LEASE_TTL_SECONDS = 5 * 60;
@@ -234,6 +235,7 @@ export function helpdeskAgentDefaults(input: { ticketingProviderKey: string }): 
       prepare_status_update: true,
       prepare_assignment_update: true,
       prepare_participant_update: false,
+      ticket_actor_role: DEFAULT_TICKET_ACTOR_ROLE,
       automatic_public_reply: false,
       automatic_ticket_updates: false,
       require_human_approval_for_writes: true,

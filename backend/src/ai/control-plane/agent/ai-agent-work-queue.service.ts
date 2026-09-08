@@ -4,7 +4,6 @@ import { AiExecutionContextWithManager } from '../../ai.types';
 import { AiSettings } from '../../ai-settings.entity';
 import {
   TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
-  TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
   TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
   TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
   TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
@@ -204,6 +203,8 @@ export const DEFAULT_APPROVAL_TTL_SECONDS = 24 * 60 * 60;
 export const MIN_APPROVAL_TTL_SECONDS = 60;
 export const MAX_APPROVAL_TTL_SECONDS = 30 * 24 * 60 * 60;
 
+// Assignment is deliberately NOT required: the planner skips assignment proposals when the
+// capability is not granted, and the GLPI adapter does not support assignment writes yet.
 const REQUIRED_HELPDESK_TRIAGE_CAPABILITIES = [
   'ticketing.ticket.get',
   'search_knowledge',
@@ -212,7 +213,6 @@ const REQUIRED_HELPDESK_TRIAGE_CAPABILITIES = [
   TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
   TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
   TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
-  TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
 ] as const;
 
 // Capability lists live in agent-definition-defaults.ts and are re-exported above.

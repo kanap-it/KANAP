@@ -635,6 +635,12 @@
       "cancel": "Cancel",
       "apply_anyway": "Apply anyway"
     },
+    "ticketActorRole": "Agent on the ticket",
+    "ticketActorRoles": {
+      "assignee": "Takes the ticket (assignee)",
+      "observer": "Follows the ticket (observer)",
+      "none": "Stays out of the ticket actors"
+    },
     "save": "Save settings",
     "knowledgeSources": "Knowledge and web sources",
     "knowledgeEnabled": "Search KANAP knowledge",
@@ -772,6 +778,7 @@
     "agentPriorityInfo": "Which agent wins when several of them target the same ticket. The lower the number, the higher the priority.",
     "onConflictInfo": "What the agent does when another agent is already working on the same ticket: stand back, or take over from an agent of equal priority.",
     "onStaleInfo": "What happens to a waiting proposal when the ticket changes before you decide: look at it again, drop it, or apply it as it is.",
+    "ticketActorRoleInfo": "How the agent appears among the ticket actors after it writes on a ticket. Taking the ticket marks it as assigned to the agent's GLPI user. Internal notes never assign; they add the agent as an observer at most.",
     "perRunTokensInfo": "The most words the agent may spend on one ticket. Reaching it stops that ticket and nothing is proposed for it.",
     "perRunCostInfo": "The most the agent may spend on one ticket, estimated from the assigned model’s prices. A free model (0 EUR) never reaches it, so the word limit stays the real protection.",
     "dailyRunsInfo": "Stop the agent for the day once it has worked on this many tickets. It starts again the next day.",

@@ -635,6 +635,12 @@
       "cancel": "Abbrechen",
       "apply_anyway": "Trotzdem anwenden"
     },
+    "ticketActorRole": "Agent auf dem Ticket",
+    "ticketActorRoles": {
+      "assignee": "Übernimmt das Ticket (Bearbeiter)",
+      "observer": "Verfolgt das Ticket (Beobachter)",
+      "none": "Erscheint nicht bei den Akteuren"
+    },
     "save": "Einstellungen speichern",
     "knowledgeSources": "Wissens- und Webquellen",
     "knowledgeEnabled": "KANAP-Wissensdatenbank durchsuchen",
@@ -772,6 +778,7 @@
     "agentPriorityInfo": "Welcher Agent gewinnt, wenn mehrere dasselbe Ticket anvisieren. Je kleiner die Zahl, desto höher die Priorität.",
     "onConflictInfo": "Was der Agent tut, wenn bereits ein anderer Agent an demselben Ticket arbeitet: zurücktreten oder von einem Agenten gleicher Priorität übernehmen.",
     "onStaleInfo": "Was mit einem wartenden Vorschlag geschieht, wenn sich das Ticket vor Ihrer Entscheidung ändert: erneut prüfen, verwerfen oder unverändert anwenden.",
+    "ticketActorRoleInfo": "Wie der Agent nach dem Schreiben unter den Akteuren des Tickets erscheint. Übernehmen weist das Ticket dem GLPI-Benutzer des Agenten zu. Interne Notizen weisen nie zu; sie fügen den Agenten höchstens als Beobachter hinzu.",
     "perRunTokensInfo": "Höchstzahl der Wörter, die der Agent für ein Ticket aufwenden darf. Ist sie erreicht, stoppt dieses Ticket und es wird nichts vorgeschlagen.",
     "perRunCostInfo": "Höchstbetrag, den der Agent für ein Ticket ausgeben darf, geschätzt nach den Preisen des zugewiesenen Modells. Ein kostenloses Modell (0 EUR) erreicht ihn nie — das Wortlimit bleibt der eigentliche Schutz.",
     "dailyRunsInfo": "Stoppt den Agenten für den Tag, sobald er so viele Tickets bearbeitet hat. Am nächsten Tag läuft er wieder.",

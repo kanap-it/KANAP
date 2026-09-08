@@ -17,6 +17,7 @@ import {
   AdapterErrorCode,
   AdapterEvidenceSeed,
   AdapterResult,
+  DEFAULT_TICKET_ACTOR_ROLE,
   ProviderContext,
   ProviderActionExecutionReadiness,
   ProviderActionExecutionReadinessAction,
@@ -42,6 +43,8 @@ import {
   TicketRoutingContext,
   TicketRoutingTarget,
   TicketStatusUpdateActionPayload,
+  TicketActorRole,
+  TicketWriteOptions,
   TicketingProvider,
   TicketAttachmentReadResult,
   TicketAttachmentRef,
@@ -104,6 +107,18 @@ function stripHtml(value: string | null | undefined): string | null {
     .replace(/\n\s+/g, '\n')
     .trim();
   return text || null;
+}
+
+// GLPI Ticket_User type: 2 = assigned technician, 3 = observer.
+function actorTypeForPublicReply(role: TicketActorRole | undefined): 2 | 3 | null {
+  switch (role ?? DEFAULT_TICKET_ACTOR_ROLE) {
+    case 'assignee':
+      return 2;
+    case 'observer':
+      return 3;
+    default:
+      return null;
+  }
 }
 
 function normalizeTicketId(value: string): number | null {
@@ -1462,7 +1477,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
 
   async addInternalNote(
     context: ProviderContext,
-    input: { actionPayload: TicketInternalNoteActionPayload; idempotencyKey: string },
+    input: { actionPayload: TicketInternalNoteActionPayload; idempotencyKey: string } & TicketWriteOptions,
   ): Promise<AdapterResult<TicketInternalNoteWriteResult>> {
     const ticketId = normalizeTicketId(input.actionPayload.ticketId);
     if (!ticketId) {
@@ -1478,8 +1493,8 @@ export class GlpiTicketingProvider implements TicketingProvider {
     }
     return this.withSession(context, async (session) => {
       const result = await this.glpi.addTicketFollowup(session, ticketId, input.actionPayload.body, { isPrivate: true });
-      // The agent registers itself as an OBSERVER on internal notes (non-fatal side effect).
-      const actor = await this.addAgentActor(session, ticketId, 3);
+      // On internal notes the agent at most follows the ticket as an OBSERVER (non-fatal side effect).
+      const actor = await this.addAgentActor(session, ticketId, input.agentActorRole === 'none' ? null : 3);
       const data: TicketInternalNoteWriteResult = {
         noteId: String(result.id),
         ticketId: String(result.ticket_id),
@@ -1507,8 +1522,11 @@ export class GlpiTicketingProvider implements TicketingProvider {
   private async addAgentActor(
     session: Awaited<ReturnType<GlpiService['initSession']>>,
     ticketId: number,
-    type: 2 | 3,
+    type: 2 | 3 | null,
   ): Promise<{ added: boolean; skippedReason?: string }> {
+    if (type == null) {
+      return { added: false, skippedReason: 'disabled_by_agent_policy' };
+    }
     if (!session.agentUserId) {
       return { added: false, skippedReason: 'agent_glpi_user_unresolved' };
     }
@@ -1554,7 +1572,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
 
   async addPublicReply(
     context: ProviderContext,
-    input: { actionPayload: TicketPublicReplyActionPayload; idempotencyKey: string },
+    input: { actionPayload: TicketPublicReplyActionPayload; idempotencyKey: string } & TicketWriteOptions,
   ): Promise<AdapterResult<TicketPublicReplyWriteResult>> {
     const ticketId = normalizeTicketId(input.actionPayload.ticketId);
     if (!ticketId) {
@@ -1573,8 +1591,9 @@ export class GlpiTicketingProvider implements TicketingProvider {
         isPrivate: false,
         allowPublic: true,
       });
-      // The agent registers itself as an ASSIGNEE on public replies (additive, non-fatal).
-      const actor = await this.addAgentActor(session, ticketId, 2);
+      // On public replies the agent registers itself per the agent's ticket actor role:
+      // ASSIGNEE (default), OBSERVER, or not at all (additive, non-fatal).
+      const actor = await this.addAgentActor(session, ticketId, actorTypeForPublicReply(input.agentActorRole));
       const data: TicketPublicReplyWriteResult = {
         noteId: String(result.id),
         ticketId: String(result.ticket_id),

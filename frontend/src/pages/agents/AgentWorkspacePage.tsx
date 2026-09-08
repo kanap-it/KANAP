@@ -459,9 +459,12 @@ type HelpdeskSettingsForm = {
   dailyCost: string;
   approvalTtlHours: string;
   onStale: string;
+  ticketActorRole: string;
   activityRetentionDays: string;
   checkIntervalMinutes: string;
 };
+
+const TICKET_ACTOR_ROLES = ['assignee', 'observer', 'none'] as const;
 
 const HELPDESK_CAPABILITY_GROUPS = [
   { key: 'internal_note', names: ['ticketing.ticket.internal_note.prepare', 'ticketing.ticket.internal_note.add_approved'] },
@@ -495,6 +498,7 @@ function settingsFormFromDefinition(definition: AiAgentControlAgentDefinition): 
   const guardrails = nestedPolicy(definition.queue_policy_json, 'economic_guardrails');
   const perRun = policyObject(guardrails.per_run);
   const daily = policyObject(guardrails.daily);
+  const response = policyObject(definition.response_policy_json);
   return {
     scopeMode: modeFromFilters(targetingState.filters),
     filters: targetingState.filters,
@@ -513,6 +517,9 @@ function settingsFormFromDefinition(definition: AiAgentControlAgentDefinition): 
     dailyCost: numberString(daily.max_estimated_cost_eur, DEFAULT_DAILY_COST),
     approvalTtlHours: hoursString(approvalTtlSeconds, DEFAULT_APPROVAL_TTL_HOURS),
     onStale: ['re_review', 'cancel', 'apply_anyway'].includes(stringValue(onStale.internal_note)) ? stringValue(onStale.internal_note) : 're_review',
+    ticketActorRole: (TICKET_ACTOR_ROLES as readonly string[]).includes(stringValue(response.ticket_actor_role))
+      ? stringValue(response.ticket_actor_role)
+      : 'assignee',
     activityRetentionDays: numberString(queue.activity_retention_days, DEFAULT_ACTIVITY_RETENTION_DAYS),
     checkIntervalMinutes: numberString(
       policyObject(policyObject(definition.trigger_policy_json).scheduled_poll).interval_minutes,
@@ -560,6 +567,7 @@ function helpdeskDefinitionSettingsPayload(
     response_policy_json: {
       ...response,
       prepare_stale_closure: undefined,
+      ticket_actor_role: form.ticketActorRole,
       automatic_public_reply: false,
       automatic_ticket_updates: false,
       require_human_approval_for_writes: true,
@@ -2165,6 +2173,15 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
                       <MenuItem value="re_review" sx={drawerMenuItemSx}>{t('settings.stalePolicies.re_review')}</MenuItem>
                       <MenuItem value="cancel" sx={drawerMenuItemSx}>{t('settings.stalePolicies.cancel')}</MenuItem>
                       <MenuItem value="apply_anyway" sx={drawerMenuItemSx}>{t('settings.stalePolicies.apply_anyway')}</MenuItem>
+                    </Select>
+                  </SettingsField>
+                  <SettingsField label={t('settings.ticketActorRole')} info={t('settings.ticketActorRoleInfo')}>
+                    <Select variant="standard" value={form.ticketActorRole} onChange={(event) => update('ticketActorRole', event.target.value)} sx={pageSelectSx}
+                      MenuProps={compactSelectMenuProps}
+                    >
+                      {TICKET_ACTOR_ROLES.map((role) => (
+                        <MenuItem key={role} value={role} sx={drawerMenuItemSx}>{t(`settings.ticketActorRoles.${role}`)}</MenuItem>
+                      ))}
                     </Select>
                   </SettingsField>
                   <SettingsField label={t('settings.activityRetention')} info={t('settings.activityRetentionHint')}>

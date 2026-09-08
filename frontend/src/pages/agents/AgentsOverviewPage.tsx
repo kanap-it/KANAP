@@ -297,6 +297,7 @@ function newAgentPolicies(form: NewAgentWizardForm) {
       prepare_status_update: true,
       prepare_assignment_update: true,
       prepare_participant_update: false,
+      ticket_actor_role: 'assignee',
       automatic_public_reply: false,
       automatic_ticket_updates: false,
       require_human_approval_for_writes: true,
