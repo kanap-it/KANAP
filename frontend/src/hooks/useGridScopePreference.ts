@@ -37,11 +37,16 @@ export function useGridScopePreference(
     return readStored() ?? 'my';
   });
 
-  // Reload from localStorage when tenant/user changes
+  // Follow the URL when it carries a scope (deep links from the home tiles), otherwise reload the
+  // stored preference when tenant/user changes. Running this on mount without the URL check used to
+  // overwrite the URL scope with the stored one, so `?taskScope=my` never applied.
   useEffect(() => {
-    const stored = readStored();
-    setScopeState(stored ?? 'my');
-  }, [storageKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (urlScope === 'my' || urlScope === 'team' || urlScope === 'all') {
+      setScopeState(urlScope);
+      return;
+    }
+    setScopeState(readStored() ?? 'my');
+  }, [storageKey, urlScope, readStored]);
 
   const setScope = useCallback(
     (next: Scope) => {

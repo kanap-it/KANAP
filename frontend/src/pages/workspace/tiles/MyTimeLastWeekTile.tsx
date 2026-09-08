@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -12,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
 import { useTranslation } from 'react-i18next';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import QuickLogTimeModal from '../actions/QuickLogTimeModal';
 
 interface TimeSummary {
   totalHours: number;
@@ -35,8 +37,9 @@ export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) 
   const navigate = useNavigate();
   const { t } = useTranslation('common');
   const days = (config.days as number) || 7;
+  const [logTimeOpen, setLogTimeOpen] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard', 'time-summary', days],
     queryFn: async () => {
       const res = await api.get<TimeSummary>('/dashboard/time-summary', {
@@ -61,12 +64,20 @@ export default function MyTimeLastWeekTile({ config }: MyTimeLastWeekTileProps) 
       title={t('dashboard.tiles.myTime', { days })}
       icon="AccessTime"
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => { void refetch(); }}
+      action={
+        <Button size="small" onClick={() => navigate('/portfolio/contributors/me/time-logged')}>
+          {t('buttons.viewAll')}
+        </Button>
+      }
     >
+      <QuickLogTimeModal open={logTimeOpen} onClose={() => setLogTimeOpen(false)} />
       {summary.totalHours === 0 ? (
         <TileEmptyState
-          message={t('dashboard.tiles.noTimeLogged')}
+          message={t('dashboard.tiles.noTimeLogged', { days })}
           action={
-            <Button size="small" onClick={() => navigate('/portfolio/projects')}>
+            <Button size="small" onClick={() => setLogTimeOpen(true)}>
               {t('dashboard.logTime')}
             </Button>
           }

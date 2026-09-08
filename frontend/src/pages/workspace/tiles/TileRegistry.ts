@@ -78,7 +78,7 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
     icon: 'History',
     defaultConfig: { limit: 5 },
     configSchema: {
-      limit: { type: 'number', label: 'Max items', min: 1, max: 5 },
+      limit: { type: 'number', label: 'Max items', min: 1, max: 10 },
     },
     // No requiredPermissions - always visible
   },

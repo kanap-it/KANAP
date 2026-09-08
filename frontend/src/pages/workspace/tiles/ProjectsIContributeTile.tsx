@@ -34,7 +34,7 @@ export default function ProjectsIContributeTile({ config }: ProjectsIContributeT
   const { t } = useTranslation('common');
   const limit = Math.min((config.limit as number) || 5, 5);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard', 'my-contribution-projects', limit],
     queryFn: async () => {
       const res = await api.get<MyContributionProject[]>('/dashboard/my-contribution-projects', {
@@ -52,8 +52,10 @@ export default function ProjectsIContributeTile({ config }: ProjectsIContributeT
       title={t('dashboard.tiles.projectsIContribute')}
       icon="Groups"
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => { void refetch(); }}
       action={
-        <Button size="small" onClick={() => navigate('/portfolio/projects')}>
+        <Button size="small" onClick={() => navigate('/portfolio/projects?projectScope=my')}>
           {t('buttons.viewAll')}
         </Button>
       }

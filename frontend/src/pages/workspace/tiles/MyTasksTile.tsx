@@ -53,13 +53,13 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
   const limit = Math.min((config.limit as number) || 5, 5);
   const showOverdue = config.showOverdue !== false;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['tasks', 'my-tasks', profile?.id, limit],
     queryFn: async () => {
       const res = await api.get('/tasks', {
         params: {
           assigneeUserId: profile?.id,
-          limit: limit * 3, // Fetch more to allow grouping
+          limit,
           sort: 'due_date:ASC',
           include: 'project',
           filters: JSON.stringify({
@@ -142,8 +142,10 @@ export default function MyTasksTile({ config }: MyTasksTileProps) {
       title={t('dashboard.myTasks')}
       icon="Task"
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => { void refetch(); }}
       action={
-        <Button size="small" onClick={() => navigate('/portfolio/tasks')}>
+        <Button size="small" onClick={() => navigate('/portfolio/tasks?taskScope=my')}>
           {t('buttons.viewAll')}
         </Button>
       }

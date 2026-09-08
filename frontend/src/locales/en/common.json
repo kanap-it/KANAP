@@ -190,10 +190,7 @@
       "authorOnDate": "{{author}} on {{date}}",
       "knowledge": "Knowledge",
       "toReview": "To review",
-      "noActiveReviews": "No active review assignments",
-      "noReviewOrRecent": "No review items or recent documents",
-      "last5Accessed": "Last 5 accessed",
-      "noRecentDocuments": "No recently opened documents",
+      "noActiveReviews": "No document waiting for your review",
       "approval": "Approval",
       "review": "Review",
       "requestedAgo": "Requested {{time}}",
@@ -205,7 +202,7 @@
       "later": "Later",
       "noDueDate": "No due date",
       "myTime": "My time (last {{days}} days)",
-      "noTimeLogged": "No time logged this week",
+      "noTimeLogged": "No time logged in the last {{days}} days",
       "hoursLogged": "hours logged",
       "otherTasks": "Other tasks",
       "byProject": "By project",
@@ -233,7 +230,7 @@
       "hoursAgo": "{{count}}h ago",
       "daysAgo": "{{count}}d ago",
       "staleTasks": "Stale tasks",
-      "noStaleTasks": "No stale tasks in {{scope}} scope",
+      "noStaleTasks": "No stale tasks in the {{scope}} scope",
       "daysStale": "{{count}}d stale",
       "standaloneTask": "Standalone task",
       "updated": "Updated {{date}}",
@@ -264,8 +261,31 @@
       "complianceCriticalWithoutWave_one": "{{count}} most critical application without a recovery wave",
       "complianceCriticalWithoutWave_other": "{{count}} most critical applications without a recovery wave",
       "complianceRestrictedLowCyber_one": "{{count}} application with the most confidential data and the lowest cyber criticality",
-      "complianceRestrictedLowCyber_other": "{{count}} applications with the most confidential data and the lowest cyber criticality"
-    }
+      "complianceRestrictedLowCyber_other": "{{count}} applications with the most confidential data and the lowest cyber criticality",
+      "loadError": "This tile could not be loaded.",
+      "clearHistory": "Clear history",
+      "scope": {
+        "my": "my",
+        "team": "team",
+        "all": "all"
+      },
+      "entityTypes": {
+        "project": "Project",
+        "request": "Request",
+        "application": "Application",
+        "asset": "Asset",
+        "interface": "Interface",
+        "connection": "Connection",
+        "contract": "Contract",
+        "task": "Task",
+        "opexItem": "OPEX item",
+        "capexItem": "CAPEX item",
+        "incident": "Incident",
+        "location": "Location",
+        "document": "Document"
+      }
+    },
+    "welcome": "Welcome"
   },
   "csv": {
     "exportTitle": "Export CSV",

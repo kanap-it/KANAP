@@ -35,6 +35,20 @@ import { useTenant } from '../tenant/TenantContext';
 import { useThemeMode } from '../config/ThemeContext';
 import { useLocale } from '../i18n/useLocale';
 
+const DATE_FILTER_PARAMS = {
+  suppressAndOrCondition: true,
+  maxNumConditions: 1,
+  buttons: ['clear'],
+  filterOptions: ['equals', 'notEqual', 'lessThan', 'greaterThan', 'inRange', 'blank', 'notBlank'],
+};
+
+const NUMBER_FILTER_PARAMS = {
+  suppressAndOrCondition: true,
+  maxNumConditions: 1,
+  buttons: ['clear'],
+  filterOptions: ['equals', 'notEqual', 'lessThan', 'lessThanOrEqual', 'greaterThan', 'greaterThanOrEqual', 'inRange', 'blank', 'notBlank'],
+};
+
 type ServerResponse<T> = { items: T[]; total: number; page: number; limit: number };
 
 export type StatusScope = 'enabled' | 'disabled' | 'invited' | 'all';
@@ -274,6 +288,15 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
       const { required, defaultHidden, category, ...agGridCol } = col;
 
       const field = col.field || col.colId || '';
+
+      // AG Grid replaces (does not merge) defaultColDef.filterParams with the column's own, so a date or
+      // number column without filterParams would inherit the text options above ("contains"…): the
+      // floating filter would offer nonsense operators and a deep-linked date model would be rewritten
+      // to `contains` and silently ignored by the API. Give those columns their own operator set.
+      if (!agGridCol.filterParams) {
+        if (agGridCol.filter === 'agDateColumnFilter') agGridCol.filterParams = DATE_FILTER_PARAMS;
+        else if (agGridCol.filter === 'agNumberColumnFilter') agGridCol.filterParams = NUMBER_FILTER_PARAMS;
+      }
 
       // Pinned rows (totals) use the default renderer so numeric columns keep
       // AG Grid's right alignment. Custom React renderers wrap content in a

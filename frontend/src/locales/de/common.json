@@ -190,13 +190,10 @@
       "authorOnDate": "{{author}} am {{date}}",
       "knowledge": "Wissensdatenbank",
       "toReview": "Zu prüfen",
-      "noActiveReviews": "Keine aktiven Prüfaufträge",
-      "noReviewOrRecent": "Keine Prüfaufträge oder kürzlich geöffnete Dokumente",
-      "last5Accessed": "Zuletzt 5 aufgerufen",
-      "noRecentDocuments": "Keine kürzlich geöffneten Dokumente",
+      "noActiveReviews": "Kein Dokument wartet auf Ihre Prüfung",
       "approval": "Genehmigung",
       "review": "Review",
-      "requestedAgo": "Angefordert vor {{time}}",
+      "requestedAgo": "Angefordert {{time}}",
       "requestedBy": "Angefordert von {{name}}",
       "noTasksAssigned": "Keine Aufgaben zugewiesen",
       "browseTasks": "Aufgaben durchsuchen",
@@ -205,7 +202,7 @@
       "later": "Später",
       "noDueDate": "Ohne Fälligkeitsdatum",
       "myTime": "Meine Zeit (letzte {{days}} Tage)",
-      "noTimeLogged": "Keine Zeit diese Woche erfasst",
+      "noTimeLogged": "Keine Zeit in den letzten {{days}} Tagen erfasst",
       "hoursLogged": "Stunden erfasst",
       "otherTasks": "Andere Aufgaben",
       "byProject": "Nach Projekt",
@@ -233,7 +230,7 @@
       "hoursAgo": "Vor {{count}}h",
       "daysAgo": "Vor {{count}}T",
       "staleTasks": "Stagnierende Aufgaben",
-      "noStaleTasks": "Keine stagnierenden Aufgaben im Bereich {{scope}}",
+      "noStaleTasks": "Keine stagnierenden Aufgaben im Bereich „{{scope}}“",
       "daysStale": "{{count}}T stagnierend",
       "standaloneTask": "Einzelaufgabe",
       "updated": "Aktualisiert am {{date}}",
@@ -264,8 +261,31 @@
       "complianceCriticalWithoutWave_one": "{{count}} Anwendung der kritischsten Stufe ohne Wiederherstellungswelle",
       "complianceCriticalWithoutWave_other": "{{count}} Anwendungen der kritischsten Stufe ohne Wiederherstellungswelle",
       "complianceRestrictedLowCyber_one": "{{count}} Anwendung mit den vertraulichsten Daten und der niedrigsten Cyber-Kritikalität",
-      "complianceRestrictedLowCyber_other": "{{count}} Anwendungen mit den vertraulichsten Daten und der niedrigsten Cyber-Kritikalität"
-    }
+      "complianceRestrictedLowCyber_other": "{{count}} Anwendungen mit den vertraulichsten Daten und der niedrigsten Cyber-Kritikalität",
+      "loadError": "Diese Kachel konnte nicht geladen werden.",
+      "clearHistory": "Verlauf löschen",
+      "scope": {
+        "my": "persönlich",
+        "team": "Team",
+        "all": "gesamt"
+      },
+      "entityTypes": {
+        "project": "Projekt",
+        "request": "Anfrage",
+        "application": "Anwendung",
+        "asset": "Asset",
+        "interface": "Schnittstelle",
+        "connection": "Verbindung",
+        "contract": "Vertrag",
+        "task": "Aufgabe",
+        "opexItem": "OPEX-Posten",
+        "capexItem": "CAPEX-Posten",
+        "incident": "Vorfall",
+        "location": "Standort",
+        "document": "Dokument"
+      }
+    },
+    "welcome": "Willkommen"
   },
   "csv": {
     "exportTitle": "CSV exportieren",

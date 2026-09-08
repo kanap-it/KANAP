@@ -190,13 +190,10 @@
       "authorOnDate": "{{author}} el {{date}}",
       "knowledge": "Base de conocimiento",
       "toReview": "Por revisar",
-      "noActiveReviews": "Sin revisiones activas asignadas",
-      "noReviewOrRecent": "Sin elementos de revisión ni documentos recientes",
-      "last5Accessed": "Últimos 5 accedidos",
-      "noRecentDocuments": "Sin documentos abiertos recientemente",
+      "noActiveReviews": "Ningún documento espera su revisión",
       "approval": "Aprobación",
       "review": "Revisión",
-      "requestedAgo": "Solicitado hace {{time}}",
+      "requestedAgo": "Solicitado {{time}}",
       "requestedBy": "Solicitado por {{name}}",
       "noTasksAssigned": "No tiene tareas asignadas",
       "browseTasks": "Explorar tareas",
@@ -205,7 +202,7 @@
       "later": "Más tarde",
       "noDueDate": "Sin fecha de vencimiento",
       "myTime": "Mi tiempo (últimos {{days}} días)",
-      "noTimeLogged": "Sin tiempo registrado esta semana",
+      "noTimeLogged": "Sin tiempo registrado en los últimos {{days}} días",
       "hoursLogged": "horas registradas",
       "otherTasks": "Otras tareas",
       "byProject": "Por proyecto",
@@ -233,7 +230,7 @@
       "hoursAgo": "Hace {{count}}h",
       "daysAgo": "Hace {{count}}d",
       "staleTasks": "Tareas estancadas",
-      "noStaleTasks": "Sin tareas estancadas en el ámbito {{scope}}",
+      "noStaleTasks": "Ninguna tarea estancada en el ámbito {{scope}}",
       "daysStale": "{{count}}d estancada",
       "standaloneTask": "Tarea independiente",
       "updated": "Actualizado el {{date}}",
@@ -264,8 +261,31 @@
       "complianceCriticalWithoutWave_one": "{{count}} aplicación del nivel más crítico sin ola de recuperación",
       "complianceCriticalWithoutWave_other": "{{count}} aplicaciones del nivel más crítico sin ola de recuperación",
       "complianceRestrictedLowCyber_one": "{{count}} aplicación con los datos más confidenciales y la criticidad cibernética más baja",
-      "complianceRestrictedLowCyber_other": "{{count}} aplicaciones con los datos más confidenciales y la criticidad cibernética más baja"
-    }
+      "complianceRestrictedLowCyber_other": "{{count}} aplicaciones con los datos más confidenciales y la criticidad cibernética más baja",
+      "loadError": "No se pudo cargar este mosaico.",
+      "clearHistory": "Borrar historial",
+      "scope": {
+        "my": "personal",
+        "team": "equipo",
+        "all": "global"
+      },
+      "entityTypes": {
+        "project": "Proyecto",
+        "request": "Solicitud",
+        "application": "Aplicación",
+        "asset": "Activo",
+        "interface": "Interfaz",
+        "connection": "Conexión",
+        "contract": "Contrato",
+        "task": "Tarea",
+        "opexItem": "Elemento OPEX",
+        "capexItem": "Elemento CAPEX",
+        "incident": "Incidente",
+        "location": "Ubicación",
+        "document": "Documento"
+      }
+    },
+    "welcome": "Bienvenido"
   },
   "csv": {
     "exportTitle": "Exportar CSV",

@@ -28,6 +28,7 @@ import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import { useLocationItemNav } from '../../hooks/useModuleItemNav';
 import { drawerSelectSx, drawerMenuItemSx, drawerFieldValueSx } from '../../theme/formSx';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 
 type TabKey = 'overview' | 'contacts' | 'relations';
 
@@ -89,6 +90,10 @@ export default function LocationWorkspacePage() {
     return isLocationReferenceRoute ? '' : routeId;
   }, [data?.id, isCreate, isLocationReferenceRoute, routeId]);
   const workspaceRouteId = data?.location_reference || (isCreate ? 'new' : routeId);
+  const { addToRecent } = useRecentlyViewed();
+  React.useEffect(() => {
+    if (!isCreate && data?.id && data?.name) addToRecent('location', data.id, data.name, data.location_reference || undefined);
+  }, [addToRecent, data?.id, data?.name, data?.location_reference, isCreate]);
   const routeMatchesLoadedLocation = React.useMemo(() => {
     if (isCreate || !data) return false;
     if (routeId === data.id) return true;

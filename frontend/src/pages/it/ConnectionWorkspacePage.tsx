@@ -23,6 +23,7 @@ import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
 import { drawerSelectSx, drawerMenuItemSx, drawerFieldValueSx, longFormSurfaceFieldSx } from '../../theme/formSx';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import type { ConnectionPathHop } from './workspace/ConnectionPathSection';
+import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 
 type TabKey = 'overview' | 'path';
 const TAB_KEYS: TabKey[] = ['overview', 'path'];
@@ -256,6 +257,10 @@ export default function ConnectionWorkspacePage() {
     return isConnectionReferenceRoute ? '' : routeId;
   }, [data?.id, isConnectionReferenceRoute, isCreate, routeId]);
   const workspaceRouteId = data?.connection_reference || (isCreate ? 'new' : routeId);
+  const { addToRecent } = useRecentlyViewed();
+  React.useEffect(() => {
+    if (!isCreate && data?.id && data?.name) addToRecent('connection', data.id, data.name, data.connection_reference || undefined);
+  }, [addToRecent, data?.id, data?.name, data?.connection_reference, isCreate]);
   const routeMatchesLoadedConnection = React.useMemo(() => {
     if (isCreate || !data) return false;
     if (routeId === data.id) return true;

@@ -332,9 +332,9 @@ export default function TaskWorkspacePage() {
   // Track recently viewed
   React.useEffect(() => {
     if (taskMatchesCurrentRoute && task?.id && task?.title) {
-      addToRecent('task', task.id, task.title);
+      addToRecent('task', task.id, task.title, task.item_number ? `T-${task.item_number}` : undefined);
     }
-  }, [taskMatchesCurrentRoute, task?.id, task?.title, addToRecent]);
+  }, [taskMatchesCurrentRoute, task?.id, task?.title, task?.item_number, addToRecent]);
 
   // Browser tab title
   React.useEffect(() => {

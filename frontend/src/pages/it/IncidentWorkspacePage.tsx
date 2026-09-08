@@ -49,6 +49,7 @@ import {
   isForwardStatusMove,
   isIncidentLocked,
 } from './workspace/incidentWorkspace';
+import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 
 const TAB_KEYS = ['overview', 'journal', 'relations', 'documents', 'attachments'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -100,6 +101,10 @@ export function IncidentWorkspacePage() {
   const locked = !!data && isIncidentLocked(data.status);
   const editable = !!data && canEdit && !locked && !stale;
   const reference = data ? formatItemRef('incident', data.item_number) : null;
+  const { addToRecent } = useRecentlyViewed();
+  React.useEffect(() => {
+    if (!isCreate && !stale && data?.id && data?.title) addToRecent('incident', data.id, data.title, reference || undefined);
+  }, [addToRecent, data?.id, data?.title, isCreate, reference, stale]);
   const workspaceRouteId = isCreate ? 'new' : (!stale && reference) || routeId;
 
   const [error, setError] = React.useState<string | null>(null);

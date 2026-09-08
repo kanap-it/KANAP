@@ -34,8 +34,8 @@ vi.mock('../../tenant/TenantContext', () => ({
   useTenant: () => ({ tenantSlug: 'acme' }),
 }));
 
-vi.mock('../workspace/hooks/useRecentKnowledgeDocuments', () => ({
-  useRecentKnowledgeDocuments: () => ({ addDocument: vi.fn() }),
+vi.mock('../workspace/hooks/useRecentlyViewed', () => ({
+  useRecentlyViewed: () => ({ addToRecent: vi.fn() }),
 }));
 
 const theme = createAppTheme('light');

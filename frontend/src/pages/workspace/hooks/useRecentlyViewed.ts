@@ -2,7 +2,7 @@ import { useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../../../auth/AuthContext';
 import { useTenant } from '../../../tenant/TenantContext';
 
-const MAX_ITEMS = 5;
+const MAX_ITEMS = 10;
 
 export type RecentEntityType =
   | 'project'
@@ -15,12 +15,16 @@ export type RecentEntityType =
   | 'task'
   | 'spend_item'
   | 'capex_item'
-  | 'incident';
+  | 'incident'
+  | 'location'
+  | 'document';
 
 export interface RecentItem {
   type: RecentEntityType;
   id: string;
   label: string;
+  /** Business reference shown in mono before the label (T-4, APP-11, DOC-12). */
+  ref?: string;
   viewedAt: number;
 }
 
@@ -62,12 +66,13 @@ export function useRecentlyViewed() {
   }, [storageKey]);
 
   const addToRecent = useCallback(
-    (type: RecentEntityType, id: string, label: string) => {
+    (type: RecentEntityType, id: string, label: string, ref?: string) => {
       setItems((prev) => {
         // Remove existing entry for the same item
         const filtered = prev.filter((r) => !(r.type === type && r.id === id));
         // Add new entry at the beginning
-        const updated = [{ type, id, label, viewedAt: Date.now() }, ...filtered].slice(
+        const entry: RecentItem = { type, id, label, viewedAt: Date.now(), ...(ref ? { ref } : {}) };
+        const updated = [entry, ...filtered].slice(
           0,
           MAX_ITEMS,
         );
@@ -86,75 +91,87 @@ export function useRecentlyViewed() {
   return { items, addToRecent, clearRecent };
 }
 
-// Mapping from entity type to route and permission resource
+// Mapping from entity type to route, permission resource, icon and i18n label key (common namespace)
 export const ENTITY_TYPE_CONFIG: Record<
   RecentEntityType,
-  { route: (id: string) => string; resource: string; icon: string; label: string }
+  { route: (id: string) => string; resource: string; icon: string; labelKey: string }
 > = {
   project: {
     route: (id) => `/portfolio/projects/${id}`,
     resource: 'portfolio_projects',
     icon: 'FolderOpen',
-    label: 'Project',
+    labelKey: 'dashboard.tiles.entityTypes.project',
   },
   request: {
     route: (id) => `/portfolio/requests/${id}`,
     resource: 'portfolio_requests',
     icon: 'Inbox',
-    label: 'Request',
+    labelKey: 'dashboard.tiles.entityTypes.request',
   },
   application: {
     route: (id) => `/it/applications/${id}`,
     resource: 'applications',
     icon: 'Apps',
-    label: 'Application',
+    labelKey: 'dashboard.tiles.entityTypes.application',
   },
   asset: {
     route: (id) => `/it/assets/${id}`,
     resource: 'infrastructure',
     icon: 'Storage',
-    label: 'Asset',
+    labelKey: 'dashboard.tiles.entityTypes.asset',
   },
   interface: {
     route: (id) => `/it/interfaces/${id}`,
     resource: 'applications',
     icon: 'SwapHoriz',
-    label: 'Interface',
+    labelKey: 'dashboard.tiles.entityTypes.interface',
   },
   connection: {
     route: (id) => `/it/connections/${id}`,
     resource: 'infrastructure',
     icon: 'Cable',
-    label: 'Connection',
+    labelKey: 'dashboard.tiles.entityTypes.connection',
   },
   contract: {
     route: (id) => `/ops/contracts/${id}`,
     resource: 'contracts',
     icon: 'Description',
-    label: 'Contract',
+    labelKey: 'dashboard.tiles.entityTypes.contract',
   },
   task: {
     route: (id) => `/portfolio/tasks/${id}`,
     resource: 'tasks',
     icon: 'Task',
-    label: 'Task',
+    labelKey: 'dashboard.tiles.entityTypes.task',
   },
   spend_item: {
     route: (id) => `/ops/opex/${id}`,
     resource: 'spend',
     icon: 'Receipt',
-    label: 'OPEX Item',
+    labelKey: 'dashboard.tiles.entityTypes.opexItem',
   },
   capex_item: {
     route: (id) => `/ops/capex/${id}`,
     resource: 'capex',
     icon: 'AccountBalance',
-    label: 'CAPEX Item',
+    labelKey: 'dashboard.tiles.entityTypes.capexItem',
   },
   incident: {
     route: (id) => `/it/incidents/${id}/overview`,
     resource: 'incidents',
     icon: 'ReportProblem',
-    label: 'Incident',
+    labelKey: 'dashboard.tiles.entityTypes.incident',
+  },
+  location: {
+    route: (id) => `/it/locations/${id}`,
+    resource: 'infrastructure',
+    icon: 'Place',
+    labelKey: 'dashboard.tiles.entityTypes.location',
+  },
+  document: {
+    route: (id) => `/knowledge/${id}`,
+    resource: 'knowledge',
+    icon: 'Article',
+    labelKey: 'dashboard.tiles.entityTypes.document',
   },
 };

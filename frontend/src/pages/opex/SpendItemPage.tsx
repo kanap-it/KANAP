@@ -26,6 +26,7 @@ import EntityTasksPanel from '../../components/EntityTasksPanel';
 import { readStoredOpexListContext, writeStoredOpexListContext } from './listContextStorage';
 import { fetchSpendRelationsCount } from '../../utils/workspaceTabCounts';
 import useCurrencySettings from '../../hooks/useCurrencySettings';
+import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 
 type TabKey = 'overview' | 'budget' | 'allocations' | 'relations';
 const TAB_KEYS: TabKey[] = ['overview', 'budget', 'allocations', 'relations'];
@@ -418,6 +419,10 @@ export default function SpendItemPage() {
   };
 
   const reference = data?.item_number ? formatItemRef('opex', data.item_number) : null;
+  const { addToRecent } = useRecentlyViewed();
+  React.useEffect(() => {
+    if (!isCreate && data?.id && data?.product_name) addToRecent('spend_item', data.id, data.product_name, reference || undefined);
+  }, [addToRecent, data?.id, data?.product_name, isCreate, reference]);
 
   const tabs = React.useMemo(() => ([
     { key: 'overview', label: t('opex.tabs.overview') },

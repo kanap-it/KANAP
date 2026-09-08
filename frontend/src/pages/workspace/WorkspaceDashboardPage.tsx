@@ -152,7 +152,8 @@ export default function WorkspaceDashboardPage() {
       .sort((a, b) => a.order - b.order);
   }, [config.tiles, filterVisibleTiles]);
 
-  const userName = profile?.first_name || 'there';
+  const userName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim();
+  const welcome = userName ? t('dashboard.welcomeBack', { name: profile?.first_name || userName }) : t('dashboard.welcome');
 
   const goToBlankDocument = () => {
     navigate('/knowledge/new');
@@ -186,7 +187,7 @@ export default function WorkspaceDashboardPage() {
         {/* Header */}
         <Box sx={{ mb: 2 }}>
           <Typography variant="h5" fontWeight={600} sx={{ mb: 1 }}>
-            {t('dashboard.welcomeBack', { name: userName })}
+            {welcome}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {t('dashboard.workOverview')}

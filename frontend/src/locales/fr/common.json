@@ -190,13 +190,10 @@
       "authorOnDate": "{{author}} le {{date}}",
       "knowledge": "Base de connaissances",
       "toReview": "À relire",
-      "noActiveReviews": "Aucune revue en cours",
-      "noReviewOrRecent": "Aucun élément à relire ni document récent",
-      "last5Accessed": "5 derniers consultés",
-      "noRecentDocuments": "Aucun document récemment ouvert",
+      "noActiveReviews": "Aucun document en attente de votre relecture",
       "approval": "Approbation",
       "review": "Revue",
-      "requestedAgo": "Demandé il y a {{time}}",
+      "requestedAgo": "Demandé {{time}}",
       "requestedBy": "Demandé par {{name}}",
       "noTasksAssigned": "Aucune tâche ne vous est attribuée",
       "browseTasks": "Parcourir les tâches",
@@ -205,7 +202,7 @@
       "later": "Plus tard",
       "noDueDate": "Sans date d'échéance",
       "myTime": "Mon temps ({{days}} derniers jours)",
-      "noTimeLogged": "Aucun temps enregistré cette semaine",
+      "noTimeLogged": "Aucun temps enregistré sur les {{days}} derniers jours",
       "hoursLogged": "heures enregistrées",
       "otherTasks": "Autres tâches",
       "byProject": "Par projet",
@@ -264,8 +261,31 @@
       "complianceCriticalWithoutWave_one": "{{count}} application au niveau le plus critique sans vague de reprise",
       "complianceCriticalWithoutWave_other": "{{count}} applications au niveau le plus critique sans vague de reprise",
       "complianceRestrictedLowCyber_one": "{{count}} application aux données les plus confidentielles avec la criticité cyber la plus faible",
-      "complianceRestrictedLowCyber_other": "{{count}} applications aux données les plus confidentielles avec la criticité cyber la plus faible"
-    }
+      "complianceRestrictedLowCyber_other": "{{count}} applications aux données les plus confidentielles avec la criticité cyber la plus faible",
+      "loadError": "Impossible de charger cette tuile.",
+      "clearHistory": "Effacer l'historique",
+      "scope": {
+        "my": "personnel",
+        "team": "équipe",
+        "all": "global"
+      },
+      "entityTypes": {
+        "project": "Projet",
+        "request": "Demande",
+        "application": "Application",
+        "asset": "Actif",
+        "interface": "Interface",
+        "connection": "Connexion",
+        "contract": "Contrat",
+        "task": "Tâche",
+        "opexItem": "Élément OPEX",
+        "capexItem": "Élément CAPEX",
+        "incident": "Incident",
+        "location": "Site",
+        "document": "Document"
+      }
+    },
+    "welcome": "Bienvenue"
   },
   "csv": {
     "exportTitle": "Exporter en CSV",
