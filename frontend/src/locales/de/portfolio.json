@@ -901,6 +901,7 @@
       "priority": "Priorität",
       "score": "Score",
       "assignee": "Zuständig",
+      "requestor": "Antragsteller",
       "dueDate": "Fälligkeitsdatum",
       "created": "Erstellt",
       "lastChanged": "Zuletzt geändert",
