@@ -35,7 +35,7 @@ export default function ProtectedRoute() {
 
   // Redirect to login if no token after authentication check
   if (!token) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    return <Navigate to="/login" replace />;
   }
 
   // If authenticated but the identity payload is not yet loaded, show spinner briefly

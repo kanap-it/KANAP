@@ -1,9 +1,3 @@
-import type { Location } from 'react-router-dom';
-
-type RedirectLocationState = {
-  from?: Partial<Pick<Location, 'pathname' | 'search' | 'hash'>> | string | null;
-};
-
 function isAuthPath(pathname: string): boolean {
   return (
     pathname === '/login' ||
@@ -14,6 +8,11 @@ function isAuthPath(pathname: string): boolean {
   );
 }
 
+/**
+ * Keeps a post-login destination on this origin and off the auth pages.
+ * Signing in normally lands on the home page; this only guards the path the
+ * SSO callback hands back so it can never send the user off-site.
+ */
 export function sanitizeLoginRedirect(value: unknown, fallback = '/'): string {
   if (typeof value !== 'string') return fallback;
 
@@ -30,33 +29,4 @@ export function sanitizeLoginRedirect(value: unknown, fallback = '/'): string {
   } catch {
     return fallback;
   }
-}
-
-export function getLoginRedirectFromState(state: unknown, fallback = '/'): string {
-  const from = (state as RedirectLocationState | null | undefined)?.from;
-  if (typeof from === 'string') {
-    return sanitizeLoginRedirect(from, fallback);
-  }
-  if (from && typeof from === 'object') {
-    return sanitizeLoginRedirect(
-      `${from.pathname ?? ''}${from.search ?? ''}${from.hash ?? ''}`,
-      fallback,
-    );
-  }
-  return fallback;
-}
-
-export function getLoginRedirectPath(
-  state: unknown,
-  searchParams?: URLSearchParams,
-  fallback = '/',
-): string {
-  const stateRedirect = getLoginRedirectFromState(state, '');
-  if (stateRedirect) return stateRedirect;
-
-  return sanitizeLoginRedirect(searchParams?.get('redirectTo'), fallback);
-}
-
-export function getCurrentRedirectPath(location: Pick<Location, 'pathname' | 'search' | 'hash'>): string {
-  return sanitizeLoginRedirect(`${location.pathname}${location.search}${location.hash}`);
 }

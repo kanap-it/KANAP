@@ -48,7 +48,7 @@ vi.mock('react-i18next', () => ({
       const labels: Record<string, string> = {
         'auth:login.emailLabel': 'Username or email',
         'auth:login.passwordLabel': 'Password',
-        'auth:login.submit': 'Sign in with email',
+        'auth:login.submit': 'Sign in',
       };
       return labels[key] ?? key;
     },
@@ -77,7 +77,7 @@ function renderLogin(initialEntry: TestInitialEntry) {
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/portfolio/tasks/:id" element={<LocationProbe />} />
+        <Route path="/" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -95,7 +95,7 @@ describe('LoginPage', () => {
     } as any);
   });
 
-  it('redirects to the originally requested protected link after email login', async () => {
+  it('always lands on the home page after email login, even when a previous page was requested', async () => {
     renderLogin({
       pathname: '/login',
       state: {
@@ -113,7 +113,7 @@ describe('LoginPage', () => {
     fireEvent.change(screen.getByLabelText('Password'), {
       target: { value: 'correct horse battery staple' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in with email' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await waitFor(() => {
       expect(mocks.login).toHaveBeenCalledWith({
@@ -124,8 +124,6 @@ describe('LoginPage', () => {
     });
 
     expect(await screen.findByText('Destination page')).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(
-      '/portfolio/tasks/42?focus=activity#comments',
-    );
+    expect(screen.getByTestId('location')).toHaveTextContent('/');
   });
 });
