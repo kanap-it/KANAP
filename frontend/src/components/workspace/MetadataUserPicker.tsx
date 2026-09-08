@@ -10,6 +10,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { fieldResetSx } from '../../theme/formSx';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -225,14 +226,14 @@ export default function MetadataUserPicker({
           onChange={(event) => setSearch(event.target.value)}
           variant="standard"
           InputProps={{ disableUnderline: true }}
-          sx={(theme) => ({
+          sx={[fieldResetSx, (theme) => ({
             mb: 0.75,
             px: 0.75,
             py: 0.375,
             borderRadius: 0.75,
             bgcolor: theme.palette.kanap.bg.composer,
             '& input': { fontSize: 13, py: 0.25 },
-          })}
+          })]}
         />
         <Box role="listbox" sx={{ maxHeight: 260, overflowY: 'auto', py: 0.25 }}>
           {loading && (

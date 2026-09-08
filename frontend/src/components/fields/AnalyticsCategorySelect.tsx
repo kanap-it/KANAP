@@ -4,8 +4,8 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type AnalyticsCategory = {
   id: string;
@@ -91,7 +91,7 @@ export default function AnalyticsCategorySelect({ value, onChange, label, helper
         <TextField
           {...params}
           variant="standard"
-          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          sx={textFieldSx}
           placeholder={naked ? t('common:selects.notSet') : undefined}
           error={error}
           helperText={helperText}

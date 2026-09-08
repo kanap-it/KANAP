@@ -53,7 +53,9 @@ export function PropertyRow({
       <Box
         sx={mergeSx(
           drawerFieldValueSx,
-          (theme) => ({ color: theme.palette.kanap.text.primary }),
+          // Bordered fields must not stretch across a wide content tab. 480px
+          // matches the KanapDialog paper, so dialogs and drawers are unaffected.
+          (theme) => ({ color: theme.palette.kanap.text.primary, maxWidth: 480 }),
           valueSx,
         )}
       >

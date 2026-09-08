@@ -4,8 +4,7 @@ import EventIcon from '@mui/icons-material/Event';
 import { euToYmd, ymdToEu, formatEuPartial } from '../../lib/date-eu';
 import { formatShortDate } from '../../lib/dateFormat';
 import { useLocale } from '../../i18n/useLocale';
-import { FieldLabel, mergeSx } from '../design';
-import { nakedInputHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
 
 type Props = {
   label: string;
@@ -118,7 +117,7 @@ export default function DateEUField({ label, valueYmd = '', onChangeYmd, disable
         helperText={helperText}
         size={size}
         fullWidth
-        sx={naked ? mergeSx(nakedInputHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+        sx={textFieldSx}
         inputProps={{ inputMode: 'numeric' }}
         InputProps={{
           ...(naked ? { disableUnderline: true } : {}),

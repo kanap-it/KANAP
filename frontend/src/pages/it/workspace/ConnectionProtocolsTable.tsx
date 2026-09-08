@@ -1,5 +1,6 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableRow, TextField } from '@mui/material';
+import { tableCellTextFieldSx } from '../../../theme/formSx';
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 
 export type ConnectionProtocol = { code: string; port_override: string | null };
@@ -116,17 +117,7 @@ export default function ConnectionProtocolsTable({
                     onChange={(e) => handlePortChange(p.code, e.target.value)}
                     placeholder={p.typicalPorts || 'e.g., 8443'}
                     InputProps={{ disableUnderline: true }}
-                    sx={{
-                      '& .MuiInputBase-root': {
-                        borderRadius: '4px',
-                        px: 0.75,
-                        mx: -0.75,
-                        transition: 'background-color 120ms ease',
-                        '&:hover': { bgcolor: 'kanap.bg.composer' },
-                        '&.Mui-focused': { bgcolor: 'transparent' },
-                      },
-                      '& input': { fontSize: 13, padding: '2px 0', ...monoSx },
-                    }}
+                    sx={[tableCellTextFieldSx, { '& input': monoSx }]}
                   />
                 </TableCell>
               ) : (

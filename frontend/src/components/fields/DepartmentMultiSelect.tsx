@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Autocomplete, Box, Chip, CircularProgress, TextField } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import api from '../../api';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 import { useQuery } from '@tanstack/react-query';
 
 type Department = { id: string; name: string; company_id?: string | null };
@@ -106,7 +106,7 @@ export default function DepartmentMultiSelect({
             }
             size={size}
             variant="standard"
-            sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, baseSx) : baseSx}
+            sx={baseSx}
             InputProps={{
               ...params.InputProps,
               ...(naked ? { disableUnderline: true } : {}),

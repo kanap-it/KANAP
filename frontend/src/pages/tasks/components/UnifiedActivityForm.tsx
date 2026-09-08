@@ -11,6 +11,7 @@ import type { TaskStatus } from '../task.constants';
 import { taskDetailTokens, taskDetailTypography, STATUS_DOT_COLORS } from '../theme/taskDetailTokens';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
 import { StatusDot } from '../../../components/design';
+import { inlineControlSx } from '../../../theme/formSx';
 import { useTheme } from '@mui/material/styles';
 
 const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
@@ -261,13 +262,16 @@ export default function UnifiedActivityForm({
                   </Box>
                 );
               }}
-              sx={(theme) => ({
-                minWidth: 140,
-                fontSize: 12,
-                color: theme.palette.kanap.text.primary,
-                '& .MuiSelect-select': { padding: '2px 0', display: 'flex', alignItems: 'center' },
-                '& .MuiSelect-icon': { color: theme.palette.kanap.text.tertiary, fontSize: 16 },
-              })}
+              sx={[
+                inlineControlSx,
+                (theme) => ({
+                  minWidth: 140,
+                  fontSize: 12,
+                  color: theme.palette.kanap.text.primary,
+                  '& .MuiSelect-select': { display: 'flex', alignItems: 'center' },
+                  '& .MuiSelect-icon': { color: theme.palette.kanap.text.tertiary, fontSize: 16 },
+                }),
+              ]}
             >
               {statusOptions.map((opt) => {
                 const dotColor = STATUS_DOT_COLORS[opt.statusKey as keyof typeof STATUS_DOT_COLORS]?.[mode] ?? theme.palette.kanap.text.tertiary;

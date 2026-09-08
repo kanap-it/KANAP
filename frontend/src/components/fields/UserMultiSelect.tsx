@@ -5,8 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type User = {
   id: string;
@@ -140,7 +140,7 @@ export default function UserMultiSelect({
           required={required}
           size={size}
           variant="standard"
-          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          sx={textFieldSx}
           placeholder={placeholder ?? (naked && selected.length === 0 ? t('selects.notSet') : undefined)}
           error={error}
           helperText={helperText}

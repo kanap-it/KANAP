@@ -9,6 +9,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { fieldResetSx } from '../../theme/formSx';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
@@ -145,7 +146,7 @@ function ConversationItem({
           onBlur={commitRename}
           inputProps={{ maxLength: 160 }}
           InputProps={{ disableUnderline: true }}
-          sx={(theme) => ({
+          sx={[fieldResetSx, (theme) => ({
             flex: 1,
             minWidth: 0,
             '& .MuiInputBase-root': {
@@ -158,7 +159,7 @@ function ConversationItem({
               '&:before, &:after': { display: 'none' },
             },
             '& input': { py: 0 },
-          })}
+          })]}
         />
       ) : (
         <>
@@ -349,7 +350,7 @@ export default function ChatConversationList({
                 </InputAdornment>
               ),
             }}
-            sx={(theme) => ({
+            sx={[fieldResetSx, (theme) => ({
               '& .MuiInputBase-root': {
                 fontSize: 13,
                 height: 30,
@@ -363,7 +364,7 @@ export default function ChatConversationList({
                 color: theme.palette.kanap.text.primary,
                 '&::placeholder': { color: theme.palette.kanap.text.tertiary, opacity: 1 },
               },
-            })}
+            })]}
           />
         </Box>
       )}

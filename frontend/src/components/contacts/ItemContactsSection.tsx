@@ -19,7 +19,7 @@ import api from '../../api';
 import ContactSelect from '../fields/ContactSelect';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
-import { editableFieldValueSx, drawerSelectSx, drawerMenuItemSx } from '../../theme/formSx';
+import { editableFieldValueSx, drawerSelectSx, drawerMenuItemSx, inlineControlSx } from '../../theme/formSx';
 import RelationsSectionTitle from '../../pages/portfolio/components/RelationsSectionTitle';
 
 type SupplierContactRole = 'commercial' | 'technical' | 'support' | 'other';
@@ -184,7 +184,7 @@ export default function ItemContactsSection({ itemType, itemId, canManage }: Pro
                   <Box component="span" sx={{ color: 'kanap.text.tertiary' }}>{t('labels.role')}…</Box>
                 ),
               }}
-              sx={[drawerSelectSx, { width: 'auto', minWidth: 140 }]}
+              sx={[drawerSelectSx, inlineControlSx, { width: 'auto', minWidth: 140 }]}
             >
               {ROLES.map((value) => (
                 <MenuItem key={value} value={value} sx={drawerMenuItemSx}>

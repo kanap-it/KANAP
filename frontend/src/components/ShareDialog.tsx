@@ -15,6 +15,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { fieldResetSx } from '../theme/formSx';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api';
@@ -377,6 +378,7 @@ export default function ShareDialog({
                 placeholder={t('share.addPersonalMessage')}
                 fullWidth
                 InputProps={{ disableUnderline: true }}
+                sx={fieldResetSx}
               />
             </Box>
           </Box>

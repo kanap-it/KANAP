@@ -23,7 +23,6 @@ import {
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import type { Theme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -34,7 +33,6 @@ import { KanapDialog, PropertyRow, StatusDot } from '../../../components/design'
 import useItOpsEnumOptions from '../../../hooks/useItOpsEnumOptions';
 import useApplicationClassificationCatalog from '../../../hooks/useApplicationClassificationCatalog';
 import {
-  dialogBorderedFieldSx,
   drawerAutocompleteListboxSx,
   drawerFieldValueSx,
   drawerMenuItemSx,
@@ -244,22 +242,6 @@ const panelFormGridSx = {
   display: 'grid',
   gridTemplateColumns: '1fr',
   rowGap: 0.5,
-} as const;
-
-const dialogSelectFieldSx = {
-  '&.MuiInputBase-root': {
-    border: (theme: Theme) => `1px solid ${theme.palette.kanap.border.default}`,
-    borderRadius: '6px',
-    px: '8px',
-    py: '6px',
-    bgcolor: (theme: Theme) => theme.palette.kanap.bg.primary,
-  },
-  '&.Mui-focused': {
-    borderColor: (theme: Theme) => theme.palette.kanap.teal,
-  },
-  '& .MuiSelect-select': {
-    p: '0 !important',
-  },
 } as const;
 
 export default function InterfaceBindingsMatrix({
@@ -1037,8 +1019,8 @@ export default function InterfaceBindingsMatrix({
     if (!dialogState) return null;
     const gridSx = surface === 'panel' ? panelFormGridSx : dialogGridSx;
     const fullWidthSx = surface === 'panel' ? undefined : dialogFullWidthSx;
-    const selectFieldSx = surface === 'panel' ? drawerSelectSx : [drawerSelectSx, dialogSelectFieldSx];
-    const textFieldSx = surface === 'panel' ? drawerFieldValueSx : [drawerFieldValueSx, dialogBorderedFieldSx];
+    const selectFieldSx = drawerSelectSx;
+    const textFieldSx = drawerFieldValueSx;
     const linkedConnections = dialogState.bindingId ? linksByBindingId[dialogState.bindingId] : undefined;
     const additionalLinkedConnections = linkedConnections?.slice(1) || [];
 
@@ -2149,7 +2131,7 @@ export default function InterfaceBindingsMatrix({
             onChange={(event) => setEnvDraft(event.target.value)}
             variant="standard"
             disableUnderline
-            sx={[drawerSelectSx, dialogSelectFieldSx]}
+            sx={drawerSelectSx}
           >
             {selectableEnvs.map((env) => (
               <MenuItem key={env} value={env} sx={drawerMenuItemSx}>

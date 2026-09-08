@@ -3,8 +3,8 @@ import { Autocomplete, Box, CircularProgress, TextField } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 export type ServerOption = {
   id: string;
@@ -132,7 +132,7 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
           placeholder={placeholder ?? (naked ? t('selects.notSet') : undefined)}
           helperText={helperText}
           variant="standard"
-          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          sx={textFieldSx}
           InputProps={{
             ...params.InputProps,
             ...(naked ? { disableUnderline: true } : {}),

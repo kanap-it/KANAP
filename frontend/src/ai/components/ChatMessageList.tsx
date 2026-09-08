@@ -12,6 +12,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { fieldResetSx } from '../../theme/formSx';
 import { useTheme } from '@mui/material/styles';
 import ContentCopyIcon from '@mui/icons-material/ContentCopyOutlined';
 import CheckIcon from '@mui/icons-material/Check';
@@ -335,14 +336,16 @@ function InlineEditor({
         onKeyDown={handleKeyDown}
         inputRef={taRef}
         InputProps={{ disableUnderline: true }}
-        sx={(theme) => ({
-          '& .MuiInputBase-root': {
-            fontSize: 14,
-            lineHeight: 1.6,
-            color: theme.palette.kanap.text.primary,
-            padding: 0,
-          },
-        })}
+        sx={[
+          fieldResetSx,
+          (theme) => ({
+            '& .MuiInputBase-root': {
+              fontSize: 14,
+              lineHeight: 1.6,
+              color: theme.palette.kanap.text.primary,
+            },
+          }),
+        ]}
       />
       <Stack direction="row" spacing={1} justifyContent="flex-end">
         <Button

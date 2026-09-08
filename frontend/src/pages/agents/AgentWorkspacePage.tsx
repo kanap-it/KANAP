@@ -14,7 +14,7 @@ import AgentControlBar from '../../components/agents/AgentControlBar';
 import AgentStatusStrip from '../../components/agents/AgentStatusStrip';
 import KanapDialog from '../../components/design/KanapDialog';
 import { PropertyRow } from '../../components/design';
-import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, longFormSurfaceFieldSx, pageSelectSx } from '../../theme/formSx';
+import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx, inlineControlSx, longFormSurfaceFieldSx, pageSelectSx } from '../../theme/formSx';
 import {
   aiAgentControlApi,
   aiModelConfigsApi,
@@ -1960,7 +1960,7 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
                     disableUnderline
                     value={effectivePromptTask}
                     onChange={(event) => setEffectivePromptTask(event.target.value as EffectivePromptTaskKey)}
-                    sx={[drawerSelectSx, { minWidth: 150, width: 'auto', flexShrink: 0 }]}
+                    sx={[drawerSelectSx, inlineControlSx, { minWidth: 150, width: 'auto', flexShrink: 0 }]}
                     MenuProps={compactSelectMenuProps}
                   >
                     {effectivePromptTasks.map((task) => (

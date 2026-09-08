@@ -4,8 +4,8 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type ApplicationOption = {
   id: string;
@@ -129,7 +129,7 @@ const ApplicationSelect = React.forwardRef<HTMLInputElement, ApplicationSelectPr
               </>
             ),
           }}
-          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          sx={textFieldSx}
         />
       )}
       ListboxProps={naked ? { sx: drawerAutocompleteListboxSx } : undefined}

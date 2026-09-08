@@ -4,8 +4,8 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type Role = { id: string; role_name: string; role_description: string };
 
@@ -70,7 +70,7 @@ export default function MultiRoleSelect({
           {...params}
           required={required}
           variant="standard"
-          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          sx={textFieldSx}
           placeholder={naked && selectedRoles.length === 0 ? t('selects.notSet') : undefined}
           error={error}
           helperText={helperText}

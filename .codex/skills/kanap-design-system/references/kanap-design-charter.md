@@ -17,6 +17,25 @@ Apply this design charter when building or modifying any UI component in KANAP.
 - **Teal = interactive elements only.** Primary buttons, focus rings, active nav indicators, prose links, and action links. Teal NEVER appears on permanent content text, table cell text, or status indicators.
 - **Orange = attention.** Strong CTAs, urgent badges, notification counters, critical scores (>=90). Never as background fill. Carried via MUI's `warning` palette slot.
 - **Neutrals = everything else.** Navigation, headers, surfaces, text. The frame is invisible.
+---
+name: kanap-design-system
+description: Use this skill whenever you implement, modify, or refactor any UI component or page in the KANAP application. Triggers include any work on React components within KANAP (forms, tables, drawers, headers, dropdowns, dialogs, lists, cards), styling updates, theme tokens, new feature pages, or refactors of legacy MUI-heavy code. Apply these guidelines BEFORE writing JSX, not after — they constrain component choices, MUI usage patterns, typography scale, color usage, spacing, and interaction patterns. Do NOT use for backend work, API design, or non-UI code.
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+---
+
+# KANAP Design System — "Refined Density"
+
+Apply this design charter when building or modifying any UI component in KANAP.
+
+## Philosophy
+
+**Every pixel works.** KANAP targets IT governance professionals (CIOs, IT managers, DSI teams). The visual grammar is Linear-grade: sober, dense, monochrome-dominant. The chrome (nav, header) disappears; the content dominates. Color is used to **signify**, not to decorate. The aesthetic favors information density over generous whitespace, and trusts users to navigate dense layouts without hand-holding. Dark mode is mandatory and must be tested for every component.
+
+### Chromatic grammar
+
+- **Teal = interactive elements only.** Primary buttons, focus rings, active nav indicators, prose links, and action links. Teal NEVER appears on permanent content text, table cell text, or status indicators.
+- **Orange = attention.** Strong CTAs, urgent badges, notification counters, critical scores (>=90). Never as background fill. Carried via MUI's `warning` palette slot.
+- **Neutrals = everything else.** Navigation, headers, surfaces, text. The frame is invisible.
 
 ### Teal usage — exhaustive rules
 
@@ -35,25 +54,6 @@ Teal is NEVER used for:
 - Status chips or badges
 - Metadata labels or values
 - Icons in the sidebar or header (use `text.secondary`)
-
----
-
-## Non-negotiable refactor lessons
-
-These rules come from previous KANAP refactors. Treat them as hard constraints during implementation and review:
-
-1. **No `window.confirm`.** Always use `KanapDialog`. For destructive confirmations with dependants, use `saveLabel="Delete anyway"` and write an explicit body with the exact dependant count and the effect of continuing.
-2. **Conditional confirmation only.** If a deletion has dependants, show a dialog with the precise count. If it has none, delete directly. Include `usage_count` in list responses when the list UI needs the count, avoiding an extra round-trip.
-3. **Use `Popover` for anchored form content.** Use `Popover`, not `Menu`, for form content anchored to a metadata chip. Define explicit `anchorOrigin` and `transformOrigin`; `Menu` can jump to the top-left after rerenders when its anchor changes.
-4. **Flat finite pickers.** For a finite option set, prefetch via `useQuery` and render each option directly as a `MenuItem`. Never nest an `Autocomplete` inside a `Popover` or require two clicks before the user can choose.
-5. **No drag and drop by default.** Only use drag and drop when manual ordering is semantic, such as timelines or priorities. Alphabetical sorting is enough for most lists.
-6. **No `LinearProgress` over tab content.** Loading flashes on tab switches are more distracting than useful. Show an empty state during fetch and content when ready.
-7. **Sentence case everywhere.** Never title case or uppercase UI text.
-8. **No teal table cell text.** Table row hover and cursor are enough to communicate clickability.
-9. **Use `MetadataUserPicker` for single-user metadata.** Assignee, owner, lead, requestor, and similar one-person metadata fields use `MetadataUserPicker`, not `UserSelect`, MUI `Autocomplete`, or local picker variants.
-10. **Names only in share lists.** `ShareDialog` user/workspace lists show names only, with no email subtitle line.
-11. **`Read` before `Edit`.** Read files before editing them so edits are based on the current session state. When using session-aware `Read` and `Edit` tools, run `Read` before `Edit`.
-12. **Parallelize independent operations.** Batch independent reads, searches, and inspections as parallel tool calls instead of chaining them sequentially by default.
 
 ---
 
@@ -239,58 +239,36 @@ KANAP uses MUI components but only with specific patterns. Violations cause visu
 
 - Do NOT use `FormControl` with `InputLabel`. The MUI label positioning conflicts with the label-above-value pattern and produces visual duplicates.
 - Do NOT use `Select` with the `label` prop directly — same issue.
-- Do NOT use `<TextField label="...">`. The label rendering is incompatible with KANAP forms.
+- Do NOT use `<TextField label="...">` in workspace forms. Exception (decision 2026-08-04): in dialogs the `label` prop is acceptable — the theme deliberately restyles it into a static label-above-underline (`MuiInputLabel` override in `ThemeContext.tsx`), and that is the de-facto dialog convention. `PropertyRow` remains preferred for new code; never rely on floating-label behavior.
 - Do NOT use `MuiDrawer` for contained side panels. MUI Drawer is designed for full-screen overlays, which is incompatible with KANAP's pattern of containing the drawer to the work area below the page header.
 
-**Always:**
+**Always (decision 2026-09-08 — form fields are bordered boxes):**
 
-- Use `<Select variant="standard" disableUnderline>` for all dropdowns
-- Use `<TextField variant="standard" InputProps={{ disableUnderline: true }}>` for text inputs
-- Use `<DatePicker>` with `slotProps.textField.variant="standard"` and `InputProps.disableUnderline: true`
-- Wrap each field in a `<PropertyRow label="...">` component that renders the label as a styled `<div>` above the input
-- Apply `disableUnderline` AND override the `:before` / `:after` pseudo-elements via sx to eliminate any residual underline
+- Every form field is a discreet bordered box drawn **by the theme** (`MuiInput` override in `ThemeContext.tsx`): 1px `kanap.border.default`, 6px radius, ~32px tall, `kanap.bg.primary` background, `kanap.border.strong` on hover, `kanap.teal` border on focus, `kanap.danger` on error, `kanap.bg.drawer` background when read-only or disabled. Same box in dialogs, properties drawers, content tabs, create forms, and popover forms. Light and dark.
+- Write `<TextField variant="standard">`, `<Select>`, `<Autocomplete>` with **no field sx**. `disableUnderline` is no longer needed (the theme hides the underline). Never draw a field border by hand (`'& .MuiInputBase-root': { border: ... }`).
+- Wrap each field in a `<PropertyRow label="...">` component that renders the label as a styled `<div>` above the input. Its value slot is capped at 480px so bordered fields never stretch across a wide content tab; pass `valueSx={{ maxWidth: ... }}` to widen or narrow.
+- Selects use `drawerSelectSx` (full row width, 13px) in drawers/dialogs and `pageSelectSx` on pages; menu items use `drawerMenuItemSx`.
+- Controls that are **not** form fields keep no box: metadata-bar chips, panel filter selects ("Status ▾"), control-bar mode selects, composer-footer selects, click-to-edit titles → `inlineControlSx` (old hover surface). Inputs living inside a custom surface (chat composer, journal composer, picker search boxes) → `fieldResetSx`. Editable table cells → `tableCellFieldSx` (numbers, right-aligned) / `tableCellTextFieldSx` (text): same box, compact ~25px, 4px radius.
+- Prefer `InputProps.readOnly` over `disabled` for computed values: the box stays, text stays selectable, no teal on focus.
 - Required asterisk: orange `#E8920F` (not red)
 
 ### Standard sx constants
 
-Define and reuse these constants instead of inlining sx props on each field. Shared form/drawer primitives live in `frontend/src/theme/formSx.ts` and `frontend/src/components/design`. Import `PropertyRow`, `PropertyGroup`, `drawerSelectSx`, `drawerMenuItemSx`, and `drawerDatePickerSx` from those shared modules instead of recreating local copies. If you find yourself copy-pasting an `sx={{ ... }}` object across multiple fields, that's a signal to extract it.
+Define and reuse these constants instead of inlining sx props on each field. Shared form/drawer primitives live in `frontend/src/theme/formSx.ts` and `frontend/src/components/design`. Import them instead of recreating local copies. If you find yourself copy-pasting an `sx={{ ... }}` object across multiple fields, that's a signal to extract it. None of these constants draws a border: the theme owns the field box.
 
-```ts
-// For Selects and standalone inputs in drawers/sidebars
-export const drawerSelectSx = {
-  width: '100%',
-  fontSize: 13,
-  color: 'kanap.text.primary',
-  '& .MuiSelect-select': {
-    padding: '4px 0',
-    fontSize: 13,
-    lineHeight: 1.4,
-  },
-  '& .MuiSelect-icon': {
-    color: 'kanap.text.secondary',
-    fontSize: 18,
-    right: 0,
-  },
-  '&:before': { display: 'none' },
-  '&:after': { display: 'none' },
-  '&:hover:not(.Mui-disabled):before': { display: 'none' },
-} as const;
+| Constant | Use it on |
+|---|---|
+| `drawerFieldValueSx` | Value slot of `PropertyRow` (applied automatically) or a field used outside a row: hides nested MUI labels, 13px typography |
+| `drawerSelectSx` / `pageSelectSx` | Form-field `<Select>` in drawers and dialogs / on pages (`pageSelectSx` caps the width at 420px; pair with `MenuProps={compactSelectMenuProps}`) |
+| `drawerMenuItemSx` | Every `<MenuItem>` (13px, py 6px) so menus do not zoom relative to the field |
+| `drawerDatePickerSx` | Date inputs inside rows (13px) |
+| `longFormSurfaceFieldSx` | Description / Notes composer surfaces (8px radius, `kanap.bg.composer`, min height) |
+| `inlineControlSx` | Inline controls that are not form fields: filter selects, composer-footer selects, control-bar selects, click-to-edit titles |
+| `fieldResetSx` | Inputs inside a custom surface that already draws the border (chat/journal composers, picker search boxes) |
+| `tableCellFieldSx` / `tableCellTextFieldSx` | Editable table cells: compact bordered box, numbers right-aligned / text left-aligned |
+| `drawerAutocompleteListboxSx` | `ListboxProps.sx` of every `<Autocomplete>` |
 
-// For MenuItems inside drawer Selects
-export const drawerMenuItemSx = {
-  fontSize: 13,
-  paddingTop: '6px',
-  paddingBottom: '6px',
-  minHeight: 'auto',
-} as const;
-
-// For DatePickers in drawers
-export const drawerDatePickerSx = {
-  '& input': { fontSize: 13, padding: '4px 0' },
-  '& .MuiInput-underline:before': { display: 'none' },
-  '& .MuiInput-underline:after': { display: 'none' },
-} as const;
-```
+Deprecated no-op aliases still exported for older call sites: `dialogBorderedFieldSx`, `editableFieldValueSx`, `nakedFieldPlaceholderSx`. Do not use them in new code.
 
 ### AppBar (top navigation)
 
@@ -378,7 +356,7 @@ MuiTab: {
 },
 ```
 
-Active tab is distinguished by color (primary vs tertiary) and weight (500 vs 400). No underline indicator. No background highlight.
+Active tab is distinguished by color and weight: active = `kanap.teal` weight 500, inactive = `kanap.text.tertiary` weight 400 (decision 2026-08-04: teal active tab text is the sanctioned convention for workspace content tabs). No underline indicator. No background highlight.
 
 ### Forms — PropertyRow pattern
 
@@ -397,12 +375,12 @@ function PropertyRow({ label, children }: { label: string; children: React.React
 
 Rules:
 
-- All `<Select>` are naked: `variant="standard"`, `disableUnderline`, using `drawerSelectSx`
+- All `<Select>` are `variant="standard"` using `drawerSelectSx`; the theme draws the box
 - All `<MenuItem>` use `drawerMenuItemSx` (fontSize 13, py 6px, minHeight auto) — prevents zoom effect
 - All MUI underlines suppressed via CSS overrides
-- Legacy complex components such as CompanySelect and DateEUField keep their internal logic but their MUI labels are hidden via `'& .MuiInputLabel-root': { display: 'none' }`. Single-user metadata fields use `MetadataUserPicker`, not UserSelect.
-- Content-tab scalar fields use the same naked `PropertyRow` treatment as drawer fields: label above, `variant="standard"`, underline disabled, and shared compact `sx`. Bordered inputs are for dialogs and defined long-form editor/composer surfaces, not ordinary one-line fields.
-- Underline-disabled editable fields must show a subtle hover affordance in both empty and populated states: `background-color: kanap.bg.composer`, 120ms transition, 4px radius, no border or shadow. Apply exactly one hover surface around the editable value, not around both the wrapper and the nested input: use about `margin: -3px -6px` and `padding: 3px 6px`, and reset to transparent on `:focus-within`.
+- Complex components (UserSelect, CompanySelect, DateEUField) keep their internal logic but their MUI labels are hidden via `'& .MuiInputLabel-root': { display: 'none' }`
+- Content-tab scalar fields use the same `PropertyRow` treatment as drawer fields: label above, `variant="standard"`, the theme's bordered box. The `PropertyRow` value slot is capped at 480px on content tabs; override with `valueSx` when a field needs another width.
+- Read-only values shown as fields keep the box with a `kanap.bg.drawer` background and no teal on focus (`InputProps.readOnly`). Display-only values that are never edited are plain text, not disabled fields.
 - Empty editable fields must use concrete data-shape placeholders, not instruction copy. Prefer generic, non-realistic examples such as `e.g., server1` or `e.g., 10.12.34.56`; avoid generic text like "Enter manufacturer..." or "Search items". Never reference real product/vendor names or tenant-like hostnames that could appear as another tenant's data.
 - For display/read-only empty values, use the drawer-style tertiary `Not set` pattern. Do not use `Not set` as the placeholder for ordinary editable free-text fields.
 - Generous vertical gap between fields: **16–20px**
@@ -415,9 +393,21 @@ Dropdowns support an already useful page; they must not be the whole page experi
 - Drawer dropdowns use the full drawer row width because the drawer is already narrow; page-level dropdowns and metadata dropdowns should size to content or a modest max width, never stretch across the full page.
 - Use the same visual treatment for comparable metadata controls. For example, asset type and location in a metadata bar should both look like compact inline metadata buttons and open similarly styled menus.
 - `MenuItem` typography must match field values (13px, weight 400) to avoid a zoom effect when a menu opens.
-- Use MUI `Popover`, not `Menu`, when the anchored surface contains form content. Define explicit `anchorOrigin` and `transformOrigin`.
-- For finite option pickers, prefetch via `useQuery` and render options directly as flat `MenuItem` rows. Do not nest `Autocomplete` inside a `Popover`.
 - Do not introduce a full-width popover or modal when a simple anchored menu, autocomplete, or date picker is enough.
+
+**`Menu` vs `Popover` decision rule:**
+
+- Use MUI **`<Menu>`** only for a flat list of selectable options (lifecycle states, type enums, finite picker lists, etc.). The Menu wraps `<MenuItem>` children, full stop.
+- Use MUI **`<Popover>`** with explicit `anchorOrigin`/`transformOrigin` for any **anchored form content** (combined country+city editor, provider+region editor, multi-field popovers). Never put a `<TextField>`, `<Select>`, or other form control as a direct child of `<Menu>` — the Menu re-positions to the top-left of the viewport after re-render when the underlying chip remounts, producing the "jumping menu" bug.
+- Rule of thumb: if you'd write `<Menu>{... not MenuItems ...}</Menu>`, change it to `<Popover>`.
+
+**Flat `MenuItem` picker preferred over nested `Autocomplete`:**
+
+For finite lists (a few dozen options or fewer — companies, locations, hosting types, providers, environments), prefetch via `useQuery` and render directly as `<MenuItem>` rows inside a `<Menu>` anchored to the chip. One click opens the picker, second click selects. Mirror the Asset workspace's Location chip exactly.
+
+- Never embed a `<CompanySelect>` / `<UserSelect>` / `<Autocomplete>` inside a Popover or Menu when a flat MenuItem list would do — it forces two clicks (open Popover, then open the inner Autocomplete dropdown) and double-feedback on selection.
+- Include a leading `— Clear —` MenuItem when the current value is non-null and the field is nullable, instead of a separate clear icon. This rule applies to **Menu-based finite-list pickers only** (decision 2026-08-04); search-popover pickers such as `MetadataUserPicker` keep their dedicated Clear button.
+- Reserve `<Autocomplete>` for large catalogs (knowledge documents, users at scale, country search) where typed filtering is necessary.
 
 ### Status display — two patterns
 
@@ -440,6 +430,10 @@ Used in dashboard cards where a status chip is isolated and needs visual weight.
 - Subtle colored background + colored text (see status colors table for pill bg values)
 - No border, no outline
 
+**Pattern 3: filter-toggle pills (decision 2026-08-04)**
+
+Pill-shaped **filter toggles** (e.g. the agents activity filters: Proposal / Decision / Execution) are permitted — they are buttons, and the "an element gets a border only if it is clickable" rule covers them. This does not relax the ban on pills for non-status metadata display.
+
 **What is NOT a status and gets no visual treatment:**
 
 - Task type ("Task", "OPEX") — plain `kanap.text.secondary` text
@@ -448,7 +442,7 @@ Used in dashboard cards where a status chip is isolated and needs visual weight.
 - Roles ("IT Lead") — `kanap.text.tertiary` 11px text
 - Categories, classifications — plain text
 
-**Rule: an element gets a border only if it is clickable and needs to signal that at rest (buttons). Everything else is text.**
+**Rule: an element gets a border only if it is clickable and needs to signal that at rest (buttons) or if it is a form field (the theme's field box). Everything else is text.**
 
 ### Data tables (AG Grid)
 
@@ -552,7 +546,7 @@ When a single panel combines multiple actions (comment + status change + time lo
 ```
 
 - Status and time controls have inline labels (label-left-of-value, not label-above-value) for compactness
-- Status: inline label (`kanap.text.tertiary` 11px) + naked `<Select>` with colored dot + status text per item. Shows current status as default. No FormControl, no InputLabel.
+- Status: inline label (`kanap.text.tertiary` 11px) + inline `<Select>` (`inlineControlSx`, no field box) with colored dot + status text per item. Shows current status as default. No FormControl, no InputLabel.
 - Time: inline label + `<Slider>` flex-1 (rail in `sliderTrack` grey, track+thumb in teal, height 4px, thumb 14px) + value in mono
 - Slider takes `flex: 1` to fill available space
 - Submit: teal contained button, flex-shrink 0. Label changes dynamically based on what's filled in.
@@ -600,7 +594,9 @@ function formatShortDate(date: string | Date | null): string {
 }
 ```
 
-Output: `15 Mar` (same year) or `30 Nov 2025` (different year).
+Output: `15 Mar` (same year) or `30 Nov 2025` (different year). The shared implementation lives in `lib/dateFormat.ts` (`formatShortDate` / `formatShortDateTime`) — never define a local copy.
+
+**Date inputs (decision 2026-08-04):** date fields render the formatted display value (`31 Mar 2027`) at rest and switch to numeric `dd/mm/yyyy` only while focused for editing (see `DateEUField`).
 
 ### Metadata date interaction
 
@@ -622,6 +618,32 @@ Autosave is the default for every in-place edit on existing workspace entities. 
 - **Descriptions and other long-form text**: debounced autosave — saves after the last keystroke via a lightweight partial PATCH where possible. Shows a subtle status indicator in the section header when useful: "Saving..." during the API call, "Saved" for ~1.5s after success, then hidden. Ctrl+S may flush pending autosave, but it must not be required for normal persistence.
 
 Create forms, dialogs, composers/comments, imports/uploads, and other bounded transactional flows still use explicit submit buttons — autosave applies to in-place editing of existing entities only.
+
+### Confirmations and destructive actions
+
+Never use the native `window.confirm()`, `alert()`, or `prompt()`. They break the visual continuity of the workspace and ignore tenant branding.
+
+- Use **`KanapDialog`** (`components/design/KanapDialog`) for every confirmation, destructive prompt, or category-switch warning (e.g. on-prem ↔ cloud hosting type bascule). `onSave` carries the destructive action; `onClose` cancels.
+- For destructive ops, set `saveLabel="Delete anyway"` / `saveLabel="Continue"` — never just `"OK"`. The label is the user's explicit consent statement, not an acknowledgement.
+- The dialog body must explain **what the action affects** and **what will survive**. For example: *"3 assets are currently assigned to Rack 5. Deleting this sub-location will leave them without a sub-location assignment. The asset records themselves are kept; only their sub-location link is cleared."*
+
+**Confirmation only when there are dependents:**
+
+- If a delete has no impact on related records (count of dependents = 0), execute it immediately — no dialog, no friction.
+- If a delete has dependents (count > 0), open the `KanapDialog` and show the precise count with correct singular/plural grammar.
+- Always include the dependent count in the list endpoint response (`usage_count`, `assignments_count`, etc.) so the frontend can branch synchronously without a second round-trip.
+
+### Loading states across tab transitions
+
+A flash of `LinearProgress` on every tab switch reads as screen flicker, not as feedback.
+
+- Workspace tabs and tab-content components must **not** render `<LinearProgress />` on their initial mount/fetch. Show an empty layout during the brief fetch, then the content when ready.
+- The exception is the **initial workspace load** (the parent shell): a single thin progress bar is acceptable until the root entity is first fetched, then never re-shown for subsequent in-tab fetches.
+- For inline saves, prefer a small "Saving…" / "Saved" text indicator in the relevant section header (debounced surfaces), not a full-width progress bar.
+
+### List ordering and drag-and-drop
+
+Only add drag-to-reorder when the items have an inherent manual order that alphabetical sort cannot express (project timelines, kanban columns, prioritized rules). For ordinary reference lists — sub-locations, contact roles, tags, options — use **alphabetical sort** server-side and on every mutation. Drag-and-drop adds plumbing (display_order column, reorder endpoint, optimistic UI rollback, drag handles) that costs more than the UX gain when the natural order is alphabetical.
 
 ---
 
@@ -660,14 +682,14 @@ WorkspacePage (full height, flex column)
 
 - Padding: `26px 32px 22px`
 - **Title row**: flex, items flex-start, gap 24px, margin-bottom 18px
-  - **ID prefix** (`T-49`): monospace 14px, `kanap.text.secondary`, vertical-align 1px, mr 14px, click-to-copy
+  - **ID prefix** (`T-49`): monospace 14px, `kanap.text.secondary`, vertical-align 1px, mr 14px, click-to-copy. Always a business display reference (`T-4`, `PRJ-3`, `AST-5`), never a raw or truncated UUID. Add/backfill a reference field if one does not exist yet.
   - **Title**: 22px weight 500, click-to-edit pattern (span -> input on click, save on blur, cancel on Escape)
   - **Actions**: pill buttons on the right, gap 8px, mt 7px. Use `variant="action"` and `variant="action-danger"`. Close button at the end.
 - **Metadata bar**: flex, gap 22px, flex-wrap, font-size 12px
   - Status chip: colored dot (8px) + label, click -> Menu with all statuses
   - Score chip: colored dot + monospace value, read-only with Tooltip
   - Priority chip: `kanap.text.tertiary` label + value, click -> Menu
-  - Assignee chip: Avatar (18px) + name, click -> `MetadataUserPicker`
+  - Assignee chip: Avatar (18px) + name, click -> anchored search popover via the shared `MetadataUserPicker` (not `UserSelect` or a local menu). See "Shared workspace pickers" below.
   - Due date chip: `kanap.text.tertiary` label + formatted date, click -> Popover with DatePicker
   - Project chip (conditional): `kanap.text.tertiary` label + project name (max 220px, ellipsis), click -> navigate
 
@@ -728,6 +750,8 @@ All fields inside groups use the PropertyRow pattern. All Selects use `drawerSel
 - Do not move a field to the drawer just because it is editable. If drawer placement makes the workflow cramped or hides related context, keep it in the tab content and style it with the same form rules.
 - Duplicating a value between metadata and drawer is acceptable when metadata supports fast navigation/editing and the drawer supports slower property review.
 
+**Sanctioned shell exception — knowledge workspace (decision 2026-08-04):** the knowledge workspace keeps its library-style architecture (left folder tree + right tabbed Properties/Comments panel) instead of the standard workspace shell; folder navigation is core to the domain. Charter rules still apply to the panel *content* (field patterns, dots, tabs, surfaces).
+
 **Knowledge section (example of a list-in-drawer pattern):**
 - One line per document: ID mono 11px `kanap.text.tertiary` + title 13px `kanap.text.primary` (ellipsis overflow)
 - Hover reveals action icons (open, unlink — turns `kanap.danger` on hover)
@@ -735,6 +759,32 @@ All fields inside groups use the PropertyRow pattern. All Selects use `drawerSel
 - Action links below list: teal 12px, `whiteSpace: nowrap`
 - Direct documents take precedence over related documents. If the same document appears in both groups, display it only as direct.
 - Related documents must be deduplicated across provenance paths. Display each document once and merge or summarize the sources that linked it.
+
+### Shared workspace pickers
+
+Workspace pages must reuse these shared components instead of one-off picker variants. Extend the shared component first if extra behavior is needed.
+
+**`MetadataUserPicker`** (`frontend/src/components/workspace/MetadataUserPicker.tsx`) — the standard single-user picker for metadata bars: assignee, requestor, owner, lead, and any one-person field.
+
+- One click on the current value opens an anchored search popover directly. No intermediate menu, no full-width modal.
+- The active user appears first with a "me" suffix, followed by a subtle separator before the rest of the users.
+- Empty values use field-specific placeholders such as "Assignee missing", "Requestor missing", "Owner missing" — not raw translation keys, not generic `Not set`.
+- Do not use `UserSelect`, MUI `Autocomplete`, or local menu/popover code for single-user metadata controls. If extra behavior is needed, extend `MetadataUserPicker` first.
+
+**User display in any picker (MetadataUserPicker, ShareDialog recipients, comment mentions, share/notify lists, etc.):**
+
+- Lists show **names only** — never email addresses as a subline, never `name (email)` parentheticals.
+- Search matches **names only** (concatenated `first_name + last_name`), not email substrings.
+- Selected chips/tags show the formatted name. The internal record continues to carry the email for backend lookups; only the display drops it.
+- If a user genuinely has no `first_name` and no `last_name`, fall back to email — but that's a degraded case, not the default rendering.
+
+**`KnowledgeLinkPickerDialog`** (`frontend/src/components/knowledge/KnowledgeLinkPickerDialog.tsx`) — the standard "Link existing" document picker for workspace knowledge relations.
+
+- Prefer using it through `EntityKnowledgePanel`. Compact task drawers may use the dialog directly.
+- Must query `/knowledge/link-options` with server-side `q`, `page`, and `limit`. Never implement search by fetching only the first `/knowledge` page and filtering locally — it silently breaks past the first 20 docs.
+- Search must work for title/name AND business refs such as `DOC-...`.
+- Modal shell must stay stable while typing: redraw only the document list area, keep the search field focused, and show a thin in-list loading indicator when replacing results.
+- Pagination is a compact "Load more" action at the bottom of the list — not infinite scroll, not numbered pages.
 
 ### Keyboard shortcuts (workspace-level)
 
@@ -904,23 +954,27 @@ Most form fields save on every change, optimistically update the UI, and show a 
 18. **No font weights other than 400 and 500.** No 600, 700, or bold.
 19. **No more than 2 color ramps** in a single component (gray + one accent max).
 20. **No `MuiDrawer`** for contained side panels. Build a custom flex layout.
-21. **No `window.confirm`.** Use `KanapDialog` for confirmations.
-22. **No unconditional destructive confirmation.** Confirm only when dependants exist; otherwise delete directly.
-23. **No nested `Autocomplete` inside `Popover`.** Use flat `MenuItem` rows for finite pickers.
-24. **No drag and drop unless order is semantic.** Prefer stable alphabetical sorting.
-25. **No `LinearProgress` over tab content.** Use empty state while fetching and content when ready.
-26. **No inlined sx props** that should be shared constants.
-27. **No ISO date strings** in user-facing display. Always format.
-28. **No section headers in bold with collapse chevrons** inside drawers. Use plain dividers.
-29. **No duplicating action labels** (e.g. label "Status" both above and inside a dropdown).
-30. **No duplicate metric storytelling.** If two sections communicate the same value or progression, consolidate them.
-31. **No raw or truncated UUIDs** as title/list references. Use business references such as `AST-5`.
-32. **No dropdown-only workspace pages** and no full-page-width metadata dropdowns. Menus must be compact and anchored.
-33. **No naked long-form text areas** on page backgrounds. Notes/Description-like content needs a composer/editor surface.
-34. **No automatic drawer dumping ground.** Keep technical/high-density blocks in the content column when drawer placement harms scanning or comparison.
-35. **No undocumented separator lines** between normal content groups. Use spacing first.
-36. **No bordered one-line content-tab fields** for ordinary scalar properties. Use the same naked `PropertyRow` field pattern as the properties drawer; keep borders for dialogs and long-form editor/composer surfaces.
-37. **No invisible empty editable fields.** Naked underline-disabled inputs need concrete example placeholders and the shared hover background on both empty and populated states.
+21. **No inlined sx props** that should be shared constants.
+22. **No ISO date strings** in user-facing display. Always format.
+23. **No section headers in bold with collapse chevrons** inside drawers. Use plain dividers.
+24. **No duplicating action labels** (e.g. label "Status" both above and inside a dropdown).
+25. **No duplicate metric storytelling.** If two sections communicate the same value or progression, consolidate them.
+26. **No raw or truncated UUIDs** as title/list references. Use business references such as `AST-5`.
+27. **No dropdown-only workspace pages** and no full-page-width metadata dropdowns. Menus must be compact and anchored.
+28. **No naked long-form text areas** on page backgrounds. Notes/Description-like content needs a composer/editor surface.
+29. **No automatic drawer dumping ground.** Keep technical/high-density blocks in the content column when drawer placement harms scanning or comparison.
+30. **No undocumented separator lines** between normal content groups. Use spacing first.
+31. **No naked form fields and no hand-drawn field borders.** Every form field gets the theme's bordered box; never suppress it on a form field and never re-draw it with `'& .MuiInputBase-root': { border ... }`. Only inline controls (`inlineControlSx`), inputs inside a custom surface (`fieldResetSx`), and editable table cells (`tableCellFieldSx`) deviate.
+32. **No invisible empty editable fields.** Empty inputs need concrete example placeholders (`e.g., server1`), never instruction copy.
+33. **No local user picker variants on workspace metadata.** Use the shared `MetadataUserPicker` for assignee/requestor/owner/lead/etc. — not `UserSelect`, MUI `Autocomplete`, or hand-rolled menus.
+34. **No client-side filtering of `/knowledge` for link pickers.** Use `KnowledgeLinkPickerDialog` against `/knowledge/link-options` with server-side `q`/`page`/`limit`; never paginate locally over the first page only.
+35. **No `window.confirm` / `alert` / `prompt`.** Every destructive or category-switch confirmation uses `KanapDialog` with a descriptive body and an explicit `saveLabel` such as "Delete anyway" or "Continue".
+36. **No `Menu` wrapping form content.** Use `Popover` (with explicit `anchorOrigin`/`transformOrigin`) when the anchored content includes any `TextField`, `Select`, `Autocomplete`, or multi-field layout. `Menu` is reserved for flat `MenuItem` lists.
+37. **No nested `Autocomplete`/`Select` inside a metadata-bar `Menu`/`Popover` for finite-list pickers.** Prefetch the list and render flat `MenuItem` rows so one click opens the picker and a second click selects.
+38. **No drag-reorder on lists that sort naturally alphabetically.** Reserve drag-and-drop for inherently manual ordering (timelines, prioritized rules, kanban). Sub-locations, contacts, options, tags etc. sort alphabetically server-side.
+39. **No `LinearProgress` on tab-content first paint.** Tab switching must not produce a flash of progress bar — show empty layout during fetch, then content. The shell may show a single progress bar on the initial root-entity fetch only.
+40. **No unconditional confirmation on delete.** If the count of impacted dependents is zero, delete directly. Show a `KanapDialog` only when `usage_count > 0` (or equivalent), and include the count in the list endpoint payload to avoid a second round-trip.
+41. **No email subline in user picker lists.** All user pickers (MetadataUserPicker, ShareDialog recipients, mentions, share/notify lists) display names only; search matches names only. Email is internal data, not surface UI.
 
 ---
 
@@ -946,23 +1000,23 @@ Before merging any new UI component, verify:
 - [ ] All technical IDs in monospace font
 - [ ] Workspace title/list references use display references, not UUID fragments
 - [ ] Sx constants are shared, not inlined per field
-- [ ] `disableUnderline` applied to all standard variant inputs
+- [ ] Form fields rely on the theme box: no field sx that draws or removes a border, `inlineControlSx` / `fieldResetSx` / `tableCellFieldSx` only where the charter allows
 - [ ] Metadata bar controls are compact, editable where useful, and anchored to the clicked item
 - [ ] Metadata date clicks open the picker immediately near the click target/cursor
-- [ ] Anchored form content uses `Popover`, not `Menu`, with explicit origins
-- [ ] Finite pickers use prefetched flat `MenuItem` rows, not nested `Autocomplete`
-- [ ] Single-user metadata fields use `MetadataUserPicker`
-- [ ] `ShareDialog` user/workspace lists show names only
 - [ ] Long-form Notes/Description-style fields use `kanap.bg.composer` plus `kanap.border.default`
 - [ ] Drawer contains scalar properties; dense technical blocks remain in content when needed
 - [ ] Auto-save on all fields: selects/dates on change, titles on blur, descriptions on debounced timer (2s)
-- [ ] No `window.confirm`; destructive confirmations use `KanapDialog`
-- [ ] Delete flows confirm only when dependants exist, using `usage_count` in list responses when needed
-- [ ] No drag and drop unless manual ordering is semantic
-- [ ] No `LinearProgress` over tab content
 - [ ] Hover/focus states defined explicitly
 - [ ] Keyboard accessible (proper aria-labels, focus order, escape handling)
 - [ ] Reverse-chronological for activity-style lists
 - [ ] UI state persistence in localStorage where applicable
 - [ ] No teal on table cell text
-- [ ] Files were read before editing and independent operations were batched in parallel where possible
+- [ ] Single-user metadata controls use `MetadataUserPicker`, not `UserSelect` or local menus
+- [ ] Knowledge link pickers use `KnowledgeLinkPickerDialog` with server-side `/knowledge/link-options` search
+- [ ] All confirmations and destructive prompts use `KanapDialog`; no `window.confirm`/`alert`/`prompt`
+- [ ] `Menu` wraps only `MenuItem` lists; form content lives in `Popover` with explicit anchor origins
+- [ ] Finite-list pickers (companies, locations, types) render flat `MenuItem` rows, not nested `Autocomplete`
+- [ ] Destructive deletes show the impacted-dependents count and skip confirmation when count is zero
+- [ ] No `LinearProgress` on tab-content first paint
+- [ ] List ordering is alphabetical server-side unless drag-reorder is semantically required
+- [ ] All user pickers (incl. ShareDialog recipients, mentions) display names only — no email subline

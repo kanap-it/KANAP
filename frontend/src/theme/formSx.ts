@@ -1,5 +1,13 @@
 import type { Theme } from '@mui/material/styles';
 
+/*
+ * Form fields are bordered boxes by theme (`MuiInput` override in
+ * ThemeContext.tsx): 1px border, 6px radius, ~32px, teal on focus. Nothing in
+ * this file draws a border any more. The constants below either reset the box
+ * for controls that are not form fields, or adjust typography inside it.
+ */
+
+/** Hover surface for inline (non-form) editable controls. Building block of `inlineControlSx`. */
 export const nakedEditableHoverSx = {
   borderRadius: '4px',
   px: '6px',
@@ -25,11 +33,64 @@ export const nakedControlHoverSx = {
   cursor: 'pointer',
 } as const;
 
-export const nakedFieldPlaceholderSx = {
-  '& input::placeholder': {
-    color: 'kanap.text.tertiary',
-    opacity: 1,
+/** @deprecated The theme colors placeholders; no-op kept for call sites until PR2 cleanup. */
+export const nakedFieldPlaceholderSx = {} as const;
+
+/**
+ * Pure reset for an input that lives inside a custom surface (chat composer,
+ * journal composer, picker search boxes): the surrounding surface draws the
+ * border, the input must not.
+ *
+ * Targets both `&.MuiInputBase-root` (sx on a Select lands on the input root)
+ * and `& .MuiInputBase-root` (sx on a TextField lands on the FormControl).
+ */
+export const fieldResetSx = {
+  '&.MuiInputBase-root, & .MuiInputBase-root': {
+    border: 'none',
+    borderRadius: 0,
+    p: 0,
+    bgcolor: 'transparent',
+    '&:hover, &.Mui-focused, &:focus-within, &.Mui-readOnly, &.Mui-disabled': {
+      borderColor: 'transparent',
+      bgcolor: 'transparent',
+    },
+    '& .MuiSelect-icon': { right: 0 },
+    '& .MuiAutocomplete-endAdornment': { right: 0 },
   },
+} as const;
+
+/**
+ * Inline control (panel filter selects, composer-footer selects, control-bar
+ * mode selects, click-to-edit titles): no box, the old hover surface instead.
+ * Form fields never use this.
+ */
+export const inlineControlSx = {
+  '&.MuiInputBase-root, & .MuiInputBase-root': {
+    border: 'none',
+    bgcolor: 'transparent',
+    ...nakedEditableHoverSx,
+    '&:hover:not(.Mui-disabled):not(.Mui-readOnly), &.Mui-focused, &:focus-within': {
+      borderColor: 'transparent',
+    },
+    '& .MuiSelect-select': { padding: '0 24px 0 0' },
+    '& .MuiSelect-icon': { right: 0 },
+  },
+} as const;
+
+/** Editable table cell: bordered but compact (~25px), numerals right-aligned. */
+export const tableCellFieldSx = {
+  '& .MuiInputBase-root': { py: '2px', px: '6px', borderRadius: '4px' },
+  '& .MuiInputBase-input': {
+    fontSize: '13px !important',
+    textAlign: 'right',
+    fontVariantNumeric: 'tabular-nums',
+  },
+} as const;
+
+/** Editable table cell holding text rather than a number. */
+export const tableCellTextFieldSx = {
+  ...tableCellFieldSx,
+  '& .MuiInputBase-input': { ...tableCellFieldSx['& .MuiInputBase-input'], textAlign: 'left' },
 } as const;
 
 export const selectPlaceholderSx = {
@@ -69,24 +130,15 @@ export const textTabSx = (active: boolean) => ({
   color: active ? 'kanap.text.primary' : 'kanap.text.tertiary',
 });
 
+/** Form-field `<Select>` in drawers and dialogs: full row width, 13px. The box comes from the theme. */
 export const drawerSelectSx = {
   width: '100%',
   fontSize: 13,
   color: 'kanap.text.primary',
-  ...nakedControlHoverSx,
   '& .MuiSelect-select': {
-    padding: '4px 24px 4px 0', // right: room for the dropdown arrow
     fontSize: 13,
     lineHeight: 1.4,
   },
-  '& .MuiSelect-icon': {
-    color: 'kanap.text.secondary',
-    fontSize: 18,
-    right: 0,
-  },
-  '&:before': { display: 'none' },
-  '&:after': { display: 'none' },
-  '&:hover:not(.Mui-disabled):before': { display: 'none' },
 } as const;
 
 export const drawerMenuItemSx = {
@@ -142,28 +194,21 @@ export const pageSelectSx = {
 } as const;
 
 export const drawerDatePickerSx = {
-  '& input': { fontSize: 13, padding: '4px 0' },
-  '& .MuiInput-underline:before': { display: 'none' },
-  '& .MuiInput-underline:after': { display: 'none' },
-  '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none' },
+  '& input': { fontSize: 13 },
 } as const;
 
+/**
+ * Value slot of a `PropertyRow` (and direct use on fields): hides any nested
+ * MUI label (the row draws its own) and sets the 13px field typography.
+ */
 export const drawerFieldValueSx = {
   fontSize: 13,
   lineHeight: 1.4,
-  minHeight: 26,
   '& .MuiInputLabel-root': { display: 'none' },
   '& .MuiFormLabel-root': { display: 'none' },
   '& .kanap-field-label': { display: 'none' },
   '& .MuiInput-root': { mt: '0 !important' },
-  '& .MuiInput-input': { py: '3px !important', fontSize: '13px !important' },
-  '& .MuiOutlinedInput-root': {
-    p: '0 !important',
-    minHeight: 26,
-    '& fieldset': { display: 'none' },
-  },
-  '& .MuiOutlinedInput-input': { py: '3px !important', px: '0 !important', fontSize: '13px !important' },
-  '& .MuiAutocomplete-input': { py: '3px !important', fontSize: '13px !important' },
+  '& .MuiInputBase-input': { fontSize: '13px !important' },
   '& .MuiAutocomplete-inputRoot': {
     rowGap: '3px',
   },
@@ -172,34 +217,13 @@ export const drawerFieldValueSx = {
     width: '100% !important',
     minWidth: '100% !important',
   },
-  '& .MuiInput-underline:before': { display: 'none !important' },
-  '& .MuiInput-underline:after': { display: 'none !important' },
-  '& .MuiInput-underline:hover:not(.Mui-disabled):before': { display: 'none !important' },
 } as const;
 
-export const editableFieldValueSx = {
-  ...drawerFieldValueSx,
-  ...nakedInputHoverSx,
-} as const;
+/** @deprecated Same as `drawerFieldValueSx`; the hover surface is gone. Kept until PR2 cleanup. */
+export const editableFieldValueSx = drawerFieldValueSx;
 
-export const dialogBorderedFieldSx = {
-  '& .MuiInputBase-root': {
-    border: (theme: Theme) => `1px solid ${theme.palette.kanap.border.default}`,
-    borderRadius: '6px',
-    px: '8px',
-    py: '6px',
-    bgcolor: (theme: Theme) => theme.palette.kanap.bg.primary,
-  },
-  '& .MuiInputBase-root:focus-within': {
-    borderColor: (theme: Theme) => theme.palette.kanap.teal,
-  },
-  '& input': {
-    p: '0 !important',
-  },
-  '& textarea': {
-    p: '0 !important',
-  },
-} as const;
+/** @deprecated The theme draws the box on every form field; no-op kept until PR2 cleanup. */
+export const dialogBorderedFieldSx = {} as const;
 
 export const longFormSurfaceFieldSx = {
   width: '100%',
@@ -216,6 +240,12 @@ export const longFormSurfaceFieldSx = {
     transition: 'border-color 0.15s ease, background-color 0.15s ease',
     '&.Mui-focused': {
       borderColor: (theme: Theme) => theme.palette.kanap.teal,
+    },
+    '&.Mui-readOnly': {
+      bgcolor: (theme: Theme) => theme.palette.kanap.bg.drawer,
+    },
+    '&.Mui-readOnly.Mui-focused': {
+      borderColor: (theme: Theme) => theme.palette.kanap.border.default,
     },
     '&.Mui-disabled': {
       bgcolor: (theme: Theme) => theme.palette.kanap.bg.drawer,

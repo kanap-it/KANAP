@@ -5,8 +5,8 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type LocationOption = { id: string; location_reference: string; name: string };
 
@@ -138,7 +138,7 @@ export default function LocationSelect({
                 </>
               ),
             }}
-            sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+            sx={textFieldSx}
           />
         )}
         fullWidth

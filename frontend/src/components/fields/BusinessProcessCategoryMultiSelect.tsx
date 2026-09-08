@@ -4,8 +4,8 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { FieldLabel, mergeSx, useKanapDialogs } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel, useKanapDialogs } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type BusinessProcessCategory = {
   id: string;
@@ -124,7 +124,7 @@ export default function BusinessProcessCategoryMultiSelect({
           <TextField
             {...params}
             variant="standard"
-            sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+            sx={textFieldSx}
             placeholder={t('selects.selectCategories')}
             helperText={helperText}
             error={error}

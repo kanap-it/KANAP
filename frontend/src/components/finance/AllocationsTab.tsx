@@ -9,7 +9,7 @@ import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { formatAmount } from '../../i18n/formatters';
 import useAutosave from '../../hooks/useAutosave';
 import YearTabs from '../navigation/YearTabs';
-import { drawerSelectSx, drawerMenuItemSx } from '../../theme/formSx';
+import { drawerMenuItemSx, drawerSelectSx, tableCellFieldSx } from '../../theme/formSx';
 import { FinanceModuleConfig } from './config';
 import { PropertyRow } from '../design';
 
@@ -422,12 +422,12 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
                     <TextField
                       type="number" size="small" variant="standard" value={r.allocation_pct}
                       onChange={(e) => onPctEdit(idx, e.target.value === '' ? '' : Number(e.target.value))}
-                      inputProps={{ step: 0.01, style: { textAlign: 'right', padding: '2px 0' } }}
+                      inputProps={{ step: 0.01 }}
                       InputProps={{
                         disableUnderline: true,
                         endAdornment: <Box component="span" sx={{ fontSize: 13, color: 'kanap.text.tertiary', pl: 0.25 }}>%</Box>,
                       }}
-                      sx={{ width: '100%' }}
+                      sx={[tableCellFieldSx, { width: '100%' }]}
                     />
                   ) : `${round2(pct)}%`}
                 </Box>

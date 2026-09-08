@@ -4,8 +4,8 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import { FieldLabel, mergeSx } from '../design';
-import { drawerAutocompleteListboxSx, nakedControlHoverSx, nakedFieldPlaceholderSx } from '../../theme/formSx';
+import { FieldLabel } from '../design';
+import { drawerAutocompleteListboxSx } from '../../theme/formSx';
 
 type Account = {
   id: string;
@@ -146,7 +146,7 @@ const AccountSelect = React.forwardRef<HTMLInputElement, AccountSelectProps>(fun
           {...params}
           required={required}
           variant="standard"
-          sx={naked ? mergeSx(nakedControlHoverSx, nakedFieldPlaceholderSx, textFieldSx) : textFieldSx}
+          sx={textFieldSx}
           inputRef={(node) => {
             assignRef((params.inputProps as any)?.ref, node);
             assignRef(ref, node ?? null);

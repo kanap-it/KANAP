@@ -11,6 +11,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import { tableCellTextFieldSx } from '../../../theme/formSx';
 import TextareaAutosize from '@mui/material/TextareaAutosize';
 import { useTranslation } from 'react-i18next';
 import { getFeasibilityStatusLabel } from '../../../utils/portfolioI18n';
@@ -217,11 +218,7 @@ export default function FeasibilityReview({
                       onChange={(event) => setDimensionStatus(key, event.target.value as FeasibilityReviewStatus)}
                       variant="standard"
                       fullWidth
-                      sx={{
-                        fontSize: '0.875rem',
-                        '&:before': { borderBottomColor: accent.selectBorder },
-                        '&:after': { borderBottomColor: accent.selectBorder },
-                      }}
+                      sx={[tableCellTextFieldSx, { fontSize: '0.875rem' }]}
                     >
                       {FEASIBILITY_STATUSES.map((status) => (
                         <MenuItem key={status} value={status}>

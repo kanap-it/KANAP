@@ -25,6 +25,7 @@ import ExportButton from '../../components/ExportButton';
 import ImportButton from '../../components/ImportButton';
 import SendLinkButton from '../../components/workspace/SendLinkButton';
 import { StatusDot } from '../../components/design';
+import { fieldResetSx } from '../../theme/formSx';
 import { importDocument as importMarkdownDocument, type ImportDocumentResult } from '../../api/endpoints/import';
 import { useAuth } from '../../auth/AuthContext';
 import { useLocale } from '../../i18n/useLocale';
@@ -1970,6 +1971,7 @@ export default function KnowledgeWorkspacePage() {
                       variant="standard"
                       fullWidth
                       placeholder={t('workspace.fields.titlePlaceholder')}
+                      sx={fieldResetSx}
                       InputProps={{
                         disableUnderline: true,
                         sx: {
