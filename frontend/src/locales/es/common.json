@@ -249,7 +249,22 @@
       "createdTask": "{{author}} creó una tarea de proyecto",
       "updatedProgress": "{{author}} actualizó el esfuerzo de ejecución",
       "updatedPhase": "{{author}} actualizó la fase del proyecto",
-      "updatedProject": "{{author}} actualizó el proyecto"
+      "updatedProject": "{{author}} actualizó el proyecto",
+      "compliance": "Conformidad",
+      "complianceProgress": "{{reviewed}} de {{total}} aplicaciones revisadas",
+      "complianceReviewed": "Revisadas",
+      "complianceStale": "Por revisar",
+      "complianceIncomplete": "Por completar",
+      "complianceAttention": "Puntos de atención",
+      "complianceNoAttention": "Ningún punto de atención en las aplicaciones que puede ver.",
+      "complianceEmpty": "Todavía no hay ninguna aplicación que clasificar",
+      "browseApplications": "Ver aplicaciones",
+      "complianceCriticalWithoutTest_one": "{{count}} aplicación del nivel más crítico sin prueba de recuperación en los últimos doce meses",
+      "complianceCriticalWithoutTest_other": "{{count}} aplicaciones del nivel más crítico sin prueba de recuperación en los últimos doce meses",
+      "complianceCriticalWithoutWave_one": "{{count}} aplicación del nivel más crítico sin ola de recuperación",
+      "complianceCriticalWithoutWave_other": "{{count}} aplicaciones del nivel más crítico sin ola de recuperación",
+      "complianceRestrictedLowCyber_one": "{{count}} aplicación con los datos más confidenciales y la criticidad cibernética más baja",
+      "complianceRestrictedLowCyber_other": "{{count}} aplicaciones con los datos más confidenciales y la criticidad cibernética más baja"
     }
   },
   "csv": {

@@ -998,6 +998,16 @@
     "never_reviewed": "Never reviewed",
     "changed_since_review": "Changed since review",
     "reviewed_on": "Reviewed on {{date}}",
-    "rto_exceeds_level_downtime": "The RTO reaches or exceeds the maximum tolerable downtime of the {{level}} level ({{duration}})."
+    "rto_exceeds_level_downtime": "The RTO reaches or exceeds the maximum tolerable downtime of the {{level}} level ({{duration}}).",
+    "recovery_dependency": "Exchanges with {{app}}, planned in {{wave}}",
+    "summary_reviewed_one": "{{count}} reviewed",
+    "summary_reviewed_other": "{{count}} reviewed",
+    "summary_stale_one": "{{count}} to review",
+    "summary_stale_other": "{{count}} to review",
+    "summary_incomplete_one": "{{count}} to complete",
+    "summary_incomplete_other": "{{count}} to complete",
+    "classification": "Classification",
+    "data_at_the_highest_confidentiality_level_with_the_lowest_cyber_criticality_check_the_cyber_assessment": "Data at the highest confidentiality level with the lowest cyber criticality: check the cyber assessment.",
+    "no_recovery_test_in_the_last_twelve_months_for_an_application_at_the_most_critical_level": "No recovery test in the last twelve months for an application at the most critical level."
   }
 }

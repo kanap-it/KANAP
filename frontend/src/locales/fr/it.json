@@ -998,6 +998,16 @@
     "never_reviewed": "Jamais revue",
     "changed_since_review": "Modifiée depuis la revue",
     "reviewed_on": "Revue le {{date}}",
-    "rto_exceeds_level_downtime": "Le RTO atteint ou dépasse la DMIA du niveau {{level}} ({{duration}})."
+    "rto_exceeds_level_downtime": "Le RTO atteint ou dépasse la DMIA du niveau {{level}} ({{duration}}).",
+    "recovery_dependency": "Échange avec {{app}}, prévue en {{wave}}",
+    "summary_reviewed_one": "{{count}} revue",
+    "summary_reviewed_other": "{{count}} revues",
+    "summary_stale_one": "{{count}} à revoir",
+    "summary_stale_other": "{{count}} à revoir",
+    "summary_incomplete_one": "{{count}} à compléter",
+    "summary_incomplete_other": "{{count}} à compléter",
+    "classification": "Classification",
+    "data_at_the_highest_confidentiality_level_with_the_lowest_cyber_criticality_check_the_cyber_assessment": "Données au niveau de confidentialité le plus élevé avec la criticité cyber la plus faible : vérifiez l'évaluation cyber.",
+    "no_recovery_test_in_the_last_twelve_months_for_an_application_at_the_most_critical_level": "Aucun test de reprise depuis douze mois pour une application au niveau le plus critique."
   }
 }

@@ -141,6 +141,19 @@ Les bibliothèques restreintes respectent leurs règles d'accès : vous ne voyez
 
 ---
 
+### Conformité
+
+Indique où en est la campagne de classification pour les applications que vous pouvez voir (applications retirées exclues) :
+
+- **Avancement** -- une barre et trois compteurs : revues, à revoir (la classification a changé depuis la dernière revue ou n'a jamais été revue) et à compléter (un champ de classification est encore vide). Chaque compteur ouvre la liste des applications filtrée sur cet état.
+- **Points d'attention** -- applications au niveau de criticité métier le plus élevé sans test de reprise depuis douze mois, applications au niveau le plus critique sans vague de reprise, et applications détenant les données les plus confidentielles avec la criticité cyber la plus faible. Seuls les points comptant au moins une application sont listés ; chacun ouvre la liste filtrée correspondante. Quand rien n'appelle d'action, la tuile l'indique.
+
+Les niveaux sont ceux définis dans les paramètres de la cartographie SI ; un niveau qui n'est plus proposé n'est jamais compté comme le plus élevé ou le plus faible.
+
+**Nécessite** : `applications:reader`
+
+---
+
 ### Activité de l'équipe
 
 Affiche l'activité projet récente sur les projets où vous êtes impliqué (modifications, commentaires, décisions). Chaque ligne indique le projet, le type d'activité, l'auteur et un court résumé. Cliquez sur un élément pour sauter à l'onglet d'activité du projet.

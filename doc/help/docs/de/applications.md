@@ -105,8 +105,11 @@ Das Anwendungsraster bietet eine umfassende Ansicht Ihres Anwendungsportfolios.
 - **Datenklasse** / **Enthält PII** / **Datenhaltung**: Compliance-Informationen
 - **Cyberkritikalität**, **Wiederanlaufwelle**, **RTO**, **RPO**, **Prüfstatus/-datum**: Klassifizierungs- und Kontinuitätsfelder
 
+**Fortschritt der Klassifizierung**: Die Kachel Compliance auf Ihrem Dashboard zeigt, wie viele der für Sie sichtbaren Anwendungen geprüft sind, zu prüfen sind oder noch zu vervollständigende Klassifizierungsfelder haben, sowie die Punkte, die Handlung erfordern. Jede Zahl öffnet die entsprechend gefilterte Anwendungsliste. Siehe [Mein Dashboard](my-dashboard.md#compliance).
+
 **Filterung**:
 - Schnellsuche: gleicht Name und Editor/Herausgeber ab
+- Die Filter für Kritikalität, Cyberkritikalität, Datenklasse und Wiederanlaufwelle listen ihre Werte in Katalogreihenfolge (die kritischste zuerst, Wellen in Wiederherstellungsreihenfolge).
 - Die meisten Spalten verwenden Kontrollkästchen-Set-Filter, die nur Werte anzeigen, die im aktuellen Ergebnissatz vorhanden sind; der schwebende Filter zeigt `Alle`, `Keine` oder `N ausgewählt` mit einem **x** zum Löschen.
 - Außer Betrieb genommene Anwendungen sind standardmäßig ausgeblendet; verwenden Sie den **Lebenszyklus**-Filter, um Außer Betrieb einzuschließen.
 
@@ -263,7 +266,10 @@ Der Reiter ist in vier Blöcke gegliedert, in der Reihenfolge einer Business-Imp
 **Kontinuität und Wiederanlauf**:
 - Die **Wiederherstellungswelle** bezeichnet die Reihenfolge der Wiederherstellung, keine Dauer und keinen Schweregrad.
 - Das **RTO** ist das Ziel für die Wiederherstellungszeit. Das **RPO** ist der zulässige Datenverlust und darf null sein. Erreicht das RTO die maximal tolerierbare Ausfallzeit, die auf der gewählten Geschäftsstufe definiert ist, zeigt KANAP einen Hinweis, behält aber beide Werte.
+- Unter der Welle listet KANAP die Schnittstellen auf, die diese Anwendung mit einer Anwendung in einer **späteren** Welle verbinden („Austausch mit CRM, geplant in V3"), mit einem Link zu jeder Schnittstelle. Beide Anwendungen müssen laufen, damit der Fluss funktioniert; der Verantwortliche des Wiederherstellungsplans entscheidet. Außer Betrieb genommene Schnittstellen werden ignoriert, und Benutzer mit eingeschränktem Bereich als Fachbereichs-Mitwirkender sehen diese Liste nicht.
 - **Letzter Wiederherstellungstest** enthält das Datum des letzten Tests. Ein Link aus diesem Bereich verwendet die einzige **Wissensdatenbank** im Reiter Übersicht und erzeugt keinen doppelten Datensatz. Ältere URL-Links bleiben unter Verknüpfungen verfügbar.
+
+Zwei dezente Hinweise können erscheinen: Daten auf der höchsten Vertraulichkeitsstufe in Kombination mit der niedrigsten Cyber-Kritikalität sowie eine Anwendung auf der kritischsten Geschäftsstufe ohne Wiederherstellungstest in den letzten zwölf Monaten. Sie blockieren nie etwas.
 
 **Review**:
 - Die **Begründung** dokumentiert, warum die Stufen gewählt wurden und worauf der Wiederherstellungsplan beruht.

@@ -141,6 +141,19 @@ Eingeschränkte Bibliotheken respektieren ihre Zugriffsregeln: Sie sehen nur Rev
 
 ---
 
+### Compliance
+
+Zeigt den Stand der Klassifizierungskampagne für die Anwendungen, die Sie sehen können (stillgelegte Anwendungen ausgenommen):
+
+- **Fortschritt** — ein Balken und drei Zähler: geprüft, zu prüfen (die Klassifizierung hat sich seit der letzten Prüfung geändert oder wurde nie geprüft) und zu vervollständigen (ein Klassifizierungsfeld ist noch leer). Jeder Zähler öffnet die auf diesen Zustand gefilterte Anwendungsliste.
+- **Handlungspunkte** — Anwendungen der kritischsten Geschäftsstufe ohne Wiederherstellungstest in den letzten zwölf Monaten, Anwendungen der kritischsten Stufe ohne Wiederherstellungswelle sowie Anwendungen mit den vertraulichsten Daten und der niedrigsten Cyber-Kritikalität. Es werden nur Punkte mit mindestens einer Anwendung aufgeführt; jeder öffnet die passende gefilterte Liste. Wenn nichts zu tun ist, sagt die Kachel das.
+
+Die Stufen sind die in den Einstellungen der IT-Landschaft definierten; eine nicht mehr angebotene Stufe zählt nie als höchste oder niedrigste.
+
+**Erfordert**: `applications:reader`
+
+---
+
 ### Team-Aktivität
 
 Zeigt aktuelle Projektaktivität in Projekten an, in denen Sie beteiligt sind (Änderungen, Kommentare, Entscheidungen). Jede Zeile zeigt das Projekt, den Aktivitätstyp, den Autor und eine kurze Zusammenfassung. Klicken Sie auf ein Element, um zum Aktivitäts-Reiter des Projekts zu springen.

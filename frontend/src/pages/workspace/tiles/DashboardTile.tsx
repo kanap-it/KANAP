@@ -22,6 +22,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 
 const ICON_MAP: Record<string, typeof TaskIcon> = {
   Task: TaskIcon,
@@ -39,6 +40,7 @@ const ICON_MAP: Record<string, typeof TaskIcon> = {
   EventAvailable: EventAvailableIcon,
   ReportProblemOutlined: ReportProblemOutlinedIcon,
   TrendingUp: TrendingUpIcon,
+  VerifiedUser: VerifiedUserIcon,
 };
 
 interface DashboardTileProps {

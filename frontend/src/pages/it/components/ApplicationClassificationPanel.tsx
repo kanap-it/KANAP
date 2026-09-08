@@ -1,4 +1,6 @@
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import { Link as RouterLink } from 'react-router-dom';
+import { Link } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { classificationText } from '../../../utils/applicationClassification';
 import React from 'react';
@@ -27,6 +29,17 @@ export type ApplicationClassification = {
   last_dr_test: string | null;
 };
 
+export type RecoveryDependency = {
+  interface_id: string;
+  interface_reference: string | null;
+  interface_name: string;
+  direction: 'source' | 'target';
+  application_id: string;
+  application_ref: string | null;
+  application_name: string;
+  recovery_wave: string;
+};
+
 type Props = {
   app: ApplicationClassification;
   canManage: boolean;
@@ -34,9 +47,23 @@ type Props = {
   onReview: () => Promise<void>;
   children?: React.ReactNode;
   recoveryLinks?: React.ReactNode;
+  /** Interfaces to applications restored in a later wave; shown under the wave, never blocking. */
+  recoveryDependencies?: RecoveryDependency[];
   error?: string | null;
   saving?: boolean;
 };
+
+const hintSx = (theme: any) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary });
+/** Highest / lowest rank among the levels still offered; retired levels do not define the extremes. */
+const activeRanks = (levels: Array<{ rank: number; deprecated?: boolean }> | undefined) => (levels || []).filter((level) => !level.deprecated).map((level) => level.rank);
+/** True when `date` (YYYY-MM-DD) is on or before the same calendar day one year ago, or absent. Local calendar dates, no time of day. */
+export function recoveryTestOverdue(date: string | null | undefined, today = new Date()): boolean {
+  if (!date) return true;
+  const limit = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+  const [year, month, day] = date.slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day) return true;
+  return new Date(year, month - 1, day).getTime() <= limit.getTime();
+}
 
 type Option = { code: string; label: string; description?: string; deprecated?: boolean };
 
@@ -57,7 +84,7 @@ function LevelSelect({ value, options, placeholder, ariaLabel, disabled, onChang
   </Select>;
 }
 
-export default function ApplicationClassificationPanel({ app, canManage, onPatch, onReview, children, recoveryLinks, error, saving }: Props) {
+export default function ApplicationClassificationPanel({ app, canManage, onPatch, onReview, children, recoveryLinks, recoveryDependencies, error, saving }: Props) {
   const { t, i18n } = useTranslation('it');
   const { data: catalog } = useApplicationClassificationCatalog();
   const [durationDraftsBlocking, setDurationDraftsBlocking] = React.useState({ rto: false, rpo: false });
@@ -78,6 +105,19 @@ export default function ApplicationClassificationPanel({ app, canManage, onPatch
   const hasReview = !!app.classification_reviewed_at;
   const changedSinceReview = hasReview && (app.classification_review_reason === 'data_changed' || !complete);
   const rtoExceedsDowntime = app.rto_minutes != null && typeof level?.maxMtdMinutes === 'number' && app.rto_minutes >= level.maxMtdMinutes;
+  // Light coherence hints: computed from the application and the active catalog ranks, never blocking.
+  const rankOf = (levels: Array<{ code: string; rank: number }> | undefined, code: string | null) => levels?.find((item) => item.code === code)?.rank;
+  const dataRanks = activeRanks(catalog?.dataClasses);
+  const cyberRanks = activeRanks(catalog?.cyberCriticalityLevels);
+  const businessRanks = activeRanks(catalog?.businessCriticalityLevels);
+  const restrictedDataLowCyber = dataRanks.length > 0 && cyberRanks.length > 0
+    && rankOf(catalog?.dataClasses, app.data_class) === Math.max(...dataRanks)
+    && rankOf(catalog?.cyberCriticalityLevels, app.cyber_criticality) === Math.min(...cyberRanks);
+  const criticalWithoutRecentTest = businessRanks.length > 0
+    && rankOf(catalog?.businessCriticalityLevels, app.criticality) === Math.max(...businessRanks)
+    && recoveryTestOverdue(app.last_dr_test);
+  const waveLabel = (code: string) => catalog?.recoveryWaves.find((item) => item.code === code)?.label || code;
+  const dependencies = app.recovery_wave ? recoveryDependencies || [] : [];
 
   return (
     <Stack spacing={3}>
@@ -90,6 +130,7 @@ export default function ApplicationClassificationPanel({ app, canManage, onPatch
           </PropertyRow>
           <PropertyRow label={<HelpLabel text="Cyber criticality" help="Cyber help" />} sx={rowSx} valueSx={valueSx}>
             <LevelSelect value={app.cyber_criticality} ariaLabel={classificationText('Cyber criticality')} options={catalog?.cyberCriticalityLevels || []} placeholder={classificationText('Choose cyber criticality')} disabled={!canManage} onChange={(value) => patch({ cyber_criticality: value })} />
+            {restrictedDataLowCyber && <Typography sx={hintSx}>{classificationText('Data at the highest confidentiality level with the lowest cyber criticality: check the cyber assessment.')}</Typography>}
           </PropertyRow>
         </Stack>
       </Box>
@@ -108,11 +149,20 @@ export default function ApplicationClassificationPanel({ app, canManage, onPatch
         <Stack spacing={1.25}>
           <PropertyRow label={<HelpLabel text="Recovery wave" help="Recovery help" />} sx={rowSx} valueSx={valueSx}>
             <LevelSelect value={app.recovery_wave} ariaLabel={classificationText('Recovery wave')} options={catalog?.recoveryWaves || []} placeholder={classificationText('Choose a recovery wave')} disabled={!canManage} onChange={(value) => patch({ recovery_wave: value })} />
+            {dependencies.map((dependency) => (
+              <Typography key={dependency.interface_id} sx={hintSx}>
+                {t('classification.recovery_dependency', { app: dependency.application_name, wave: waveLabel(dependency.recovery_wave) })}
+                {' '}<Link component={RouterLink} to={`/it/interfaces/${dependency.interface_reference || dependency.interface_id}/overview`} sx={{ fontSize: 12 }}>{dependency.interface_reference || dependency.interface_name}</Link>
+              </Typography>
+            ))}
           </PropertyRow>
           <PropertyRow label={<HelpLabel text="Recovery time objective (RTO)" help="RTO help" />} sx={rowSx} valueSx={valueSx}><DurationEditor value={app.rto_minutes} onCommit={(value) => onPatch({ rto_minutes: value })} onDraftStateChange={(blocking) => setDurationDraftBlocking('rto', blocking)} disabled={!canManage} placeholder={classificationText('Choose a duration')} ariaLabel={classificationText('Recovery time objective')} /></PropertyRow>
           {rtoExceedsDowntime && <Alert severity="warning" sx={{ maxWidth: 700 }}>{t('classification.rto_exceeds_level_downtime', { level: level?.label, duration: formatDuration(level!.maxMtdMinutes as number) })}</Alert>}
           <PropertyRow label={<HelpLabel text="Recovery point objective (RPO)" help="RPO help" />} sx={rowSx} valueSx={valueSx}><DurationEditor value={app.rpo_minutes} onCommit={(value) => onPatch({ rpo_minutes: value })} onDraftStateChange={(blocking) => setDurationDraftBlocking('rpo', blocking)} allowZero disabled={!canManage} placeholder={classificationText('Choose a duration')} ariaLabel={classificationText('Recovery point objective')} /></PropertyRow>
-          <PropertyRow label={classificationText('Last recovery test')} sx={rowSx} valueSx={valueSx}><DateEUField label="" valueYmd={app.last_dr_test || ''} onChangeYmd={(value) => patch({ last_dr_test: value || null })} disabled={!canManage} hideLabel textFieldSx={drawerFieldValueSx} /></PropertyRow>
+          <PropertyRow label={classificationText('Last recovery test')} sx={rowSx} valueSx={valueSx}>
+            <DateEUField label="" valueYmd={app.last_dr_test || ''} onChangeYmd={(value) => patch({ last_dr_test: value || null })} disabled={!canManage} hideLabel textFieldSx={drawerFieldValueSx} />
+            {criticalWithoutRecentTest && <Typography sx={hintSx}>{classificationText('No recovery test in the last twelve months for an application at the most critical level.')}</Typography>}
+          </PropertyRow>
           {recoveryLinks}
         </Stack>
       </Box>

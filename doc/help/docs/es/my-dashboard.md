@@ -141,6 +141,19 @@ Las bibliotecas restringidas respetan sus reglas de acceso: solo ve elementos de
 
 ---
 
+### Conformidad
+
+Muestra en qué punto está la campaña de clasificación para las aplicaciones que puede ver (aplicaciones retiradas excluidas):
+
+- **Progreso** — una barra y tres contadores: revisadas, por revisar (la clasificación cambió desde la última revisión o nunca se revisó) y por completar (un campo de clasificación sigue vacío). Cada contador abre la lista de aplicaciones filtrada por ese estado.
+- **Puntos de atención** — aplicaciones del nivel de criticidad de negocio más alto sin prueba de recuperación en los últimos doce meses, aplicaciones del nivel más crítico sin ola de recuperación y aplicaciones con los datos más confidenciales y la criticidad cibernética más baja. Solo se listan los puntos con al menos una aplicación; cada uno abre la lista filtrada correspondiente. Cuando nada requiere acción, el mosaico lo indica.
+
+Los niveles son los definidos en la configuración del mapa de TI; un nivel que ya no se ofrece nunca cuenta como el más alto ni el más bajo.
+
+**Requiere**: `applications:reader`
+
+---
+
 ### Actividad del equipo
 
 Muestra la actividad reciente de proyectos en los proyectos donde está involucrado (cambios, comentarios, decisiones). Cada fila indica el proyecto, el tipo de actividad, el autor y un breve resumen. Haga clic en un elemento para saltar a la pestaña de actividad del proyecto.

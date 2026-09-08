@@ -92,6 +92,16 @@ type AppRow = {
   instances?: AppInstanceSummary[];
 };
 
+/** Orders set-filter values like the catalog: most severe first (waves in restoration order); unknown codes and blanks last. */
+export function catalogRankComparator(levels: Array<{ code: string; rank?: number; order?: number }> | undefined, kind: 'rank' | 'order' = 'rank') {
+  const position = new Map((levels || []).map((level) => [level.code, kind === 'order' ? Number(level.order) : -Number(level.rank)]));
+  return (a: { value: string | null }, b: { value: string | null }) => {
+    const left = a.value == null ? Number.POSITIVE_INFINITY : position.get(String(a.value)) ?? Number.MAX_SAFE_INTEGER;
+    const right = b.value == null ? Number.POSITIVE_INFINITY : position.get(String(b.value)) ?? Number.MAX_SAFE_INTEGER;
+    return left === right ? String(a.value ?? '').localeCompare(String(b.value ?? '')) : left - right;
+  };
+}
+
 export default function ApplicationsPage() {
   const { t } = useTranslation(['it', 'common']);
   const theme = useTheme();
@@ -637,13 +647,14 @@ export default function ApplicationsPage() {
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
         getValues: getAppFilterValues('criticality', { labelFormatter: criticalityLabel }),
+        sortComparator: catalogRankComparator(classificationCatalog?.businessCriticalityLevels),
         searchable: false,
       },
       valueFormatter: (p: any) => criticalityLabel(p.value),
       cellRenderer: ClickToCompliance,
     },
-    { headerName: classificationText("Cyber criticality"), field: 'cyber_criticality', filter: CheckboxSetFilter, floatingFilterComponent: CheckboxSetFloatingFilter, filterParams: { getValues: getAppFilterValues('cyber_criticality', { labelFormatter: (v: any) => catalogLabel('cyber', v) }) }, width: 160, defaultHidden: true, valueFormatter: (p: any) => catalogLabel('cyber', p.value), cellRenderer: ClickToCompliance },
-    { headerName: classificationText("Recovery wave"), field: 'recovery_wave', filter: CheckboxSetFilter, floatingFilterComponent: CheckboxSetFloatingFilter, filterParams: { getValues: getAppFilterValues('recovery_wave', { labelFormatter: (v: any) => catalogLabel('wave', v) }) }, width: 160, defaultHidden: true, valueFormatter: (p: any) => catalogLabel('wave', p.value), cellRenderer: ClickToCompliance },
+    { headerName: classificationText("Cyber criticality"), field: 'cyber_criticality', filter: CheckboxSetFilter, floatingFilterComponent: CheckboxSetFloatingFilter, filterParams: { getValues: getAppFilterValues('cyber_criticality', { labelFormatter: (v: any) => catalogLabel('cyber', v) }), sortComparator: catalogRankComparator(classificationCatalog?.cyberCriticalityLevels) }, width: 160, defaultHidden: true, valueFormatter: (p: any) => catalogLabel('cyber', p.value), cellRenderer: ClickToCompliance },
+    { headerName: classificationText("Recovery wave"), field: 'recovery_wave', filter: CheckboxSetFilter, floatingFilterComponent: CheckboxSetFloatingFilter, filterParams: { getValues: getAppFilterValues('recovery_wave', { labelFormatter: (v: any) => catalogLabel('wave', v) }), sortComparator: catalogRankComparator(classificationCatalog?.recoveryWaves, 'order') }, width: 160, defaultHidden: true, valueFormatter: (p: any) => catalogLabel('wave', p.value), cellRenderer: ClickToCompliance },
     { headerName: 'RTO', field: 'rto_minutes', width: 110, defaultHidden: true, filter: 'agNumberColumnFilter', valueFormatter: (p: any) => formatDuration(p.value, ''), cellRenderer: ClickToCompliance },
     { headerName: 'RPO', field: 'rpo_minutes', width: 110, defaultHidden: true, filter: 'agNumberColumnFilter', valueFormatter: (p: any) => formatDuration(p.value, ''), cellRenderer: ClickToCompliance },
     { headerName: classificationText("Classification review"), field: 'classification_review_state', filter: CheckboxSetFilter, floatingFilterComponent: CheckboxSetFloatingFilter, filterParams: { getValues: getAppFilterValues('classification_review_state', { labelFormatter: (value: string) => ({ incomplete: classificationText('To complete'), stale: classificationText('Review needed'), reviewed: classificationText('Reviewed') }[value] || value) }) }, width: 170, defaultHidden: true, valueFormatter: (p: any) => ({ incomplete: classificationText("To complete"), stale: classificationText("Review needed"), reviewed: classificationText("Reviewed") }[String(p.value)] || classificationText("To complete")), cellRenderer: ClickToCompliance },
@@ -735,6 +746,7 @@ export default function ApplicationsPage() {
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
         getValues: getAppFilterValues('data_class', { labelFormatter: dataClassLabel, emptyLabel: '(Blank)' }),
+        sortComparator: catalogRankComparator(classificationCatalog?.dataClasses),
         searchable: false,
       },
       valueFormatter: (p: any) => dataClassLabel(p.value),
@@ -770,6 +782,7 @@ export default function ApplicationsPage() {
     SuitesSummaryCell,
     categoryLabel,
     catalogLabel,
+    classificationCatalog,
     criticalityLabel,
     dataClassLabel,
     environmentLabel,

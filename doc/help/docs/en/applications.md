@@ -105,8 +105,11 @@ The Applications grid provides a comprehensive view of your application portfoli
 - **Data Class** / **Contains PII** / **Data Residency**: Compliance information
 - **Cyber criticality**, **Recovery wave**, **RTO**, **RPO**, **Review state/date**: Classification and continuity fields
 
+**Classification progress**: the Compliance tile on your dashboard shows how many applications you can see are reviewed, need a review, or still have classification fields to complete, plus the points that call for action. Each figure opens the applications list filtered accordingly. See [My dashboard](my-dashboard.md#compliance).
+
 **Filtering**:
 - Quick search: matches name and editor/publisher
+- Criticality, cyber criticality, data class and recovery wave filters list their values in catalog order (most critical first, waves in restoration order).
 - Most columns use checkbox set filters showing only values present in the current result set; the floating filter shows `All`, `None`, or `N selected` with an **x** to clear.
 - Retired applications are hidden by default; use the **Lifecycle** filter to include Retired.
 
@@ -261,7 +264,10 @@ The tab is organized in four blocks, in the order of a business impact analysis.
 **Continuity and recovery**:
 - **Recovery wave** identifies the order in which the application is restored. It does not imply a duration or severity.
 - **RTO** is the target time to restore service. **RPO** is the acceptable data-loss duration and may be zero. If the RTO reaches the maximum tolerable downtime defined on the chosen business level, KANAP shows a warning but keeps both values.
+- Under the wave, KANAP lists the interfaces that link this application to an application planned in a **later** wave ("Exchanges with CRM, planned in V3"), with a link to each interface. Both applications must be up for the flow to work; the recovery plan owner decides. Retired interfaces are ignored, and users with a restricted Business Contributor scope do not see this list.
 - **Last recovery test** records the most recent test date. A link opened from this area uses the single existing **Knowledge** section in Overview; it does not create a duplicate record. Older URL links remain available under Relations.
+
+Two discreet hints may appear: data at the highest confidentiality level combined with the lowest cyber criticality, and an application at the most critical business level without a recovery test in the last twelve months. They never block anything.
 
 **Review**:
 - **Justification** records the reasoning behind the levels and what the recovery plan relies on.

@@ -109,6 +109,17 @@ export class ApplicationsController {
     return this.svc.listIds(query, await this.readApplicationOpts(ctx));
   }
 
+  /** Campaign counters (reviewed / to review / to complete) for the same filters and scope as the list. */
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get('classification-summary')
+  async classificationSummary(
+    @Query() query: any,
+    @Tenant() ctx: TenantRequest,
+  ) {
+    return this.svc.classificationSummary(query, await this.readApplicationOpts(ctx));
+  }
+
   @UseGuards(PermissionGuard)
   @RequireLevel('applications', 'reader')
   @Get('filter-values')
@@ -221,6 +232,16 @@ export class ApplicationsController {
   @Post(':id/classification-review')
   reviewClassification(@Param('id') id: string, @Body() body: { expected_revision: number }, @Tenant() ctx: TenantRequest) {
     return this.svc.reviewClassification(id, body?.expected_revision, ctx.userId || null, { manager: ctx.manager });
+  }
+
+  /** Interfaces to applications restored in a later wave. Same restriction as interface routes: no Business Contributor scope. */
+  @UseGuards(PermissionGuard)
+  @RequireLevel('applications', 'reader')
+  @Get(':id/recovery-dependencies')
+  async recoveryDependencies(@Param('id') id: string, @Tenant() ctx: TenantRequest) {
+    const opts = await this.readApplicationOpts(ctx);
+    if (opts.accessScope) throw new ForbiddenException('Business Contributor cannot access interfaces');
+    return this.svc.listRecoveryDependencies(id, opts);
   }
 
   @UseGuards(PermissionGuard)

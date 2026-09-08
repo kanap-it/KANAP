@@ -86,6 +86,38 @@ async function main() {
     const distinct=await list.listFilterValues({include_inactive:true,fields:'cyber_criticality,classification_review_state'},{manager,tenantId:tenantA}); assert.ok(distinct.cyber_criticality.includes(null)); assert.ok(distinct.cyber_criticality.includes('critical'));
     const expression=classificationSqlExpressions('a');
     const grouped=await manager.query(`SELECT ${expression.classification_review_state} AS state,count(*)::int AS count FROM applications a WHERE a.tenant_id=$1 GROUP BY 1`,[tenantA]); assert.equal(grouped.reduce((n:any,r:any)=>n+r.count,0),2);
+    // Recovery dependencies: interfaces to applications restored in a later wave, not retired ones, tenant-scoped.
+    const later=await crud.create({name:'Later wave app',recovery_wave:'normal'},userId,{manager});
+    const same=await crud.create({name:'Same wave app',recovery_wave:'vital'},userId,{manager});
+    await manager.query(`INSERT INTO interfaces(tenant_id,name,business_purpose,source_application_id,target_application_id,data_category,integration_route_type,interface_reference,lifecycle) VALUES
+      ($1,'To later','p',$2,$3,'transactional','point_to_point','INT-901','active'),
+      ($1,'Retired to later','p',$3,$2,'transactional','point_to_point','INT-902','retired'),
+      ($1,'To same wave','p',$2,$4,'transactional','point_to_point','INT-903','active')`,[tenantA,app.id,later.id,same.id]);
+    const deps=await list.listRecoveryDependencies(app.id,{manager,tenantId:tenantA});
+    assert.deepEqual(deps.items.map((d:any)=>[d.interface_reference,d.direction,d.application_id,d.recovery_wave]),[['INT-901','source',later.id,'normal']],'only the active interface to a later wave');
+    assert.equal((await list.listRecoveryDependencies(later.id,{manager,tenantId:tenantA})).items.length,0,'the later application has no earlier dependency to show');
+    // Campaign summary: same filters and scope as the list, four integers, zero on an empty selection.
+    const summary=await list.classificationSummary({include_inactive:true},{manager,tenantId:tenantA});
+    const listed=await list.list({include_inactive:true},{manager,tenantId:tenantA});
+    assert.equal(summary.total,listed.total); assert.equal(summary.reviewed+summary.stale+summary.incomplete,summary.total); assert.equal(summary.stale,1);
+    // Attention points against the active catalog extremes (the business levels were reordered above: High is now the top level).
+    assert.deepEqual(summary.levels,{critical:['high'],restricted_data:['restricted'],low_cyber:['low']});
+    const attentionBefore=summary.attention;
+    const risky=await crud.create({name:'Risky app',criticality:'high',data_class:'restricted',cyber_criticality:'low'},userId,{manager});
+    const after=(await list.classificationSummary({include_inactive:true},{manager,tenantId:tenantA})).attention;
+    assert.deepEqual([after.critical_without_recent_test-attentionBefore.critical_without_recent_test,after.critical_without_wave-attentionBefore.critical_without_wave,after.restricted_data_low_cyber-attentionBefore.restricted_data_low_cyber],[1,1,1]);
+    await crud.update(risky.id,{recovery_wave:'vital',last_dr_test:'2026-08-01' as any,cyber_criticality:'high'},userId,{manager});
+    const settled=(await list.classificationSummary({include_inactive:true},{manager,tenantId:tenantA})).attention;
+    assert.deepEqual(settled,attentionBefore,'a recent test, a wave and a higher cyber level clear the three points');
+    await manager.query(`INSERT INTO application_data_residency(tenant_id,application_id,country_iso) VALUES ($1,$2,'BE')`,[tenantA,later.id]);
+    const residencyFilter=JSON.stringify({data_residency:{filterType:'text',type:'contains',filter:'BE'}});
+    assert.equal((await list.classificationSummary({include_inactive:true,filters:residencyFilter},{manager,tenantId:tenantA})).total,(await list.list({include_inactive:true,filters:residencyFilter},{manager,tenantId:tenantA})).total,'residency filter parity');
+    assert.equal((await list.listIds({include_inactive:true,filters:residencyFilter},{manager,tenantId:tenantA})).total,1,'ids export honours the same filters as the grid');
+    const supplierId=randomUUID(); await manager.query(`INSERT INTO suppliers(id,tenant_id,name) VALUES ($1,$2,'Acme supplier')`,[supplierId,tenantA]);
+    await crud.update(same.id,{supplier_id:supplierId},userId,{manager});
+    const supplierFilter=JSON.stringify({supplier_name:{filterType:'text',type:'contains',filter:'Acme'}});
+    assert.equal((await list.classificationSummary({include_inactive:true,filters:supplierFilter},{manager,tenantId:tenantA})).total,(await list.list({include_inactive:true,filters:supplierFilter},{manager,tenantId:tenantA})).total,'supplier filter parity');
+    const empty=await list.classificationSummary({filters:JSON.stringify({name:{filterType:'text',type:'equals',filter:'nobody'}})},{manager,tenantId:tenantA}); assert.deepEqual([empty.total,empty.reviewed,empty.stale,empty.incomplete,empty.attention],[0,0,0,0,{critical_without_recent_test:0,critical_without_wave:0,restricted_data_low_cyber:0}]);
     const copied=await crud.copyApplication(app.id,'Copy',userId,{manager}); assert.equal(copied.criticality,'high'); assert.equal(copied.classification_review,null); assert.equal(copied.last_dr_test,null);
     const context:any={manager,tenantId:tenantA,params:{dryRun:true,mode:'replace',operation:'upsert'},itOpsSettings:await settings.getSettings(tenantA,{manager})};
     const csvRows:any[]=[{rowNumber:2,raw:{criticality:'__CLEAR__',cyber_criticality:''},parsed:{},existingEntity:updated,errors:[]}];
@@ -112,6 +144,7 @@ async function main() {
     const importedAudit=await manager.query("SELECT source FROM audit_log WHERE record_id=$1 AND table_name='applications'",[imported.id]); assert.ok(importedAudit.length);
     await manager.query(`SELECT set_config('app.current_tenant',$1,true)`,[tenantB]);
     await assert.rejects(()=>crud.get(app.id,{manager}),/not found/i);
+    await assert.rejects(()=>list.listRecoveryDependencies(app.id,{manager,tenantId:tenantB}),/not found/i);
     assert.equal((await list.list({include_inactive:true},{manager,tenantId:tenantB})).total,0);
     console.log('PASS: isolated PostgreSQL CRUD/review/settings-stability/usage-guard/list/rank/null/distinct/aggregate/copy/CSV residency no-op/change/tenant tests');
   } finally { await runner.rollbackTransaction(); await runner.release(); await dataSource.destroy(); }

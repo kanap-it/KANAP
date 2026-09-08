@@ -105,8 +105,11 @@ La grille Applications offre une vue complète de votre portefeuille applicatif.
 - **Classification données** / **Contient des PII** / **Résidence des données** : Informations de conformité
 - **Criticité cyber**, **Vague de reprise**, **RTO**, **RPO**, **État/date de revue** : Champs de classification et de continuité
 
+**Avancement de la classification** : la tuile Conformité de votre tableau de bord indique combien d'applications visibles sont revues, à revoir ou ont encore des champs de classification à compléter, ainsi que les points qui appellent une action. Chaque chiffre ouvre la liste des applications filtrée en conséquence. Voir [Mon tableau de bord](my-dashboard.md).
+
 **Filtrage** :
 - Recherche rapide : correspond au nom et à l'éditeur
+- Les filtres de criticité, de criticité cyber, de classe de données et de vague de reprise listent leurs valeurs dans l'ordre du catalogue (la plus critique en premier, les vagues dans l'ordre de restauration).
 - La plupart des colonnes utilisent des filtres par jeu de cases à cocher affichant uniquement les valeurs présentes dans le jeu de résultats actuel ; le filtre flottant affiche `Tous`, `Aucun` ou `N sélectionnés` avec un **x** pour effacer.
 - Les applications retirées sont masquées par défaut ; utilisez le filtre **Cycle de vie** pour inclure les applications retirées.
 
@@ -263,7 +266,10 @@ L'onglet est organisé en quatre blocs, dans l'ordre d'une analyse d'impact mét
 **Continuité et reprise** :
 - La **Vague de reprise** indique l'ordre de restauration et ne représente ni une durée ni une gravité.
 - Le **RTO** est l'objectif de délai de reprise. Le **RPO** est la perte de données acceptable et peut être égal à zéro. Si le RTO atteint la durée maximale tolérable d'interruption définie sur le niveau de criticité business choisi, KANAP affiche un avertissement mais conserve les deux valeurs.
+- Sous la vague, KANAP liste les interfaces qui relient cette application à une application prévue dans une vague **ultérieure** (« Échange avec CRM, prévue en V3 »), avec un lien vers chaque interface. Les deux applications doivent être opérationnelles pour que le flux fonctionne ; le responsable du plan de reprise décide. Les interfaces retirées sont ignorées, et les utilisateurs disposant d'un périmètre restreint de Contributeur métier ne voient pas cette liste.
 - Le **Dernier test de reprise** contient la date du test le plus récent. Un lien ouvert depuis cette zone utilise l'unique section **Base de connaissances** de la Vue d'ensemble et ne crée pas de doublon. Les anciennes URL restent accessibles dans Relations.
+
+Deux indications discrètes peuvent apparaître : des données au niveau de confidentialité le plus élevé combinées à la criticité cyber la plus faible, et une application au niveau business le plus critique sans test de reprise depuis douze mois. Elles ne bloquent jamais rien.
 
 **Revue** :
 - La **Justification** décrit le raisonnement derrière les niveaux choisis et ce sur quoi repose le plan de reprise.

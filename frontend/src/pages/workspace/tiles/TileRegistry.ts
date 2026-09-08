@@ -34,6 +34,7 @@ const LazyTeamActivityTile = () => import('./TeamActivityTile').then((m) => m.de
 const LazyGlobalStatusChangesTile = () => import('./GlobalStatusChangesTile').then((m) => m.default);
 const LazyStaleTasksTile = () => import('./StaleTasksTile').then((m) => m.default);
 const LazyKnowledgeOverviewTile = () => import('./KnowledgeOverviewTile').then((m) => m.default);
+const LazyApplicationComplianceTile = () => import('./ApplicationComplianceTile').then((m) => m.default);
 
 // We'll use a placeholder component initially, then replace with lazy-loaded ones
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,6 +111,14 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
     configSchema: {},
     requiredPermissions: [{ resource: 'knowledge', level: 'reader' }],
   },
+  'application-compliance': {
+    component: Placeholder,
+    title: 'Compliance',
+    icon: 'VerifiedUser',
+    defaultConfig: {},
+    configSchema: {},
+    requiredPermissions: [{ resource: 'applications', level: 'reader' }],
+  },
   // Phase 2 tiles
   'team-activity': {
     component: Placeholder,
@@ -153,6 +162,7 @@ export const TILE_LOADERS = {
   'my-time-last-week': LazyMyTimeLastWeekTile,
   'new-requests': LazyNewRequestsTile,
   'knowledge-overview': LazyKnowledgeOverviewTile,
+  'application-compliance': LazyApplicationComplianceTile,
   'team-activity': LazyTeamActivityTile,
   'global-status-changes': LazyGlobalStatusChangesTile,
   'stale-tasks': LazyStaleTasksTile,

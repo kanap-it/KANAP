@@ -249,7 +249,22 @@
       "createdTask": "{{author}} hat eine Projektaufgabe erstellt",
       "updatedProgress": "{{author}} hat den Ausführungsaufwand aktualisiert",
       "updatedPhase": "{{author}} hat die Projektphase aktualisiert",
-      "updatedProject": "{{author}} hat das Projekt aktualisiert"
+      "updatedProject": "{{author}} hat das Projekt aktualisiert",
+      "compliance": "Compliance",
+      "complianceProgress": "{{reviewed}} von {{total}} Anwendungen geprüft",
+      "complianceReviewed": "Geprüft",
+      "complianceStale": "Zu prüfen",
+      "complianceIncomplete": "Zu vervollständigen",
+      "complianceAttention": "Handlungspunkte",
+      "complianceNoAttention": "Kein Handlungspunkt bei den Anwendungen, die Sie sehen.",
+      "complianceEmpty": "Noch keine Anwendung zu klassifizieren",
+      "browseApplications": "Anwendungen anzeigen",
+      "complianceCriticalWithoutTest_one": "{{count}} Anwendung der kritischsten Stufe ohne Wiederherstellungstest in den letzten zwölf Monaten",
+      "complianceCriticalWithoutTest_other": "{{count}} Anwendungen der kritischsten Stufe ohne Wiederherstellungstest in den letzten zwölf Monaten",
+      "complianceCriticalWithoutWave_one": "{{count}} Anwendung der kritischsten Stufe ohne Wiederherstellungswelle",
+      "complianceCriticalWithoutWave_other": "{{count}} Anwendungen der kritischsten Stufe ohne Wiederherstellungswelle",
+      "complianceRestrictedLowCyber_one": "{{count}} Anwendung mit den vertraulichsten Daten und der niedrigsten Cyber-Kritikalität",
+      "complianceRestrictedLowCyber_other": "{{count}} Anwendungen mit den vertraulichsten Daten und der niedrigsten Cyber-Kritikalität"
     }
   },
   "csv": {

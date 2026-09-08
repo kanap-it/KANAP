@@ -2,11 +2,12 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material/styles';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { createAppTheme } from '../../../config/ThemeContext';
 import ApplicationClassificationPanel, { type ApplicationClassification } from './ApplicationClassificationPanel';
 import ApplicationCriticalityMetadata from './ApplicationCriticalityMetadata';
 
-const catalog = {
+const catalog: { businessCriticalityLevels: any[]; cyberCriticalityLevels: any[]; dataClasses: any[]; recoveryWaves: any[] } = {
   businessCriticalityLevels: [
     { code: 'critical', label: 'Critical', description: 'At most four hours', rank: 4, maxMtdMinutes: 240 },
     { code: 'high', label: 'High', description: 'Up to one day', rank: 3, maxMtdMinutes: 1440 },
@@ -51,15 +52,17 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof ApplicationC
   const onPatch = overrides.onPatch ?? vi.fn().mockResolvedValue(undefined);
   const onReview = overrides.onReview ?? vi.fn().mockResolvedValue(undefined);
   const { unmount } = render(
-    <ThemeProvider theme={theme}>
-      <ApplicationClassificationPanel
-        app={completeApp}
-        canManage
-        onPatch={onPatch}
-        onReview={onReview}
-        {...overrides}
-      />
-    </ThemeProvider>,
+    <MemoryRouter>
+      <ThemeProvider theme={theme}>
+        <ApplicationClassificationPanel
+          app={completeApp}
+          canManage
+          onPatch={onPatch}
+          onReview={onReview}
+          {...overrides}
+        />
+      </ThemeProvider>
+    </MemoryRouter>,
   );
   return { onPatch, onReview, unmount };
 }
@@ -160,6 +163,40 @@ describe('Application classification workspace surfaces', () => {
     expect(screen.getByText(/Before review, complete: Cyber criticality/)).toBeInTheDocument();
     expect(screen.getByText(/Reviewed on/)).toBeInTheDocument();
     expect(screen.getByText('Changed since review')).toBeInTheDocument();
+  });
+
+  it('raises the light coherence hints from the active catalog ranks and a twelve-month test threshold', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 7));
+    try {
+      // Catalog out of order, with a retired level above the active maximum: retired levels do not define the extremes.
+      catalog.dataClasses.splice(0, catalog.dataClasses.length, { code: 'internal', label: 'Internal', description: '', rank: 2 }, { code: 'secret', label: 'Secret', description: '', rank: 9, deprecated: true }, { code: 'restricted', label: 'Restricted', description: '', rank: 4 });
+      catalog.cyberCriticalityLevels.splice(0, catalog.cyberCriticalityLevels.length, { code: 'moderate', label: 'Moderate', description: '', rank: 2 }, { code: 'low', label: 'Low', description: '', rank: 1 }, { code: 'critical', label: 'Critical', description: 'Catastrophic consequences', rank: 4 });
+      const { unmount } = renderPanel({ app: { ...completeApp, data_class: 'restricted', cyber_criticality: 'low', criticality: 'critical', last_dr_test: '2025-09-07' } });
+      expect(screen.getByText(/highest confidentiality level with the lowest cyber criticality/)).toBeInTheDocument();
+      expect(screen.getByText(/No recovery test in the last twelve months/)).toBeInTheDocument();
+      unmount();
+      const recent = renderPanel({ app: { ...completeApp, data_class: 'restricted', cyber_criticality: 'moderate', criticality: 'critical', last_dr_test: '2025-09-08' } });
+      expect(screen.queryByText(/lowest cyber criticality/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/No recovery test/)).not.toBeInTheDocument();
+      recent.unmount();
+      renderPanel({ app: { ...completeApp, criticality: 'high', last_dr_test: null } });
+      expect(screen.queryByText(/No recovery test/)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      catalog.dataClasses.splice(0, catalog.dataClasses.length, { code: 'restricted', label: 'Restricted', description: 'Strictly limited disclosure', rank: 4 });
+      catalog.cyberCriticalityLevels.splice(0, catalog.cyberCriticalityLevels.length, { code: 'critical', label: 'Critical', description: 'Catastrophic consequences', rank: 4 });
+    }
+  });
+
+  it('lists interfaces to applications restored later under the wave, and nothing without a wave', () => {
+    const dependencies = [{ interface_id: 'i1', interface_reference: 'INT-8', interface_name: 'Orders feed', direction: 'source' as const, application_id: 'a2', application_ref: 'APP-2', application_name: 'CRM', recovery_wave: 'vital' }];
+    const { unmount } = renderPanel({ recoveryDependencies: dependencies });
+    expect(screen.getByText(/Exchanges with CRM, planned in V1 — Vital activities/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'INT-8' })).toHaveAttribute('href', '/it/interfaces/INT-8/overview');
+    unmount();
+    renderPanel({ app: { ...completeApp, recovery_wave: null }, recoveryDependencies: dependencies });
+    expect(screen.queryByText(/Exchanges with/)).not.toBeInTheDocument();
   });
 
   it('shows save errors as an accessible alert', () => {

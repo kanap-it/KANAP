@@ -55,6 +55,14 @@ export class ApplicationsService {
     return this.listService.listIds(query, opts);
   }
 
+  classificationSummary(query: any, opts?: ServiceOpts) {
+    return this.listService.classificationSummary(query, opts);
+  }
+
+  listRecoveryDependencies(id: string, opts?: ServiceOpts) {
+    return this.listService.listRecoveryDependencies(id, opts);
+  }
+
   listFilterValues(query: any, opts?: ServiceOpts) {
     return this.listService.listFilterValues(query, opts);
   }
