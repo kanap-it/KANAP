@@ -105,7 +105,7 @@ const BUILT_IN_ROLES: Array<{
     name: 'IT Landscape Member',
     description: 'Can manage applications and infrastructure',
     permissions: {
-      applications: 'member', infrastructure: 'member', locations: 'member', settings: 'member',
+      applications: 'member', infrastructure: 'member', locations: 'member', incidents: 'member', settings: 'member',
       tasks: 'member', users: 'reader',
       companies: 'reader', departments: 'reader', suppliers: 'reader', contacts: 'member',
       opex: 'reader', capex: 'reader', contracts: 'reader',
@@ -116,7 +116,7 @@ const BUILT_IN_ROLES: Array<{
     name: 'IT Landscape Reader',
     description: 'Read-only access to IT landscape data',
     permissions: {
-      applications: 'reader', infrastructure: 'reader', locations: 'reader', settings: 'reader',
+      applications: 'reader', infrastructure: 'reader', locations: 'reader', incidents: 'reader', settings: 'reader',
       tasks: 'reader', users: 'reader',
       companies: 'reader', departments: 'reader', suppliers: 'reader', contacts: 'reader'
     }
