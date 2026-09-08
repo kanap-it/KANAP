@@ -26,6 +26,7 @@ import EntityTasksPanel from '../../components/EntityTasksPanel';
 import { readStoredCapexListContext, writeStoredCapexListContext } from './listContextStorage';
 import { fetchCapexRelationsCount } from '../../utils/workspaceTabCounts';
 import useCurrencySettings from '../../hooks/useCurrencySettings';
+import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 
 type TabKey = 'overview' | 'budget' | 'allocations' | 'relations';
 const TAB_KEYS: TabKey[] = ['overview', 'budget', 'allocations', 'relations'];
@@ -415,6 +416,10 @@ export default function CapexItemPage() {
   };
 
   const reference = data?.item_number ? formatItemRef('capex', data.item_number) : null;
+  const { addToRecent } = useRecentlyViewed();
+  React.useEffect(() => {
+    if (!isCreate && data?.id && data?.description) addToRecent('capex_item', data.id, data.description, reference || undefined);
+  }, [addToRecent, data?.id, data?.description, isCreate, reference]);
 
   const tabs = React.useMemo(() => ([
     { key: 'overview', label: t('capex.tabs.overview') },

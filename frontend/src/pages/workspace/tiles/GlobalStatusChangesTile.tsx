@@ -40,7 +40,7 @@ export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesT
   const locale = useLocale();
   const days = Math.max(1, Math.min((config.days as number) || 5, 14));
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard', 'project-status-changes', days],
     queryFn: async () => {
       const res = await api.get<ProjectStatusChangeItem[]>('/dashboard/project-status-changes', {
@@ -58,6 +58,8 @@ export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesT
       title={t('dashboard.tiles.statusChanges', { days })}
       icon="SwapHoriz"
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => { void refetch(); }}
       action={(
         <Button size="small" onClick={() => navigate('/portfolio/projects')}>
           {t('buttons.viewAll')}

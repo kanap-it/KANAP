@@ -32,7 +32,7 @@ import { useLocale } from '../../i18n/useLocale';
 import { formatShortDateTime } from '../../lib/dateFormat';
 import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../utils/inlineImageUrls';
 import { useTenant } from '../../tenant/TenantContext';
-import { useRecentKnowledgeDocuments } from '../workspace/hooks/useRecentKnowledgeDocuments';
+import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import KnowledgeSidebar from './components/KnowledgeSidebar';
 import FolderTreePanel from './components/FolderTreePanel';
 import ValidatedBadge from './components/ValidatedBadge';
@@ -192,7 +192,7 @@ export default function KnowledgeWorkspacePage() {
   const locale = useLocale();
   const { profile, hasLevel } = useAuth();
   const { tenantSlug } = useTenant();
-  const { addDocument } = useRecentKnowledgeDocuments();
+  const { addToRecent } = useRecentlyViewed();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -411,10 +411,10 @@ export default function KnowledgeWorkspacePage() {
     if (isCreate || !doc?.id) return;
     if (trackedRecentDocumentIdRef.current === doc.id) return;
     trackedRecentDocumentIdRef.current = doc.id;
-    const itemNumber = doc?.item_number ? `DOC-${doc.item_number}` : t('shared.document');
+    const itemNumber = doc?.item_number ? `DOC-${doc.item_number}` : undefined;
     const title = String(doc?.title || '').trim();
-    addDocument(doc.id, title ? `${itemNumber} - ${title}` : itemNumber);
-  }, [addDocument, doc?.id, doc?.item_number, doc?.title, isCreate, t]);
+    addToRecent('document', doc.id, title || itemNumber || t('shared.document'), itemNumber);
+  }, [addToRecent, doc?.id, doc?.item_number, doc?.title, isCreate, t]);
 
   const { data: versions } = useQuery({
     queryKey: ['knowledge-versions', id],

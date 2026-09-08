@@ -56,6 +56,7 @@ import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetai
 import { PortfolioMetadataItem, PortfolioStatusMetadata } from '../portfolio/workspace/PortfolioMetadataBar';
 import SendLinkButton from '../../components/workspace/SendLinkButton';
 import { fetchAssetRelationsCount } from '../../utils/workspaceTabCounts';
+import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 type IpAddressEntry = { type: string; ip: string; subnet_cidr: string | null };
 
@@ -282,6 +283,10 @@ export default function AssetWorkspacePage() {
   const [locationAnchorEl, setLocationAnchorEl] = React.useState<HTMLElement | null>(null);
   const [locationOptions, setLocationOptions] = React.useState<LocationOption[]>([]);
   const workspaceRouteId = data?.asset_reference || (isCreate ? 'new' : routeId);
+  const { addToRecent } = useRecentlyViewed();
+  React.useEffect(() => {
+    if (!isCreate && data?.id && data?.name) addToRecent('asset', data.id, data.name, data.asset_reference || undefined);
+  }, [addToRecent, data?.id, data?.name, data?.asset_reference, isCreate]);
   const routeMatchesLoadedAsset = React.useMemo(() => {
     if (isCreate || !data) return false;
     if (routeId === data.id) return true;

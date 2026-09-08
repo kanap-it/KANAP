@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
 import { useTranslation } from 'react-i18next';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { useRelativeTime } from './useRelativeTime';
 import { useLocale } from '../../../i18n/useLocale';
 import { formatShortDate } from '../../../lib/dateFormat';
 
@@ -30,35 +31,24 @@ interface TeamActivityTileProps {
   config: Record<string, unknown>;
 }
 
-function formatTime(dateStr: string, locale: string): string {
-  const value = new Date(dateStr);
-  const diffMs = Date.now() - value.getTime();
-  const minutes = Math.max(1, Math.floor(diffMs / 60000));
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return formatShortDate(value, locale);
-}
-
-function buildSummary(item: TeamActivityItem): string {
-  if (item.type === 'comment') return `${item.authorName} added a comment`;
-  if (item.type === 'decision') return `${item.authorName} recorded a decision`;
-  if (item.changedFields?.status) return `${item.authorName} changed the project status`;
-  if (item.changedFields?.task_created) return `${item.authorName} created a project task`;
-  if (item.changedFields?.execution_progress) return `${item.authorName} updated execution progress`;
-  if (item.changedFields?.phase_id) return `${item.authorName} updated the project phase`;
-  return `${item.authorName} updated the project`;
+function summaryKey(item: TeamActivityItem): string {
+  if (item.type === 'comment') return 'dashboard.tiles.addedComment';
+  if (item.type === 'decision') return 'dashboard.tiles.recordedDecision';
+  if (item.changedFields?.status) return 'dashboard.tiles.changedStatus';
+  if (item.changedFields?.task_created) return 'dashboard.tiles.createdTask';
+  if (item.changedFields?.execution_progress) return 'dashboard.tiles.updatedProgress';
+  if (item.changedFields?.phase_id) return 'dashboard.tiles.updatedPhase';
+  return 'dashboard.tiles.updatedProject';
 }
 
 export default function TeamActivityTile({ config }: TeamActivityTileProps) {
   const navigate = useNavigate();
   const { t } = useTranslation('common');
   const locale = useLocale();
+  const relativeTime = useRelativeTime();
   const limit = Math.min((config.limit as number) || 5, 5);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard', 'team-activity', limit],
     queryFn: async () => {
       const res = await api.get<TeamActivityItem[]>('/dashboard/team-activity', {
@@ -76,8 +66,10 @@ export default function TeamActivityTile({ config }: TeamActivityTileProps) {
       title={t('dashboard.tiles.teamActivity')}
       icon="Update"
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => { void refetch(); }}
       action={(
-        <Button size="small" onClick={() => navigate('/portfolio/projects')}>
+        <Button size="small" onClick={() => navigate('/portfolio/projects?projectScope=my')}>
           {t('buttons.viewAll')}
         </Button>
       )}
@@ -104,11 +96,11 @@ export default function TeamActivityTile({ config }: TeamActivityTileProps) {
                         sx={{ height: 20, fontSize: '0.7rem' }}
                       />
                       <Typography variant="caption" color="text.secondary">
-                        {formatTime(item.createdAt, locale)}
+                        {relativeTime(item.createdAt, () => formatShortDate(item.createdAt, locale))}
                       </Typography>
                     </Box>
                     <Typography variant="caption" color="text.secondary">
-                      {buildSummary(item)}
+                      {t(summaryKey(item), { author: item.authorName })}
                     </Typography>
                     {item.type === 'comment' && item.content && (
                       <Typography variant="caption" color="text.secondary" noWrap>

@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import {
+  Button,
   Card,
   CardContent,
   CardHeader,
@@ -7,6 +8,7 @@ import {
   Skeleton,
   Box,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import TaskIcon from '@mui/icons-material/Task';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import GroupsIcon from '@mui/icons-material/Groups';
@@ -23,6 +25,8 @@ import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import PlaceIcon from '@mui/icons-material/Place';
+import ArticleIcon from '@mui/icons-material/Article';
 
 const ICON_MAP: Record<string, typeof TaskIcon> = {
   Task: TaskIcon,
@@ -41,12 +45,17 @@ const ICON_MAP: Record<string, typeof TaskIcon> = {
   ReportProblemOutlined: ReportProblemOutlinedIcon,
   TrendingUp: TrendingUpIcon,
   VerifiedUser: VerifiedUserIcon,
+  Place: PlaceIcon,
+  Article: ArticleIcon,
 };
 
 interface DashboardTileProps {
   title: string;
   icon: string;
   isLoading?: boolean;
+  /** Query failed: the tile shows a retry prompt instead of an empty state that would read as "nothing to do". */
+  isError?: boolean;
+  onRetry?: () => void;
   children: ReactNode;
   action?: ReactNode;
   minHeight?: number;
@@ -56,10 +65,13 @@ export default function DashboardTile({
   title,
   icon,
   isLoading = false,
+  isError = false,
+  onRetry,
   children,
   action,
   minHeight = 200,
 }: DashboardTileProps) {
+  const { t } = useTranslation('common');
   const IconComponent = ICON_MAP[icon] || TaskIcon;
 
   return (
@@ -87,6 +99,13 @@ export default function DashboardTile({
             <Skeleton variant="rectangular" height={24} sx={{ mb: 1 }} />
             <Skeleton variant="rectangular" height={24} sx={{ mb: 1 }} />
           </Box>
+        ) : isError ? (
+          <TileEmptyState
+            message={t('dashboard.tiles.loadError')}
+            action={onRetry ? (
+              <Button size="small" onClick={onRetry}>{t('buttons.retry')}</Button>
+            ) : undefined}
+          />
         ) : (
           children
         )}

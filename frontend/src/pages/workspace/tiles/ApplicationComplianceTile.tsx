@@ -48,7 +48,7 @@ export default function ApplicationComplianceTile() {
   const navigate = useNavigate();
   const { t } = useTranslation('common');
   const theme = useTheme();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['applications-classification-summary', 'dashboard'],
     queryFn: async () => (await api.get<ApplicationComplianceSummary>('/applications/classification-summary')).data,
     staleTime: 2 * 60 * 1000,
@@ -71,6 +71,8 @@ export default function ApplicationComplianceTile() {
       title={t('dashboard.tiles.compliance')}
       icon="VerifiedUser"
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => { void refetch(); }}
       action={<Button size="small" onClick={() => navigate(reviewFilter(['stale', 'incomplete']))}>{t('buttons.viewAll')}</Button>}
     >
       {!data || data.total === 0 ? (

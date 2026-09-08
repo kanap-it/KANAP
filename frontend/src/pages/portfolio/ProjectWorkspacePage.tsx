@@ -167,9 +167,9 @@ export default function ProjectWorkspacePage() {
   // Track recently viewed
   React.useEffect(() => {
     if (data?.id && data?.name) {
-      addToRecent('project', data.id, data.name);
+      addToRecent('project', data.id, data.name, data.item_number ? `PRJ-${data.item_number}` : undefined);
     }
-  }, [data?.id, data?.name, addToRecent]);
+  }, [data?.id, data?.name, data?.item_number, addToRecent]);
 
   // Browser tab title
   React.useEffect(() => {

@@ -39,7 +39,7 @@ export default function StaleTasksTile({ config }: StaleTasksTileProps) {
   const scope = config.scope === 'team' || config.scope === 'all' ? config.scope : 'my';
   const thresholdDays = Math.max(30, Math.min((config.thresholdDays as number) || 90, 365));
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard', 'stale-tasks', scope, thresholdDays],
     queryFn: async () => {
       const res = await api.get<StaleTaskItem[]>('/dashboard/stale-tasks', {
@@ -61,14 +61,16 @@ export default function StaleTasksTile({ config }: StaleTasksTileProps) {
       title={t('dashboard.tiles.staleTasks')}
       icon="Warning"
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => { void refetch(); }}
       action={(
-        <Button size="small" onClick={() => navigate('/portfolio/tasks')}>
+        <Button size="small" onClick={() => navigate(`/portfolio/tasks?taskScope=${scope}&sort=updated_at:ASC`)}>
           {t('buttons.viewAll')}
         </Button>
       )}
     >
       {items.length === 0 ? (
-        <TileEmptyState message={t('dashboard.tiles.noStaleTasks', { scope })} />
+        <TileEmptyState message={t('dashboard.tiles.noStaleTasks', { scope: t(`dashboard.tiles.scope.${scope}`) })} />
       ) : (
         <List dense disablePadding>
           {items.map((item) => (

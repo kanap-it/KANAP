@@ -34,15 +34,21 @@ export default function NewRequestsTile({ config }: NewRequestsTileProps) {
 
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
+  // AG Grid date filter model (date filters only know greaterThan, not greaterThanOrEqual): honored by
+  // the list endpoint and by the requests page as a deep link.
+  const recentFilters = JSON.stringify({
+    created_at: { filterType: 'date', type: 'greaterThan', dateFrom: cutoffDate.toISOString().split('T')[0] },
+  });
+  const listPath = `/portfolio/requests?${new URLSearchParams({ requestScope: 'all', filters: recentFilters, sort: 'created_at:DESC' }).toString()}`;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['portfolio', 'requests', 'recent', limit, days],
     queryFn: async () => {
       const res = await api.get('/portfolio/requests', {
         params: {
           limit,
           sort: 'created_at:DESC',
-          created_after: cutoffDate.toISOString().split('T')[0],
+          filters: recentFilters,
         },
       });
       return res.data.items as PortfolioRequest[];
@@ -62,8 +68,10 @@ export default function NewRequestsTile({ config }: NewRequestsTileProps) {
       title={t('dashboard.tiles.newRequests', { days })}
       icon="Inbox"
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => { void refetch(); }}
       action={
-        <Button size="small" onClick={() => navigate('/portfolio/requests')}>
+        <Button size="small" onClick={() => navigate(listPath)}>
           {t('buttons.viewAll')}
         </Button>
       }

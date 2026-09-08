@@ -164,9 +164,9 @@ export default function RequestWorkspacePage() {
   // Track recently viewed
   React.useEffect(() => {
     if (data?.id && data?.name) {
-      addToRecent('request', data.id, data.name);
+      addToRecent('request', data.id, data.name, data.item_number ? `REQ-${data.item_number}` : undefined);
     }
-  }, [data?.id, data?.name, addToRecent]);
+  }, [data?.id, data?.name, data?.item_number, addToRecent]);
 
   // Browser tab title
   React.useEffect(() => {

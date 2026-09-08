@@ -39,7 +39,7 @@ export default function ProjectsILeadTile({ config }: ProjectsILeadTileProps) {
   const locale = useLocale();
   const limit = Math.min((config.limit as number) || 5, 5);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard', 'my-leadership-projects', limit],
     queryFn: async () => {
       const res = await api.get<MyLeadershipProject[]>('/dashboard/my-leadership-projects', {
@@ -62,8 +62,10 @@ export default function ProjectsILeadTile({ config }: ProjectsILeadTileProps) {
       title={t('dashboard.tiles.projectsILead')}
       icon="Leaderboard"
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => { void refetch(); }}
       action={
-        <Button size="small" onClick={() => navigate('/portfolio/projects')}>
+        <Button size="small" onClick={() => navigate('/portfolio/projects?projectScope=my')}>
           {t('buttons.viewAll')}
         </Button>
       }

@@ -53,6 +53,7 @@ import { fetchApplicationIncidentsCount } from '../../utils/workspaceTabCounts';
 import { useLocale } from '../../i18n/useLocale';
 import ApplicationClassificationPanel, { type RecoveryDependency } from './components/ApplicationClassificationPanel';
 import ApplicationCriticalityMetadata from './components/ApplicationCriticalityMetadata';
+import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 
 type TabKey = 'overview' | 'deployments' | 'interfaces' | 'operations' | 'compliance' | 'relations';
 
@@ -1221,6 +1222,10 @@ export default function ApplicationWorkspacePage() {
 
   const appQuery = useAppData(routeId, !isCreate && !!routeId);
   const app = appQuery.data || null;
+  const { addToRecent } = useRecentlyViewed();
+  React.useEffect(() => {
+    if (!isCreate && app?.id && app?.name) addToRecent('application', app.id, app.name, app.sequential_id || undefined);
+  }, [addToRecent, app?.id, app?.name, app?.sequential_id, isCreate]);
   const nav = useApplicationNav({ id: app?.id || routeId, sort, q, filters });
 
   const interfacesQuery = useQuery({
