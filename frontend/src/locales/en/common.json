@@ -249,7 +249,22 @@
       "createdTask": "{{author}} created a project task",
       "updatedProgress": "{{author}} updated execution effort",
       "updatedPhase": "{{author}} updated the project phase",
-      "updatedProject": "{{author}} updated the project"
+      "updatedProject": "{{author}} updated the project",
+      "compliance": "Compliance",
+      "complianceProgress": "{{reviewed}} of {{total}} applications reviewed",
+      "complianceReviewed": "Reviewed",
+      "complianceStale": "To review",
+      "complianceIncomplete": "To complete",
+      "complianceAttention": "Attention points",
+      "complianceNoAttention": "No attention point on the applications you can see.",
+      "complianceEmpty": "No application to classify yet",
+      "browseApplications": "Browse applications",
+      "complianceCriticalWithoutTest_one": "{{count}} most critical application without a recovery test in the last twelve months",
+      "complianceCriticalWithoutTest_other": "{{count}} most critical applications without a recovery test in the last twelve months",
+      "complianceCriticalWithoutWave_one": "{{count}} most critical application without a recovery wave",
+      "complianceCriticalWithoutWave_other": "{{count}} most critical applications without a recovery wave",
+      "complianceRestrictedLowCyber_one": "{{count}} application with the most confidential data and the lowest cyber criticality",
+      "complianceRestrictedLowCyber_other": "{{count}} applications with the most confidential data and the lowest cyber criticality"
     }
   },
   "csv": {

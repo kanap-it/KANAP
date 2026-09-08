@@ -105,8 +105,11 @@ La cuadrícula de Aplicaciones proporciona una vista completa de su portafolio d
 - **Clase de datos** / **Contiene PII** / **Residencia de datos**: Información de conformidad
 - **Criticidad cibernética**, **Ola de recuperación**, **RTO**, **RPO**, **Estado/fecha de revisión**: Campos de clasificación y continuidad
 
+**Progreso de la clasificación**: el mosaico Conformidad de su panel muestra cuántas aplicaciones visibles están revisadas, por revisar o aún tienen campos de clasificación por completar, además de los puntos que requieren acción. Cada cifra abre la lista de aplicaciones filtrada en consecuencia. Consulte [Mi panel](my-dashboard.md#conformidad).
+
 **Filtrado**:
 - Búsqueda rápida: coincide con el nombre y editor
+- Los filtros de criticidad, criticidad cibernética, clase de datos y ola de recuperación listan sus valores en el orden del catálogo (la más crítica primero, las olas en orden de restauración).
 - La mayoría de columnas usan filtros de conjunto de casillas que solo muestran los valores presentes en el conjunto de resultados actual; el filtro flotante muestra `Todos`, `Ninguno` o `N seleccionados` con una **x** para limpiar.
 - Las aplicaciones retiradas están ocultas por defecto; use el filtro de **Ciclo de vida** para incluir Retiradas.
 
@@ -263,7 +266,10 @@ La pestaña se organiza en cuatro bloques, en el orden de un análisis de impact
 **Continuidad y recuperación**:
 - La **ola de recuperación** indica el orden de restauración; no representa una duración ni una gravedad.
 - El **RTO** es el objetivo de tiempo de recuperación. El **RPO** es la pérdida de datos aceptable y puede ser cero. Si el RTO alcanza la duración máxima tolerable de interrupción definida en el nivel de negocio elegido, KANAP muestra una advertencia y conserva ambos valores.
+- Bajo la ola, KANAP lista las interfaces que vinculan esta aplicación con una aplicación prevista en una ola **posterior** («Intercambio con CRM, prevista en V3»), con un enlace a cada interfaz. Ambas aplicaciones deben estar operativas para que el flujo funcione; el responsable del plan de recuperación decide. Las interfaces retiradas se ignoran, y los usuarios con un alcance restringido de Colaborador de negocio no ven esta lista.
 - **Última prueba de recuperación** contiene la fecha de la prueba más reciente. Un enlace abierto desde esta zona utiliza la única sección **Base de conocimiento** de Visión general y no crea un registro duplicado. Las URL antiguas siguen disponibles en Relaciones.
+
+Pueden aparecer dos indicaciones discretas: datos en el nivel de confidencialidad más alto combinados con la criticidad cibernética más baja, y una aplicación en el nivel de negocio más crítico sin prueba de recuperación en los últimos doce meses. Nunca bloquean nada.
 
 **Revisión**:
 - La **Justificación** documenta el razonamiento detrás de los niveles elegidos y en qué se apoya el plan de recuperación.

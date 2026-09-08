@@ -8,7 +8,7 @@ const DATABASE_URL = process.env.DATABASE_URL ?? '';
 const API_URL = process.env.CLASSIFICATION_TEST_API_URL ?? '';
 const JWT_SECRET = process.env.JWT_SECRET ?? '';
 
-type Identity = { roleId: string; userId: string; email: string };
+type Identity = { roleId: string; userId: string; email: string; borrowedRole?: boolean };
 
 async function main() {
   if (!DATABASE_URL.endsWith('/kanap_classification_v1_test')) throw new Error('Only isolated kanap_classification_v1_test is allowed');
@@ -23,13 +23,16 @@ async function main() {
   const identities: Identity[] = [];
   const applicationIds: string[] = [];
 
-  const createIdentity = async (label: string, permissions: Record<string, string>): Promise<Identity> => {
-    const identity = { roleId: randomUUID(), userId: randomUUID(), email: `${label}-${randomUUID()}@test.invalid` };
+  const createIdentity = async (label: string, permissions: Record<string, string>, roleName?: string): Promise<Identity> => {
+    const identity: Identity = { roleId: randomUUID(), userId: randomUUID(), email: `${label}-${randomUUID()}@test.invalid` };
     await manager.transaction(async (tx) => {
       await tx.query(`SELECT set_config('app.current_tenant',$1,true)`, [tenantId]);
-      await tx.query(`INSERT INTO roles(id,tenant_id,role_name,role_description,is_system,is_built_in) VALUES ($1,$2,$3,'Temporary HTTP permissions smoke',false,false)`, [identity.roleId, tenantId, `HTTP smoke ${label} ${identity.roleId}`]);
+      // A named role (e.g. the built-in Business Contributor) is reused when the tenant already has it.
+      const existing = roleName ? await tx.query(`SELECT id FROM roles WHERE tenant_id=$1 AND LOWER(role_name)=LOWER($2) LIMIT 1`, [tenantId, roleName]) : [];
+      if (existing[0]) { identity.roleId = existing[0].id; identity.borrowedRole = true; }
+      else await tx.query(`INSERT INTO roles(id,tenant_id,role_name,role_description,is_system,is_built_in) VALUES ($1,$2,$3,'Temporary HTTP permissions smoke',false,false)`, [identity.roleId, tenantId, roleName ?? `HTTP smoke ${label} ${identity.roleId}`]);
       await tx.query(`INSERT INTO users(id,tenant_id,email,first_name,last_name,role_id,status) VALUES ($1,$2,$3,'HTTP','Smoke',$4,'enabled')`, [identity.userId, tenantId, identity.email, identity.roleId]);
-      for (const [resource, level] of Object.entries(permissions)) {
+      if (!identity.borrowedRole) for (const [resource, level] of Object.entries(permissions)) {
         await tx.query(`INSERT INTO role_permissions(tenant_id,role_id,resource,level) VALUES ($1,$2,$3,$4)`, [tenantId, identity.roleId, resource, level]);
       }
     });
@@ -83,6 +86,24 @@ async function main() {
     assert.equal((await request(reader, '/applications', { method: 'POST', body: JSON.stringify({ name: 'reader denied' }) })).status, 403);
     assert.equal((await request(reader, `/applications/${randomUUID()}/classification-review`, { method: 'POST', body: JSON.stringify({ expected_revision: 0 }) })).status, 403);
     assert.equal((await request(unrelated, '/applications/classification-catalog')).status, 403);
+    assert.equal((await request(unrelated, '/applications/classification-summary')).status, 403);
+    const summaryResponse = await request(reader, '/applications/classification-summary?include_inactive=true');
+    assert.equal(summaryResponse.status, 200);
+    const summary: any = await summaryResponse.json();
+    assert.deepEqual(Object.keys(summary).sort(), ['incomplete', 'reviewed', 'stale', 'total']);
+    assert.equal(summary.reviewed + summary.stale + summary.incomplete, summary.total);
+
+    // Recovery dependencies: readers may, a Business Contributor (restricted scope) may not, like interface routes.
+    const contributor = await createIdentity('business-contributor', { applications: 'reader' }, 'Business Contributor');
+    const anyApp = await manager.query(`SELECT id FROM applications WHERE tenant_id = $1 LIMIT 1`, [tenantId]);
+    const dependenciesPath = `/applications/${anyApp[0]?.id ?? randomUUID()}/recovery-dependencies`;
+    assert.equal((await request(unrelated, dependenciesPath)).status, 403);
+    assert.equal((await request(contributor, dependenciesPath)).status, 403, 'restricted readers must not see interface references');
+    if (anyApp[0]) {
+      const dependenciesResponse = await request(reader, dependenciesPath);
+      assert.equal(dependenciesResponse.status, 200);
+      assert.ok(Array.isArray(((await dependenciesResponse.json()) as any).items));
+    }
 
     const createResponse = await request(member, '/applications', {
       method: 'POST',
@@ -114,7 +135,7 @@ async function main() {
       await tx.query(`SELECT set_config('app.current_tenant',$1,true)`, [tenantId]);
       if (applicationIds.length) await tx.query(`DELETE FROM applications WHERE tenant_id=$1 AND id = ANY($2::uuid[])`, [tenantId, applicationIds]);
       const userIds = identities.map((identity) => identity.userId);
-      const roleIds = identities.map((identity) => identity.roleId);
+      const roleIds = identities.filter((identity) => !identity.borrowedRole).map((identity) => identity.roleId);
       if (userIds.length) {
         await tx.query(`DELETE FROM audit_log WHERE tenant_id=$1 AND user_id = ANY($2::uuid[])`, [tenantId, userIds]);
         await tx.query(`DELETE FROM users WHERE tenant_id=$1 AND id = ANY($2::uuid[])`, [tenantId, userIds]);

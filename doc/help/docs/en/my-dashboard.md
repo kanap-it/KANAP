@@ -141,6 +141,19 @@ Restricted libraries respect their access rules: you only see review items and r
 
 ---
 
+### Compliance
+
+Shows where the classification campaign stands for the applications you can see (retired applications excluded):
+
+- **Progress** — a bar and three counters: reviewed, to review (the classification changed since the last review or was never reviewed), and to complete (a classification field is still empty). Each counter opens the applications list filtered on that state.
+- **Attention points** — applications at the most critical business level without a recovery test in the last twelve months, applications at the most critical level without a recovery wave, and applications holding the most confidential data with the lowest cyber criticality. Only points with at least one application are listed; each one opens the matching filtered list. When nothing needs action, the tile says so.
+
+The levels are the ones defined in the IT landscape settings; a deprecated level is never counted as the highest or lowest.
+
+**Requires**: `applications:reader`
+
+---
+
 ### Team Activity
 
 Shows recent project activity on projects where you are involved (changes, comments, decisions). Each row indicates the project, the activity type, the author, and a short summary. Click an item to jump to the project's activity tab.

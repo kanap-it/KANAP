@@ -51,7 +51,7 @@ import CreateVersionDialog from './components/CreateVersionDialog';
 import { formatShortDate } from '../../lib/dateFormat';
 import { fetchApplicationIncidentsCount } from '../../utils/workspaceTabCounts';
 import { useLocale } from '../../i18n/useLocale';
-import ApplicationClassificationPanel from './components/ApplicationClassificationPanel';
+import ApplicationClassificationPanel, { type RecoveryDependency } from './components/ApplicationClassificationPanel';
 import ApplicationCriticalityMetadata from './components/ApplicationCriticalityMetadata';
 
 type TabKey = 'overview' | 'deployments' | 'interfaces' | 'operations' | 'compliance' | 'relations';
@@ -1138,6 +1138,13 @@ function ComplianceTab({
   error: string | null;
 }) {
   const { byField } = useItOpsEnumOptions();
+  // Interfaces to applications restored later: the key carries the wave so a change refetches; a 403 (restricted reader) shows nothing.
+  const dependenciesQuery = useQuery({
+    queryKey: ['application-recovery-dependencies', app.id, app.recovery_wave],
+    queryFn: async () => (await api.get<{ items: RecoveryDependency[] }>(`/applications/${app.id}/recovery-dependencies`)).data.items || [],
+    enabled: !!app.recovery_wave,
+    retry: false,
+  });
   const residencyCodes = (app.data_residency || []).map((row) => row.country_iso);
   const selectedCountries = COUNTRY_OPTIONS.filter((option) => residencyCodes.includes(option.code));
   const horizontalRowSx = { display: 'grid', gridTemplateColumns: '160px minmax(0, 1fr)', columnGap: '18px', alignItems: 'center' } as const;
@@ -1151,6 +1158,7 @@ function ComplianceTab({
       onPatch={onPatch as any}
       onReview={onReview}
       recoveryLinks={<Button variant="text" onClick={onOpenKnowledge} sx={{ alignSelf: 'flex-start' }}>{classificationText("View linked knowledge documents")}</Button>}
+      recoveryDependencies={app.recovery_wave && !dependenciesQuery.isError ? dependenciesQuery.data ?? [] : []}
       saving={saving}
       error={error}
     >
@@ -1307,7 +1315,7 @@ export default function ApplicationWorkspacePage() {
         const res = await api.patch<Partial<ApplicationDetail>>(`/applications/${current.id}`, patch);
         currentApp.current = { ...current, ...res.data };
         updateApplicationCache((prev) => ({ ...prev, ...res.data }));
-        await queryClient.invalidateQueries({ predicate: (query) => ['applications', 'app-filter-values', 'applications-filter-values'].some((key) => String(query.queryKey[0]).startsWith(key)) });
+        await queryClient.invalidateQueries({ predicate: (query) => ['applications', 'app-filter-values', 'applications-filter-values', 'application-recovery-dependencies'].some((key) => String(query.queryKey[0]).startsWith(key)) });
       } catch (err: any) {
         classificationSaveFailed.current = true;
         setError(err?.response?.data?.message || err?.message || 'Classification could not be saved');
@@ -1525,7 +1533,7 @@ export default function ApplicationWorkspacePage() {
                 setClassificationSaving(true);
                 await api.post(`/applications/${currentApp.current.id}/classification-review`, { expected_revision: currentApp.current.classification_revision });
                 await appQuery.refetch();
-                await queryClient.invalidateQueries({ queryKey: ['applications'] });
+                await queryClient.invalidateQueries({ predicate: (query) => ['applications', 'applications-classification-summary'].some((key) => String(query.queryKey[0]).startsWith(key)) });
               } catch (err: any) { setError(err?.response?.data?.message || err?.message || 'Review failed'); }
               finally { setClassificationSaving(false); }
             }}

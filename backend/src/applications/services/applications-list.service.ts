@@ -20,6 +20,14 @@ import {
 } from '../../common/ag-grid-filtering';
 import { ApplicationsBaseService, ServiceOpts } from './applications-base.service';
 
+export type ClassificationSummary = {
+  total: number; reviewed: number; stale: number; incomplete: number;
+  /** Points a compliance owner acts on, against the active catalog extremes. */
+  attention: { critical_without_recent_test: number; critical_without_wave: number; restricted_data_low_cyber: number };
+  /** Codes behind the attention counts, so the client can deep-link the filtered lists. */
+  levels: { critical: string[]; restricted_data: string[]; low_cyber: string[] };
+};
+
 const classificationSql = classificationSqlExpressions('a');
 const classificationTargets: Record<string, FilterTargetConfig> = {
   ...Object.fromEntries(['rto_minutes', 'rpo_minutes'].map((field) => [field, { expression: `a.${field}`, numericExpression: `a.${field}`, dataType: 'number' as const }])),
@@ -316,11 +324,14 @@ export class ApplicationsListService extends ApplicationsBaseService {
   /**
    * List applications with filtering, sorting, and pagination.
    */
-  async list(query: any, opts?: ServiceOpts) {
-    const mg = this.getManager(opts);
-    const repo = mg.getRepository(Application);
+  /**
+   * Everything the grid can filter on, compiled once and shared by the list, the ids export and the
+   * classification summary so the three always agree: tenant, supplier join, inactive rows, participant
+   * scope, owner scope, default lifecycle rule, AG Grid filters and quick search.
+   */
+  private buildFilteredScope(query: any, opts: ServiceOpts | undefined, sortField?: string) {
     const tenantId = String(opts?.tenantId || '').trim();
-    const { page, limit, skip, sort, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
+    const { q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
     const ownerScope = parseOwnerScope(query);
     const includeInactive = parseIncludeInactive(query);
     const includeRaw = String(query?.include || '').trim();
@@ -369,7 +380,7 @@ export class ApplicationsListService extends ApplicationsBaseService {
       dataType: 'string',
     };
 
-    if (include.has('supplier') || (fm && Object.prototype.hasOwnProperty.call(fm, 'supplier_name')) || sort.field === 'supplier_name') {
+    if (include.has('supplier') || (fm && Object.prototype.hasOwnProperty.call(fm, 'supplier_name')) || sortField === 'supplier_name') {
       targets['supplier_name'] = { expression: 's.name', dataType: 'string' };
     }
 
@@ -441,13 +452,13 @@ export class ApplicationsListService extends ApplicationsBaseService {
     }
     const quickSearch = q ? buildQuickSearchConditions(q, ['a.name', buildApplicationOwnerNamesSql('it')], nextParam) : [];
 
-    const applyCompiledFilters = (builder: ReturnType<typeof repo.createQueryBuilder>) => {
+    const applyCompiledFilters = (builder: SelectQueryBuilder<Application>) => {
       compiledFilters.forEach((c) => {
         builder.andWhere(new Brackets((qb) => qb.where(c.sql, c.params)));
       });
     };
 
-    const applyQuickSearch = (builder: ReturnType<typeof repo.createQueryBuilder>) => {
+    const applyQuickSearch = (builder: SelectQueryBuilder<Application>) => {
       if (quickSearch.length === 0) return;
       builder.andWhere(
         new Brackets((sub) => {
@@ -459,37 +470,38 @@ export class ApplicationsListService extends ApplicationsBaseService {
       );
     };
 
-    const needsSupplierJoin = include.has('supplier') || (fm && Object.prototype.hasOwnProperty.call(fm, 'supplier_name')) || sort.field === 'supplier_name';
+    const needsSupplierJoin = include.has('supplier') || (fm && Object.prototype.hasOwnProperty.call(fm, 'supplier_name')) || sortField === 'supplier_name';
+
+    const applyTo = (builder: SelectQueryBuilder<Application>, options?: { selectSupplier?: boolean }) => {
+      applyExplicitTenantConstraint(builder, tenantId);
+      if (needsSupplierJoin) {
+        builder.leftJoin('suppliers', 's', 's.id = a.supplier_id AND s.tenant_id = a.tenant_id');
+        if (options?.selectSupplier) builder.addSelect('s.name', 's_name');
+      }
+      if (!includeInactive) builder.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
+      applyApplicationParticipantScope(builder, opts?.accessScope, 'a');
+      applyOwnerScopeCondition(builder, ownerScope);
+      if (!includeInactive && !lifecycleFilterPresent) builder.andWhere(`a.lifecycle <> 'retired'`);
+      applyCompiledFilters(builder);
+      applyQuickSearch(builder);
+    };
+    return { tenantId, include, needsSupplierJoin, applyTo };
+  }
+
+  async list(query: any, opts?: ServiceOpts) {
+    const mg = this.getManager(opts);
+    const repo = mg.getRepository(Application);
+    const { page, limit, skip, sort } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
+    const { include, needsSupplierJoin, applyTo } = this.buildFilteredScope(query, opts, sort.field);
 
     // Count query
     const qbBase = repo.createQueryBuilder('a');
-    applyExplicitTenantConstraint(qbBase, tenantId);
-    if (needsSupplierJoin) qbBase.leftJoin('suppliers', 's', 's.id = a.supplier_id AND s.tenant_id = a.tenant_id');
-    if (!includeInactive) {
-      qbBase.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
-    }
-    applyApplicationParticipantScope(qbBase, opts?.accessScope, 'a');
-    applyOwnerScopeCondition(qbBase, ownerScope);
-    if (!includeInactive && !lifecycleFilterPresent) qbBase.andWhere(`a.lifecycle <> 'retired'`);
-    applyCompiledFilters(qbBase);
-    applyQuickSearch(qbBase);
+    applyTo(qbBase);
     const total = await qbBase.getCount();
 
     // Page query
     const qb = repo.createQueryBuilder('a');
-    applyExplicitTenantConstraint(qb, tenantId);
-    if (needsSupplierJoin) {
-      qb.leftJoin('suppliers', 's', 's.id = a.supplier_id AND s.tenant_id = a.tenant_id');
-      qb.addSelect('s.name', 's_name');
-    }
-    if (!includeInactive) {
-      qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
-    }
-    applyApplicationParticipantScope(qb, opts?.accessScope, 'a');
-    applyOwnerScopeCondition(qb, ownerScope);
-    if (!includeInactive && !lifecycleFilterPresent) qb.andWhere(`a.lifecycle <> 'retired'`);
-    applyCompiledFilters(qb);
-    applyQuickSearch(qb);
+    applyTo(qb, { selectSupplier: true });
 
     // Sorting
     const appFields = new Set([
@@ -600,131 +612,12 @@ export class ApplicationsListService extends ApplicationsBaseService {
   async listIds(query: any, opts?: ServiceOpts): Promise<{ ids: string[]; refs: string[]; total: number }> {
     const mg = this.getManager(opts);
     const repo = mg.getRepository(Application);
-    const tenantId = String(opts?.tenantId || '').trim();
-    const { sort, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
-    const ownerScope = parseOwnerScope(query);
-    const includeInactive = parseIncludeInactive(query);
-    const fm = (filters && typeof filters === 'object') ? filters : undefined;
+    const { sort } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
+    const { applyTo } = this.buildFilteredScope(query, opts, sort.field);
 
-    // Define filter targets for AG Grid model -> SQL translation
-    type Target = FilterTargetConfig;
-    const targets: Record<string, Target> = {
-      ...classificationTargets,
-      id: { expression: 'a.id', dataType: 'string' },
-      sequential_id: { expression: 'a.sequential_id', dataType: 'string' },
-      name: { expression: 'a.name', dataType: 'string' },
-      supplier_id: { expression: 'a.supplier_id', dataType: 'string' },
-      category: { expression: 'a.category', dataType: 'string' },
-      editor: { expression: 'a.editor', dataType: 'string' },
-      lifecycle: { expression: 'a.lifecycle', dataType: 'string' },
-      criticality: { expression: 'a.criticality', dataType: 'string' },
-      data_class: { expression: 'a.data_class', dataType: 'string' },
-      hosting_model: { expression: 'a.hosting_model', dataType: 'string' },
-      external_facing: { expression: 'a.external_facing', numericExpression: 'COALESCE(a.external_facing, false)', dataType: 'boolean' },
-      is_suite: { expression: 'a.is_suite', dataType: 'boolean' },
-      sso_enabled: { expression: 'a.sso_enabled', numericExpression: 'COALESCE(a.sso_enabled, false)', dataType: 'boolean' },
-      mfa_supported: { expression: 'a.mfa_supported', numericExpression: 'COALESCE(a.mfa_supported, false)', dataType: 'boolean' },
-      contains_pii: { expression: 'a.contains_pii', numericExpression: 'COALESCE(a.contains_pii, false)', dataType: 'boolean' },
-      status: { expression: 'a.status', textExpression: 'CAST(a.status AS TEXT)', dataType: 'string' },
-      created_at: { expression: 'a.created_at', textExpression: 'CAST(a.created_at AS TEXT)', dataType: 'string' },
-    };
-
-    targets['environments'] = {
-      expression: 'a.id',
-      textExpression:
-        `COALESCE((SELECT string_agg(ai.environment, ',') ` +
-        `FROM app_instances ai ` +
-        `WHERE ai.application_id = a.id AND ai.tenant_id = a.tenant_id), '')`,
-      dataType: 'string',
-    };
-    targets['hosting_types'] = {
-      expression: 'a.id',
-      textExpression: `COALESCE((SELECT string_agg(DISTINCT l.hosting_type, ',')
-        FROM app_instances ai
-        JOIN app_asset_assignments aaa ON aaa.app_instance_id = ai.id AND aaa.tenant_id = ai.tenant_id
-        JOIN assets ast ON ast.id = aaa.asset_id AND ast.tenant_id = ai.tenant_id
-        LEFT JOIN locations l ON l.id = ast.location_id AND l.tenant_id = ai.tenant_id
-        WHERE ai.application_id = a.id AND ai.tenant_id = a.tenant_id AND l.hosting_type IS NOT NULL), '')`,
-      dataType: 'string',
-    };
-
-    const lifecycleFilterPresent = !!(fm && Object.prototype.hasOwnProperty.call(fm, 'lifecycle'));
-
-    const nextParam = createParamNameGenerator('p');
-    const compiledFilters: CompiledCondition[] = [];
-    if (fm) {
-      for (const [field, model] of Object.entries(fm)) {
-        if (field === 'environments') {
-          const custom = compileEnvironmentsSetFilter(model, nextParam);
-          if (custom) {
-            compiledFilters.push(custom);
-            continue;
-          }
-        }
-        if (field === 'hosting_types') {
-          const custom = compileHostingTypesSetFilter(model, nextParam);
-          if (custom) {
-            compiledFilters.push(custom);
-            continue;
-          }
-        }
-        if (field === 'linked_project_name') {
-          const custom = compileLinkedProjectTextFilter(model, nextParam);
-          if (custom) {
-            compiledFilters.push(custom);
-            continue;
-          }
-        }
-        if (field === 'owners_business') {
-          const custom = compileOwnerNameFilter('business', model, nextParam);
-          if (custom) {
-            compiledFilters.push(custom);
-            continue;
-          }
-        }
-        if (field === 'owners_it') {
-          const custom = compileOwnerNameFilter('it', model, nextParam);
-          if (custom) {
-            compiledFilters.push(custom);
-            continue;
-          }
-        }
-        const target = targets[field];
-        if (!target) continue;
-        const cond = compileAgFilterCondition(model, target, nextParam);
-        if (cond) compiledFilters.push(cond);
-      }
-    }
-    const quickSearch = q ? buildQuickSearchConditions(q, ['a.name', buildApplicationOwnerNamesSql('it')], nextParam) : [];
-
-    // Build query
+    // Same filters and scope as the grid, ids only
     const qb = repo.createQueryBuilder('a').select('a.id').addSelect('a.sequential_id', 'ref');
-    if (tenantId) {
-      qb.andWhere('a.tenant_id = :tenantId', { tenantId });
-    }
-    if (!includeInactive) {
-      qb.andWhere('(a.disabled_at IS NULL OR a.disabled_at > NOW())');
-    }
-    applyApplicationParticipantScope(qb, opts?.accessScope, 'a');
-    applyOwnerScopeCondition(qb, ownerScope);
-    if (!includeInactive && !lifecycleFilterPresent) qb.andWhere(`a.lifecycle <> 'retired'`);
-
-    // Apply compiled filter conditions
-    compiledFilters.forEach((c) => {
-      qb.andWhere(new Brackets((sub) => sub.where(c.sql, c.params)));
-    });
-
-    // Apply quick search
-    if (quickSearch.length > 0) {
-      qb.andWhere(
-        new Brackets((sub) => {
-          quickSearch.forEach((cond, idx) => {
-            if (idx === 0) sub.where(cond.sql, cond.params);
-            else sub.orWhere(cond.sql, cond.params);
-          });
-        }),
-      );
-    }
+    applyTo(qb);
 
     // Sorting
     const appFields = new Set([
@@ -752,6 +645,73 @@ export class ApplicationsListService extends ApplicationsBaseService {
     const refs = rows.map((r) => r.ref || r.a_id);
 
     return { ids, refs, total };
+  }
+
+  /**
+   * Classification campaign counters for the current grid selection: one aggregate query on the same
+   * filters and scope as the list, no sorting, no pagination, always integers. `attention` adds the
+   * points a compliance owner acts on, computed against the active catalog extremes.
+   */
+  async classificationSummary(query: any, opts?: ServiceOpts): Promise<ClassificationSummary> {
+    const mg = this.getManager(opts);
+    const { tenantId, applyTo } = this.buildFilteredScope(query, opts);
+    const tenantRows = tenantId ? await mg.query('SELECT metadata FROM tenants WHERE id = $1', [tenantId]) : await mg.query('SELECT metadata FROM tenants WHERE id = app_current_tenant()');
+    const catalog = catalogFromMetadata(tenantRows[0]?.metadata?.it_ops);
+    const activeRanks = (levels: Array<{ rank: number; deprecated?: boolean }>) => levels.filter((level) => !level.deprecated).map((level) => level.rank);
+    const topBusiness = Math.max(-1, ...activeRanks(catalog.businessCriticalityLevels));
+    const topData = Math.max(-1, ...activeRanks(catalog.dataClasses));
+    const lowCyber = Math.min(Number.MAX_SAFE_INTEGER, ...activeRanks(catalog.cyberCriticalityLevels));
+    const state = classificationSql.classification_review_state;
+    const critical = `(${classificationSql.business_criticality_rank}) = :topBusiness`;
+    const qb = mg.getRepository(Application).createQueryBuilder('a')
+      .select('COUNT(*)::int', 'total')
+      .addSelect(`COUNT(*) FILTER (WHERE ${state} = 'reviewed')::int`, 'reviewed')
+      .addSelect(`COUNT(*) FILTER (WHERE ${state} = 'stale')::int`, 'stale')
+      .addSelect(`COUNT(*) FILTER (WHERE ${state} = 'incomplete')::int`, 'incomplete')
+      .addSelect(`COUNT(*) FILTER (WHERE ${critical} AND (a.last_dr_test IS NULL OR a.last_dr_test <= (CURRENT_DATE - INTERVAL '1 year')))::int`, 'critical_without_recent_test')
+      .addSelect(`COUNT(*) FILTER (WHERE ${critical} AND a.recovery_wave IS NULL)::int`, 'critical_without_wave')
+      .addSelect(`COUNT(*) FILTER (WHERE (${classificationSql.data_class_rank}) = :topData AND (${classificationSql.cyber_criticality_rank}) = :lowCyber)::int`, 'restricted_data_low_cyber')
+      .setParameters({ topBusiness, topData, lowCyber });
+    applyTo(qb);
+    const row = (await qb.getRawOne()) || {};
+    const int = (value: unknown) => Number(value) || 0;
+    return {
+      total: int(row.total), reviewed: int(row.reviewed), stale: int(row.stale), incomplete: int(row.incomplete),
+      attention: { critical_without_recent_test: int(row.critical_without_recent_test), critical_without_wave: int(row.critical_without_wave), restricted_data_low_cyber: int(row.restricted_data_low_cyber) },
+      levels: {
+        critical: catalog.businessCriticalityLevels.filter((level) => !level.deprecated && level.rank === topBusiness).map((level) => level.code),
+        restricted_data: catalog.dataClasses.filter((level) => !level.deprecated && level.rank === topData).map((level) => level.code),
+        low_cyber: catalog.cyberCriticalityLevels.filter((level) => !level.deprecated && level.rank === lowCyber).map((level) => level.code),
+      },
+    };
+  }
+
+  /**
+   * Interfaces (not retired nor deprecated) linking this application to an application restored in a later
+   * recovery wave: both must be up for the flow to work, the plan owner judges. One query, tenant-filtered.
+   */
+  async listRecoveryDependencies(id: string, opts?: ServiceOpts): Promise<{ items: Array<{ interface_id: string; interface_reference: string | null; interface_name: string; direction: 'source' | 'target'; application_id: string; application_ref: string | null; application_name: string; recovery_wave: string }> }> {
+    const mg = this.getManager(opts);
+    const appId = await this.resolveApplicationIdentifier(id, mg);
+    await this.assertVisible(appId, opts?.accessScope, mg);
+    const tenantId = await this.getCurrentTenantId(mg);
+    const own = classificationSqlExpressions('a').recovery_wave_order;
+    const other = classificationSqlExpressions('o').recovery_wave_order;
+    const rows = await mg.query(
+      `SELECT i.id AS interface_id, i.interface_reference, i.name AS interface_name,
+              CASE WHEN i.source_application_id = a.id THEN 'source' ELSE 'target' END AS direction,
+              o.id AS application_id, o.sequential_id AS application_ref, o.name AS application_name, o.recovery_wave
+       FROM applications a
+       JOIN interfaces i ON i.tenant_id = a.tenant_id AND (i.source_application_id = a.id OR i.target_application_id = a.id)
+       JOIN applications o ON o.tenant_id = a.tenant_id AND o.id = CASE WHEN i.source_application_id = a.id THEN i.target_application_id ELSE i.source_application_id END
+       WHERE a.tenant_id = $1 AND a.id = $2 AND o.id <> a.id
+         AND COALESCE(i.lifecycle, '') NOT IN ('retired', 'deprecated')
+         AND a.recovery_wave IS NOT NULL AND o.recovery_wave IS NOT NULL
+         AND (${other}) > (${own})
+       ORDER BY i.interface_reference ASC NULLS LAST, i.name ASC`,
+      [tenantId, appId],
+    );
+    return { items: rows };
   }
 
   /**

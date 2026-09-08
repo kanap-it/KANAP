@@ -24,9 +24,10 @@ export const DEFAULT_DASHBOARD_CONFIG: DashboardTileConfig[] = [
   { id: 'my-time-last-week', enabled: true, order: 5, config: { days: 7 } },
   { id: 'new-requests', enabled: true, order: 6, config: { limit: 5, days: 7 } },
   { id: 'knowledge-overview', enabled: true, order: 7, config: {} },
-  { id: 'team-activity', enabled: false, order: 8, config: { limit: 5 } },
-  { id: 'global-status-changes', enabled: false, order: 9, config: { days: 5 } },
-  { id: 'stale-tasks', enabled: false, order: 10, config: { scope: 'my', thresholdDays: 90 } },
+  { id: 'application-compliance', enabled: true, order: 8, config: {} },
+  { id: 'team-activity', enabled: false, order: 9, config: { limit: 5 } },
+  { id: 'global-status-changes', enabled: false, order: 10, config: { days: 5 } },
+  { id: 'stale-tasks', enabled: false, order: 11, config: { scope: 'my', thresholdDays: 90 } },
 ];
 
 @Entity('user_dashboard_config')

@@ -998,6 +998,16 @@
     "never_reviewed": "Nie geprüft",
     "changed_since_review": "Seit der Prüfung geändert",
     "reviewed_on": "Geprüft am {{date}}",
-    "rto_exceeds_level_downtime": "Der RTO erreicht oder überschreitet die MTD der Stufe {{level}} ({{duration}})."
+    "rto_exceeds_level_downtime": "Der RTO erreicht oder überschreitet die MTD der Stufe {{level}} ({{duration}}).",
+    "recovery_dependency": "Austausch mit {{app}}, geplant in {{wave}}",
+    "summary_reviewed_one": "{{count}} geprüft",
+    "summary_reviewed_other": "{{count}} geprüft",
+    "summary_stale_one": "{{count}} zu prüfen",
+    "summary_stale_other": "{{count}} zu prüfen",
+    "summary_incomplete_one": "{{count}} zu vervollständigen",
+    "summary_incomplete_other": "{{count}} zu vervollständigen",
+    "classification": "Klassifizierung",
+    "data_at_the_highest_confidentiality_level_with_the_lowest_cyber_criticality_check_the_cyber_assessment": "Daten auf der höchsten Vertraulichkeitsstufe mit der niedrigsten Cyber-Kritikalität: prüfen Sie die Cyber-Bewertung.",
+    "no_recovery_test_in_the_last_twelve_months_for_an_application_at_the_most_critical_level": "Kein Wiederherstellungstest in den letzten zwölf Monaten für eine Anwendung auf der kritischsten Stufe."
   }
 }
