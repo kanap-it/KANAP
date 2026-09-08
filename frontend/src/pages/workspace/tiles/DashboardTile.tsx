@@ -28,7 +28,7 @@ import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import PlaceIcon from '@mui/icons-material/Place';
 import ArticleIcon from '@mui/icons-material/Article';
 
-const ICON_MAP: Record<string, typeof TaskIcon> = {
+export const TILE_ICONS: Record<string, typeof TaskIcon> = {
   Task: TaskIcon,
   Leaderboard: LeaderboardIcon,
   Groups: GroupsIcon,
@@ -69,10 +69,10 @@ export default function DashboardTile({
   onRetry,
   children,
   action,
-  minHeight = 200,
+  minHeight = 120,
 }: DashboardTileProps) {
   const { t } = useTranslation('common');
-  const IconComponent = ICON_MAP[icon] || TaskIcon;
+  const IconComponent = TILE_ICONS[icon] || TaskIcon;
 
   return (
     <Card
@@ -85,7 +85,7 @@ export default function DashboardTile({
       <CardHeader
         avatar={<IconComponent sx={{ color: 'text.secondary' }} />}
         title={
-          <Typography variant="subtitle1" fontWeight={600}>
+          <Typography variant="subtitle1" fontWeight={500}>
             {title}
           </Typography>
         }
@@ -119,19 +119,21 @@ interface EmptyStateProps {
   action?: ReactNode;
 }
 
+/** Compact empty state: one line of tertiary text with the optional action inline, so an empty tile stays short. */
 export function TileEmptyState({ message, action }: EmptyStateProps) {
   return (
     <Box
       sx={{
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        py: 4,
-        color: 'text.secondary',
+        flexWrap: 'wrap',
+        gap: 1.5,
+        py: 2,
+        color: 'kanap.text.tertiary',
       }}
     >
-      <Typography variant="body2" sx={{ mb: action ? 2 : 0 }}>
+      <Typography variant="body2" sx={{ color: 'inherit' }}>
         {message}
       </Typography>
       {action}

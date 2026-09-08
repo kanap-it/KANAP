@@ -163,8 +163,16 @@
     "topIncreasesYvsYminus1": "Stärkste Zuwächse (J vs J-1)",
     "settings": {
       "title": "Dashboard-Einstellungen",
-      "description": "Aktivieren oder deaktivieren Sie Kacheln, um Ihr Dashboard anzupassen. Ziehen zum Neuordnen (demnächst verfügbar).",
-      "resetToDefaults": "Auf Standardwerte zurücksetzen"
+      "description": "Kacheln ein- oder ausschalten, ihre Optionen anpassen und per Ziehen neu anordnen.",
+      "resetToDefaults": "Auf Standardwerte zurücksetzen",
+      "dragToReorder": "Zum Neuanordnen ziehen",
+      "options": {
+        "limit": "Max. Einträge",
+        "showOverdue": "Abschnitt „Überfällig“ anzeigen",
+        "days": "Angezeigte Tage",
+        "scope": "Bereich",
+        "thresholdDays": "Schwelle (Tage)"
+      }
     },
     "quickCreate": {
       "createTask": "Aufgabe erstellen",
@@ -230,7 +238,7 @@
       "hoursAgo": "Vor {{count}}h",
       "daysAgo": "Vor {{count}}T",
       "staleTasks": "Stagnierende Aufgaben",
-      "noStaleTasks": "Keine stagnierenden Aufgaben im Bereich „{{scope}}“",
+      "noStaleTasks": "Keine stagnierenden Aufgaben. Bereich: {{scope}}",
       "daysStale": "{{count}}T stagnierend",
       "standaloneTask": "Einzelaufgabe",
       "updated": "Aktualisiert am {{date}}",
@@ -265,9 +273,9 @@
       "loadError": "Diese Kachel konnte nicht geladen werden.",
       "clearHistory": "Verlauf löschen",
       "scope": {
-        "my": "persönlich",
-        "team": "Team",
-        "all": "gesamt"
+        "my": "Meine",
+        "team": "Mein Team",
+        "all": "Alle"
       },
       "entityTypes": {
         "project": "Projekt",
@@ -283,7 +291,10 @@
         "incident": "Vorfall",
         "location": "Standort",
         "document": "Dokument"
-      }
+      },
+      "myTimeTitle": "Meine Zeit",
+      "newRequestsTitle": "Neue Anfragen",
+      "statusChangesTitle": "Projektstatus-Änderungen"
     },
     "welcome": "Willkommen"
   },

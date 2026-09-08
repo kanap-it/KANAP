@@ -163,8 +163,16 @@
     "topIncreasesYvsYminus1": "Top increases (Y vs Y-1)",
     "settings": {
       "title": "Dashboard settings",
-      "description": "Enable or disable tiles to customize your dashboard. Drag to reorder (coming soon).",
-      "resetToDefaults": "Reset to defaults"
+      "description": "Enable or disable tiles, adjust their options and drag them to reorder.",
+      "resetToDefaults": "Reset to defaults",
+      "dragToReorder": "Drag to reorder",
+      "options": {
+        "limit": "Max items",
+        "showOverdue": "Show the overdue section",
+        "days": "Days to show",
+        "scope": "Scope",
+        "thresholdDays": "Threshold (days)"
+      }
     },
     "quickCreate": {
       "createTask": "Create task",
@@ -230,7 +238,7 @@
       "hoursAgo": "{{count}}h ago",
       "daysAgo": "{{count}}d ago",
       "staleTasks": "Stale tasks",
-      "noStaleTasks": "No stale tasks in the {{scope}} scope",
+      "noStaleTasks": "No stale tasks. Scope: {{scope}}",
       "daysStale": "{{count}}d stale",
       "standaloneTask": "Standalone task",
       "updated": "Updated {{date}}",
@@ -265,9 +273,9 @@
       "loadError": "This tile could not be loaded.",
       "clearHistory": "Clear history",
       "scope": {
-        "my": "my",
-        "team": "team",
-        "all": "all"
+        "my": "Mine",
+        "team": "My team",
+        "all": "Everyone"
       },
       "entityTypes": {
         "project": "Project",
@@ -283,7 +291,10 @@
         "incident": "Incident",
         "location": "Location",
         "document": "Document"
-      }
+      },
+      "myTimeTitle": "My time",
+      "newRequestsTitle": "New requests",
+      "statusChangesTitle": "Project status changes"
     },
     "welcome": "Welcome"
   },

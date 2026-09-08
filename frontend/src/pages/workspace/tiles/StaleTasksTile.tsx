@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../../i18n/useLocale';
 import { formatShortDate } from '../../../lib/dateFormat';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { taskStatusLabel } from './tileLabels';
 import { getDotColor, getPillBg, TASK_STATUS_COLORS } from '../../../utils/statusColors';
 
 interface StaleTaskItem {
@@ -98,7 +99,7 @@ export default function StaleTasksTile({ config }: StaleTasksTileProps) {
                         const bgColor = getPillBg(muiColor, theme.palette.mode);
                         return { display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500, color: textColor, bgcolor: bgColor };
                       }}>
-                        {item.status.replace(/_/g, ' ')}
+                        {taskStatusLabel(t, item.status)}
                       </Box>
                     </Box>
                     <Typography variant="caption" color="text.secondary">

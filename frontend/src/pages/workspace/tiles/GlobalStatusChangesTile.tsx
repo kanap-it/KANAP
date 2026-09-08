@@ -13,6 +13,7 @@ import { useLocale } from '../../../i18n/useLocale';
 import { formatShortDate } from '../../../lib/dateFormat';
 import api from '../../../api';
 import DashboardTile, { TileEmptyState } from './DashboardTile';
+import { projectStatusLabel } from './tileLabels';
 import { getDotColor, getPillBg, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
 
 interface ProjectStatusChangeItem {
@@ -27,11 +28,6 @@ interface ProjectStatusChangeItem {
 
 interface GlobalStatusChangesTileProps {
   config: Record<string, unknown>;
-}
-
-function formatStatus(status: string | null): string {
-  if (!status) return 'Unknown';
-  return status.replace(/_/g, ' ');
 }
 
 export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesTileProps) {
@@ -87,7 +83,7 @@ export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesT
                         const bgColor = getPillBg(muiColor, theme.palette.mode);
                         return { display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500, color: textColor, bgcolor: bgColor };
                       }}>
-                        {formatStatus(item.previousStatus)}
+                        {projectStatusLabel(t, item.previousStatus)}
                       </Box>
                       <Typography variant="caption" color="text.secondary">
                         {t('dashboard.tiles.to')}
@@ -98,7 +94,7 @@ export default function GlobalStatusChangesTile({ config }: GlobalStatusChangesT
                         const bgColor = getPillBg(muiColor, theme.palette.mode);
                         return { display: 'inline-flex', alignItems: 'center', px: 1, py: 0.25, borderRadius: 9999, fontSize: '0.75rem', fontWeight: 500, color: textColor, bgcolor: bgColor };
                       }}>
-                        {formatStatus(item.nextStatus)}
+                        {projectStatusLabel(t, item.nextStatus)}
                       </Box>
                     </Box>
                     <Typography variant="caption" color="text.secondary">

@@ -175,18 +175,11 @@ export default function WorkspaceDashboardPage() {
     <Box sx={{ p: 3 }}>
       <Paper
         variant="outlined"
-        sx={{
-          mb: 3,
-          p: 2.5,
-          borderRadius: 2,
-          background: (theme) => theme.palette.mode === 'dark'
-            ? 'linear-gradient(135deg, rgba(25,34,49,0.95) 0%, rgba(34,47,66,0.92) 100%)'
-            : 'linear-gradient(135deg, #f7f9fc 0%, #eef3fa 100%)',
-        }}
+        sx={{ mb: 3, p: 2.5, borderRadius: '8px', bgcolor: 'kanap.bg.drawer' }}
       >
         {/* Header */}
         <Box sx={{ mb: 2 }}>
-          <Typography variant="h5" fontWeight={600} sx={{ mb: 1 }}>
+          <Typography variant="h5" fontWeight={500} sx={{ mb: 1 }}>
             {welcome}
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -275,7 +268,7 @@ export default function WorkspaceDashboardPage() {
       {configLoading ? (
         <Grid container spacing={3}>
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Grid item xs={12} md={6} lg={4} key={i}>
+            <Grid item xs={12} md={6} lg={4} xl={3} key={i}>
               <TileLoader />
             </Grid>
           ))}
@@ -295,11 +288,11 @@ export default function WorkspaceDashboardPage() {
             if (!TileComponent || !tileInfo) return null;
 
             return (
-              <Grid item xs={12} md={6} lg={4} key={tile.id}>
+              <Grid item xs={12} md={6} lg={4} xl={3} key={tile.id}>
                 <Suspense
                   fallback={
                     <DashboardTile
-                      title={tileInfo.title}
+                      title={t(tileInfo.titleKey)}
                       icon={tileInfo.icon}
                       isLoading
                     >
