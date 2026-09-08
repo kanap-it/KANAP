@@ -847,7 +847,6 @@ export default function EntityKnowledgePanel({
             value={selectedTemplateId}
             onChange={(e) => setSelectedTemplateId(e.target.value)}
             variant="standard"
-            disableUnderline
             sx={drawerSelectSx}
           >
             {groupedTemplates.map((group) => ([

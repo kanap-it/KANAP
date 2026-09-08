@@ -167,7 +167,7 @@ export default function CapexPropertiesDrawer({
             isOptionEqualToValue={(option, value) => option.code === value.code}
             disabled={disabled}
             renderInput={(params) => (
-              <TextField {...params} variant="standard" InputProps={{ ...params.InputProps, disableUnderline: true }} />
+              <TextField {...params} variant="standard" />
             )}
           />
         </PropertyRow>
@@ -181,7 +181,7 @@ export default function CapexPropertiesDrawer({
             isOptionEqualToValue={(option, value) => option.value === value.value}
             disabled={disabled}
             renderInput={(params) => (
-              <TextField {...params} variant="standard" InputProps={{ ...params.InputProps, disableUnderline: true }} />
+              <TextField {...params} variant="standard" />
             )}
           />
         </PropertyRow>
@@ -195,7 +195,7 @@ export default function CapexPropertiesDrawer({
             isOptionEqualToValue={(option, value) => option.value === value.value}
             disabled={disabled}
             renderInput={(params) => (
-              <TextField {...params} variant="standard" InputProps={{ ...params.InputProps, disableUnderline: true }} />
+              <TextField {...params} variant="standard" />
             )}
           />
         </PropertyRow>
@@ -210,7 +210,7 @@ export default function CapexPropertiesDrawer({
               isOptionEqualToValue={(option, value) => option.value === value.value}
               disabled={disabled}
               renderInput={(params) => (
-                <TextField {...params} variant="standard" InputProps={{ ...params.InputProps, disableUnderline: true }} />
+                <TextField {...params} variant="standard" />
               )}
             />
           </PropertyRow>

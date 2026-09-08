@@ -1566,7 +1566,6 @@ export default function TaskWorkspacePage() {
                 placeholder={t('portfolio:workspace.task.title.placeholder')}
                 sx={fieldResetSx}
                 InputProps={{
-                  disableUnderline: true,
                   sx: { fontSize: '1.5rem', fontWeight: 500 },
                 }}
               />

@@ -109,7 +109,6 @@ export default function DepartmentMultiSelect({
             sx={baseSx}
             InputProps={{
               ...params.InputProps,
-              ...(naked ? { disableUnderline: true } : {}),
               endAdornment: (
                 <>
                   {isLoading ? <CircularProgress size={20} /> : null}

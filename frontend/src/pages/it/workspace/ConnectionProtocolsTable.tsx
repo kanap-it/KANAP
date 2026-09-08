@@ -116,7 +116,6 @@ export default function ConnectionProtocolsTable({
                     value={portByCode[p.code] ?? ''}
                     onChange={(e) => handlePortChange(p.code, e.target.value)}
                     placeholder={p.typicalPorts || 'e.g., 8443'}
-                    InputProps={{ disableUnderline: true }}
                     sx={[tableCellTextFieldSx, { '& input': monoSx }]}
                   />
                 </TableCell>

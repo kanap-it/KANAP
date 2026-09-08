@@ -76,7 +76,6 @@ export default function ConnectionPropertiesDrawer({
             value={lifecycle || ''}
             onChange={(e) => onLifecycleChange(e.target.value)}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerSelectSx}
             disabled={disabled}
           >
@@ -93,7 +92,6 @@ export default function ConnectionPropertiesDrawer({
             value={topology}
             onChange={(e) => onTopologyChange(e.target.value as 'server_to_server' | 'multi_server')}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerSelectSx}
             disabled={disabled || topologyDisabled}
             helperText={topologyDisabled ? 'Remove all hops to change topology' : undefined}
@@ -116,7 +114,6 @@ export default function ConnectionPropertiesDrawer({
               onRiskModeChange(next);
             }}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerSelectSx}
             disabled={disabled}
           >
@@ -154,7 +151,6 @@ export default function ConnectionPropertiesDrawer({
               value={criticality}
               onChange={(e) => onCriticalityChange(e.target.value)}
               variant="standard"
-              InputProps={{ disableUnderline: true }}
               sx={drawerSelectSx}
               disabled={disabled}
             >
@@ -175,7 +171,6 @@ export default function ConnectionPropertiesDrawer({
               value={dataClass || ''}
               onChange={(e) => onDataClassChange(e.target.value)}
               variant="standard"
-              InputProps={{ disableUnderline: true }}
               sx={drawerSelectSx}
               disabled={disabled}
             >

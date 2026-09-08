@@ -147,7 +147,6 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {(isLoading || isLoadingSelected) ? <CircularProgress color="inherit" size={20} /> : null}

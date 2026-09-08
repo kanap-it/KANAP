@@ -23,7 +23,6 @@ import api from '../../api';
 import PageHeader from '../../components/PageHeader';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { PropertyRow } from '../../components/design';
-import { dialogBorderedFieldSx } from '../../theme/formSx';
 
 type DocumentTypeItem = {
   id: string;
@@ -128,8 +127,6 @@ export default function KnowledgeTypesPage() {
               onChange={(e) => setNewName(e.target.value)}
               fullWidth
               placeholder={t('typesPage.fields.name')}
-              InputProps={{ disableUnderline: true }}
-              sx={dialogBorderedFieldSx}
             />
           </PropertyRow>
           <PropertyRow label={t('typesPage.fields.templateContent')}>
@@ -141,8 +138,6 @@ export default function KnowledgeTypesPage() {
               onChange={(e) => setNewTemplate(e.target.value)}
               fullWidth
               placeholder={t('typesPage.fields.templateContent')}
-              InputProps={{ disableUnderline: true }}
-              sx={dialogBorderedFieldSx}
             />
           </PropertyRow>
           <Box>

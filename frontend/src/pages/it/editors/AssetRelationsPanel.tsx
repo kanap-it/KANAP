@@ -24,7 +24,7 @@ import { useAuth } from '../../../auth/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { KanapDialog, PropertyRow, RelevantWebsitesList, useKanapDialogs } from '../../../components/design';
-import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
 import IncidentRelationsSection from './IncidentRelationsSection';
 export type AssetRelationsPanelHandle = {
   save: () => Promise<void>;
@@ -641,7 +641,6 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
                 variant="standard"
                 InputProps={{
                   ...params.InputProps,
-                  disableUnderline: true,
                   endAdornment: (
                     <>
                       {optionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -684,7 +683,6 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
                 variant="standard"
                 InputProps={{
                   ...params.InputProps,
-                  disableUnderline: true,
                   endAdornment: (
                     <>
                       {optionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -762,7 +760,6 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               {...params}
               placeholder="Search OPEX items"
               variant="standard"
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               sx={drawerFieldValueSx}
             />
           )}
@@ -793,7 +790,6 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               {...params}
               placeholder="Search CAPEX items"
               variant="standard"
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               sx={drawerFieldValueSx}
             />
           )}
@@ -824,7 +820,6 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               {...params}
               placeholder="Search contracts"
               variant="standard"
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               sx={drawerFieldValueSx}
             />
           )}
@@ -855,7 +850,6 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               {...params}
               placeholder="Search projects"
               variant="standard"
-              InputProps={{ ...params.InputProps, disableUnderline: true }}
               sx={drawerFieldValueSx}
             />
           )}
@@ -891,7 +885,6 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
               variant="standard"
               InputProps={{
                 ...params.InputProps,
-                disableUnderline: true,
                 endAdornment: (
                   <>
                     {taskOptionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -1070,8 +1063,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
             inputRef={linkNameInputRef}
             variant="standard"
             fullWidth
-            InputProps={{ disableUnderline: true }}
-            sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+            sx={drawerFieldValueSx}
           />
         </PropertyRow>
         <PropertyRow label="URL" required>
@@ -1081,8 +1073,7 @@ export default forwardRef<AssetRelationsPanelHandle, Props>(function AssetRelati
             placeholder="https://example.com"
             variant="standard"
             fullWidth
-            InputProps={{ disableUnderline: true }}
-            sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+            sx={drawerFieldValueSx}
           />
         </PropertyRow>
       </Stack>

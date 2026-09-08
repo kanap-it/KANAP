@@ -135,7 +135,6 @@ const ServerSelect: React.FC<ServerSelectProps> = ({
           sx={textFieldSx}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {loading ? <CircularProgress color="inherit" size={16} /> : null}

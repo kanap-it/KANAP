@@ -343,13 +343,13 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-end' }}>
         <PropertyRow label={t(`${config.i18nPrefix}.allocations.method`)} sx={{ minWidth: 200 }}>
-          <TextField select fullWidth variant="standard" value={method} onChange={(e) => onMethodChange(e.target.value as Method)} InputProps={{ disableUnderline: true }} sx={drawerSelectSx}>
+          <TextField select fullWidth variant="standard" value={method} onChange={(e) => onMethodChange(e.target.value as Method)} sx={drawerSelectSx}>
             {methodOptions.map((o) => <MenuItem key={o.value} value={o.value} sx={drawerMenuItemSx}>{o.label}</MenuItem>)}
           </TextField>
         </PropertyRow>
         {isManualCompany && (
           <PropertyRow label={t(`${config.i18nPrefix}.allocations.allocateBy`)} sx={{ minWidth: 140 }}>
-            <TextField select fullWidth variant="standard" value={driver} onChange={(e) => { setDriver(e.target.value as Driver); scheduleSave(); }} InputProps={{ disableUnderline: true }} sx={drawerSelectSx}>
+            <TextField select fullWidth variant="standard" value={driver} onChange={(e) => { setDriver(e.target.value as Driver); scheduleSave(); }} sx={drawerSelectSx}>
               <MenuItem value="headcount" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.allocations.headcount`)}</MenuItem>
               <MenuItem value="it_users" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.allocations.itUsers`)}</MenuItem>
               <MenuItem value="turnover" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.allocations.turnover`)}</MenuItem>
@@ -424,7 +424,6 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
                       onChange={(e) => onPctEdit(idx, e.target.value === '' ? '' : Number(e.target.value))}
                       inputProps={{ step: 0.01 }}
                       InputProps={{
-                        disableUnderline: true,
                         endAdornment: <Box component="span" sx={{ fontSize: 13, color: 'kanap.text.tertiary', pl: 0.25 }}>%</Box>,
                       }}
                       sx={[tableCellFieldSx, { width: '100%' }]}

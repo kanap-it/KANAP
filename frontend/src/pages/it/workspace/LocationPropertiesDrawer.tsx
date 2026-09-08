@@ -57,7 +57,6 @@ export default function LocationPropertiesDrawer({
             value={data.hosting_type || ''}
             onChange={(e) => onHostingTypeChange(e.target.value)}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerSelectSx}
             disabled={disabled}
           >
@@ -87,7 +86,6 @@ export default function LocationPropertiesDrawer({
                 value={data.provider || ''}
                 onChange={(e) => onProviderChange(e.target.value)}
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
                 sx={drawerSelectSx}
                 disabled={disabled}
               >
@@ -105,7 +103,6 @@ export default function LocationPropertiesDrawer({
                 onChange={(e) => onRegionChange(e.target.value)}
                 onBlur={(e) => onRegionChange(e.target.value)}
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
                 sx={drawerFieldValueSx}
                 placeholder="e.g., eu-west-1"
                 disabled={disabled}
@@ -128,7 +125,6 @@ export default function LocationPropertiesDrawer({
               <TextField
                 {...params}
                 variant="standard"
-                InputProps={{ ...params.InputProps, disableUnderline: true }}
                 sx={drawerFieldValueSx}
                 placeholder="Search countries"
               />
@@ -141,7 +137,6 @@ export default function LocationPropertiesDrawer({
             onChange={(e) => onCityChange(e.target.value)}
             onBlur={(e) => onCityChange(e.target.value)}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerFieldValueSx}
             placeholder="e.g., Paris"
             disabled={disabled}

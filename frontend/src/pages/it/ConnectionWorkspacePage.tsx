@@ -20,13 +20,7 @@ import ConnectionPathTab from './workspace/ConnectionPathTab';
 import ConnectionEndpointPicker, { type EndpointValue } from './workspace/ConnectionEndpointPicker';
 import { useConnectionItemNav } from '../../hooks/useModuleItemNav';
 import useItOpsEnumOptions from '../../hooks/useItOpsEnumOptions';
-import {
-  drawerSelectSx,
-  drawerMenuItemSx,
-  drawerFieldValueSx,
-  dialogBorderedFieldSx,
-  longFormSurfaceFieldSx,
-} from '../../theme/formSx';
+import { drawerSelectSx, drawerMenuItemSx, drawerFieldValueSx, longFormSurfaceFieldSx } from '../../theme/formSx';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import type { ConnectionPathHop } from './workspace/ConnectionPathSection';
 
@@ -622,7 +616,6 @@ export default function ConnectionWorkspacePage() {
             value={createForm.lifecycle || ''}
             onChange={(e) => patchCreateForm({ lifecycle: e.target.value })}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerSelectSx}
             disabled={!canManage || createSubmitting}
           >
@@ -644,7 +637,6 @@ export default function ConnectionWorkspacePage() {
             value={createForm.topology}
             onChange={(e) => patchCreateForm({ topology: e.target.value as 'server_to_server' | 'multi_server' })}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerSelectSx}
             disabled={!canManage || createSubmitting}
           >
@@ -664,7 +656,6 @@ export default function ConnectionWorkspacePage() {
             value={createForm.criticality}
             onChange={(e) => patchCreateForm({ criticality: e.target.value })}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerSelectSx}
             disabled={!canManage || createSubmitting}
           >
@@ -679,7 +670,6 @@ export default function ConnectionWorkspacePage() {
             value={createForm.dataClass || ''}
             onChange={(e) => patchCreateForm({ dataClass: e.target.value })}
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerSelectSx}
             disabled={!canManage || createSubmitting}
           >
@@ -859,8 +849,7 @@ export default function ConnectionWorkspacePage() {
                     required
                     size="small"
                     variant="standard"
-                    InputProps={{ disableUnderline: true }}
-                    sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                    sx={drawerFieldValueSx}
                     disabled={!canManage || createSubmitting}
                   />
                 </PropertyRow>
@@ -871,8 +860,7 @@ export default function ConnectionWorkspacePage() {
                     onChange={(e) => patchCreateForm({ topology: e.target.value as 'server_to_server' | 'multi_server' })}
                     size="small"
                     variant="standard"
-                    InputProps={{ disableUnderline: true }}
-                    sx={[drawerSelectSx, dialogBorderedFieldSx]}
+                    sx={drawerSelectSx}
                     disabled={!canManage || createSubmitting}
                   >
                     <MenuItem value="server_to_server" sx={drawerMenuItemSx}>Server to server</MenuItem>
@@ -935,8 +923,7 @@ export default function ConnectionWorkspacePage() {
                           {...params}
                           variant="standard"
                           placeholder="Add a server"
-                          InputProps={{ ...params.InputProps, disableUnderline: true }}
-                          sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                          sx={drawerFieldValueSx}
                         />
                       )}
                     />
@@ -967,8 +954,7 @@ export default function ConnectionWorkspacePage() {
                       {...params}
                       variant="standard"
                       placeholder="Add a protocol"
-                      InputProps={{ ...params.InputProps, disableUnderline: true }}
-                      sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                      sx={drawerFieldValueSx}
                     />
                   )}
                 />
@@ -985,7 +971,6 @@ export default function ConnectionWorkspacePage() {
                 multiline
                 minRows={4}
                 maxRows={12}
-                InputProps={{ disableUnderline: true }}
                 sx={longFormSurfaceFieldSx}
                 disabled={!canManage || createSubmitting}
               />

@@ -1039,7 +1039,6 @@ export default function InterfaceBindingsMatrix({
                 value={dialogState.source_instance_id || ''}
                 onChange={(event) => updateDialogField('source_instance_id', event.target.value || null)}
                 variant="standard"
-                disableUnderline
                 sx={selectFieldSx}
               >
                 {dialogSourceInstanceOptions.map((inst) => (
@@ -1056,7 +1055,6 @@ export default function InterfaceBindingsMatrix({
                 value={dialogState.target_instance_id || ''}
                 onChange={(event) => updateDialogField('target_instance_id', event.target.value || null)}
                 variant="standard"
-                disableUnderline
                 sx={selectFieldSx}
               >
                 {dialogTargetInstanceOptions.map((inst) => (
@@ -1073,7 +1071,6 @@ export default function InterfaceBindingsMatrix({
                 value={dialogState.integration_tool_application_id || ''}
                 onChange={(event) => updateDialogField('integration_tool_application_id', event.target.value || null)}
                 variant="standard"
-                disableUnderline
                 sx={selectFieldSx}
               >
                 {dialogIntegrationToolOptions.map((option) => (
@@ -1093,7 +1090,6 @@ export default function InterfaceBindingsMatrix({
                 commitBindingField('status', nextValue || 'proposed');
               }}
               variant="standard"
-              disableUnderline
               sx={selectFieldSx}
             >
               {lifecycleOptions.map((opt) => (
@@ -1112,7 +1108,6 @@ export default function InterfaceBindingsMatrix({
                 commitBindingField('authentication_mode', nextValue);
               }}
               variant="standard"
-              disableUnderline
               displayEmpty
               renderValue={(value) => {
                 const code = String(value || '');
@@ -1173,7 +1168,6 @@ export default function InterfaceBindingsMatrix({
                   placeholder="Search connections"
                   InputProps={{
                     ...params.InputProps,
-                    disableUnderline: true,
                     endAdornment: (
                       <>
                         {bindingConnectionLoading ? <CircularProgress size={16} /> : null}
@@ -1201,7 +1195,6 @@ export default function InterfaceBindingsMatrix({
               onBlur={(event) => commitBindingField('source_endpoint', event.target.value || null)}
               variant="standard"
               fullWidth
-              InputProps={{ disableUnderline: true }}
               sx={textFieldSx}
               placeholder="File path, URL, queue name"
             />
@@ -1213,7 +1206,6 @@ export default function InterfaceBindingsMatrix({
               onBlur={(event) => commitBindingField('target_endpoint', event.target.value || null)}
               variant="standard"
               fullWidth
-              InputProps={{ disableUnderline: true }}
               sx={textFieldSx}
               placeholder="File path, URL, queue name"
             />
@@ -1227,7 +1219,6 @@ export default function InterfaceBindingsMatrix({
               fullWidth
               multiline
               minRows={surface === 'panel' ? 3 : 2}
-              InputProps={{ disableUnderline: true }}
               sx={textFieldSx}
               placeholder="Cron expression, event description, batch window"
             />
@@ -1239,7 +1230,6 @@ export default function InterfaceBindingsMatrix({
               onBlur={(event) => commitBindingField('env_job_name', event.target.value || null)}
               variant="standard"
               fullWidth
-              InputProps={{ disableUnderline: true }}
               sx={textFieldSx}
               placeholder={dialogState.leg.job_name ? `Uses ${dialogState.leg.job_name}` : 'Uses Flow job name'}
             />
@@ -1251,7 +1241,6 @@ export default function InterfaceBindingsMatrix({
               onBlur={(event) => commitBindingField('monitoring_url', event.target.value || null)}
               variant="standard"
               fullWidth
-              InputProps={{ disableUnderline: true }}
               sx={textFieldSx}
               placeholder="https://..."
             />
@@ -1265,7 +1254,6 @@ export default function InterfaceBindingsMatrix({
               fullWidth
               multiline
               minRows={3}
-              InputProps={{ disableUnderline: true }}
               sx={textFieldSx}
               placeholder="Environment-specific notes"
             />
@@ -2130,7 +2118,6 @@ export default function InterfaceBindingsMatrix({
             value={envDraft}
             onChange={(event) => setEnvDraft(event.target.value)}
             variant="standard"
-            disableUnderline
             sx={drawerSelectSx}
           >
             {selectableEnvs.map((env) => (

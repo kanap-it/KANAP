@@ -254,7 +254,6 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
                 required
                 fullWidth
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
                 sx={drawerFieldValueSx}
               />
             </PropertyRow>
@@ -265,7 +264,6 @@ export default function CreateVersionDialog({ open, onClose, sourceApp, onSucces
                 placeholder="e.g., 2.0, 2024, Q1 2025"
                 fullWidth
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
                 sx={drawerFieldValueSx}
               />
             </PropertyRow>

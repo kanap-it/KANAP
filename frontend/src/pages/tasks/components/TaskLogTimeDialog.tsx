@@ -7,7 +7,7 @@ import UserSelect from '../../../components/fields/UserSelect';
 import DateEUField from '../../../components/fields/DateEUField';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { KanapDialog, PropertyRow } from '../../../components/design';
-import { drawerFieldValueSx, dialogBorderedFieldSx, textTabsSx, textTabSx } from '../../../theme/formSx';
+import { drawerFieldValueSx, textTabsSx, textTabSx } from '../../../theme/formSx';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
 
 type TimeEntryCategory = 'it' | 'business';
@@ -152,7 +152,7 @@ export default function TaskLogTimeDialog({
     }
   };
 
-  const fieldSx = [drawerFieldValueSx, dialogBorderedFieldSx];
+  const fieldSx = drawerFieldValueSx;
 
   return (
     <KanapDialog
@@ -270,8 +270,7 @@ export default function TaskLogTimeDialog({
                   if (raw === '' || /^\d+$/.test(raw)) setDays(raw);
                 }}
                 inputProps={{ inputMode: 'numeric', style: { textAlign: 'center' } }}
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx, { width: 56 }]}
+                sx={[drawerFieldValueSx, { width: 56 }]}
               />
             </Box>
           </Stack>
@@ -286,7 +285,6 @@ export default function TaskLogTimeDialog({
             minRows={2}
             placeholder={t('portfolio:dialogs.logTime.placeholders.notes')}
             fullWidth
-            InputProps={{ disableUnderline: true }}
             sx={fieldSx}
           />
         </PropertyRow>

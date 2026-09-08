@@ -413,9 +413,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               disabled={disabled}
               inputRef={inputRef}
               autoFocus={autoFocus}
-              InputProps={{
-                disableUnderline: true,
-              }}
               sx={[
                 fieldResetSx,
                 (theme) => ({

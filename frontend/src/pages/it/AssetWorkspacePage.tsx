@@ -49,7 +49,7 @@ import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { KanapDialog, PropertyGroup, PropertyRow, useKanapDialogs } from '../../components/design';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
-import { dialogBorderedFieldSx, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx, editableFieldValueSx } from '../../theme/formSx';
+import { drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../theme/formSx';
 import { getEnvDotColor } from '../../components/grid/renderers/StatusCellRenderer';
 import { getDotColor, LIFECYCLE_COLORS } from '../../utils/statusColors';
 import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
@@ -1239,8 +1239,7 @@ export default function AssetWorkspacePage() {
                 {...params}
                 variant="standard"
                 placeholder="Search asset types"
-                InputProps={{ ...params.InputProps, disableUnderline: true }}
-                sx={editableFieldValueSx}
+                sx={drawerFieldValueSx}
               />
             )}
             ListboxProps={{ sx: drawerAutocompleteListboxSx }}
@@ -1256,7 +1255,7 @@ export default function AssetWorkspacePage() {
               required
               size="small"
               hideLabel
-              textFieldSx={editableFieldValueSx}
+              textFieldSx={drawerFieldValueSx}
               disabled={!canManage || saving}
             />
           </Box>
@@ -1280,8 +1279,7 @@ export default function AssetWorkspacePage() {
                   {...params}
                   variant="standard"
                   placeholder="Search sub-locations"
-                  InputProps={{ ...params.InputProps, disableUnderline: true }}
-                  sx={editableFieldValueSx}
+                  sx={drawerFieldValueSx}
                 />
               )}
               renderOption={(props, option) => (
@@ -1327,7 +1325,6 @@ export default function AssetWorkspacePage() {
               updateScalar('environment', next as AssetRecord['environment']);
             }}
             variant="standard"
-            disableUnderline
             disabled={!canManage || saving}
             sx={drawerSelectSx}
           >
@@ -1343,7 +1340,6 @@ export default function AssetWorkspacePage() {
               updateScalar('status', next as AssetRecord['status']);
             }}
             variant="standard"
-            disableUnderline
             disabled={!canManage || saving}
             sx={drawerSelectSx}
           >
@@ -1351,10 +1347,10 @@ export default function AssetWorkspacePage() {
           </Select>
         </PropertyRow>
         <PropertyRow label="Go live">
-          <DateEUField label="" valueYmd={goLiveDate} onChangeYmd={(val) => { setGoLiveDate(val); updateScalar('go_live_date', (val || null) as AssetRecord['go_live_date']); }} disabled={!canManage || saving} size="small" hideLabel textFieldSx={editableFieldValueSx} />
+          <DateEUField label="" valueYmd={goLiveDate} onChangeYmd={(val) => { setGoLiveDate(val); updateScalar('go_live_date', (val || null) as AssetRecord['go_live_date']); }} disabled={!canManage || saving} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
         </PropertyRow>
         <PropertyRow label="End of life">
-          <DateEUField label="" valueYmd={endOfLifeDate} onChangeYmd={(val) => { setEndOfLifeDate(val); updateScalar('end_of_life_date', (val || null) as AssetRecord['end_of_life_date']); }} disabled={!canManage || saving} size="small" hideLabel textFieldSx={editableFieldValueSx} />
+          <DateEUField label="" valueYmd={endOfLifeDate} onChangeYmd={(val) => { setEndOfLifeDate(val); updateScalar('end_of_life_date', (val || null) as AssetRecord['end_of_life_date']); }} disabled={!canManage || saving} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
         </PropertyRow>
       </PropertyGroup>
     </>
@@ -1543,7 +1539,6 @@ export default function AssetWorkspacePage() {
                       required
                       size="small"
                       variant="standard"
-                      InputProps={{ disableUnderline: true }}
                       sx={contentFieldSx}
                     />
                   </PropertyRow>
@@ -1562,7 +1557,6 @@ export default function AssetWorkspacePage() {
                           placeholder="Search asset types"
                           size="small"
                           variant="standard"
-                          InputProps={{ ...params.InputProps, disableUnderline: true }}
                           sx={contentFieldSx}
                         />
                       </PropertyRow>
@@ -1586,7 +1580,6 @@ export default function AssetWorkspacePage() {
                       onChange={(e) => { setEnvironment(e.target.value); setDirty(true); }}
                       size="small"
                       variant="standard"
-                      InputProps={{ disableUnderline: true }}
                       sx={contentFieldSx}
                     >
                       {ENV_OPTIONS.map((opt) => <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>)}
@@ -1907,7 +1900,6 @@ export default function AssetWorkspacePage() {
                       placeholder="e.g., server1"
                       size="small"
                       variant="standard"
-                      InputProps={{ disableUnderline: true }}
                       sx={contentFieldSx}
                       disabled={!canManage}
                     />
@@ -1924,7 +1916,6 @@ export default function AssetWorkspacePage() {
                       }}
                       size="small"
                       variant="standard"
-                      InputProps={{ disableUnderline: true }}
                       sx={contentFieldSx}
                       disabled={!canManage}
                     >
@@ -1941,7 +1932,6 @@ export default function AssetWorkspacePage() {
                       value={computedFqdn}
                       InputProps={{
                         readOnly: true,
-                        disableUnderline: true,
                         sx: { color: 'text.secondary', '& input': { cursor: 'default' } },
                       }}
                       size="small"
@@ -1972,7 +1962,6 @@ export default function AssetWorkspacePage() {
                           placeholder={aliases.length === 0 ? 'e.g., server1, srv1' : ''}
                           size="small"
                           variant="standard"
-                          InputProps={{ ...params.InputProps, disableUnderline: true }}
                           sx={contentFieldSx}
                         />
                       </PropertyRow>
@@ -2000,7 +1989,6 @@ export default function AssetWorkspacePage() {
                       })()}
                       size="small"
                       variant="standard"
-                      InputProps={{ disableUnderline: true }}
                       sx={contentFieldSx}
                     >
                       <MenuItem value="" sx={drawerMenuItemSx}>None</MenuItem>
@@ -2063,7 +2051,6 @@ export default function AssetWorkspacePage() {
                               }}
                               size="small"
                               variant="standard"
-                              InputProps={{ disableUnderline: true }}
                               sx={contentFieldSx}
                               disabled={!canManage}
                             >
@@ -2089,7 +2076,6 @@ export default function AssetWorkspacePage() {
                               fullWidth
                               size="small"
                               variant="standard"
-                              InputProps={{ disableUnderline: true }}
                               sx={contentFieldSx}
                               disabled={!canManage}
                             />
@@ -2119,7 +2105,6 @@ export default function AssetWorkspacePage() {
                               }}
                               size="small"
                               variant="standard"
-                              InputProps={{ disableUnderline: true }}
                               sx={contentFieldSx}
                               helperText={subnetOptions.length === 0 ? 'Define subnets in settings.' : undefined}
                               disabled={!canManage}
@@ -2139,7 +2124,7 @@ export default function AssetWorkspacePage() {
                               size="small"
                               variant="standard"
                               sx={contentFieldSx}
-                              InputProps={{ readOnly: true, disableUnderline: true }}
+                              InputProps={{ readOnly: true }}
                             />
                           </PropertyRow>
                           <PropertyRow label="VLAN" valueSx={{ minWidth: { xs: '100%', sm: 90 } }}>
@@ -2148,7 +2133,7 @@ export default function AssetWorkspacePage() {
                               size="small"
                               variant="standard"
                               sx={contentFieldSx}
-                              InputProps={{ readOnly: true, disableUnderline: true }}
+                              InputProps={{ readOnly: true }}
                             />
                           </PropertyRow>
                         </Stack>
@@ -2223,10 +2208,9 @@ export default function AssetWorkspacePage() {
                     placeholder="Search member servers"
                     helperText="Members must be non-cluster servers."
                     variant="standard"
-                    sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                    sx={drawerFieldValueSx}
                     InputProps={{
                       ...params.InputProps,
-                      disableUnderline: true,
                       endAdornment: (
                         <>
                           {memberOptionsLoading ? <CircularProgress color="inherit" size={16} /> : null}
@@ -2260,7 +2244,7 @@ export default function AssetWorkspacePage() {
                 onChange={(appId) => { void onSelectApplication(appId); }}
                 required
                 hideLabel
-                textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                textFieldSx={drawerFieldValueSx}
               />
             </PropertyRow>
             <PropertyRow label="Environment" required>
@@ -2272,8 +2256,7 @@ export default function AssetWorkspacePage() {
                 required
                 helperText={!selectedAppId ? 'Select an application to choose an environment.' : undefined}
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                sx={drawerFieldValueSx}
               >
                 {(selectedAppId ? appInstances[selectedAppId] || [] : []).map((inst) => (
                   <MenuItem key={inst.id} value={inst.id} sx={drawerMenuItemSx}>{environmentLabel(inst.environment)}</MenuItem>
@@ -2291,8 +2274,7 @@ export default function AssetWorkspacePage() {
                 required
                 helperText={serverRoleOptions.length === 0 ? 'No server roles configured; update IT ops settings.' : undefined}
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                sx={drawerFieldValueSx}
               >
                 {serverRoleOptions.map((opt) => (
                   <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>
@@ -2305,7 +2287,7 @@ export default function AssetWorkspacePage() {
                 hideLabel
                 valueYmd={assignSince}
                 onChangeYmd={setAssignSince}
-                textFieldSx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                textFieldSx={drawerFieldValueSx}
               />
             </PropertyRow>
             <PropertyRow label="Notes">
@@ -2315,8 +2297,7 @@ export default function AssetWorkspacePage() {
                 value={assignNotes}
                 onChange={(e) => setAssignNotes(e.target.value)}
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
-                sx={[drawerFieldValueSx, dialogBorderedFieldSx]}
+                sx={drawerFieldValueSx}
               />
             </PropertyRow>
             {assignError && <Alert severity="error">{assignError}</Alert>}

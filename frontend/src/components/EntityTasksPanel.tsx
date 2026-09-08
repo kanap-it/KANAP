@@ -194,7 +194,6 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
           </Box>
           <Select
             variant="standard"
-            disableUnderline
             value={listFilters.status}
             onChange={(e) => replaceListFilters({ ...listFilters, status: e.target.value as EntityTaskListFilters['status'] })}
             sx={filterSelectSx}
@@ -216,7 +215,6 @@ export default function EntityTasksPanel({ entityType, entityId, phases = [], di
             </Box>
             <Select
               variant="standard"
-              disableUnderline
               value={listFilters.phase}
               onChange={(e) => replaceListFilters({ ...listFilters, phase: e.target.value })}
               sx={filterSelectSx}

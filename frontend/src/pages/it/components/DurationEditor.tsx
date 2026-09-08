@@ -101,7 +101,6 @@ export default function DurationEditor({ value, onCommit, onDraftStateChange, al
           placeholder={placeholder}
           disabled={disabled}
           variant="standard"
-          InputProps={{ disableUnderline: true }}
           sx={drawerFieldValueSx}
           error={!!error}
         />
@@ -117,7 +116,6 @@ export default function DurationEditor({ value, onCommit, onDraftStateChange, al
           }}
           disabled={disabled}
           variant="standard"
-          disableUnderline
           inputProps={{ 'aria-label': `${ariaLabel || 'Duration'} unit` }}
           sx={drawerSelectSx}
         >

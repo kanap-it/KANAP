@@ -160,7 +160,6 @@ export default function LocationMetadataBar({
             onChange={(e) => onCountryChange(e.target.value)}
             size="small"
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             sx={drawerSelectSx}
             SelectProps={{
               MenuProps: { PaperProps: { sx: { maxHeight: 280 } } },
@@ -180,7 +179,6 @@ export default function LocationMetadataBar({
             onBlur={(e) => onCityChange(e.target.value)}
             size="small"
             variant="standard"
-            InputProps={{ disableUnderline: true }}
             placeholder="e.g., Paris"
             sx={drawerFieldValueSx}
           />
@@ -262,7 +260,6 @@ export default function LocationMetadataBar({
                 onChange={(e) => onProviderChange(e.target.value)}
                 size="small"
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
                 sx={drawerSelectSx}
               >
                 <MenuItem value="" sx={drawerMenuItemSx}>—</MenuItem>
@@ -279,7 +276,6 @@ export default function LocationMetadataBar({
                 onBlur={(e) => onRegionChange(e.target.value)}
                 size="small"
                 variant="standard"
-                InputProps={{ disableUnderline: true }}
                 placeholder="e.g., eu-west-1"
                 sx={drawerFieldValueSx}
               />

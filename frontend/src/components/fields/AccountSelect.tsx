@@ -156,7 +156,6 @@ const AccountSelect = React.forwardRef<HTMLInputElement, AccountSelectProps>(fun
           helperText={helperText}
           InputProps={{
             ...params.InputProps,
-            ...(naked ? { disableUnderline: true } : {}),
             endAdornment: (
               <>
                 {isLoading ? <CircularProgress color="inherit" size={20} /> : null}

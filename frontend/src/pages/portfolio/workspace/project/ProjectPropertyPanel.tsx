@@ -49,7 +49,6 @@ type ProjectPropertyPanelProps = {
   streams: Array<{ id: string; name: string; category_id: string }>;
 };
 
-const standardInputProps = { disableUnderline: true } as const;
 
 export default function ProjectPropertyPanel({
   canManage,
@@ -139,7 +138,6 @@ export default function ProjectPropertyPanel({
               }
             }}
             variant="standard"
-            InputProps={standardInputProps}
             required
             fullWidth
           />
@@ -152,7 +150,6 @@ export default function ProjectPropertyPanel({
               onChange={(event) => onStatusChange(String(event.target.value))}
               disabled={coreFieldsDisabled}
               variant="standard"
-              disableUnderline
               sx={drawerSelectSx}
             >
               {statusOptions.map((option) => (
@@ -171,7 +168,6 @@ export default function ProjectPropertyPanel({
               onChange={(event) => onOriginChange(String(event.target.value))}
               disabled={coreFieldsDisabled}
               variant="standard"
-              disableUnderline
               sx={drawerSelectSx}
             >
               {originOptions.map((option) => (
@@ -193,7 +189,6 @@ export default function ProjectPropertyPanel({
             onChange={(event) => onSourceChange(String(event.target.value))}
             disabled={coreFieldsDisabled}
             variant="standard"
-            disableUnderline
             displayEmpty
             renderValue={(v) => (v ? (sources.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
@@ -213,7 +208,6 @@ export default function ProjectPropertyPanel({
             onChange={(event) => onCategoryChange(String(event.target.value))}
             disabled={coreFieldsDisabled}
             variant="standard"
-            disableUnderline
             displayEmpty
             renderValue={(v) => (v ? (categories.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
@@ -233,7 +227,6 @@ export default function ProjectPropertyPanel({
             onChange={(event) => onStreamChange(String(event.target.value))}
             disabled={coreFieldsDisabled || !form?.category_id}
             variant="standard"
-            disableUnderline
             displayEmpty
             renderValue={(v) => (v ? (filteredStreams.find((o) => o.id === v)?.name ?? '') : <Box component="span" sx={selectPlaceholderSx}>{noneLabel}</Box>)}
             sx={drawerSelectSx}
