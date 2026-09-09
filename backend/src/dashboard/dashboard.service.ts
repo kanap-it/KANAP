@@ -23,7 +23,12 @@ export class DashboardService {
     return manager ? manager.getRepository(UserDashboardConfig) : this.repo;
   }
 
-  private mergeWithDefaults(tiles: DashboardTileConfig[]): DashboardTileConfig[] {
+  /**
+   * Every default tile is present in the result. A default tile absent from `tiles` keeps its default
+   * state when reading (a tile added after the user saved shows up as designed) but is stored disabled
+   * when saving (`missingAsDisabled`), so a tile the client left out does not come back switched on.
+   */
+  private mergeWithDefaults(tiles: DashboardTileConfig[], missingAsDisabled = false): DashboardTileConfig[] {
     const byId = new Map(tiles.map((tile) => [tile.id, tile]));
     const merged = DEFAULT_DASHBOARD_CONFIG.map((defaultTile) => {
       const existing = byId.get(defaultTile.id);
@@ -32,7 +37,7 @@ export class DashboardService {
             ...existing,
             config: { ...defaultTile.config, ...(existing.config || {}) },
           }
-        : { ...defaultTile, config: { ...defaultTile.config } };
+        : { ...defaultTile, enabled: missingAsDisabled ? false : defaultTile.enabled, config: { ...defaultTile.config } };
     });
 
     const knownIds = new Set(DEFAULT_DASHBOARD_CONFIG.map((tile) => tile.id));
@@ -87,7 +92,7 @@ export class DashboardService {
 
     if (existing) {
       // Update existing config
-      existing.tiles = this.mergeWithDefaults(dto.tiles);
+      existing.tiles = this.mergeWithDefaults(dto.tiles, true);
       await repo.save(existing);
       return { tiles: existing.tiles };
     }
@@ -95,7 +100,7 @@ export class DashboardService {
     // Create new config (tenant_id will be set by default via app_current_tenant())
     const newConfig = repo.create({
       user_id: userId,
-      tiles: this.mergeWithDefaults(dto.tiles),
+      tiles: this.mergeWithDefaults(dto.tiles, true),
     });
     await repo.save(newConfig);
     return { tiles: newConfig.tiles };

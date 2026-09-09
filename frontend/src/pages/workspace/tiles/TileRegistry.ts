@@ -139,9 +139,10 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
     title: 'Team Activity',
     titleKey: 'dashboard.tiles.teamActivity',
     icon: 'Update',
-    defaultConfig: { limit: 5 },
+    defaultConfig: { limit: 5, days: 7 },
     configSchema: {
-      limit: { type: 'number', labelKey: 'dashboard.settings.options.limit', min: 1, max: 5 },
+      limit: { type: 'number', labelKey: 'dashboard.settings.options.limit', min: 1, max: 10 },
+      days: { type: 'number', labelKey: 'dashboard.settings.options.days', min: 1, max: 30 },
     },
     requiredPermissions: [{ resource: 'portfolio_projects', level: 'reader' }],
   },

@@ -1,8 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
+import {
+  ParticipationAccessScope,
+  projectParticipantCondition,
+  taskParticipantCondition,
+} from '../auth/business-contributor-scope';
 
 interface ServiceOptions {
   manager?: EntityManager;
+  /** Present for business contributors: restrict to projects/tasks they take part in (same rule as the lists). */
+  accessScope?: ParticipationAccessScope;
 }
 
 export interface MyLeadershipProject {
@@ -223,7 +230,8 @@ export class DashboardDataService {
     const result = await manager.query(
       `
       WITH date_cutoff AS (
-        SELECT (NOW() - ($2 || ' days')::interval)::timestamptz as cutoff
+        -- Calendar window: today and the (N - 1) previous days, so "last 7 days" starts at a day boundary
+        SELECT (CURRENT_DATE - (($2::int - 1) || ' days')::interval)::timestamptz as cutoff
       ),
       -- Task time entries with project association
       task_time AS (
@@ -327,6 +335,7 @@ export class DashboardDataService {
   async getTeamActivity(
     userId: string,
     limit: number = 5,
+    days: number = 7,
     opts?: ServiceOptions,
   ): Promise<TeamActivityItem[]> {
     const manager = opts?.manager;
@@ -337,14 +346,8 @@ export class DashboardDataService {
       WITH involved_projects AS (
         SELECT p.id
         FROM portfolio_projects p
-        WHERE p.it_lead_id = $1
-          OR p.business_lead_id = $1
-          OR p.it_sponsor_id = $1
-          OR p.business_sponsor_id = $1
-        UNION
-        SELECT ppt.project_id AS id
-        FROM portfolio_project_team ppt
-        WHERE ppt.user_id = $1
+        WHERE p.status NOT IN ('done', 'cancelled')
+          AND ${projectParticipantCondition('p', '$1')}
       )
       SELECT
         a.id,
@@ -360,7 +363,7 @@ export class DashboardDataService {
       JOIN portfolio_projects p ON p.id = a.project_id
       LEFT JOIN users u ON u.id = a.author_id AND u.tenant_id = p.tenant_id
       WHERE a.project_id IS NOT NULL
-        AND a.created_at >= NOW() - INTERVAL '7 days'
+        AND a.created_at >= NOW() - ($3 || ' days')::interval
         AND (
           a.type IN ('comment', 'decision')
           OR (
@@ -384,7 +387,7 @@ export class DashboardDataService {
       ORDER BY a.created_at DESC
       LIMIT $2
       `,
-      [userId, limit],
+      [userId, limit, days],
     );
 
     return rows.map((row: any) => ({
@@ -407,6 +410,13 @@ export class DashboardDataService {
     const manager = opts?.manager;
     if (!manager) throw new Error('EntityManager required');
 
+    const params: unknown[] = [days, limit];
+    let scopeSql = '';
+    if (opts?.accessScope?.userId) {
+      params.push(opts.accessScope.userId);
+      scopeSql = `AND ${projectParticipantCondition('p', `$${params.length}`)}`;
+    }
+
     const rows = await manager.query(
       `
       SELECT
@@ -424,10 +434,11 @@ export class DashboardDataService {
         AND a.type = 'change'
         AND a.changed_fields ? 'status'
         AND a.created_at >= NOW() - ($1 || ' days')::interval
+        ${scopeSql}
       ORDER BY a.created_at DESC
       LIMIT $2
       `,
-      [days, limit],
+      params,
     );
 
     return rows.map((row: any) => ({
@@ -458,25 +469,25 @@ export class DashboardDataService {
       params.push(userId);
       scopeSql = `AND t.assignee_user_id = $${params.length}`;
     } else if (scope === 'team') {
-      const teamRows = await manager.query<Array<{ team_id: string | null }>>(
-        `
-        SELECT team_id
-        FROM portfolio_team_member_configs
-        WHERE user_id = $1
-          AND tenant_id = app_current_tenant()
-        LIMIT 1
-        `,
-        [userId],
-      );
-      const teamId = teamRows[0]?.team_id || null;
-      if (!teamId) return [];
-      params.push(teamId);
+      // Every team the user belongs to (a member can sit in several); rows without a team are ignored
+      params.push(userId);
       scopeSql = `AND t.assignee_user_id IN (
-        SELECT user_id
-        FROM portfolio_team_member_configs
-        WHERE team_id = $${params.length}
-          AND tenant_id = app_current_tenant()
+        SELECT members.user_id
+        FROM portfolio_team_member_configs members
+        WHERE members.tenant_id = app_current_tenant()
+          AND members.team_id IN (
+            SELECT mine.team_id
+            FROM portfolio_team_member_configs mine
+            WHERE mine.user_id = $${params.length}
+              AND mine.team_id IS NOT NULL
+              AND mine.tenant_id = app_current_tenant()
+          )
       )`;
+    }
+
+    if (opts?.accessScope?.userId) {
+      params.push(opts.accessScope.userId);
+      scopeSql += ` AND ${taskParticipantCondition('t', `$${params.length}`)}`;
     }
 
     params.push(limit);
@@ -506,11 +517,11 @@ export class DashboardDataService {
         END AS related_object_name,
         GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - t.updated_at)) / 86400))::int AS stale_days
       FROM tasks t
-      LEFT JOIN users u ON u.id = t.assignee_user_id
-      LEFT JOIN spend_items si ON t.related_object_type = 'spend_item' AND t.related_object_id = si.id
-      LEFT JOIN contracts c ON t.related_object_type = 'contract' AND t.related_object_id = c.id
-      LEFT JOIN capex_items ci ON t.related_object_type = 'capex_item' AND t.related_object_id = ci.id
-      LEFT JOIN portfolio_projects pp ON t.related_object_type = 'project' AND t.related_object_id = pp.id
+      LEFT JOIN users u ON u.id = t.assignee_user_id AND u.tenant_id = t.tenant_id
+      LEFT JOIN spend_items si ON t.related_object_type = 'spend_item' AND t.related_object_id = si.id AND si.tenant_id = t.tenant_id
+      LEFT JOIN contracts c ON t.related_object_type = 'contract' AND t.related_object_id = c.id AND c.tenant_id = t.tenant_id
+      LEFT JOIN capex_items ci ON t.related_object_type = 'capex_item' AND t.related_object_id = ci.id AND ci.tenant_id = t.tenant_id
+      LEFT JOIN portfolio_projects pp ON t.related_object_type = 'project' AND t.related_object_id = pp.id AND pp.tenant_id = t.tenant_id
       LEFT JOIN incidents inc ON t.related_object_type = 'incident' AND t.related_object_id = inc.id AND inc.tenant_id = t.tenant_id
       WHERE t.status NOT IN ('done', 'cancelled')
         AND t.updated_at < NOW() - ($1 || ' days')::interval

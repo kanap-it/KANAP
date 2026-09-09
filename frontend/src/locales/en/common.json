@@ -294,7 +294,8 @@
       },
       "myTimeTitle": "My time",
       "newRequestsTitle": "New requests",
-      "statusChangesTitle": "Project status changes"
+      "statusChangesTitle": "Project status changes",
+      "teamActivityDays": "Team activity (last {{days}} days)"
     },
     "welcome": "Welcome"
   },
