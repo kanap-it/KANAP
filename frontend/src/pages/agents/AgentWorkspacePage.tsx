@@ -1272,6 +1272,15 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
   } | null>(null);
   const [knowledgeForm, setKnowledgeForm] = React.useState(() => knowledgeFormFromDefinition(definition));
   const [capabilityForm, setCapabilityForm] = React.useState<Record<string, boolean>>(() => capabilityEnabledState(definition));
+  // Routing is driven by the instructions: the admin needs the exact group names the
+  // ticketing system exposes. Read-only, only fetched while Assignment is enabled.
+  const routingGroupsEnabled = !isSre && capabilityForm.assignment === true;
+  const routingGroupsQuery = useQuery({
+    queryKey: ['ai-agent-control-routing-groups', definition.id],
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(definition.id, 'group', { limit: 50 }),
+    enabled: routingGroupsEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
   const webSearchAvailable = useFeatures().config.features.aiWebSearch;
   const librariesQuery = useQuery({
     queryKey: ['knowledge-libraries'],
@@ -1746,6 +1755,17 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
               );
             })}
           </Box>
+          {routingGroupsEnabled && (
+            <Box sx={{ px: 1.5, pb: 1.25, fontSize: 12, color: 'kanap.text.tertiary', lineHeight: 1.5 }}>
+              {t('settings.routingHint')}
+              {' '}
+              {routingGroupsQuery.data
+                ? (routingGroupsQuery.data.options.length > 0
+                  ? t('settings.routingGroupsAvailable', { groups: routingGroupsQuery.data.options.map((option) => option.label).join(', ') })
+                  : t('settings.routingGroupsNone'))
+                : null}
+            </Box>
+          )}
         </Section>
       )}
 

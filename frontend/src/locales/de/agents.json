@@ -769,6 +769,9 @@
     "instructionsInfo": "Die Regeln, denen der Agent folgt — frei formuliert, in Zeilen oder Absätzen. Sie können nicht erweitern, was der Agent tun darf.",
     "replyLanguageInfo": "Die Sprache, in der der Agent schreibt. „Sprache des Tickets“ lässt ihn in der Sprache des Anfragenden antworten.",
     "capabilitiesInfo": "Was dieser Agent vorbereiten darf. Alles, was hier aus ist, wird nie vorgeschlagen — unabhängig von den Anweisungen.",
+    "routingHint": "Die Zuweisung folgt den Anweisungen: Nennen Sie dort die Gruppe, zum Beispiel „SAP-Fragen der Gruppe SAP-team zuweisen“. Der Agent fügt nur eine Gruppe hinzu, er entfernt nie jemanden.",
+    "routingGroupsAvailable": "Zuweisbare Gruppen: {{groups}}.",
+    "routingGroupsNone": "Das Ticketsystem stellt noch keine zuweisbare Gruppe bereit.",
     "modelInfo": "Auf welchem KI-Modell dieser Agent läuft. Modelle werden in der Administration unter KI-Modelle verwaltet.",
     "maxTicketsInfo": "Höchstzahl der Tickets, die der Agent pro Prüfung aufnimmt. Der Rest wartet auf die nächste.",
     "maxRequestsInfo": "Höchstzahl der Aufrufe an das Ticketsystem pro Prüfung, damit es nie überlastet wird.",
@@ -818,6 +821,9 @@
     "assignmentUpdate": "Zuweisung aktualisieren",
     "assignee": "Zugewiesen an",
     "unassigned": "Nicht zugewiesen",
+    "assignToGroup": "Gruppe zuweisen",
+    "currentGroups": "Aktuell zugewiesen",
+    "noGroupAssigned": "Keine Gruppe zugewiesen",
     "participantUpdate": "Teilnehmer aktualisieren"
   }
 }

@@ -769,6 +769,9 @@
     "instructionsInfo": "Las reglas que sigue el agente — escríbalas libremente, en líneas o párrafos. No pueden ampliar lo que el agente puede hacer.",
     "replyLanguageInfo": "El idioma en el que escribe el agente. «Idioma del ticket» hace que responda en el idioma que usó el solicitante.",
     "capabilitiesInfo": "Lo que este agente puede preparar. Todo lo que esté desactivado aquí nunca se propone, digan lo que digan las instrucciones.",
+    "routingHint": "La asignación sigue las instrucciones: nombre allí el grupo, por ejemplo «asigna las preguntas de SAP al grupo SAP-team». El agente solo añade un grupo, nunca quita a nadie.",
+    "routingGroupsAvailable": "Grupos que puede asignar: {{groups}}.",
+    "routingGroupsNone": "La herramienta de tickets aún no expone ningún grupo asignable.",
     "modelInfo": "Con qué modelo de IA funciona este agente. Los modelos se gestionan en Administración, en Modelos de IA.",
     "maxTicketsInfo": "El máximo de tickets que el agente toma en cada comprobación. El resto espera a la siguiente.",
     "maxRequestsInfo": "El máximo de llamadas que el agente hace al sistema de tickets en cada comprobación, para no saturarlo.",
@@ -818,6 +821,9 @@
     "assignmentUpdate": "Actualización de asignación",
     "assignee": "Asignado a",
     "unassigned": "Sin asignar",
+    "assignToGroup": "Asignar al grupo",
+    "currentGroups": "Asignado actualmente",
+    "noGroupAssigned": "Ningún grupo asignado",
     "participantUpdate": "Actualización de participantes"
   }
 }

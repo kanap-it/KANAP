@@ -769,6 +769,9 @@
     "instructionsInfo": "House rules the agent follows — write them freely, as lines or paragraphs. They cannot widen what the agent is allowed to do.",
     "replyLanguageInfo": "The language the agent writes in. \"Ticket language\" makes it answer in whatever language the requester used.",
     "capabilitiesInfo": "What this agent may prepare. Everything switched off here is never proposed, whatever the instructions say.",
+    "routingHint": "Assignment is driven by the instructions: name the group there, for example “assign SAP questions to the group SAP-team”. The agent only adds a group, it never removes anyone.",
+    "routingGroupsAvailable": "Groups it can assign: {{groups}}.",
+    "routingGroupsNone": "The ticketing system exposes no assignable group yet.",
     "modelInfo": "Which AI model this agent runs on. Models are managed in Administration under AI models.",
     "maxTicketsInfo": "The most tickets the agent picks up in a single check. The rest wait for the next one.",
     "maxRequestsInfo": "The most calls the agent makes to the ticketing system in a single check, so it never floods it.",
@@ -818,6 +821,9 @@
     "assignmentUpdate": "Assignment update",
     "assignee": "Assignee",
     "unassigned": "Unassigned",
+    "assignToGroup": "Assign to group",
+    "currentGroups": "Currently assigned",
+    "noGroupAssigned": "No group assigned",
     "participantUpdate": "Participant update"
   }
 }
