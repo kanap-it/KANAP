@@ -24,7 +24,7 @@ Cada propuesta es una acción concreta que un agente quiere realizar sobre un ti
 | **Estado** | Un paso a un estado de ticket diferente (por ejemplo, de **Nuevo** a **Pendiente**). |
 | **Cerrar ticket** | Cierra el ticket; consulte [Cerrar y resolver tickets](#cerrar-y-resolver-tickets). |
 | **Resolver ticket** | Marca el ticket como resuelto; consulte [Cerrar y resolver tickets](#cerrar-y-resolver-tickets). |
-| **Asignación** | Un cambio de la persona a la que está asignado el ticket. |
+| **Asignación** | Añade un grupo de técnicos al ticket, según la regla de enrutamiento escrita en las instrucciones del agente. No se quita a nadie que ya esté en el ticket. La propuesta muestra el grupo añadido y los grupos asignados actualmente. |
 | **Participantes** | Un cambio en los observadores o solicitantes del ticket. |
 
 En el caso de una **Respuesta al solicitante** o una **Nota interna**, el cuerpo que ve es el mensaje redactado completo, exactamente como se publicaría. Léalo como lo haría el solicitante (o su equipo). Para los otros cinco tipos, el cuerpo es un breve resumen del cambio en lugar de texto libre —por ejemplo `Status: New -> Pending`, `Assignee: Unassigned -> Jane`, o una comparación de clasificación campo por campo—, a menudo seguido de una línea **Motivo** que explica por qué el agente lo propone.

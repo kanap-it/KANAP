@@ -769,6 +769,15 @@
     "instructionsInfo": "House rules the agent follows — write them freely, as lines or paragraphs. They cannot widen what the agent is allowed to do.",
     "replyLanguageInfo": "The language the agent writes in. \"Ticket language\" makes it answer in whatever language the requester used.",
     "capabilitiesInfo": "What this agent may prepare. Everything switched off here is never proposed, whatever the instructions say.",
+    "reference": {
+      "title": "Names you can use in the instructions",
+      "statuses": "Ticket statuses",
+      "groups": "Technician groups",
+      "empty": "Nothing available.",
+      "groupsEmpty": "The ticketing system exposes no assignable group.",
+      "groupsDisabled": "Enable Assignment in Capabilities to let the agent route tickets to a group.",
+      "classificationNote": "Category, priority and type are not driven by the instructions."
+    },
     "modelInfo": "Which AI model this agent runs on. Models are managed in Administration under AI models.",
     "maxTicketsInfo": "The most tickets the agent picks up in a single check. The rest wait for the next one.",
     "maxRequestsInfo": "The most calls the agent makes to the ticketing system in a single check, so it never floods it.",
@@ -818,6 +827,9 @@
     "assignmentUpdate": "Assignment update",
     "assignee": "Assignee",
     "unassigned": "Unassigned",
+    "assignToGroup": "Assign to group",
+    "currentGroups": "Currently assigned",
+    "noGroupAssigned": "No group assigned",
     "participantUpdate": "Participant update"
   }
 }

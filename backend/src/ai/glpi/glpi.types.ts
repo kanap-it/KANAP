@@ -83,6 +83,20 @@ export type GlpiTicketUserAssociation = {
   role: 'requester' | 'assigned' | 'observer' | 'unknown';
 };
 
+export type GlpiTicketGroupAssociation = {
+  id: number;
+  group_id: number;
+  group_label: string | null;
+  role: 'requester' | 'assigned' | 'observer' | 'unknown';
+};
+
+// A GLPI group a ticket can be assigned to (Group.is_assign = 1).
+export type GlpiAssignableGroup = {
+  id: number;
+  name: string | null;
+  completename: string | null;
+};
+
 export type GlpiTicketFollowupWriteResult = {
   id: number;
   ticket_id: number;

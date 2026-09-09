@@ -385,7 +385,7 @@ function buildMonitoringRetrievalQueryCandidates(
   return Array.from(new Set(candidates)).slice(0, MAX_MONITORING_KNOWLEDGE_QUERIES);
 }
 
-export type AgentControlTargetingOptionField = 'status' | 'priority' | 'type' | 'category' | 'entity';
+export type AgentControlTargetingOptionField = 'status' | 'priority' | 'type' | 'category' | 'entity' | 'group';
 // Monitoring flavor served through the same targeting-options endpoint for SRE
 // definitions: enum fields resolve from describeReferenceEnums, catalog fields
 // (group/device/check_type) from searchReferenceCatalog on the bound provider.
@@ -619,7 +619,10 @@ const PHASE_1_PLANNER_OWNED_ACTION_TYPES = [
   'requester_reply',
   'status_update',
 ] as const satisfies readonly PlannerActionType[];
-const PLANNER_OWNED_ACTION_TYPES = new Set<PlannerActionType>(PHASE_1_PLANNER_OWNED_ACTION_TYPES);
+// Instruction-driven group routing: owned only when the agent holds the assignment
+// capability pair and the provider exposes a routing catalogue for the ticket.
+const PLANNER_ASSIGNMENT_ACTION_TYPE = 'assignment_update' as const satisfies PlannerActionType;
+const PLANNER_OWNED_ACTION_TYPES = new Set<PlannerActionType>([...PHASE_1_PLANNER_OWNED_ACTION_TYPES, PLANNER_ASSIGNMENT_ACTION_TYPE]);
 const PLANNER_TERMINAL_TRANSITIONS = new Set(['solved', 'closed', 'resolved']);
 const MIN_KNOWLEDGE_RELEVANCE_SCORE = 0.00001;
 const MIN_KNOWLEDGE_LEXICAL_OVERLAP = 1;
@@ -649,7 +652,8 @@ const ACTION_TYPE_CAPABILITY_TABLE: Record<string, { prepare: string; approved: 
     approved: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
   },
 };
-const TARGETING_OPTION_FIELDS = new Set(['status', 'priority', 'type', 'category', 'entity']);
+// `group` is the assignable-group catalogue (routing targets), served read-only to the UI.
+const TARGETING_OPTION_FIELDS = new Set(['status', 'priority', 'type', 'category', 'entity', 'group']);
 const MONITORING_TARGETING_OPTION_FIELDS = new Set(['status', 'severity', 'ack_state', 'group', 'device', 'check_type']);
 const TARGETING_ENUM_OPTIONS_TTL_MS = 60 * 60 * 1000;
 const TARGETING_CATALOG_OPTIONS_TTL_MS = 2 * 60 * 1000;
@@ -2021,7 +2025,38 @@ function plannerActionKindKey(action: PlannerAction): string {
   if (action.action_type === 'status_update') {
     return `${action.action_type}:${action.transition_key ?? 'unspecified'}`;
   }
+  if (action.action_type === PLANNER_ASSIGNMENT_ACTION_TYPE) {
+    return `${action.action_type}:${action.target?.kind ?? 'unspecified'}:${action.target?.key ?? 'unspecified'}`;
+  }
   return action.action_type;
+}
+
+// Resolves a planner assignment target against the provider routing catalogue. The label
+// always comes from the catalogue: the model may only pick, never name.
+function resolvePlannerAssignmentTarget(
+  routing: Record<string, unknown> | null,
+  action: PlannerAction,
+): { target: { kind: 'user' | 'group'; key: string; label: string } | null; reason: string | null } {
+  const key = typeof action.target?.key === 'string' ? action.target.key.trim() : '';
+  const label = typeof action.target?.label === 'string' ? action.target.label.trim().toLowerCase() : '';
+  if (!key && !label) {
+    return { target: null, reason: 'missing_assignment_target' };
+  }
+  if (!routing || routing.assignmentSupported !== true) {
+    return { target: null, reason: 'assignment_not_supported_by_provider' };
+  }
+  const catalogue = Array.isArray(routing.supportedAssignmentTargets) ? routing.supportedAssignmentTargets.filter(isRecord) : [];
+  const sameKind = catalogue.filter((candidate) => candidate.kind === action.target?.kind && typeof candidate.key === 'string' && typeof candidate.label === 'string');
+  const match = sameKind.find((candidate) => key && candidate.key === key)
+    ?? sameKind.find((candidate) => label && String(candidate.label).trim().toLowerCase() === label);
+  if (!match || (match.kind !== 'group' && match.kind !== 'user')) {
+    return { target: null, reason: 'assignment_target_not_in_routing_catalogue' };
+  }
+  const assigned = Array.isArray(routing.assignedGroups) ? routing.assignedGroups.filter(isRecord) : [];
+  if (assigned.some((group) => group.key === match.key)) {
+    return { target: null, reason: 'assignment_target_already_present' };
+  }
+  return { target: { kind: match.kind, key: String(match.key), label: String(match.label) }, reason: null };
 }
 
 // Resolve the planner's verbatim_ref against the trusted candidate set. Tolerant of an
@@ -2799,36 +2834,6 @@ function bulkApproveActionSort(
   const rightTime = actionSortTime(right);
   if (leftTime !== rightTime) return leftTime - rightTime;
   return left.id.localeCompare(right.id);
-}
-
-function buildAssignmentUpdateProposal(
-  routing: Record<string, unknown> | null,
-): { target: Record<string, string>; reason: string } | null {
-  if (!routing || routing.assignmentSupported !== true) {
-    return null;
-  }
-  if (typeof routing.assignee === 'string' && routing.assignee.trim().length > 0) {
-    return null;
-  }
-  const targets = Array.isArray(routing.supportedAssignmentTargets)
-    ? routing.supportedAssignmentTargets.filter(isRecord)
-    : [];
-  const target = targets.find((candidate) =>
-    (candidate.kind === 'group' || candidate.kind === 'user')
-    && typeof candidate.key === 'string'
-    && typeof candidate.label === 'string',
-  );
-  if (!target) {
-    return null;
-  }
-  return {
-    target: {
-      kind: String(target.kind),
-      key: String(target.key),
-      label: String(target.label),
-    },
-    reason: `Assign the ticket to ${String(target.label)} because the ticket is currently unassigned and the provider exposes this target as supported.`,
-  };
 }
 
 function serializeRun(run: AiRun) {
@@ -8654,6 +8659,13 @@ export class AiAgentControlService {
     };
 
     const actionPlannerGuidanceHash = guidanceHash(promptRuntime.actionPlannerGuidance);
+    const assignmentWriteCapable = !!agentDefinition
+      && definitionAllowsCapability(agentDefinition, TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY)
+      && definitionAllowsCapability(agentDefinition, TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY);
+    const assignmentRoutingAvailable = assignmentWriteCapable && routingContext?.assignmentSupported === true;
+    const plannerOwnedActionTypes: PlannerActionType[] = assignmentRoutingAvailable
+      ? [...PHASE_1_PLANNER_OWNED_ACTION_TYPES, PLANNER_ASSIGNMENT_ACTION_TYPE]
+      : [...PHASE_1_PLANNER_OWNED_ACTION_TYPES];
     const closeWriteCapable = !!agentDefinition
       && definitionAllowsCapability(agentDefinition, TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY)
       && definitionAllowsCapability(agentDefinition, TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY)
@@ -8695,7 +8707,7 @@ export class AiAgentControlService {
       web_summary: plannerWebSummary(webSearchResults, webSearchStatus, webSearchQuery),
       image_evidence: ticketImageExtraction.evidence,
       granted_capabilities: allowedCapabilityNames(agentDefinition),
-      owned_action_types: [...PHASE_1_PLANNER_OWNED_ACTION_TYPES],
+      owned_action_types: plannerOwnedActionTypes,
       provider_profile: providerActionPlannerProfile,
       verbatim_candidates: promptRuntime.profile.verbatim_candidates,
       profile: promptRuntime.actionPlannerGuidance,
@@ -8757,6 +8769,10 @@ export class AiAgentControlService {
         const actionKey = plannerActionKindKey(action);
         if (!PLANNER_OWNED_ACTION_TYPES.has(actionType)) {
           markPlannerSkipped(actionType, 'action_type_not_owned_in_phase_1');
+          continue;
+        }
+        if (actionType === PLANNER_ASSIGNMENT_ACTION_TYPE && !assignmentRoutingAvailable) {
+          markPlannerSkipped(actionType, assignmentWriteCapable ? 'assignment_not_supported_by_provider' : 'prepare_capability_not_granted');
           continue;
         }
         if (seenPlannerActions.has(actionKey)) {
@@ -8853,6 +8869,17 @@ export class AiAgentControlService {
             transition_key: resolvedTransition.key,
             ...(resolvedTransition.resolution ? { transition_resolution: resolvedTransition.resolution } : {}),
           } as PlannerAction;
+        } else if (actionType === PLANNER_ASSIGNMENT_ACTION_TYPE) {
+          if (plannerAuthorizedActions.some((entry) => entry.action.action_type === PLANNER_ASSIGNMENT_ACTION_TYPE)) {
+            markPlannerSkipped(actionType, 'one_assignment_per_plan');
+            continue;
+          }
+          const resolvedTarget = resolvePlannerAssignmentTarget(routingContext, action);
+          if (!resolvedTarget.target) {
+            markPlannerSkipped(actionType, resolvedTarget.reason ?? 'assignment_target_not_in_routing_catalogue');
+            continue;
+          }
+          authorizedAction = { ...action, target: resolvedTarget.target } as PlannerAction;
         }
         plannerAuthorizedActions.push({
           action: authorizedAction,
@@ -8862,7 +8889,7 @@ export class AiAgentControlService {
         });
       }
     }
-    for (const actionType of PHASE_1_PLANNER_OWNED_ACTION_TYPES) {
+    for (const actionType of plannerOwnedActionTypes) {
       if (
         actionPlannerResult
         && !plannerAuthorizedActions.some((entry) => entry.action.action_type === actionType)
@@ -8880,6 +8907,7 @@ export class AiAgentControlService {
       transition_resolution: isRecord(entry.action) && typeof entry.action.transition_resolution === 'string'
         ? entry.action.transition_resolution
         : null,
+      target: entry.action.target ?? null,
       terminal: entry.terminal,
       reason: entry.action.reason,
     }));
@@ -8888,13 +8916,14 @@ export class AiAgentControlService {
       reply_kind: action.reply_kind ?? null,
       administrative_intent: action.administrative_intent ?? null,
       transition_key: action.transition_key ?? null,
+      target: action.target ?? null,
       verbatim_ref: action.verbatim_ref ?? null,
       body_present: typeof action.body === 'string' && action.body.trim().length > 0,
       reason: action.reason,
     }));
     const actionPlannerMetadata = {
       enabled: process.env.AI_AGENT_ACTION_PLANNER !== '0',
-      owned_action_types: [...PHASE_1_PLANNER_OWNED_ACTION_TYPES],
+      owned_action_types: plannerOwnedActionTypes,
       used: actionPlannerResult != null,
       fallback_reason: actionPlannerFallbackReason,
       model: actionPlannerResult?.model ?? null,
@@ -8918,10 +8947,6 @@ export class AiAgentControlService {
       ? buildStatusUpdateProposal(lifecycleContext, conversationGate.can_prepare_public_reply)
       : null;
     const classificationUpdateInput = buildClassificationUpdateProposal(ticket, classificationContext);
-    const assignmentWriteCapable = !!agentDefinition
-      && definitionAllowsCapability(agentDefinition, TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY)
-      && definitionAllowsCapability(agentDefinition, TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY);
-    const assignmentUpdateInput = assignmentWriteCapable ? buildAssignmentUpdateProposal(routingContext) : null;
 
     const plannerNeedsSourcedSynthesis = plannerAuthorizedActions.some((entry) =>
       entry.action.action_type === 'requester_reply' && entry.action.reply_kind === 'sourced_answer',
@@ -9036,6 +9061,7 @@ export class AiAgentControlService {
       transition_resolution: isRecord(entry.action) && typeof entry.action.transition_resolution === 'string'
         ? entry.action.transition_resolution
         : null,
+      target: entry.action.target ?? null,
       terminal: entry.terminal,
       reason: entry.action.reason,
     }));
@@ -9120,7 +9146,7 @@ export class AiAgentControlService {
       fallbackPublicReplyUsable || effectivePlannerActions.some((entry) => entry.action.action_type === 'requester_reply') ? 'requester reply' : null,
       fallbackStatusUpdateInput || effectivePlannerActions.some((entry) => entry.action.action_type === 'status_update') ? 'status update' : null,
       classificationUpdateInput ? 'classification update' : null,
-      assignmentUpdateInput ? 'assignment update' : null,
+      effectivePlannerActions.some((entry) => entry.action.action_type === PLANNER_ASSIGNMENT_ACTION_TYPE) ? 'assignment update' : null,
     ].filter((label): label is string => !!label);
     const anyActionEligible = expectedActionLabels.length > 0;
     const recommendationRepo = context.manager.getRepository(AiRecommendation);
@@ -9244,6 +9270,10 @@ export class AiAgentControlService {
     const plannerInternalNote = effectivePlannerActions.find((entry) => entry.action.action_type === 'internal_note') ?? null;
     const plannerRequesterReply = effectivePlannerActions.find((entry) => entry.action.action_type === 'requester_reply') ?? null;
     const plannerStatusUpdate = effectivePlannerActions.find((entry) => entry.action.action_type === 'status_update') ?? null;
+    const plannerAssignmentUpdate = effectivePlannerActions.find((entry) => entry.action.action_type === PLANNER_ASSIGNMENT_ACTION_TYPE) ?? null;
+    const assignmentUpdateInput = plannerAssignmentUpdate?.action.target
+      ? { target: plannerAssignmentUpdate.action.target, reason: plannerAssignmentUpdate.action.reason }
+      : null;
     const plannerStatusTransitionKey = plannerStatusUpdate && typeof plannerStatusUpdate.action.transition_key === 'string'
       ? plannerStatusUpdate.action.transition_key
       : null;
@@ -9584,7 +9614,24 @@ export class AiAgentControlService {
         excludeRunId: ticketResult.run_id,
       });
     }
-    const assignmentUpdateProposal = assignmentUpdateInput
+    const plannerAssignmentProposalHash = plannerAssignmentUpdate
+      ? plannerProposalHashFor({ ...plannerAssignmentUpdate, replyBody: null })
+      : null;
+    const plannerAssignmentContextHash = plannerAssignmentUpdate
+      ? plannerProposalContextHash(plannerAssignmentUpdate)
+      : null;
+    const plannerAssignmentSuppression = plannerAssignmentUpdate && plannerAssignmentProposalHash && plannerAssignmentContextHash
+      ? await this.unchangedProposalSuppressionReason(context, {
+        capabilityName: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+        ...proposalScope,
+        proposalHash: plannerAssignmentProposalHash,
+        contextHash: plannerAssignmentContextHash,
+      })
+      : null;
+    if (plannerAssignmentSuppression) {
+      plannerSuppressionReasons.assignment_update = plannerAssignmentSuppression;
+    }
+    const assignmentUpdateProposal = assignmentUpdateInput && !plannerAssignmentSuppression
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
         input: {
@@ -9603,10 +9650,9 @@ export class AiAgentControlService {
           trigger_kind: 'internal',
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
-          metadata: {
-            ...baseMetadata,
-            triage_action: 'prepare_assignment_update',
-          },
+          metadata: plannerAssignmentUpdate
+            ? plannerMetadata(plannerAssignmentUpdate, plannerAssignmentProposalHash, plannerAssignmentContextHash, 'planner_prepare_assignment_update')
+            : { ...baseMetadata, triage_action: 'prepare_assignment_update' },
         },
       })
       : null;
@@ -9795,7 +9841,7 @@ export class AiAgentControlService {
             status: plannerSkippedActionsWithSuppression.status_update
               ?? statusSuppressionReason
               ?? (statusUpdateInput ? null : 'no_safe_status_transition'),
-            assignment: assignmentUpdateInput ? null : (assignmentWriteCapable ? 'no_supported_assignment_target' : 'assignment_capability_not_granted'),
+            assignment: plannerSkippedActionsWithSuppression.assignment_update ?? (assignmentUpdateInput ? null : (assignmentRoutingAvailable ? 'not_selected_by_action_planner' : assignmentWriteCapable ? 'no_supported_assignment_target' : 'assignment_capability_not_granted')),
             participants: 'provider_participant_update_not_prepared',
           },
         },
@@ -9868,7 +9914,7 @@ export class AiAgentControlService {
           status: plannerSkippedActionsWithSuppression.status_update
             ?? statusSuppressionReason
             ?? (statusUpdateInput ? null : 'no_safe_status_transition'),
-          assignment: assignmentUpdateInput ? null : (assignmentWriteCapable ? 'no_supported_assignment_target' : 'assignment_capability_not_granted'),
+          assignment: plannerSkippedActionsWithSuppression.assignment_update ?? (assignmentUpdateInput ? null : (assignmentRoutingAvailable ? 'not_selected_by_action_planner' : assignmentWriteCapable ? 'no_supported_assignment_target' : 'assignment_capability_not_granted')),
           participants: 'provider_participant_update_not_prepared',
         },
         ticket_history_entry_count: ticketTimeline.length,

@@ -384,6 +384,21 @@ export function actionUpdateSummary(action: AiAgentControlActionRequest): string
   if (action.capability_name === ASSIGNMENT_UPDATE_CAPABILITY) {
     const target = isRecord(payload.target) ? payload.target : null;
     const targetLabel = typeof target?.label === 'string' && target.label.trim().length > 0 ? target.label : agentText('common.notSet', 'Not set');
+    if (target?.kind === 'group') {
+      // Group routing is additive: show what is on the ticket today and the group being added.
+      const currentGroups = Array.isArray(current?.assignedGroups)
+        ? current.assignedGroups.filter(isRecord).map((group) => String(group.label ?? group.key ?? '')).filter(Boolean)
+        : typeof current?.group === 'string' && current.group.trim().length > 0 ? [current.group] : [];
+      const currentLine = currentGroups.length > 0
+        ? currentGroups.join(', ')
+        : agentText('actions.noGroupAssigned', 'No group assigned');
+      return [
+        agentText('actions.assignmentUpdate', 'Assignment update'),
+        `- ${agentText('actions.assignToGroup', 'Assign to group')}: ${targetLabel}`,
+        `- ${agentText('actions.currentGroups', 'Currently assigned')}: ${currentLine}`,
+        reason ? `${agentText('actions.reason', 'Reason')}: ${reason}` : null,
+      ].filter(Boolean).join('\n');
+    }
     const currentAssignee = typeof current?.assignee === 'string' && current.assignee.trim().length > 0
       ? current.assignee
       : agentText('actions.unassigned', 'Unassigned');

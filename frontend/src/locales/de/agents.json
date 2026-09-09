@@ -769,6 +769,15 @@
     "instructionsInfo": "Die Regeln, denen der Agent folgt — frei formuliert, in Zeilen oder Absätzen. Sie können nicht erweitern, was der Agent tun darf.",
     "replyLanguageInfo": "Die Sprache, in der der Agent schreibt. „Sprache des Tickets“ lässt ihn in der Sprache des Anfragenden antworten.",
     "capabilitiesInfo": "Was dieser Agent vorbereiten darf. Alles, was hier aus ist, wird nie vorgeschlagen — unabhängig von den Anweisungen.",
+    "reference": {
+      "title": "In den Anweisungen verwendbare Namen",
+      "statuses": "Ticketstatus",
+      "groups": "Technikergruppen",
+      "empty": "Nichts verfügbar.",
+      "groupsEmpty": "Das Ticketsystem stellt keine zuweisbare Gruppe bereit.",
+      "groupsDisabled": "Aktivieren Sie „Zuweisung“ unter Fähigkeiten, damit der Agent Tickets an eine Gruppe weiterleiten kann.",
+      "classificationNote": "Kategorie, Priorität und Typ werden nicht über die Anweisungen gesteuert."
+    },
     "modelInfo": "Auf welchem KI-Modell dieser Agent läuft. Modelle werden in der Administration unter KI-Modelle verwaltet.",
     "maxTicketsInfo": "Höchstzahl der Tickets, die der Agent pro Prüfung aufnimmt. Der Rest wartet auf die nächste.",
     "maxRequestsInfo": "Höchstzahl der Aufrufe an das Ticketsystem pro Prüfung, damit es nie überlastet wird.",
@@ -818,6 +827,9 @@
     "assignmentUpdate": "Zuweisung aktualisieren",
     "assignee": "Zugewiesen an",
     "unassigned": "Nicht zugewiesen",
+    "assignToGroup": "Gruppe zuweisen",
+    "currentGroups": "Aktuell zugewiesen",
+    "noGroupAssigned": "Keine Gruppe zugewiesen",
     "participantUpdate": "Teilnehmer aktualisieren"
   }
 }

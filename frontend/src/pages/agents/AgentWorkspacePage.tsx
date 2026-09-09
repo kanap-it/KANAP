@@ -22,6 +22,7 @@ import {
   type AiAgentControlAgentDefinitionInput,
   type AiAgentControlEvaluationDailyResult,
   type AiAgentControlQueueOverview,
+  type AiAgentControlRefItem,
   type AiAgentControlTargetingPreview,
   type AiAgentKanapDataSources,
   type AiSharedContextProfile,
@@ -226,6 +227,68 @@ function SettingsField({ label, hint, info, children }: {
     )
     : label;
   return <PropertyRow label={labelNode} helperText={hint}>{children}</PropertyRow>;
+}
+
+// Read-only reference next to the instructions: the exact names the admin can use there.
+// Only what the runtime actually lets the instructions drive today (status transitions and,
+// with Assignment on, technician groups). Classification is not instruction-driven yet.
+function InstructionsReferencePanel({ statuses, groups, routingEnabled }: {
+  statuses: AiAgentControlRefItem[] | null;
+  groups: AiAgentControlRefItem[] | null;
+  routingEnabled: boolean;
+}) {
+  const { t } = useTranslation(['agents']);
+  const groupLabel = (
+    <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>
+      {t('settings.reference.groups')}
+    </Typography>
+  );
+  return (
+    <Box
+      sx={{
+        mt: { xs: 0, md: 2.75 },
+        p: '12px 14px',
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: 'kanap.border.soft',
+        bgcolor: 'kanap.bg.drawer',
+      }}
+    >
+      <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.tertiary', mb: 1.25 }}>
+        {t('settings.reference.title')}
+      </Typography>
+      <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>
+        {t('settings.reference.statuses')}
+      </Typography>
+      <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, mb: 1.5 }}>
+        {(statuses ?? []).map((status) => (
+          <Box component="li" key={status.value} sx={{ display: 'flex', alignItems: 'baseline', gap: 1, fontSize: 13, color: 'kanap.text.primary', lineHeight: 1.7 }}>
+            <span>{status.label}</span>
+            <Box component="span" sx={{ fontFamily: 'var(--kanap-font-mono, ui-monospace, monospace)', fontSize: 11, color: 'kanap.text.tertiary' }}>{status.value}</Box>
+          </Box>
+        ))}
+        {statuses && statuses.length === 0 && (
+          <Box component="li" sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('settings.reference.empty')}</Box>
+        )}
+      </Box>
+      {groupLabel}
+      {!routingEnabled ? (
+        <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', lineHeight: 1.5 }}>{t('settings.reference.groupsDisabled')}</Typography>
+      ) : (
+        <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+          {(groups ?? []).map((group) => (
+            <Box component="li" key={group.value} sx={{ fontSize: 13, color: 'kanap.text.primary', lineHeight: 1.7 }}>{group.label}</Box>
+          ))}
+          {groups && groups.length === 0 && (
+            <Box component="li" sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('settings.reference.groupsEmpty')}</Box>
+          )}
+        </Box>
+      )}
+      <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', lineHeight: 1.5, mt: 1.5 }}>
+        {t('settings.reference.classificationNote')}
+      </Typography>
+    </Box>
+  );
 }
 
 function AgentInlineTitle({
@@ -1272,6 +1335,21 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
   } | null>(null);
   const [knowledgeForm, setKnowledgeForm] = React.useState(() => knowledgeFormFromDefinition(definition));
   const [capabilityForm, setCapabilityForm] = React.useState<Record<string, boolean>>(() => capabilityEnabledState(definition));
+  // What the instructions can name: statuses and (when Assignment is on) technician groups.
+  // Read-only reference for the admin; same cache entries as the targeting filters.
+  const routingGroupsEnabled = !isSre && capabilityForm.assignment === true;
+  const referenceStatusesQuery = useQuery({
+    queryKey: ['ai-agent-targeting-options', definition.id, 'status', ''],
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(definition.id, 'status', { limit: 50 }),
+    enabled: !isSre,
+    staleTime: 5 * 60 * 1000,
+  });
+  const routingGroupsQuery = useQuery({
+    queryKey: ['ai-agent-targeting-options', definition.id, 'group', ''],
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(definition.id, 'group', { limit: 50 }),
+    enabled: routingGroupsEnabled,
+    staleTime: 5 * 60 * 1000,
+  });
   const webSearchAvailable = useFeatures().config.features.aiWebSearch;
   const librariesQuery = useQuery({
     queryKey: ['knowledge-libraries'],
@@ -1756,6 +1834,18 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
         <Stack spacing={1.5} sx={{ p: 1.5 }}>
           <Box
             sx={{
+              display: 'grid',
+              // Left column sized to the fields (PropertyRow caps them at 480px) so the
+              // reference panel sits next to the instructions, not at the far right.
+              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 520px) minmax(260px, 360px)' },
+              justifyContent: 'start',
+              columnGap: 3,
+              rowGap: 1.5,
+              alignItems: 'start',
+            }}
+          >
+          <Box
+            sx={{
               display: 'flex',
               flexDirection: 'column',
               gap: 1,
@@ -1823,6 +1913,14 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
                 ))}
               </Select>
             </SettingsField>
+          </Box>
+          {!isSre && (
+            <InstructionsReferencePanel
+              statuses={referenceStatusesQuery.data?.options ?? null}
+              groups={routingGroupsEnabled ? (routingGroupsQuery.data?.options ?? null) : null}
+              routingEnabled={routingGroupsEnabled}
+            />
+          )}
           </Box>
 
           {/* Shared context: off ⇒ only the switch. The profile picker, the

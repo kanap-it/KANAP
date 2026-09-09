@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { AiSettingsService } from '../../ai-settings.service';
 import { GlpiService } from '../../glpi/glpi.service';
-import { GlpiConnectionOverrides, GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
+import { GlpiAssignableGroup, GlpiConnectionOverrides, GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
 import { decodeNumericHtmlEntities } from '../../../common/html-entities';
 import { GLPI_TICKETING_IMPLEMENTATION, LEGACY_GLPI_TICKETING_PROVIDER_KEY } from './provider-constants';
 import {
@@ -83,6 +83,9 @@ const GLPI_ACTION_PLANNER_PROFILE: ProviderActionPlannerProfile = {
     'If an exact public message is configured, use verbatim_ref from verbatim_candidates; do not copy ticket text as verbatim.',
     'For status_update, transition_key must exactly match one key in allowed_status_transitions.',
     'Only propose terminal status transitions when close_eligibility.matched is true, has_inactivity_age is true, terminal is false, and terminal_status_transition_keys is non-empty.',
+    'For assignment_update, target must be one entry of routing_targets copied exactly (kind, key, label); propose at most one assignment_update per plan.',
+    'Only propose assignment_update when the agent configuration says which group handles this kind of ticket; never invent a routing rule.',
+    'Do not propose assignment_update for a group already listed in current_assignment.groups. Assignment is additive: it never removes existing technicians or groups.',
     'Do not propose classification, assignment, or participant updates unless they are in owned_action_types.',
   ],
 };
@@ -607,6 +610,10 @@ function associationLabel(value: GlpiTicketUserAssociation): string {
   return value.user_label ?? `GLPI user ${value.user_id}`;
 }
 
+function groupRoutingTarget(group: GlpiAssignableGroup): TicketRoutingTarget {
+  return { kind: 'group', key: String(group.id), label: group.completename || group.name || `GLPI group ${group.id}` };
+}
+
 @Injectable()
 export class GlpiTicketingProvider implements TicketingProvider {
   readonly kind = 'ticketing' as const;
@@ -1059,7 +1066,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
         limit,
       });
       const data = { items: items.map((item) => referenceCatalogItem(input.kind, item)) };
-      const label = input.kind === 'category' ? 'categories' : 'entities';
+      const label = input.kind === 'category' ? 'categories' : input.kind === 'group' ? 'assignable groups' : 'entities';
       return ok(data, [
         evidenceSeed(`${input.kind}_list`, input.query?.trim() || input.kind, `Listed ${data.items.length} GLPI ${label}.`, {
           kind: input.kind,
@@ -1159,22 +1166,49 @@ export class GlpiTicketingProvider implements TicketingProvider {
       return providerError<TicketRoutingContext>('malformed_config', 'GLPI ticket id must be a positive integer.', false);
     }
     return this.withSession(context, async (session) => {
-      const users = await this.glpi.getTicketUsers(session, ticketId);
+      const [users, groups, catalogue] = await Promise.all([
+        this.glpi.getTicketUsers(session, ticketId),
+        this.glpi.getTicketGroups(session, ticketId),
+        this.glpi.listAssignableGroups(session),
+      ]);
+      const catalogueById = new Map(catalogue.map((group) => [group.id, group]));
       const requesters = users.filter((user) => user.role === 'requester').map(associationLabel);
-      const assignees = users.filter((user) => user.role === 'assigned').map(associationLabel);
+      const assignedUsers: TicketRoutingTarget[] = users
+        .filter((user) => user.role === 'assigned')
+        .map((user) => ({ kind: 'user', key: String(user.user_id), label: associationLabel(user) }));
+      const assignedGroups: TicketRoutingTarget[] = groups
+        .filter((group) => group.role === 'assigned')
+        .map((group) => {
+          const known = catalogueById.get(group.group_id);
+          return known
+            ? groupRoutingTarget(known)
+            : { kind: 'group' as const, key: String(group.group_id), label: group.group_label ?? `GLPI group ${group.group_id}` };
+        });
+      const supportedAssignmentTargets = catalogue.map(groupRoutingTarget);
+      const warnings: string[] = [];
+      if (supportedAssignmentTargets.length === 0) {
+        warnings.push('glpi_no_assignable_groups');
+      }
       const data: TicketRoutingContext = {
         ticketId: String(ticketId),
         requester: requesters[0] ?? null,
-        assignee: assignees[0] ?? null,
-        group: null,
-        supportedAssignmentTargets: [],
-        assignmentSupported: false,
+        assignee: assignedUsers[0]?.label ?? null,
+        group: assignedGroups[0]?.label ?? null,
+        assignedUsers,
+        assignedGroups,
+        supportedAssignmentTargets,
+        assignmentSupported: supportedAssignmentTargets.length > 0,
         supported: true,
-        warnings: ['glpi_assignment_writes_not_enabled', 'glpi_group_routing_context_not_available_in_current_adapter'],
+        ...(warnings.length > 0 ? { warnings } : {}),
       };
       return ok(data, [
-        evidenceSeed('ticket_routing', data.ticketId, `GLPI ticket ${data.ticketId} routing context.`, data),
-      ], data.warnings);
+        evidenceSeed('ticket_routing', data.ticketId, `GLPI ticket ${data.ticketId} routing context.`, {
+          ...data,
+          // The catalogue is prompt input, not evidence about this ticket.
+          supportedAssignmentTargets: undefined,
+          supportedAssignmentTargetCount: supportedAssignmentTargets.length,
+        }),
+      ], warnings.length > 0 ? warnings : undefined);
     });
   }
 
@@ -1391,30 +1425,96 @@ export class GlpiTicketingProvider implements TicketingProvider {
     });
   }
 
+  // Group routing only: the target must be one of the assignable groups GLPI exposes, and
+  // the label is taken from that catalogue, never from the caller. Additive (Group_Ticket
+  // type 2), never removes an existing technician or group.
   async prepareTicketAssignmentUpdate(
     context: ProviderContext,
     input: { ticketId: string; target: TicketRoutingTarget; reason: string },
   ): Promise<AdapterResult<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>> {
-    void context;
-    void input;
-    return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>(
-      'unsafe_operation',
-      'GLPI assignment writes require tenant-safe user/group mappings and are not enabled in the current adapter.',
-      false,
-    );
+    const ticketId = normalizeTicketId(input.ticketId);
+    const reason = normalizeReason(input.reason);
+    if (!ticketId) {
+      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('malformed_config', 'GLPI ticket id must be a positive integer.', false);
+    }
+    if (!reason) {
+      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', 'GLPI assignment updates require a reason.', false);
+    }
+    if (input.target?.kind !== 'group') {
+      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', 'GLPI assignment updates support technician groups only.', false);
+    }
+    const routing = await this.getTicketRoutingContext(context, { ticketId: String(ticketId) });
+    if (routing.ok === false) {
+      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>(routing.errorCode, routing.message, routing.retryable);
+    }
+    const target = routing.data.supportedAssignmentTargets.find((candidate) => candidate.kind === 'group' && candidate.key === String(input.target.key).trim());
+    if (!routing.data.assignmentSupported || !target) {
+      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', 'GLPI assignment target is not an assignable group.', false);
+    }
+    if ((routing.data.assignedGroups ?? []).some((group) => group.key === target.key)) {
+      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', `GLPI ticket ${ticketId} is already assigned to ${target.label}.`, false);
+    }
+    const actionPayload: TicketAssignmentUpdateActionPayload = {
+      ticketId: String(ticketId),
+      action: 'assignment_update',
+      current: routing.data,
+      target,
+      providerFields: { groups_id: Number(target.key), type: 2, operation: 'add' },
+      reason,
+    };
+    const data = {
+      actionPayload,
+      summary: `Prepared assignment of GLPI ticket ${ticketId} to ${target.label}.`,
+    };
+    return ok(data, [
+      evidenceSeed('ticket_assignment_update_prepared', String(ticketId), data.summary, {
+        ticketId,
+        target,
+        currentGroups: routing.data.assignedGroups ?? [],
+      }),
+    ]);
   }
 
   async updateTicketAssignment(
     context: ProviderContext,
     input: { actionPayload: TicketAssignmentUpdateActionPayload; idempotencyKey: string },
   ): Promise<AdapterResult<TicketProviderActionWriteResult>> {
-    void context;
-    void input;
-    return providerError<TicketProviderActionWriteResult>(
-      'unsafe_operation',
-      'GLPI assignment writes are not enabled in the current adapter.',
-      false,
-    );
+    const ticketId = normalizeTicketId(input.actionPayload.ticketId);
+    const groupsId = Number.parseInt(String(input.actionPayload.target?.key ?? ''), 10);
+    if (!ticketId) {
+      return providerError<TicketProviderActionWriteResult>('malformed_config', 'GLPI ticket id must be a positive integer.', false);
+    }
+    if (
+      input.actionPayload.action !== 'assignment_update'
+      || input.actionPayload.target?.kind !== 'group'
+      || !Number.isInteger(groupsId)
+      || groupsId <= 0
+    ) {
+      return providerError<TicketProviderActionWriteResult>('unsafe_operation', 'GLPI provider refused an invalid assignment update.', false);
+    }
+    return this.withSession(context, async (session) => {
+      const result = await this.glpi.addTicketGroup(session, ticketId, groupsId);
+      const label = groupRoutingTarget(result.group).label;
+      const data: TicketProviderActionWriteResult = {
+        ticketId: String(ticketId),
+        summary: result.alreadyPresent
+          ? `GLPI ticket ${ticketId} was already assigned to ${label}.`
+          : `GLPI ticket ${ticketId} assigned to ${label}.`,
+        idempotencyKey: input.idempotencyKey,
+        updatedFields: result.added ? ['assignment'] : [],
+        alreadyApplied: result.alreadyPresent,
+      };
+      return ok(data, [
+        evidenceSeed('ticket_assignment_updated', String(ticketId), data.summary, {
+          ticketId,
+          groupsId,
+          label,
+          added: result.added,
+          alreadyPresent: result.alreadyPresent,
+          idempotencyKey: input.idempotencyKey,
+        }),
+      ]);
+    });
   }
 
   async prepareTicketParticipantUpdate(

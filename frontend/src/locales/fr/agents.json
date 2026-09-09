@@ -769,6 +769,15 @@
     "instructionsInfo": "Les règles que l’agent suit — rédigez-les librement, en lignes ou en paragraphes. Elles ne peuvent pas élargir ce que l’agent a le droit de faire.",
     "replyLanguageInfo": "La langue dans laquelle l’agent rédige. « Langue du ticket » le fait répondre dans la langue utilisée par le demandeur.",
     "capabilitiesInfo": "Ce que cet agent peut préparer. Tout ce qui est désactivé ici n’est jamais proposé, quelles que soient les instructions.",
+    "reference": {
+      "title": "Noms utilisables dans les instructions",
+      "statuses": "Statuts de ticket",
+      "groups": "Groupes de techniciens",
+      "empty": "Rien de disponible.",
+      "groupsEmpty": "L’outil de ticketing n’expose aucun groupe attribuable.",
+      "groupsDisabled": "Activez « Attribution » dans les capacités pour que l’agent puisse router un ticket vers un groupe.",
+      "classificationNote": "La catégorie, la priorité et le type ne sont pas pilotés par les instructions."
+    },
     "modelInfo": "Le modèle IA sur lequel cet agent s’exécute. Les modèles se gèrent dans Administration, page Modèles IA.",
     "maxTicketsInfo": "Le nombre maximum de tickets pris par l’agent à chaque contrôle. Les autres attendent le suivant.",
     "maxRequestsInfo": "Le nombre maximum d’appels que l’agent adresse à l’outil de ticketing à chaque contrôle, pour ne jamais le saturer.",
@@ -818,6 +827,9 @@
     "assignmentUpdate": "Mise à jour d'attribution",
     "assignee": "Attribué à",
     "unassigned": "Non attribué",
+    "assignToGroup": "Attribuer au groupe",
+    "currentGroups": "Actuellement attribué à",
+    "noGroupAssigned": "Aucun groupe attribué",
     "participantUpdate": "Mise à jour des participants"
   }
 }

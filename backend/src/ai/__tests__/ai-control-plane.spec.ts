@@ -2120,6 +2120,9 @@ async function testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly() {
         { id: 2, user_id: 303, user_label: 'Helpdesk L1', role: 'assigned' },
         { id: 3, user_id: 404, user_label: 'Duty Manager', role: 'observer' },
       ],
+      // No assignable groups on this GLPI: routing reads still work, routing writes are off.
+      getTicketGroups: async () => [],
+      listAssignableGroups: async () => [],
       updateTicketFields: async (_session: unknown, ticketId: number, fields: Record<string, unknown>) => {
         updateCalls.push({ ticketId, fields });
         return { ticket_id: ticketId, updated_fields: Object.keys(fields) };
@@ -2182,6 +2185,7 @@ async function testGlpiTicketingHelpdeskContextReadsNormalizeSafeFieldsOnly() {
   assert.equal(routing.ok ? routing.data.supported : false, true);
   assert.equal(routing.ok ? routing.data.requester : null, 'Requester 4');
   assert.equal(routing.ok ? routing.data.assignee : null, 'Helpdesk L1');
+  assert.deepEqual(routing.ok ? routing.data.warnings : [], ['glpi_no_assignable_groups']);
 
   const participants = await provider.getTicketParticipantContext(context, { ticketId: '4' });
   assert.equal(participants.ok, true);
@@ -14195,6 +14199,241 @@ async function testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHono
   assert.doesNotMatch(recommendations[0].summary, /status update/);
 }
 
+// Instruction-driven group routing: the planner sees the provider routing catalogue as
+// routing_targets and may propose ONE assignment_update whose target is copied from it. A target
+// already assigned or absent from the catalogue is skipped with an explicit reason, never written.
+async function testGlpiTriagePlannerGroupRoutingUsesCatalogueAndSkipsInvalidTargets() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const liveTarget = glpiReadSafeTarget();
+  const routingContext = {
+    ticketId: '4',
+    requester: 'Bob Requester',
+    assignee: null,
+    group: 'Tech-desk',
+    assignedUsers: [],
+    assignedGroups: [{ kind: 'group', key: '7', label: 'Tech-desk' }],
+    supportedAssignmentTargets: [
+      { kind: 'group', key: '7', label: 'Tech-desk' },
+      { kind: 'group', key: '12', label: 'SAP-team' },
+      { kind: 'group', key: '13', label: 'PLM-team' },
+    ],
+    assignmentSupported: true,
+    supported: true,
+  };
+  const calls: Array<{ capabilityName: string; input: any }> = [];
+  let plannerPayload: any = null;
+  let toolIndex = 0;
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      calls.push({ capabilityName: request.capabilityName, input: request.input });
+      toolIndex += 1;
+      const toolExecutionId = `routing-tool-${toolIndex}`;
+      const step = (stepId: string, data: unknown) => ({
+        run_id: 'run-glpi-routing',
+        step_id: stepId,
+        tool_execution_id: toolExecutionId,
+        output: { ok: true, data, evidence: [] },
+      });
+      if (request.capabilityName === 'ticketing.ticket.get') {
+        return step('step-ticket', {
+          id: '4',
+          title: 'SAP order entry blocked',
+          status: 'new',
+          priority: 'medium',
+          description: 'Transaction VA01 fails with an authorization error since this morning.',
+        });
+      }
+      if (request.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY) {
+        return step('step-notes', { notes: [] });
+      }
+      if (request.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY) {
+        return step('step-classification', { type: 'Incident', priority: 'Medium', urgency: 'Medium' });
+      }
+      if (request.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY) {
+        return step('step-lifecycle', { terminal: false, allowedTransitions: [] });
+      }
+      if (request.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY) {
+        return step('step-routing', routingContext);
+      }
+      if (request.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY) {
+        return step('step-participant', {});
+      }
+      if (request.capabilityName === 'search_knowledge') {
+        return { run_id: 'run-glpi-routing', step_id: 'step-search', tool_execution_id: toolExecutionId, output: { items: [], total: 0, returned: 0, truncated: false, complete: true } };
+      }
+      if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+        await savePreparedTicketingAction(context, {
+          id: 'routing-internal-action',
+          runId: 'run-glpi-routing',
+          toolExecutionId,
+          capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+          body: request.input.note_body,
+          visibility: 'internal',
+          providerKey: 'glpi',
+        });
+        return step('step-internal', { action_request_id: 'routing-internal-action' });
+      }
+      if (request.capabilityName === TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY) {
+        return step('step-assignment', { action_request_id: 'routing-assignment-action', target: request.input.target });
+      }
+      throw new Error(`Unexpected capability ${request.capabilityName}`);
+    },
+  };
+  const actionPlanner = {
+    maxOutputTokens: () => 1600,
+    buildPromptPayload: (plannerInput: any) => {
+      plannerPayload = plannerInput;
+      return plannerInput;
+    },
+    planActions: async () => ({
+      source: 'llm',
+      actions: [
+        { action_type: 'internal_note', reason: 'Summarize the SAP authorization failure for the technicians.' },
+        // Already assigned: must be skipped, never re-added.
+        { action_type: 'assignment_update', target: { kind: 'group', key: '7', label: 'Tech-desk' }, reason: 'Default queue.' },
+        // Valid: SAP question routed to the SAP group per the instructions. Label deliberately
+        // misspelled by the model: the catalogue label must win.
+        { action_type: 'assignment_update', target: { kind: 'group', key: '12', label: 'sap team' }, reason: 'The instructions route SAP questions to SAP-team.' },
+        // Second valid target in the same plan: only one assignment per plan.
+        { action_type: 'assignment_update', target: { kind: 'group', key: '13', label: 'PLM-team' }, reason: 'Also PLM.' },
+        // Not in the catalogue: skipped.
+        { action_type: 'assignment_update', target: { kind: 'group', key: '99', label: 'Ghost-team' }, reason: 'Invented.' },
+      ],
+      rationale: 'Route to SAP.',
+      confidence: 0.8,
+      model: 'test:planner',
+      usage: null,
+      estimated_tokens: 20,
+      estimated_cost_eur: 0.00004,
+      latency_ms: 1,
+    }),
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    { requireSingleEnabledTarget: async () => liveTarget } as any,
+    { getApplicability: async () => ({ available: true }) } as any,
+    queue,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    actionPlanner as any,
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
+
+  // The planner owns assignment_update for this run and sees the catalogue once, as routing_targets.
+  assert.equal(plannerPayload.owned_action_types.includes('assignment_update'), true);
+  const assignmentCalls = calls.filter((call) => call.capabilityName === TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY);
+  assert.equal(assignmentCalls.length, 1);
+  assert.deepEqual(assignmentCalls[0].input.target, { kind: 'group', key: '12', label: 'SAP-team' });
+  assert.equal(assignmentCalls[0].input.reason, 'The instructions route SAP questions to SAP-team.');
+  const planner = result.diagnostic.action_planner as any;
+  assert.deepEqual(
+    planner.authorized_actions.map((action: any) => action.action_type),
+    ['internal_note', 'assignment_update'],
+  );
+  // Skip reasons are recorded per action type, first skip wins (same as status_update).
+  assert.equal(planner.skipped_actions.assignment_update, 'assignment_target_already_present');
+  const recommendations = await manager.getRepository(AiRecommendation).find();
+  assert.equal(recommendations.length, 1);
+  assert.match(recommendations[0].summary, /assignment update/);
+}
+
+// Without the Assignment capability the planner is not offered assignment_update at all, and a
+// model proposing it anyway is skipped for the missing grant rather than crashing the run.
+async function testGlpiTriagePlannerAssignmentNotOfferedWithoutCapability() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const liveTarget = glpiReadSafeTarget();
+  const calls: string[] = [];
+  let plannerPayload: any = null;
+  let toolIndex = 0;
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      calls.push(request.capabilityName);
+      toolIndex += 1;
+      const toolExecutionId = `nocap-tool-${toolIndex}`;
+      const step = (stepId: string, data: unknown) => ({ run_id: 'run-glpi-nocap', step_id: stepId, tool_execution_id: toolExecutionId, output: { ok: true, data, evidence: [] } });
+      if (request.capabilityName === 'ticketing.ticket.get') {
+        return step('step-ticket', { id: '4', title: 'Printer offline', status: 'new', priority: 'medium', description: 'The printer on floor 2 is offline.' });
+      }
+      if (request.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY) return step('step-notes', { notes: [] });
+      if (request.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY) return step('step-classification', { type: 'Incident', priority: 'Medium', urgency: 'Medium' });
+      if (request.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY) return step('step-lifecycle', { terminal: false, allowedTransitions: [] });
+      if (request.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY) {
+        return step('step-routing', { ticketId: '4', assignedGroups: [], supportedAssignmentTargets: [{ kind: 'group', key: '7', label: 'Tech-desk' }], assignmentSupported: true, supported: true });
+      }
+      if (request.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY) return step('step-participant', {});
+      if (request.capabilityName === 'search_knowledge') {
+        return { run_id: 'run-glpi-nocap', step_id: 'step-search', tool_execution_id: toolExecutionId, output: { items: [], total: 0, returned: 0, truncated: false, complete: true } };
+      }
+      if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+        await savePreparedTicketingAction(context, {
+          id: 'nocap-internal-action',
+          runId: 'run-glpi-nocap',
+          toolExecutionId,
+          capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+          body: request.input.note_body,
+          visibility: 'internal',
+          providerKey: 'glpi',
+        });
+        return step('step-internal', { action_request_id: 'nocap-internal-action' });
+      }
+      throw new Error(`Unexpected capability ${request.capabilityName}`);
+    },
+  };
+  const actionPlanner = {
+    maxOutputTokens: () => 1600,
+    buildPromptPayload: (plannerInput: any) => { plannerPayload = plannerInput; return plannerInput; },
+    planActions: async () => ({
+      source: 'llm',
+      actions: [
+        { action_type: 'internal_note', reason: 'Note.' },
+        { action_type: 'assignment_update', target: { kind: 'group', key: '7', label: 'Tech-desk' }, reason: 'Route.' },
+      ],
+      rationale: 'Route.',
+      confidence: 0.8,
+      model: 'test:planner',
+      usage: null,
+      estimated_tokens: 20,
+      estimated_cost_eur: 0.00004,
+      latency_ms: 1,
+    }),
+  };
+  const service = new AiAgentControlService(
+    {} as any, {} as any, dispatcher as any,
+    { requireSingleEnabledTarget: async () => liveTarget } as any,
+    { getApplicability: async () => ({ available: true }) } as any,
+    queue, undefined, undefined, undefined, undefined, actionPlanner as any,
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const definition = triageBundle.definition;
+  const allowed = Array.isArray(definition.allowed_capabilities_json)
+    ? definition.allowed_capabilities_json
+    : (definition.allowed_capabilities_json as any)?.capabilities ?? [];
+  definition.allowed_capabilities_json = allowed.filter((entry: any) => {
+    const name = typeof entry === 'string' ? entry : entry?.name;
+    return name !== TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY && name !== TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY;
+  });
+  await manager.getRepository(AiAgentDefinition).save(definition);
+
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: definition.id });
+
+  assert.equal(plannerPayload.owned_action_types.includes('assignment_update'), false);
+  assert.equal(calls.includes(TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY), false);
+  assert.equal((result.diagnostic.action_planner as any).skipped_actions.assignment_update, 'prepare_capability_not_granted');
+}
+
 async function testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange() {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
@@ -15389,6 +15628,8 @@ async function run() {
   testSynthesisPromptCarriesValidationStatus();
   testSynthesisPayloadIncludesScreenshotEvidence();
   await testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHonorsLanguage();
+  await testGlpiTriagePlannerGroupRoutingUsesCatalogueAndSkipsInvalidTargets();
+  await testGlpiTriagePlannerAssignmentNotOfferedWithoutCapability();
   await testGlpiTriageReranksKnowledgeAfterRequesterPreferenceChange();
   await testTicketingTriageProposalsShareOneApprovalWindow();
   await testQueuedTriageUsesWorkItemTicketingProviderBinding();

@@ -137,6 +137,8 @@ Les agents de supervision disposent de la même section, avec des filtres portan
 
 Les capacités viennent en premier, car elles cadrent tout le reste : une rangée de cases à cocher déterminant quels types de modification l'agent peut *un jour* proposer — **Notes internes**, **Réponses demandeur**, **Classification**, **Mises à jour statut**, **Affectation** et **Participants**. En décocher une supprime entièrement ce type d'action : l'agent ne peut pas le proposer, quoi que disent les instructions, et il ne peut pas être promu dans l'échelle d'autonomie. Les agents de supervision n'ont pas cette section.
 
+**L'affectation** mérite un mot, car elle fonctionne par les instructions et non par un réglage. Une fois cochée, l'agent peut proposer d'affecter un ticket à un **groupe de techniciens** de l'outil de ticketing, et la règle qui dit quel groupe s'écrit dans les **Instructions**, en langage courant — par exemple *« Si la question concerne SAP, affecte le ticket au groupe SAP-team. Si elle concerne Teamcenter, affecte-le à PLM-team. Dans tous les autres cas, affecte-le à Tech-desk. »* L'agent ne choisit que parmi les groupes que l'outil de ticketing marque comme affectables, et il **ajoute** un groupe : il ne retire jamais un technicien ni un groupe déjà présent sur le ticket. Comme toute autre action, elle est soumise à votre approbation tant que vous ne l'avez pas promue sur l'échelle d'autonomie. Affecter une personne nommée n'est pas pris en charge ; le groupe est l'unité de routage.
+
 ### Objectif
 
 L'objectif, c'est qui est l'agent et comment il rédige :
@@ -144,6 +146,8 @@ L'objectif, c'est qui est l'agent et comment il rédige :
 - **Objectif** — ce que l'agent est là pour faire, en une ligne. Il le relit à chaque exécution.
 - **Instructions** — les règles internes, rédigées librement en lignes ou en paragraphes. Elles ne peuvent pas élargir ce que l'agent a le droit de faire. Une seule limite : 10 000 caractères au total — au-delà, une partie du texte ne serait plus transmise à l'agent. Un compteur discret apparaît à l'approche de la limite ; au-delà, la section n'est pas enregistrée tant que vous n'avez pas raccourci le brouillon.
 - **Langue de réponse** — **Langue du ticket** (répondre dans la langue utilisée par le demandeur), **Français**, **Anglais**, **Allemand** ou **Espagnol**.
+
+À côté des instructions, un encart intitulé **Noms utilisables dans les instructions** liste exactement ce à quoi vos règles peuvent faire référence : les **statuts de ticket** vers lesquels l'agent peut faire passer un ticket (avec la clé exacte à côté de chaque libellé) et, lorsque **Affectation** est cochée, les **groupes de techniciens** vers lesquels il peut router, tels que l'outil de ticketing les expose. Écrivez les noms tels qu'ils y apparaissent. La catégorie, la priorité et le type ne sont pas pilotés par les instructions.
 
 Le nom de l'agent et sa courte description vivent dans le titre de l'espace, pas dans cette grille : cliquez dessus pour les modifier. La façon dont l'agent doit sonner, et le moment où il doit passer la main à une personne, appartiennent aux **Instructions** comme des règles ordinaires.
 

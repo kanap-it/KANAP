@@ -137,6 +137,8 @@ Eine Zeile unter den Filtern sagt, wie viele Tickets derzeit passen. Wenn ein an
 
 Die Fähigkeiten stehen zuerst, denn sie stecken den Rahmen für alles Weitere: eine Reihe von Kontrollkästchen dafür, welche Arten von Änderungen der Agent *überhaupt* vorschlagen darf — **Interne Notizen**, **Antworten an Anfragende**, **Klassifizierung**, **Statusänderungen**, **Zuweisung** und **Beteiligte**. Ein Kästchen abzuwählen entfernt diesen Aktionstyp vollständig: Der Agent kann ihn nicht vorschlagen, ganz gleich, was die Anweisungen sagen, und er kann in den Autonomie-Stufen nicht hochgestuft werden. Überwachungsagenten haben diesen Abschnitt nicht.
 
+**Zuweisung** verdient ein Wort, denn sie funktioniert über die Anweisungen und nicht über eine Einstellung. Ist sie angehakt, darf der Agent vorschlagen, ein Ticket einer **Technikergruppe** des Ticketsystems zuzuweisen, und die Regel, welche Gruppe das ist, steht in den **Anweisungen**, in normaler Sprache — zum Beispiel *„Wenn es um SAP geht, weise das Ticket der Gruppe SAP-team zu. Wenn es um Teamcenter geht, weise es PLM-team zu. In allen anderen Fällen weise es Tech-desk zu."* Der Agent wählt nur aus den Gruppen, die das Ticketsystem als zuweisbar kennzeichnet, und er **fügt** eine Gruppe **hinzu**: Er entfernt nie einen Techniker oder eine Gruppe, die bereits auf dem Ticket steht. Wie jede andere Aktion wird sie Ihnen zur Freigabe vorgeschlagen, solange Sie sie nicht auf der Autonomieleiter hochgestuft haben. Die Zuweisung an eine bestimmte Person wird nicht unterstützt; die Gruppe ist die Einheit der Weiterleitung.
+
 ### Ziel
 
 Das Ziel beschreibt, wer der Agent ist und wie er schreibt:
@@ -144,6 +146,8 @@ Das Ziel beschreibt, wer der Agent ist und wie er schreibt:
 - **Zweck** — wofür dieser Agent da ist, in einer Zeile. Er liest sie bei jedem Lauf.
 - **Anweisungen** — Hausregeln, frei formuliert in Zeilen oder Absätzen. Sie können nicht erweitern, was der Agent tun darf. Es gibt nur eine Grenze: 10 000 Zeichen insgesamt — darüber hinaus würde ein Teil des Textes den Agenten nicht mehr erreichen. Ein dezenter Zähler erscheint, wenn Sie sich der Grenze nähern; darüber wird der Abschnitt nicht gespeichert, bis Sie den Entwurf kürzen.
 - **Antwortsprache** — **Ticketsprache** (in der Sprache antworten, die der Anfragende verwendet hat), **Französisch**, **Englisch**, **Deutsch** oder **Spanisch**.
+
+Neben den Anweisungen listet ein Feld mit dem Titel **In den Anweisungen verwendbare Namen** genau auf, worauf sich Ihre Regeln beziehen können: die **Ticketstatus**, in die der Agent ein Ticket versetzen darf (mit dem exakten Schlüssel neben jeder Bezeichnung), und, wenn **Zuweisung** angehakt ist, die **Technikergruppen**, an die er weiterleiten darf, so wie das Ticketsystem sie bereitstellt. Schreiben Sie die Namen so, wie sie dort erscheinen. Kategorie, Priorität und Typ werden nicht über die Anweisungen gesteuert.
 
 Name und kurze Beschreibung des Agenten stehen im Titel des Arbeitsbereichs, nicht in diesem Raster: klicken Sie darauf, um sie zu bearbeiten. Wie der Agent klingen soll und wann er die Arbeit an eine Person übergeben soll, gehören als gewöhnliche Regeln in die **Anweisungen**.
 

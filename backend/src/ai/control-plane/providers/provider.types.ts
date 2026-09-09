@@ -177,7 +177,7 @@ export type TicketReferenceEnums = {
   types: RefItem[];
 };
 
-export type TicketReferenceCatalogKind = 'category' | 'entity';
+export type TicketReferenceCatalogKind = 'category' | 'entity' | 'group';
 
 export type TicketListScope =
   | {
@@ -281,6 +281,12 @@ export type TicketRoutingContext = {
   requester?: string | null;
   assignee?: string | null;
   group?: string | null;
+  // Everything currently assigned on the ticket, with keys, so the planner can avoid
+  // re-proposing a present target and the pre-write drift check can compare groups.
+  assignedUsers?: TicketRoutingTarget[];
+  assignedGroups?: TicketRoutingTarget[];
+  // Catalogue of targets the agent may route to. Instruction-driven: the persona names
+  // the group, the planner picks the matching key from this list.
   supportedAssignmentTargets: TicketRoutingTarget[];
   assignmentSupported: boolean;
   supported: boolean;
