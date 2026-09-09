@@ -635,6 +635,12 @@
       "cancel": "Cancelar",
       "apply_anyway": "Aplicar igualmente"
     },
+    "ticketActorRole": "El agente en el ticket",
+    "ticketActorRoles": {
+      "assignee": "Toma el ticket (asignado)",
+      "observer": "Sigue el ticket (observador)",
+      "none": "No aparece entre los actores"
+    },
     "save": "Guardar configuración",
     "knowledgeSources": "Fuentes de conocimiento y web",
     "knowledgeEnabled": "Buscar en el conocimiento de KANAP",
@@ -772,6 +778,7 @@
     "agentPriorityInfo": "Qué agente gana cuando varios apuntan al mismo ticket. Cuanto menor es el número, mayor es la prioridad.",
     "onConflictInfo": "Qué hace el agente cuando otro agente ya trabaja en el mismo ticket: apartarse, o relevar a un agente de igual prioridad.",
     "onStaleInfo": "Qué ocurre con una propuesta en espera si el ticket cambia antes de que usted decida: revisarla de nuevo, descartarla o aplicarla tal cual.",
+    "ticketActorRoleInfo": "Cómo aparece el agente entre los actores del ticket después de escribir en él. Tomar el ticket lo asigna al usuario GLPI del agente. Las notas internas nunca asignan; como mucho añaden al agente como observador.",
     "perRunTokensInfo": "El máximo de palabras que el agente puede dedicar a un ticket. Al alcanzarlo, ese ticket se detiene y no se propone nada para él.",
     "perRunCostInfo": "El máximo que el agente puede gastar en un ticket, estimado con los precios del modelo asignado. Un modelo gratuito (0 EUR) nunca lo alcanza: el límite de palabras sigue siendo la protección real.",
     "dailyRunsInfo": "Detiene el agente por hoy en cuanto haya trabajado en este número de tickets. Vuelve a empezar al día siguiente.",

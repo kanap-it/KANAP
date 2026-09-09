@@ -119,6 +119,7 @@ import {
   TicketAttachmentRef,
   TicketRecord,
   TicketReferenceCatalogKind,
+  ticketActorRoleFromResponsePolicy,
 } from '../providers/provider.types';
 import {
   AiAgentPromptCompilerService,
@@ -1810,6 +1811,7 @@ function normalizeResponsePolicyForConfig(
   if (!value) return null;
   return {
     ...value,
+    ticket_actor_role: ticketActorRoleFromResponsePolicy(value),
     automatic_public_reply: false,
     automatic_ticket_updates: false,
     require_human_approval_for_writes: true,
@@ -8916,7 +8918,10 @@ export class AiAgentControlService {
       ? buildStatusUpdateProposal(lifecycleContext, conversationGate.can_prepare_public_reply)
       : null;
     const classificationUpdateInput = buildClassificationUpdateProposal(ticket, classificationContext);
-    const assignmentUpdateInput = buildAssignmentUpdateProposal(routingContext);
+    const assignmentWriteCapable = !!agentDefinition
+      && definitionAllowsCapability(agentDefinition, TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY)
+      && definitionAllowsCapability(agentDefinition, TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY);
+    const assignmentUpdateInput = assignmentWriteCapable ? buildAssignmentUpdateProposal(routingContext) : null;
 
     const plannerNeedsSourcedSynthesis = plannerAuthorizedActions.some((entry) =>
       entry.action.action_type === 'requester_reply' && entry.action.reply_kind === 'sourced_answer',
@@ -9790,7 +9795,7 @@ export class AiAgentControlService {
             status: plannerSkippedActionsWithSuppression.status_update
               ?? statusSuppressionReason
               ?? (statusUpdateInput ? null : 'no_safe_status_transition'),
-            assignment: assignmentUpdateInput ? null : 'no_supported_assignment_target',
+            assignment: assignmentUpdateInput ? null : (assignmentWriteCapable ? 'no_supported_assignment_target' : 'assignment_capability_not_granted'),
             participants: 'provider_participant_update_not_prepared',
           },
         },
@@ -9863,7 +9868,7 @@ export class AiAgentControlService {
           status: plannerSkippedActionsWithSuppression.status_update
             ?? statusSuppressionReason
             ?? (statusUpdateInput ? null : 'no_safe_status_transition'),
-          assignment: assignmentUpdateInput ? null : 'no_supported_assignment_target',
+          assignment: assignmentUpdateInput ? null : (assignmentWriteCapable ? 'no_supported_assignment_target' : 'assignment_capability_not_granted'),
           participants: 'provider_participant_update_not_prepared',
         },
         ticket_history_entry_count: ticketTimeline.length,

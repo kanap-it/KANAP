@@ -635,6 +635,12 @@
       "cancel": "Annuler",
       "apply_anyway": "Appliquer quand même"
     },
+    "ticketActorRole": "L’agent sur le ticket",
+    "ticketActorRoles": {
+      "assignee": "Prend le ticket (responsable)",
+      "observer": "Suit le ticket (observateur)",
+      "none": "N’apparaît pas dans les acteurs"
+    },
     "save": "Enregistrer",
     "knowledgeSources": "Sources de connaissances et web",
     "knowledgeEnabled": "Rechercher dans les connaissances KANAP",
@@ -772,6 +778,7 @@
     "agentPriorityInfo": "Quel agent l’emporte lorsque plusieurs visent le même ticket. Plus le nombre est bas, plus la priorité est haute.",
     "onConflictInfo": "Ce que fait l’agent lorsqu’un autre agent travaille déjà sur le même ticket : s’effacer, ou prendre le relais d’un agent de priorité égale.",
     "onStaleInfo": "Ce qu’il advient d’une proposition en attente lorsque le ticket change avant votre décision : la réexaminer, l’abandonner ou l’appliquer telle quelle.",
+    "ticketActorRoleInfo": "Comment l’agent apparaît parmi les acteurs du ticket après y avoir écrit. Prendre le ticket l’attribue à l’utilisateur GLPI de l’agent. Les notes internes n’attribuent jamais : elles ajoutent au plus l’agent en observateur.",
     "perRunTokensInfo": "Le maximum de mots que l’agent peut consacrer à un ticket. Une fois atteint, ce ticket s’arrête et rien n’est proposé pour lui.",
     "perRunCostInfo": "Le maximum que l’agent peut dépenser sur un ticket, estimé selon les tarifs du modèle assigné. Un modèle gratuit (0 EUR) ne l’atteint jamais : la limite de mots reste la vraie protection.",
     "dailyRunsInfo": "Arrête l’agent pour la journée une fois ce nombre de tickets traité. Il repart le lendemain.",

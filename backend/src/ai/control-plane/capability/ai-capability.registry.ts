@@ -66,6 +66,9 @@ import {
 import {
   AdapterResult,
   AutomationLaunchActionPayload,
+  DEFAULT_TICKET_ACTOR_ROLE,
+  TicketActorRole,
+  ticketActorRoleFromResponsePolicy,
   TicketAssignmentUpdateActionPayload,
   TicketClassificationUpdateActionPayload,
   TicketInternalNoteActionPayload,
@@ -3492,6 +3495,25 @@ export class AiCapabilityRegistry {
     });
   }
 
+  // Resolves how the agent registers itself on the ticket it writes to (assignee / observer /
+  // none) from the owning agent definition's response policy. Kept OUT of the action payload so
+  // the integrity hash of already-prepared actions stays valid and a policy change applies to
+  // pending approvals immediately.
+  private async agentActorRoleForAction(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+  ): Promise<TicketActorRole> {
+    const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+    const definitionId = typeof metadata?.agent_definition_id === 'string' ? metadata.agent_definition_id : null;
+    if (!definitionId) {
+      return DEFAULT_TICKET_ACTOR_ROLE;
+    }
+    const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
+      where: { id: definitionId, tenant_id: context.tenantId },
+    });
+    return ticketActorRoleFromResponsePolicy(definition?.response_policy_json);
+  }
+
   private async addApprovedInternalNote(
     context: AiExecutionContextWithManager,
     rawInput: unknown,
@@ -3519,6 +3541,7 @@ export class AiCapabilityRegistry {
     const result = await provider.addInternalNote(context, {
       actionPayload: action.action_payload_json,
       idempotencyKey: action.idempotency_key ?? '',
+      agentActorRole: await this.agentActorRoleForAction(context, action),
     });
     if (result.ok === false) {
       await this.actions.markExecuted(context, action, 'failed', result.message);
@@ -3641,6 +3664,7 @@ export class AiCapabilityRegistry {
     const result = await provider.addPublicReply(context, {
       actionPayload: action.action_payload_json,
       idempotencyKey: action.idempotency_key ?? '',
+      agentActorRole: await this.agentActorRoleForAction(context, action),
     });
     if (result.ok === false) {
       await this.actions.markExecuted(context, action, 'failed', result.message);

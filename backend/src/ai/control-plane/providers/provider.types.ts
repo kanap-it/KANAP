@@ -367,6 +367,26 @@ export type TicketProviderActionWriteResult = {
   alreadyApplied?: boolean;
 };
 
+// How the agent registers its own provider user on a ticket it writes to.
+// 'assignee' = takes the ticket on public replies (observer on internal notes),
+// 'observer' = follows the ticket only, 'none' = never appears among the ticket actors.
+export const TICKET_ACTOR_ROLES = ['assignee', 'observer', 'none'] as const;
+export type TicketActorRole = (typeof TICKET_ACTOR_ROLES)[number];
+export const DEFAULT_TICKET_ACTOR_ROLE: TicketActorRole = 'assignee';
+
+export function ticketActorRoleFromResponsePolicy(policy: unknown): TicketActorRole {
+  const value = policy && typeof policy === 'object'
+    ? (policy as Record<string, unknown>).ticket_actor_role
+    : undefined;
+  return (TICKET_ACTOR_ROLES as readonly string[]).includes(String(value))
+    ? (value as TicketActorRole)
+    : DEFAULT_TICKET_ACTOR_ROLE;
+}
+
+export type TicketWriteOptions = {
+  agentActorRole?: TicketActorRole;
+};
+
 export type TicketInternalNoteActionPayload = {
   ticketId: string;
   visibility: 'internal';
@@ -796,9 +816,9 @@ export interface TicketingProvider extends ProviderBase {
     idempotencyKey: string;
   }): Promise<AdapterResult<TicketProviderActionWriteResult>>;
   prepareInternalNote(context: ProviderContext, input: { ticketId: string; noteBody: string }): Promise<AdapterResult<TicketInternalNotePrepared>>;
-  addInternalNote(context: ProviderContext, input: { actionPayload: TicketInternalNoteActionPayload; idempotencyKey: string }): Promise<AdapterResult<TicketInternalNoteWriteResult>>;
+  addInternalNote(context: ProviderContext, input: { actionPayload: TicketInternalNoteActionPayload; idempotencyKey: string } & TicketWriteOptions): Promise<AdapterResult<TicketInternalNoteWriteResult>>;
   preparePublicReply(context: ProviderContext, input: { ticketId: string; replyBody: string }): Promise<AdapterResult<TicketPublicReplyPrepared>>;
-  addPublicReply(context: ProviderContext, input: { actionPayload: TicketPublicReplyActionPayload; idempotencyKey: string }): Promise<AdapterResult<TicketPublicReplyWriteResult>>;
+  addPublicReply(context: ProviderContext, input: { actionPayload: TicketPublicReplyActionPayload; idempotencyKey: string } & TicketWriteOptions): Promise<AdapterResult<TicketPublicReplyWriteResult>>;
   // Optional cosmetic capability: human-facing deep links into the provider's
   // own web UI for the given ticket refs (approvals/queue surfaces). Must stay
   // cheap — config/settings reads only, never per-ticket provider API calls.
