@@ -1058,6 +1058,111 @@ async function testSearchTicketsForScopeUsesUnderCriteriaAndMembershipForSubtree
   }
 }
 
+async function testAssignableGroupsCatalogueFiltersSortsAndCaches() {
+  const service = createService();
+  const originalFetch = global.fetch;
+  const requestedUrls: string[] = [];
+  const session = {
+    baseUrl: 'https://glpi.internal/',
+    sessionToken: 'session-token',
+    appToken: 'app-token',
+  };
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL) => {
+      requestedUrls.push(String(input));
+      return new Response(JSON.stringify([
+        { id: 7, name: 'Tech-desk', completename: 'Tech-desk', is_assign: 1, groups_id: 0 },
+        { id: 12, name: 'SAP-team', completename: 'Support &#62; SAP-team', is_assign: '1', groups_id: 3 },
+        { id: 9, name: 'Requesters only', completename: 'Requesters only', is_assign: 0, groups_id: 0 },
+        { id: 13, name: 'PLM-team', completename: 'Support > PLM-team', is_assign: true, groups_id: 3 },
+      ]), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'content-range': '0-3/4' },
+      });
+    }) as typeof fetch;
+
+    const groups = await service.listAssignableGroups(session);
+    assert.deepEqual(groups.map((group) => group.id), [13, 12, 7]);
+    assert.equal(groups[1].completename, 'Support > SAP-team');
+    assert.equal(requestedUrls.length, 1);
+    assert.match(requestedUrls[0], /apirest\.php\/Group\?/);
+
+    // The catalogue is cached: a second read and the reference search reuse it.
+    const again = await service.listAssignableGroups(session);
+    assert.equal(again.length, 3);
+    const searched = await service.searchReferenceCatalog(session, { kind: 'group', query: 'sap', limit: 10 });
+    assert.deepEqual(searched.map((item) => item.id), [12]);
+    assert.equal(requestedUrls.length, 1);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testAddTicketGroupIsAdditiveIdempotentAndRestrictedToAssignableGroups() {
+  const service = createService();
+  const originalFetch = global.fetch;
+  const requests: Array<{ url: string; method: string; body: string | null }> = [];
+  const session = {
+    baseUrl: 'https://glpi.internal/',
+    sessionToken: 'session-token',
+    appToken: 'app-token',
+  };
+  const jsonResponse = (payload: unknown) => new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'content-range': '0-1/2' },
+  });
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      requests.push({ url, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : null });
+      if (/apirest\.php\/Group\?/.test(url)) {
+        return jsonResponse([
+          { id: 7, name: 'Tech-desk', completename: 'Tech-desk', is_assign: 1 },
+          { id: 12, name: 'SAP-team', completename: 'SAP-team', is_assign: 1 },
+        ]);
+      }
+      if (/Ticket\/4523\/Group_Ticket/.test(url)) {
+        return jsonResponse([
+          { id: 1, groups_id: 7, tickets_id: 4523, type: 2 },
+          { id: 2, groups_id: 12, tickets_id: 4523, type: 1 },
+        ]);
+      }
+      if (/apirest\.php\/Group_Ticket$/.test(url)) {
+        return jsonResponse({ id: 3 });
+      }
+      throw new Error(`Unexpected GLPI call ${url}`);
+    }) as typeof fetch;
+
+    const groups = await service.getTicketGroups(session, 4523);
+    assert.deepEqual(groups.map((group) => [group.group_id, group.role]), [[7, 'assigned'], [12, 'requester']]);
+
+    // Already assigned: no write.
+    const present = await service.addTicketGroup(session, 4523, 7);
+    assert.deepEqual({ added: present.added, alreadyPresent: present.alreadyPresent }, { added: false, alreadyPresent: true });
+    assert.equal(requests.some((request) => request.method === 'POST'), false);
+
+    // Requester group is not "assigned": adding it as a technician group is a real write.
+    const added = await service.addTicketGroup(session, 4523, 12);
+    assert.deepEqual({ added: added.added, alreadyPresent: added.alreadyPresent }, { added: true, alreadyPresent: false });
+    assert.equal(added.group.completename, 'SAP-team');
+    const post = requests.find((request) => request.method === 'POST');
+    assert.ok(post);
+    assert.match(post!.url, /apirest\.php\/Group_Ticket$/);
+    assert.deepEqual(JSON.parse(post!.body ?? '{}'), { input: { tickets_id: 4523, groups_id: 12, type: 2 } });
+
+    // Not an assignable group: refused before any write.
+    await assert.rejects(
+      () => service.addTicketGroup(session, 4523, 99),
+      (error: unknown) => error instanceof BadRequestException && /assignable groups/.test(String((error as Error).message)),
+    );
+    assert.equal(requests.filter((request) => request.method === 'POST').length, 1);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
@@ -1084,6 +1189,8 @@ async function run() {
   await testSearchTicketsForScopeTreatsZeroResultsAsEmpty();
   await testListReferenceSubtreeIdsExpandsDescendantsAndCachesTree();
   await testSearchTicketsForScopeUsesUnderCriteriaAndMembershipForSubtrees();
+  await testAssignableGroupsCatalogueFiltersSortsAndCaches();
+  await testAddTicketGroupIsAdditiveIdempotentAndRestrictedToAssignableGroups();
 }
 
 void run();

@@ -206,6 +206,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// Routing catalogue and current assignment, lifted out of contexts.routing so the model
+// sees them once, in the same shape as allowed_status_transitions.
+function routingTargetSummaries(routing: unknown): Array<{ kind: string; key: string; label: string }> {
+  const record = isRecord(routing) ? routing : {};
+  const targets = Array.isArray(record.supportedAssignmentTargets)
+    ? record.supportedAssignmentTargets.filter(isRecord)
+    : [];
+  return targets.flatMap((target) => {
+    const key = typeof target.key === 'string' ? target.key.trim() : '';
+    const label = typeof target.label === 'string' ? target.label.trim() : '';
+    const kind = typeof target.kind === 'string' ? target.kind : '';
+    if (!key || !label || !kind) return [];
+    return [{ kind, key, label }];
+  });
+}
+
+function currentAssignmentSummary(routing: unknown): { users: string[]; groups: Array<{ key: string; label: string }> } {
+  const record = isRecord(routing) ? routing : {};
+  const users = Array.isArray(record.assignedUsers)
+    ? record.assignedUsers.filter(isRecord).map((user) => String(user.label ?? user.key ?? '')).filter(Boolean)
+    : typeof record.assignee === 'string' && record.assignee ? [record.assignee] : [];
+  const groups = Array.isArray(record.assignedGroups)
+    ? record.assignedGroups.filter(isRecord).flatMap((group) => {
+      const key = typeof group.key === 'string' ? group.key : '';
+      if (!key) return [];
+      return [{ key, label: typeof group.label === 'string' ? group.label : key }];
+    })
+    : typeof record.group === 'string' && record.group ? [{ key: record.group, label: record.group }] : [];
+  return { users, groups };
+}
+
+function routingContextWithoutCatalogue(routing: unknown): unknown {
+  if (!isRecord(routing)) return routing;
+  const next: Record<string, unknown> = { ...routing };
+  delete next.supportedAssignmentTargets;
+  return next;
+}
+
 function lifecycleTransitionSummaries(lifecycle: unknown): Array<{
   key: string;
   label: string | null;
@@ -262,6 +300,9 @@ export class AiAgentActionPlannerService {
     const terminalStatusTransitionKeys = allowedStatusTransitions
       .filter((transition) => transition.terminal)
       .map((transition) => transition.key);
+    const routingTargets = input.owned_action_types.includes('assignment_update')
+      ? routingTargetSummaries(input.contexts.routing)
+      : [];
     return {
       task: providerProfile.domain_preamble,
       schema: {
@@ -273,6 +314,7 @@ export class AiAgentActionPlannerService {
           verbatim_ref: 'optional exact configured message ref from verbatim_candidates',
           body: 'optional administrative draft only when not using verbatim_ref',
           transition_key: 'optional provider transition key when supported',
+          target: 'optional for assignment_update: one entry of routing_targets copied exactly {kind, key, label}',
         }],
         rationale: 'one short summary sentence',
         confidence: '0..1',
@@ -300,6 +342,8 @@ export class AiAgentActionPlannerService {
       web_summary: input.web_summary ?? { count: 0, status: null, query: null, items: [] },
       allowed_status_transitions: allowedStatusTransitions,
       terminal_status_transition_keys: terminalStatusTransitionKeys,
+      routing_targets: routingTargets,
+      current_assignment: currentAssignmentSummary(input.contexts.routing),
       verbatim_candidates: input.verbatim_candidates.map((candidate) => ({
         ref: candidate.ref,
         text: candidate.text,
@@ -322,7 +366,7 @@ export class AiAgentActionPlannerService {
       contexts: {
         classification: input.contexts.classification,
         lifecycle: input.contexts.lifecycle,
-        routing: input.contexts.routing,
+        routing: routingContextWithoutCatalogue(input.contexts.routing),
         participants: input.contexts.participants,
       },
     };

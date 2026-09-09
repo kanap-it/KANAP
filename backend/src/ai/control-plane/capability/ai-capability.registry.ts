@@ -2040,6 +2040,22 @@ function sameSnapshot(left: unknown, right: unknown): boolean {
   return stableJson(left) === stableJson(right);
 }
 
+// Pre-write drift check for assignment updates: only the assigned groups matter. An
+// additive group write is unaffected by technicians joining (including the agent's own
+// user registering itself on an earlier reply of the same approved batch), by requester
+// changes, or by the routing catalogue moving. Falls back to the group label for
+// providers that do not expose keyed assignments.
+function routingDriftSnapshot(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const assignedGroups = Array.isArray(value.assignedGroups) ? value.assignedGroups.filter(isRecord) : null;
+  return {
+    ticketId: value.ticketId ?? null,
+    groups: assignedGroups
+      ? assignedGroups.map((group) => String(group.key ?? '')).sort()
+      : [typeof value.group === 'string' ? value.group : null],
+  };
+}
+
 // Drop fields that move for reasons unrelated to the safety of the write before the
 // pre-write stale recheck. `updatedAt` is bumped by the agent's own internal note / public
 // reply (posted earlier in the same approved batch) and `warnings` is advisory — neither
@@ -3262,7 +3278,10 @@ export class AiCapabilityRegistry {
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
     }
-    if (!actionHasApplyAnywayOverride(action) && !sameSnapshot(action.action_payload_json.current, current.data)) {
+    if (
+      !actionHasApplyAnywayOverride(action)
+      && !sameSnapshot(routingDriftSnapshot(action.action_payload_json.current), routingDriftSnapshot(current.data))
+    ) {
       const message = 'Ticket routing changed after this action was prepared. Rerun triage before approving this write.';
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);

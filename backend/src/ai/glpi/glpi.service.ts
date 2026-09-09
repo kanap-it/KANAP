@@ -20,6 +20,8 @@ import {
   GlpiTicketUpdateFields,
   GlpiTicketUpdateResult,
   GlpiTicketUserAssociation,
+  GlpiTicketGroupAssociation,
+  GlpiAssignableGroup,
 } from './glpi.types';
 
 const GLPI_TIMEOUT_MS = 10_000;
@@ -30,10 +32,14 @@ const GLPI_PAGE_SIZE = 50;
 const GLPI_TREE_PAGE_SIZE = 200;
 const GLPI_TREE_CACHE_TTL_MS = 10 * 60 * 1000;
 const GLPI_TREE_MAX_ROWS = 20_000;
+// Assignable-group catalogue handed to the desk agent as routing targets: bounded so the
+// planner prompt stays small, refreshed lazily.
+const GLPI_ASSIGNABLE_GROUPS_MAX = 200;
+const GLPI_ASSIGNABLE_GROUPS_CACHE_TTL_MS = 5 * 60 * 1000;
 const GLPI_MAX_INTERNAL_NOTE_CHARS = 4000;
 const GLPI_MAX_PUBLIC_REPLY_CHARS = 12000;
 
-type GlpiReferenceCatalogKind = 'category' | 'entity';
+type GlpiReferenceCatalogKind = 'category' | 'entity' | 'group';
 
 type ResolvedGlpiSettings = {
   baseUrl: string;
@@ -139,8 +145,15 @@ function parseBooleanGlpiValue(value: unknown): boolean {
   return false;
 }
 
-function referenceSearchItemType(kind: GlpiReferenceCatalogKind): 'ITILCategory' | 'Entity' {
-  return kind === 'category' ? 'ITILCategory' : 'Entity';
+function referenceSearchItemType(kind: GlpiReferenceCatalogKind): 'ITILCategory' | 'Entity' | 'Group' {
+  switch (kind) {
+    case 'category':
+      return 'ITILCategory';
+    case 'group':
+      return 'Group';
+    default:
+      return 'Entity';
+  }
 }
 
 function normalizePlainTicketFollowup(value: string, opts?: { maxChars?: number; label?: string }): string {
@@ -286,6 +299,7 @@ export class GlpiService {
   // Parent maps of tree catalogs, keyed by GLPI instance + acting account (visibility
   // is account-scoped) + itemtype. Refreshed lazily every GLPI_TREE_CACHE_TTL_MS.
   private readonly treeParentCache = new Map<string, { expiresAt: number; parents: Map<number, number | null> }>();
+  private readonly assignableGroupsCache = new Map<string, { expiresAt: number; groups: GlpiAssignableGroup[] }>();
 
   constructor(
     private readonly settingsService: AiSettingsService,
@@ -374,6 +388,103 @@ export class GlpiService {
       },
     );
     return { added: true, alreadyPresent: false };
+  }
+
+  // Adds a technician group as ASSIGNED on a ticket (Group_Ticket type 2). Additive:
+  // existing technicians and groups are never removed. Restricted to groups that GLPI
+  // flags as assignable, idempotent on the (ticket, group, assigned) triple.
+  async addTicketGroup(
+    session: GlpiSession,
+    ticketId: number,
+    groupsId: number,
+  ): Promise<{ added: boolean; alreadyPresent: boolean; group: GlpiAssignableGroup }> {
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      throw new BadRequestException('GLPI ticket id must be a positive integer.');
+    }
+    if (!Number.isInteger(groupsId) || groupsId <= 0) {
+      throw new BadRequestException('GLPI ticket group id must be a positive integer.');
+    }
+    const group = (await this.listAssignableGroups(session)).find((candidate) => candidate.id === groupsId);
+    if (!group) {
+      throw new BadRequestException('GLPI ticket group writes are restricted to assignable groups.');
+    }
+    const existing = await this.getTicketGroups(session, ticketId);
+    if (existing.some((association) => association.group_id === groupsId && association.role === 'assigned')) {
+      return { added: false, alreadyPresent: true, group };
+    }
+    await this.requestJson(
+      this.buildUrl(session.baseUrl, 'apirest.php/Group_Ticket'),
+      {
+        method: 'POST',
+        headers: this.buildSessionHeaders(session),
+        body: JSON.stringify({ input: { tickets_id: ticketId, groups_id: groupsId, type: 2 } }),
+      },
+    );
+    return { added: true, alreadyPresent: false, group };
+  }
+
+  // Groups a ticket can be assigned to (Group.is_assign = 1), sorted by full name and
+  // bounded to GLPI_ASSIGNABLE_GROUPS_MAX. Cached per GLPI instance + acting account.
+  async listAssignableGroups(session: GlpiSession): Promise<GlpiAssignableGroup[]> {
+    const cacheKey = `${session.baseUrl}|${session.agentUserId ?? 'anon'}`;
+    const now = Date.now();
+    const cached = this.assignableGroupsCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.groups;
+    }
+    const rows = await this.listItemTypeRows(session, 'Group', GLPI_TREE_MAX_ROWS);
+    const groups: GlpiAssignableGroup[] = [];
+    for (const record of rows) {
+      const id = parsePositiveInteger(record.id);
+      if (!id || !parseBooleanGlpiValue(record.is_assign)) {
+        continue;
+      }
+      const name = decodeGlpiPlainTextField(stringifyGlpiValue(record.name));
+      const completename = decodeGlpiPlainTextField(stringifyGlpiValue(record.completename)) ?? name;
+      groups.push({ id, name, completename });
+    }
+    groups.sort((left, right) => (left.completename ?? '').localeCompare(right.completename ?? '', undefined, { sensitivity: 'base' }));
+    if (groups.length > GLPI_ASSIGNABLE_GROUPS_MAX) {
+      this.logger.warn(`GLPI exposes ${groups.length} assignable groups; the agent routing catalogue keeps the first ${GLPI_ASSIGNABLE_GROUPS_MAX}.`);
+      groups.length = GLPI_ASSIGNABLE_GROUPS_MAX;
+    }
+    this.assignableGroupsCache.set(cacheKey, { expiresAt: now + GLPI_ASSIGNABLE_GROUPS_CACHE_TTL_MS, groups });
+    return groups;
+  }
+
+  async getTicketGroups(
+    session: GlpiSession,
+    ticketId: number,
+  ): Promise<GlpiTicketGroupAssociation[]> {
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      throw new BadRequestException('GLPI ticket id must be a positive integer.');
+    }
+    // Raw ids only: labels come from the assignable-group catalogue, which is stable
+    // regardless of how the GLPI version renders expanded dropdowns.
+    const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/Ticket/${ticketId}/Group_Ticket`));
+    pageUrl.searchParams.set('expand_dropdowns', 'false');
+    pageUrl.searchParams.set('get_hateoas', 'false');
+
+    const payload = await this.requestJson(
+      pageUrl.toString(),
+      { headers: this.buildSessionHeaders(session) },
+      { notFoundMessage: `GLPI ticket #${ticketId} groups were not found.` },
+    );
+    if (!Array.isArray(payload)) {
+      throw new BadRequestException('GLPI ticket groups response was malformed.');
+    }
+    const seen = new Set<string>();
+    return payload
+      .map((item) => this.normalizeTicketGroupAssociation(item))
+      .filter((item): item is GlpiTicketGroupAssociation => !!item)
+      .filter((association) => {
+        const key = `${association.group_id}:${association.role}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
   }
 
   async getTicket(
@@ -579,6 +690,17 @@ export class GlpiService {
   ): Promise<GlpiReferenceItem[]> {
     const limit = Math.max(1, Math.min(Math.floor(input.limit), 50));
     const query = textOrNull(input.query);
+    if (input.kind === 'group') {
+      // Only groups a ticket can be assigned to; served from the bounded cached catalogue
+      // so the picker and the agent see the same list.
+      const needle = query?.toLowerCase() ?? null;
+      return (await this.listAssignableGroups(session))
+        .filter((group) => !needle
+          || String(group.id) === needle
+          || (group.completename ?? group.name ?? '').toLowerCase().includes(needle))
+        .slice(0, limit)
+        .map((group) => ({ id: group.id, name: group.name, completename: group.completename }));
+    }
     const itemType = referenceSearchItemType(input.kind);
     const searchUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/search/${itemType}`));
     searchUrl.searchParams.set('range', `0-${limit - 1}`);
@@ -678,11 +800,31 @@ export class GlpiService {
     if (cached && cached.expiresAt > now) {
       return cached.parents;
     }
-    const parentField = itemType === 'ITILCategory' ? 'itilcategories_id' : 'entities_id';
+    const parentField = itemType === 'ITILCategory' ? 'itilcategories_id' : itemType === 'Group' ? 'groups_id' : 'entities_id';
     const parents = new Map<number, number | null>();
+    for (const record of await this.listItemTypeRows(session, itemType, GLPI_TREE_MAX_ROWS)) {
+      const id = parsePositiveInteger(record.id);
+      if (!id || parents.has(id)) {
+        continue;
+      }
+      parents.set(id, parsePositiveInteger(record[parentField]) ?? null);
+    }
+    this.treeParentCache.set(cacheKey, { expiresAt: now + GLPI_TREE_CACHE_TTL_MS, parents });
+    return parents;
+  }
+
+  // Pages through `apirest.php/<itemType>` and returns the raw rows (deduplicated by id),
+  // bounded to maxRows. Backs the tree catalogs and the assignable-group catalogue.
+  private async listItemTypeRows(
+    session: GlpiSession,
+    itemType: string,
+    maxRows: number,
+  ): Promise<Array<Record<string, unknown>>> {
+    const rows: Array<Record<string, unknown>> = [];
+    const seen = new Set<number>();
     let offset = 0;
     let total: number | null = null;
-    while ((total == null || offset < total) && parents.size < GLPI_TREE_MAX_ROWS) {
+    while ((total == null || offset < total) && rows.length < maxRows) {
       const end = offset + GLPI_TREE_PAGE_SIZE - 1;
       const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/${itemType}`));
       pageUrl.searchParams.set('range', `${offset}-${end}`);
@@ -720,10 +862,11 @@ export class GlpiService {
         }
         const record = row as Record<string, unknown>;
         const id = parsePositiveInteger(record.id);
-        if (!id || parents.has(id)) {
+        if (!id || seen.has(id)) {
           continue;
         }
-        parents.set(id, parsePositiveInteger(record[parentField]) ?? null);
+        seen.add(id);
+        rows.push(record);
         newRows += 1;
       }
 
@@ -733,11 +876,10 @@ export class GlpiService {
       }
       offset += payload.length;
     }
-    if (total != null && total > GLPI_TREE_MAX_ROWS) {
-      this.logger.warn(`GLPI ${itemType} tree has ${total} rows; recursive targeting only expanded the first ${GLPI_TREE_MAX_ROWS}.`);
+    if (total != null && total > maxRows) {
+      this.logger.warn(`GLPI ${itemType} list has ${total} rows; only the first ${maxRows} were read.`);
     }
-    this.treeParentCache.set(cacheKey, { expiresAt: now + GLPI_TREE_CACHE_TTL_MS, parents });
-    return parents;
+    return rows;
   }
 
   async getTicketFollowups(
@@ -1143,6 +1285,25 @@ export class GlpiService {
       name,
       completename,
       parent_id: parentId,
+    };
+  }
+
+  private normalizeTicketGroupAssociation(payload: unknown): GlpiTicketGroupAssociation | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+    const record = payload as Record<string, unknown>;
+    const id = parseNumericGlpiValue(record.id);
+    const groupId = parseNumericGlpiValue(record.groups_id);
+    if (!id || !groupId) {
+      return null;
+    }
+    const rawLabel = typeof record.groups_id === 'object' ? stringifyGlpiValue(record.groups_id) : null;
+    return {
+      id,
+      group_id: groupId,
+      group_label: decodeGlpiPlainTextField(rawLabel),
+      role: glpiTicketUserRole(record.type),
     };
   }
 
