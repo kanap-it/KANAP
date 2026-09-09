@@ -137,6 +137,8 @@ Los agentes de supervisión tienen la misma sección, filtrando en su lugar por 
 
 Las capacidades van primero, porque enmarcan todo lo demás: una fila de casillas para decidir qué tipos de cambio puede *llegar a* proponer el agente —**Notas internas**, **Respuestas al solicitante**, **Clasificación**, **Cambios de estado**, **Asignación** y **Participantes**—. Desmarcar una elimina por completo ese tipo de acción: el agente no puede proponerlo, digan lo que digan las instrucciones, y no puede promoverse en la escala de autonomía. Los agentes de supervisión no tienen esta sección.
 
+**Asignación** merece una aclaración, porque funciona a través de las instrucciones y no de un ajuste. Con la casilla marcada, el agente puede proponer asignar un ticket a un **grupo de técnicos** de la herramienta de tickets, y la regla que dice qué grupo se escribe en las **Instrucciones**, en lenguaje corriente —por ejemplo *«Si la pregunta trata de SAP, asigna el ticket al grupo SAP-team. Si trata de Teamcenter, asígnalo a PLM-team. En todos los demás casos, asígnalo a Tech-desk.»*—. El agente solo elige entre los grupos que la herramienta de tickets marca como asignables, y **añade** un grupo: nunca quita a un técnico ni a un grupo ya presente en el ticket. Como cualquier otra acción, se propone para su aprobación mientras no la haya promovido en la escala de autonomía. Asignar a una persona concreta no está soportado; el grupo es la unidad de enrutamiento.
+
 ### Objetivo
 
 El objetivo describe quién es el agente y cómo escribe:
@@ -144,6 +146,8 @@ El objetivo describe quién es el agente y cómo escribe:
 - **Propósito** — para qué está el agente, en una línea. Lo lee en cada ejecución.
 - **Instrucciones** — las reglas internas, escritas libremente en líneas o párrafos. No pueden ampliar lo que el agente tiene permitido hacer. Hay un único límite: 10 000 caracteres en total — más allá, parte del texto dejaría de llegar al agente. Un contador discreto aparece al acercarse al límite; superado, la sección no se guarda hasta que acorte el borrador.
 - **Idioma de respuesta** — **Idioma del ticket** (responder en el idioma que usó el solicitante), **Francés**, **Inglés**, **Alemán** o **Español**.
+
+Junto a las instrucciones, un panel titulado **Nombres que puede usar en las instrucciones** enumera exactamente a qué pueden referirse sus reglas: los **estados del ticket** a los que el agente puede pasar un ticket (con la clave exacta junto a cada etiqueta) y, cuando **Asignación** está marcada, los **grupos de técnicos** a los que puede dirigirlo, tal como los expone la herramienta de tickets. Escriba los nombres tal como aparecen allí. La categoría, la prioridad y el tipo no se controlan desde las instrucciones.
 
 El nombre del agente y su descripción breve viven en el título del espacio, no en esta cuadrícula: haga clic para editarlos. Cómo debe sonar el agente, y cuándo debe pasar el trabajo a una persona, pertenecen a **Instrucciones** como reglas ordinarias.
 

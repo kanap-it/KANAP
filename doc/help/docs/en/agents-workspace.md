@@ -137,6 +137,8 @@ Monitoring agents have the same section, filtering on alert state, severity, ack
 
 Capabilities come first, because they frame everything else: a row of checkboxes for which kinds of change the agent may *ever* propose — **Internal notes**, **Requester replies**, **Classification**, **Status updates**, **Assignment**, and **Participants**. Unticking one removes that action type entirely: the agent can't propose it, whatever the instructions say, and it can't be promoted on the autonomy ladder. Monitoring agents don't have this section.
 
+**Assignment** deserves a word, because it works through the instructions rather than through a setting. With it ticked, the agent may propose to assign a ticket to a **technician group** of the ticketing system, and the rule that says which group lives in **Instructions**, in plain language — for example *"If the question is about SAP, assign the ticket to the group SAP-team. If it is about Teamcenter, assign it to PLM-team. In all other cases, assign it to Tech-desk."* The agent only ever picks from the groups the ticketing system marks as assignable, and it **adds** a group: it never removes a technician or a group already on the ticket. Like every other action it is proposed for your approval unless you have promoted it on the autonomy ladder. Assigning a named person is not supported; groups are the unit of routing.
+
 ### Objective
 
 The objective is who the agent is and how it writes:
@@ -144,6 +146,8 @@ The objective is who the agent is and how it writes:
 - **Purpose** — what the agent is here to do, in one line. It reads this on every run.
 - **Instructions** — house rules, written freely as lines or paragraphs. They cannot widen what the agent is allowed to do. There is a single limit of 10 000 characters in total — beyond it, part of the text would no longer reach the agent. A quiet counter appears as you approach the limit; past it the section is not saved until you shorten the draft.
 - **Reply language** — **Ticket language** (answer in whatever language the requester used), **French**, **English**, **German**, or **Spanish**.
+
+Next to the instructions, a panel titled **Names you can use in the instructions** lists exactly what your rules can refer to: the **ticket statuses** the agent may move a ticket to (with the exact key beside each label), and, when **Assignment** is ticked, the **technician groups** it may route to, as the ticketing system exposes them. Write the names as they appear there. Category, priority and type are not driven by the instructions.
 
 The agent's name and short description live on the workspace title, not in this grid: click them to edit. How the agent should sound, and when it should hand work to a person, belong in **Instructions** as ordinary rules.
 
