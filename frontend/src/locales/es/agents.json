@@ -769,7 +769,6 @@
     "instructionsInfo": "Las reglas que sigue el agente — escríbalas libremente, en líneas o párrafos. No pueden ampliar lo que el agente puede hacer.",
     "replyLanguageInfo": "El idioma en el que escribe el agente. «Idioma del ticket» hace que responda en el idioma que usó el solicitante.",
     "capabilitiesInfo": "Lo que este agente puede preparar. Todo lo que esté desactivado aquí nunca se propone, digan lo que digan las instrucciones.",
-    "routingHint": "La asignación sigue las instrucciones: nombre allí el grupo, por ejemplo «asigna las preguntas de SAP al grupo SAP-team». El agente solo añade un grupo, nunca quita a nadie.",
     "reference": {
       "title": "Nombres que puede usar en las instrucciones",
       "statuses": "Estados del ticket",

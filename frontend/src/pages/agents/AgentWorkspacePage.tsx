@@ -1824,11 +1824,6 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
               );
             })}
           </Box>
-          {routingGroupsEnabled && (
-            <Box sx={{ px: 1.5, pb: 1.25, fontSize: 12, color: 'kanap.text.tertiary', lineHeight: 1.5 }}>
-              {t('settings.routingHint')}
-            </Box>
-          )}
         </Section>
       )}
 
@@ -1840,7 +1835,10 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(260px, 360px)' },
+              // Left column sized to the fields (PropertyRow caps them at 480px) so the
+              // reference panel sits next to the instructions, not at the far right.
+              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 520px) minmax(260px, 360px)' },
+              justifyContent: 'start',
               columnGap: 3,
               rowGap: 1.5,
               alignItems: 'start',

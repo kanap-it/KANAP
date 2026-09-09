@@ -769,7 +769,6 @@
     "instructionsInfo": "Die Regeln, denen der Agent folgt — frei formuliert, in Zeilen oder Absätzen. Sie können nicht erweitern, was der Agent tun darf.",
     "replyLanguageInfo": "Die Sprache, in der der Agent schreibt. „Sprache des Tickets“ lässt ihn in der Sprache des Anfragenden antworten.",
     "capabilitiesInfo": "Was dieser Agent vorbereiten darf. Alles, was hier aus ist, wird nie vorgeschlagen — unabhängig von den Anweisungen.",
-    "routingHint": "Die Zuweisung folgt den Anweisungen: Nennen Sie dort die Gruppe, zum Beispiel „SAP-Fragen der Gruppe SAP-team zuweisen“. Der Agent fügt nur eine Gruppe hinzu, er entfernt nie jemanden.",
     "reference": {
       "title": "In den Anweisungen verwendbare Namen",
       "statuses": "Ticketstatus",
