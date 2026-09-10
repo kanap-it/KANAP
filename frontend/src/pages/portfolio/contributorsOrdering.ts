@@ -6,7 +6,7 @@
 
 export const UNASSIGNED_GROUP = 'unassigned';
 
-export type ContributorGroupable = { id: string; team_id?: string | null };
+export type ContributorGroupable = { id: string; item_number?: number; team_id?: string | null };
 export type TeamLike = { id: string; name: string };
 
 export function groupContributorsByTeam<T extends ContributorGroupable>(

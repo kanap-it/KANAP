@@ -57,7 +57,7 @@ Click any contributor card to open their workspace.
 
 ## The Contributor workspace
 
-Click a contributor row to open their workspace. The header shows the contributor's name, their team, availability, and skill count. Use the arrows next to the back link (or the left and right arrow keys) to move to the previous or next contributor in list order. Press **Escape** to return to the list.
+Click a contributor row to open their workspace. The header shows the contributor's reference (`CTR-1`, `CTR-2`…, click it to copy), their name, team, availability, and skill count. The reference is also what the page address uses. Use the arrows next to the back link (or the left and right arrow keys) to move to the previous or next contributor in list order. Press **Escape** to return to the list.
 
 The workspace has three tabs, **General**, **Skills**, and **Time Logged**, plus a **Properties** panel on the right that holds the team, availability, and classification defaults. Open or close the panel with the tab on its edge, or press **P**.
 

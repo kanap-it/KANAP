@@ -26,9 +26,11 @@ import ContributorPropertiesDrawer, {
   type ContributorDrawerValues,
 } from './components/ContributorPropertiesDrawer';
 import { orderContributors } from './contributorsOrdering';
+import { buildItemPath, formatItemRef } from '../../utils/item-ref';
 
 interface ContributorConfig {
   id: string | null;
+  item_number: number | null;
   user_id: string;
   user_display_name: string;
   user_email: string;
@@ -73,6 +75,7 @@ function normalizeAvailability(value: unknown): number {
 function normalizeConfig(raw: any): ContributorConfig {
   return {
     id: raw?.id ?? null,
+    item_number: typeof raw?.item_number === 'number' ? raw.item_number : (raw?.item_number ? Number(raw.item_number) : null),
     user_id: raw?.user_id ?? '',
     user_display_name: raw?.user_display_name ?? '',
     user_email: raw?.user_email ?? '',
@@ -87,6 +90,46 @@ function normalizeConfig(raw: any): ContributorConfig {
     default_stream_id: raw?.default_stream_id ?? null,
     default_company_id: raw?.default_company_id ?? null,
   };
+}
+
+/**
+ * Notes keep a local draft: the field must not be driven straight by the
+ * query cache, whose observer notifications are batched asynchronously — a
+ * controlled textarea would snap back to a stale value between keystrokes and
+ * drop characters. The draft follows the cache only while the field is not
+ * focused (initial load, rollback after a failed save, prev/next).
+ */
+function ContributorNotesField({
+  value,
+  onChange,
+  readOnly,
+  placeholder,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  readOnly: boolean;
+  placeholder: string;
+}) {
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) setDraft(value);
+  }, [value]);
+  return (
+    <TextField
+      value={draft}
+      onChange={(e) => { setDraft(e.target.value); onChange(e.target.value); }}
+      inputRef={inputRef}
+      multiline
+      minRows={4}
+      maxRows={12}
+      fullWidth
+      variant="standard"
+      InputProps={{ readOnly }}
+      placeholder={placeholder}
+      sx={longFormSurfaceFieldSx}
+    />
+  );
 }
 
 const formatMonth = (yearMonth: string, locale: string) => {
@@ -105,6 +148,8 @@ export default function ContributorWorkspacePage() {
 
   // Both `/contributors/me` and `/contributors/:id` render this page; on the
   // self route there is no `:id` param.
+  // `:id` is the CTR-N business reference (or a legacy row UUID; the API
+  // accepts both and the page rewrites the URL to the reference once loaded).
   const isSelfRoute = !idParam;
   const contributorId = idParam;
   const contributorRouteId = contributorId || 'me';
@@ -162,6 +207,17 @@ export default function ContributorWorkspacePage() {
     enabled: isSelfRoute ? hasAnyPortfolioReader : !!contributorId,
   });
 
+  const reference = member?.item_number ? formatItemRef('contributor', member.item_number) : null;
+  const referencePath = reference ? buildItemPath('contributor', reference) : null;
+  // Legacy UUID links: swap the URL for the readable reference, keeping the
+  // loaded record under the new cache key so nothing refetches or flickers.
+  useEffect(() => {
+    if (isSelfRoute || !member || !reference || !referencePath || contributorId === reference) return;
+    queryClient.setQueryData(['portfolio-contributor', reference], member);
+    const suffix = isContributorTab(tab) && tab !== 'general' ? `/${tab}` : '';
+    navigate(`${referencePath}${suffix}`, { replace: true });
+  }, [contributorId, isSelfRoute, member, navigate, queryClient, reference, referencePath, tab]);
+
   const { data: timeStats } = useQuery({
     queryKey: ['contributor-time-stats', member?.id],
     queryFn: async () => {
@@ -179,7 +235,7 @@ export default function ContributorWorkspacePage() {
 
   const { data: contributorsList } = useQuery({
     queryKey: ['portfolio-contributors'],
-    queryFn: async () => ((await api.get('/portfolio/team-members')).data?.items || []) as Array<{ id: string; team_id?: string | null }>,
+    queryFn: async () => ((await api.get('/portfolio/team-members')).data?.items || []) as Array<{ id: string; item_number?: number; team_id?: string | null }>,
     enabled: canListContributors,
   });
 
@@ -271,25 +327,26 @@ export default function ContributorWorkspacePage() {
     navigate(backPath);
   }, [backPath, flushSave, navigate]);
 
-  const orderedIds = useMemo(() => (
+  const orderedRefs = useMemo(() => (
     contributorsList
-      ? orderContributors(contributorsList, teams, t('portfolio:contributors.filters.unassigned')).map((c) => c.id)
+      ? orderContributors(contributorsList, teams, t('portfolio:contributors.filters.unassigned'))
+        .filter((c) => c.item_number)
+        .map((c) => formatItemRef('contributor', c.item_number as number))
       : []
   ), [contributorsList, t, teams]);
-  const navIndex = contributorId ? orderedIds.indexOf(contributorId) : -1;
-  const goToContributor = useCallback(async (targetId: string | undefined) => {
-    if (!targetId || !(await flushSave())) return;
-    navigate(activeTab === 'general'
-      ? `/portfolio/contributors/${targetId}`
-      : `/portfolio/contributors/${targetId}/${activeTab}`);
+  const navIndex = reference ? orderedRefs.indexOf(reference) : -1;
+  const goToContributor = useCallback(async (targetRef: string | undefined) => {
+    if (!targetRef || !(await flushSave())) return;
+    const path = buildItemPath('contributor', targetRef);
+    navigate(activeTab === 'general' ? path : `${path}/${activeTab}`);
   }, [activeTab, flushSave, navigate]);
   const nav = navIndex >= 0 ? {
     currentIndex: navIndex + 1,
-    totalCount: orderedIds.length,
+    totalCount: orderedRefs.length,
     hasPrev: navIndex > 0,
-    hasNext: navIndex < orderedIds.length - 1,
-    onPrev: () => { void goToContributor(orderedIds[navIndex - 1]); },
-    onNext: () => { void goToContributor(orderedIds[navIndex + 1]); },
+    hasNext: navIndex < orderedRefs.length - 1,
+    onPrev: () => { void goToContributor(orderedRefs[navIndex - 1]); },
+    onNext: () => { void goToContributor(orderedRefs[navIndex + 1]); },
     previousLabel: t('portfolio:workspace.contributor.nav.previous'),
     nextLabel: t('portfolio:workspace.contributor.nav.next'),
   } : undefined;
@@ -432,6 +489,8 @@ export default function ContributorWorkspacePage() {
         onBack={() => { void handleBack(); }}
         title={contributorTitle}
         titleFallback={t('portfolio:workspace.contributor.titleFallback')}
+        itemReference={reference}
+        onCopyReference={reference ? () => { void navigator.clipboard?.writeText(reference); } : undefined}
         nav={nav}
         metadata={isLoading || notFound ? undefined : metadata}
         actions={actions}
@@ -461,17 +520,12 @@ export default function ContributorWorkspacePage() {
               <Box sx={(theme) => ({ ...taskDetailTypography.sectionLabel, color: theme.palette.kanap.text.tertiary, mb: '6px' })}>
                 {t('portfolio:workspace.contributor.sections.notes')}
               </Box>
-              <TextField
+              <ContributorNotesField
+                key={member?.id ?? 'new'}
                 value={view.notes ?? ''}
-                onChange={(e) => patch({ notes: e.target.value })}
-                multiline
-                minRows={4}
-                maxRows={12}
-                fullWidth
-                variant="standard"
-                InputProps={{ readOnly: !canEdit }}
+                onChange={(next) => patch({ notes: next })}
+                readOnly={!canEdit}
                 placeholder={t('portfolio:workspace.contributor.placeholders.notes')}
-                sx={longFormSurfaceFieldSx}
               />
             </Box>
 

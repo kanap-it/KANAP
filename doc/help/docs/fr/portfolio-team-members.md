@@ -57,7 +57,7 @@ Cliquez sur n'importe quelle carte de contributeur pour ouvrir son espace de tra
 
 ## L'espace de travail du contributeur
 
-Cliquez sur une ligne de contributeur pour ouvrir son espace de travail. L'en-tête affiche le nom du contributeur, son équipe, sa disponibilité et le nombre de compétences. Utilisez les flèches à côté du lien de retour (ou les touches fléchées gauche et droite) pour passer au contributeur précédent ou suivant dans l'ordre de la liste. Appuyez sur **Échap** pour revenir à la liste.
+Cliquez sur une ligne de contributeur pour ouvrir son espace de travail. L'en-tête affiche la référence du contributeur (`CTR-1`, `CTR-2`…, cliquez dessus pour la copier), son nom, son équipe, sa disponibilité et le nombre de compétences. C'est aussi cette référence qu'utilise l'adresse de la page. Utilisez les flèches à côté du lien de retour (ou les touches fléchées gauche et droite) pour passer au contributeur précédent ou suivant dans l'ordre de la liste. Appuyez sur **Échap** pour revenir à la liste.
 
 L'espace de travail comporte trois onglets, **Général**, **Compétences** et **Temps saisi**, ainsi qu'un panneau **Propriétés** à droite qui regroupe l'équipe, la disponibilité et les valeurs de classification par défaut. Ouvrez ou fermez le panneau avec l'onglet situé sur son bord, ou appuyez sur **P**.
 

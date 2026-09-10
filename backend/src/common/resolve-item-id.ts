@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 
-export type EntityType = 'task' | 'request' | 'project' | 'document' | 'spend' | 'capex' | 'incident';
+export type EntityType = 'task' | 'request' | 'project' | 'document' | 'spend' | 'capex' | 'incident' | 'contributor';
 
 const EXPECTED_PREFIX: Record<EntityType, string> = {
   task: 'T',
@@ -11,10 +11,11 @@ const EXPECTED_PREFIX: Record<EntityType, string> = {
   spend: 'OPX',
   capex: 'CPX',
   incident: 'INC',
+  contributor: 'CTR',
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ITEM_REF_RE = /^(T|PRJ|REQ|DOC|OPX|CPX|INC)-(\d+)$/i;
+const ITEM_REF_RE = /^(T|PRJ|REQ|DOC|OPX|CPX|INC|CTR)-(\d+)$/i;
 
 export function parseItemRef(
   raw: string,
@@ -62,6 +63,7 @@ export async function resolveToUuid(
     spend: 'SELECT id FROM spend_items WHERE item_number = $1 LIMIT 1',
     capex: 'SELECT id FROM capex_items WHERE item_number = $1 LIMIT 1',
     incident: 'SELECT id FROM incidents WHERE item_number = $1 LIMIT 1',
+    contributor: 'SELECT id FROM portfolio_team_member_configs WHERE item_number = $1 LIMIT 1',
   };
 
   const rows = await manager.query(queries[entityType], [parsed.value]);

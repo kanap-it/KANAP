@@ -57,7 +57,7 @@ Haga clic en cualquier tarjeta de colaborador para abrir su espacio de trabajo.
 
 ## El espacio de trabajo del colaborador
 
-Haga clic en una fila de colaborador para abrir su espacio de trabajo. El encabezado muestra el nombre del colaborador, su equipo, su disponibilidad y el número de competencias. Use las flechas junto al enlace de retorno (o las teclas de flecha izquierda y derecha) para pasar al colaborador anterior o siguiente en el orden de la lista. Pulse **Esc** para volver a la lista.
+Haga clic en una fila de colaborador para abrir su espacio de trabajo. El encabezado muestra la referencia del colaborador (`CTR-1`, `CTR-2`…, haga clic para copiarla), su nombre, su equipo, su disponibilidad y el número de competencias. La dirección de la página también usa esta referencia. Use las flechas junto al enlace de retorno (o las teclas de flecha izquierda y derecha) para pasar al colaborador anterior o siguiente en el orden de la lista. Pulse **Esc** para volver a la lista.
 
 El espacio de trabajo tiene tres pestañas, **General**, **Competencias** y **Tiempo registrado**, además de un panel **Propiedades** a la derecha que reúne el equipo, la disponibilidad y los valores predeterminados de clasificación. Abra o cierre el panel con la pestaña situada en su borde, o pulse **P**.
 

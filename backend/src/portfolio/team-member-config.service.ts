@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { TeamMemberConfig, SkillProficiency } from './team-member-config.entity';
 import { AuditService } from '../audit/audit.service';
+import { ItemNumberService } from '../common/item-number.service';
 
 type TeamMemberConfigCreateInput = {
   user_id: string;
@@ -46,6 +47,7 @@ export class TeamMemberConfigService {
     @InjectRepository(TeamMemberConfig)
     private readonly repo: Repository<TeamMemberConfig>,
     private readonly audit: AuditService,
+    private readonly itemNumbers: ItemNumberService,
   ) {}
 
   private getCurrentMonthStartUtc(): Date {
@@ -176,6 +178,7 @@ export class TeamMemberConfigService {
       default_company_id: body.default_company_id ?? null,
     });
 
+    entity.item_number = await this.itemNumbers.nextItemNumber('contributor', tenantId, mg);
     const saved = await repo.save(entity);
 
     await this.audit.log({

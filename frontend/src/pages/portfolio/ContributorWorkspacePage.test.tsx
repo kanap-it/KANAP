@@ -34,10 +34,12 @@ vi.mock('../../components/fields/CompanySelect', () => ({ default: () => <div da
 
 const theme = createAppTheme('light');
 const CONTRIBUTOR_ID = '8c744aca-52d4-4404-8079-763c1ea9a2a7';
+const CONTRIBUTOR_REF = 'CTR-12';
 
 function contributor(overrides: Record<string, unknown> = {}) {
   return {
     id: CONTRIBUTOR_ID,
+    item_number: 12,
     user_id: 'user-9',
     user_display_name: 'Antoine KANDEL',
     user_email: 'antoine@example.com',
@@ -60,7 +62,8 @@ function LocationProbe() {
 }
 
 function renderAt(path: string) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // Same staleTime as lib/queryClient.tsx: a seeded cache entry must not refetch on mount.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30_000 } } });
   return render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
@@ -82,7 +85,7 @@ function renderAt(path: string) {
 
 function mockGets(selfConfig: unknown | 'missing' = 'missing') {
   vi.mocked(api.get).mockImplementation(async (url: string) => {
-    if (url === `/portfolio/team-members/${CONTRIBUTOR_ID}`) return { data: contributor() };
+    if (url === `/portfolio/team-members/${CONTRIBUTOR_ID}` || url === `/portfolio/team-members/${CONTRIBUTOR_REF}`) return { data: contributor() };
     if (url === '/portfolio/team-members/me') {
       if (selfConfig === 'missing') {
         const error: any = new Error('Not found');
@@ -115,7 +118,7 @@ describe('ContributorWorkspacePage autosave', () => {
   });
 
   it('keeps a zero availability instead of falling back to the default', async () => {
-    renderAt(`/portfolio/contributors/${CONTRIBUTOR_ID}`);
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
     const hits = await screen.findAllByText('portfolio:workspace.contributor.values.daysPerMonthShort:0');
     expect(hits.length).toBeGreaterThan(0);
   });
@@ -126,11 +129,11 @@ describe('ContributorWorkspacePage autosave', () => {
       .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))
       .mockResolvedValueOnce({ data: { id: CONTRIBUTOR_ID } });
 
-    renderAt(`/portfolio/contributors/${CONTRIBUTOR_ID}`);
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
     const field = await waitFor(() => notesField());
     fireEvent.change(field, { target: { value: 'first' } });
     await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(1), { timeout: 2000 });
-    expect(api.patch).toHaveBeenLastCalledWith(`/portfolio/team-members/${CONTRIBUTOR_ID}`, { notes: 'first' });
+    expect(api.patch).toHaveBeenLastCalledWith(`/portfolio/team-members/${CONTRIBUTOR_REF}`, { notes: 'first' });
 
     // Second edit while the first PATCH is still pending.
     fireEvent.change(notesField(), { target: { value: 'first second' } });
@@ -138,23 +141,23 @@ describe('ContributorWorkspacePage autosave', () => {
 
     expect(notesField().value).toBe('first second');
     await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2), { timeout: 2000 });
-    expect(api.patch).toHaveBeenLastCalledWith(`/portfolio/team-members/${CONTRIBUTOR_ID}`, { notes: 'first second' });
+    expect(api.patch).toHaveBeenLastCalledWith(`/portfolio/team-members/${CONTRIBUTOR_REF}`, { notes: 'first second' });
     expect(notesField().value).toBe('first second');
   });
 
   it('a failed save shows the error, rolls the cache back and blocks the tab change', async () => {
     vi.mocked(api.patch).mockRejectedValue(new Error('boom'));
-    renderAt(`/portfolio/contributors/${CONTRIBUTOR_ID}`);
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
     const field = await waitFor(() => notesField());
-    const getCallsBefore = vi.mocked(api.get).mock.calls.filter(([url]) => url === `/portfolio/team-members/${CONTRIBUTOR_ID}`).length;
+    const getCallsBefore = vi.mocked(api.get).mock.calls.filter(([url]) => url === `/portfolio/team-members/${CONTRIBUTOR_REF}`).length;
 
     fireEvent.change(field, { target: { value: 'will fail' } });
     fireEvent.click(screen.getByRole('tab', { name: 'portfolio:workspace.contributor.tabs.skills' }));
 
     await screen.findByRole('alert');
-    expect(screen.getByTestId('location').textContent).toBe(`/portfolio/contributors/${CONTRIBUTOR_ID}`);
+    expect(screen.getByTestId('location').textContent).toBe(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
     await waitFor(() => {
-      const refetches = vi.mocked(api.get).mock.calls.filter(([url]) => url === `/portfolio/team-members/${CONTRIBUTOR_ID}`).length;
+      const refetches = vi.mocked(api.get).mock.calls.filter(([url]) => url === `/portfolio/team-members/${CONTRIBUTOR_REF}`).length;
       expect(refetches).toBeGreaterThan(getCallsBefore);
     });
     await waitFor(() => expect(notesField().value).toBe('Initial notes'));
@@ -172,7 +175,16 @@ describe('ContributorWorkspacePage autosave', () => {
   });
 
   it('redirects legacy /defaults links to the general tab', async () => {
-    renderAt(`/portfolio/contributors/${CONTRIBUTOR_ID}/defaults`);
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(`/portfolio/contributors/${CONTRIBUTOR_ID}`));
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}/defaults`);
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(`/portfolio/contributors/${CONTRIBUTOR_REF}`));
+  });
+
+  it('rewrites a legacy UUID URL to the CTR reference, keeping the tab', async () => {
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_ID}/skills`);
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(`/portfolio/contributors/${CONTRIBUTOR_REF}/skills`));
+    // The record loaded by UUID is reused under the reference key: no second fetch.
+    const fetches = vi.mocked(api.get).mock.calls.filter(([url]) => url === `/portfolio/team-members/${CONTRIBUTOR_REF}`).length;
+    expect(fetches).toBe(0);
+    expect(screen.getAllByText(CONTRIBUTOR_REF).length).toBeGreaterThan(0);
   });
 });

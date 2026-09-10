@@ -21,6 +21,7 @@ function createService(existing: Record<string, unknown>) {
   const service = new TeamMemberConfigService(
     { manager: { getRepository: () => repoImpl } } as any,
     { log: async () => undefined } as any,
+    { nextItemNumber: async () => 1 } as any,
   );
   return { service, saved };
 }

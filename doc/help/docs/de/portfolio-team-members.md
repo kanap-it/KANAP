@@ -57,7 +57,7 @@ Klicken Sie auf eine Mitwirkenden-Karte, um ihren Arbeitsbereich zu öffnen.
 
 ## Der Mitwirkenden-Arbeitsbereich
 
-Klicken Sie auf eine Mitwirkenden-Zeile, um ihren Arbeitsbereich zu öffnen. Die Kopfzeile zeigt den Namen des Mitwirkenden, sein Team, seine Verfügbarkeit und die Anzahl der Fähigkeiten. Verwenden Sie die Pfeile neben dem Zurück-Link (oder die Pfeiltasten links und rechts), um in Listenreihenfolge zum vorherigen oder nächsten Mitwirkenden zu wechseln. Drücken Sie **Esc**, um zur Liste zurückzukehren.
+Klicken Sie auf eine Mitwirkenden-Zeile, um ihren Arbeitsbereich zu öffnen. Die Kopfzeile zeigt die Referenz des Mitwirkenden (`CTR-1`, `CTR-2`…, zum Kopieren anklicken), seinen Namen, sein Team, seine Verfügbarkeit und die Anzahl der Fähigkeiten. Diese Referenz steht auch in der Seitenadresse. Verwenden Sie die Pfeile neben dem Zurück-Link (oder die Pfeiltasten links und rechts), um in Listenreihenfolge zum vorherigen oder nächsten Mitwirkenden zu wechseln. Drücken Sie **Esc**, um zur Liste zurückzukehren.
 
 Der Arbeitsbereich hat drei Reiter, **Allgemein**, **Fähigkeiten** und **Erfasste Zeit**, sowie ein **Eigenschaften**-Panel auf der rechten Seite, das Team, Verfügbarkeit und Klassifizierungsstandards enthält. Öffnen oder schließen Sie das Panel über die Lasche an seinem Rand oder drücken Sie **P**.
 

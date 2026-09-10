@@ -18,9 +18,11 @@ import {
   compactSelectMenuProps, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, pageSelectSx,
 } from '../../theme/formSx';
 import { groupContributorsByTeam, sortGroupIds, UNASSIGNED_GROUP } from './contributorsOrdering';
+import { buildItemPath, formatItemRef } from '../../utils/item-ref';
 
 interface Contributor {
   id: string;
+  item_number: number;
   user_id: string;
   user_display_name: string;
   user_email: string;
@@ -50,6 +52,10 @@ interface ContributorTimeStats {
   avgProjectDays: number;
   avgTotalDays: number;
 }
+
+const contributorPath = (contributor: Contributor) => (
+  buildItemPath('contributor', formatItemRef('contributor', contributor.item_number))
+);
 
 const statSx = {
   fontFamily: MONO_FONT_FAMILY,
@@ -145,7 +151,7 @@ export default function ContributorsPage() {
       setAddDialogOpen(false);
       setSelectedUser(null);
       refetch();
-      navigate(`/portfolio/contributors/${res.data.id}`);
+      navigate(buildItemPath('contributor', formatItemRef('contributor', res.data.item_number)));
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('contributors.messages.addFailed')));
     } finally {
@@ -227,11 +233,11 @@ export default function ContributorsPage() {
                     key={contributor.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => navigate(`/portfolio/contributors/${contributor.id}`)}
+                    onClick={() => navigate(contributorPath(contributor))}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        navigate(`/portfolio/contributors/${contributor.id}`);
+                        navigate(contributorPath(contributor));
                       }
                     }}
                     sx={(theme) => ({
