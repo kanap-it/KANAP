@@ -57,17 +57,35 @@ Klicken Sie auf eine Mitwirkenden-Karte, um ihren Arbeitsbereich zu öffnen.
 
 ## Der Mitwirkenden-Arbeitsbereich
 
-Klicken Sie auf eine Mitwirkenden-Karte, um ihren Arbeitsbereich zu öffnen. Er hat vier Reiter: **Allgemein**, **Fähigkeiten**, **Erfasste Zeit** und **Standards**.
+Klicken Sie auf eine Mitwirkenden-Zeile, um ihren Arbeitsbereich zu öffnen. Die Kopfzeile zeigt den Namen des Mitwirkenden, sein Team, seine Verfügbarkeit und die Anzahl der Fähigkeiten. Verwenden Sie die Pfeile neben dem Zurück-Link (oder die Pfeiltasten links und rechts), um in Listenreihenfolge zum vorherigen oder nächsten Mitwirkenden zu wechseln. Drücken Sie **Esc**, um zur Liste zurückzukehren.
+
+Der Arbeitsbereich hat drei Reiter, **Allgemein**, **Fähigkeiten** und **Erfasste Zeit**, sowie ein **Eigenschaften**-Panel auf der rechten Seite, das Team, Verfügbarkeit und Klassifizierungsstandards enthält. Öffnen oder schließen Sie das Panel über die Lasche an seinem Rand oder drücken Sie **P**.
+
+Jede Änderung wird automatisch gespeichert. Ein kurzer Hinweis „Speichern… / Gespeichert“ erscheint neben den Metadaten der Kopfzeile, während eine Änderung geschrieben wird.
+
+### Eigenschaften-Panel
+
+**Team**
+Weisen Sie diesen Mitwirkenden einem Team zu. Teams sind Organisationsgruppen, die in den Portfolio-Einstellungen konfiguriert sind. Diese Zuweisung bestimmt, wie Mitwirkende auf der Mitwirkenden-Seite gruppiert werden. Das Team kann auch über den Eintrag **Team** in der Kopfzeile geändert werden. Dieses Feld ist nur beim Bearbeiten des Profils eines anderen Mitwirkenden sichtbar (nicht Ihres eigenen).
+
+**Projektverfügbarkeit**
+Verwenden Sie den Schieberegler, um festzulegen, wie viele Tage pro Monat diese Person an Portfolio-Projekten arbeiten kann. Der Bereich ist 0 -- 20 Tage, in 0,5-Tage-Schritten. Standard ist 5 Tage. Der Wert wird gespeichert, sobald Sie den Schieberegler loslassen.
+
+**Klassifizierungsstandards**
+Legen Sie die Klassifizierungswerte fest, die bei neuen Aufgaben, Anfragen und Projekten vorausgefüllt werden, wenn Klassifizierungsfelder noch leer sind. Dies spart Zeit für Mitwirkende, die regelmäßig im selben Bereich arbeiten.
+
+- **Quelle**: Die Standardquell-Klassifizierung
+- **Kategorie**: Die Standard-Kategorie-Klassifizierung
+- **Stream**: Die Standard-Stream-Klassifizierung (nur verfügbar, wenn eine **Kategorie** ausgewählt ist; gefiltert auf Streams, die zu dieser Kategorie gehören)
+- **Unternehmen**: Das Standardunternehmen
+
+Wenn ein Mitwirkender eine neue Aufgabe, Anfrage oder ein neues Projekt erstellt, werden diese Standards verwendet, um die Klassifizierungsfelder automatisch vorzubelegen. Die Änderung der **Kategorie** löscht den **Stream**, wenn der aktuelle Stream nicht zur neu ausgewählten Kategorie gehört.
+
+**Tipp**: Sie können Ihre eigenen Standards auch über **Einstellungen > Profil** erreichen; dort öffnet sich Ihr Mitwirkenden-Profil mit sichtbarem Eigenschaften-Panel.
 
 ### Allgemein
 
-Konfigurieren Sie Teamzuweisung, Verfügbarkeit, sehen Sie Zeitstatistiken und fügen Sie Notizen hinzu.
-
-**Team**
-Verwenden Sie das Dropdown, um diesen Mitwirkenden einem Team zuzuweisen. Teams sind Organisationsgruppen, die in den Portfolio-Einstellungen konfiguriert sind. Diese Zuweisung bestimmt, wie Mitwirkende auf der Mitwirkenden-Seite gruppiert werden. Dieses Feld ist nur beim Bearbeiten des Profils eines anderen Mitwirkenden sichtbar (nicht Ihres eigenen).
-
-**Projektverfügbarkeit (Tage pro Monat)**
-Verwenden Sie den Schieberegler, um festzulegen, wie viele Tage pro Monat diese Person an Portfolio-Projekten arbeiten kann. Der Bereich ist 0 -- 20 Tage, in 0,5-Tage-Schritten. Standard ist 5 Tage.
+Sehen Sie Zeitstatistiken und fügen Sie Notizen hinzu.
 
 **Zeitstatistiken**
 Schreibgeschützte Zusammenfassung der erfassten Zeit für diesen Mitwirkenden. Erfordert `portfolio_settings:reader` zur Ansicht.
@@ -79,7 +97,7 @@ Schreibgeschützte Zusammenfassung der erfassten Zeit für diesen Mitwirkenden. 
   - Monate ohne Daten werden als Lücken im Diagramm angezeigt
 
 **Notizen**
-Freitextfeld für zusätzliche Informationen über diesen Mitwirkenden -- Zertifizierungen, Präferenzen, Einschränkungen oder andere relevante Details.
+Freitextfeld für zusätzliche Informationen über diesen Mitwirkenden -- Zertifizierungen, Präferenzen, Einschränkungen oder andere relevante Details. Notizen werden kurz nachdem Sie mit dem Tippen aufhören gespeichert.
 
 ---
 
@@ -88,29 +106,28 @@ Freitextfeld für zusätzliche Informationen über diesen Mitwirkenden -- Zertif
 Verfolgen Sie, was dieser Mitwirkende kann und wie kompetent er ist.
 
 **Fähigkeiten hinzufügen**:
-1. Verwenden Sie das Dropdown **Fähigkeit hinzufügen**, um nach einer Fähigkeit zu suchen
+1. Verwenden Sie das Feld **Fähigkeit hinzufügen**, um nach einer Fähigkeit zu suchen
 2. Fähigkeiten sind nach Kategorie gruppiert
 3. Wählen Sie eine Fähigkeit, um sie dem Profil des Mitwirkenden hinzuzufügen
 4. Die Fähigkeit erscheint mit einem Standardkompetenzgrad von 2 („Kann mit Unterstützung ausführen")
 
 **Kompetenzgrade**:
-Jede Fähigkeit hat eine Kompetenzbewertung von 0 -- 4:
+Jede Fähigkeit hat eine Kompetenzbewertung von 1 -- 4:
 
 | Stufe | Bezeichnung | Beschreibung |
 |-------|-------|-------------|
-| 0 | Keine Kenntnisse | Nicht vertraut mit dieser Fähigkeit |
 | 1 | Grundlagen / Theoretisch | Versteht Konzepte, hat sie aber noch nicht angewendet |
 | 2 | Kann mit Unterstützung ausführen | Kann die Arbeit mit Anleitung erledigen |
 | 3 | Eigenständig | Kann unabhängig arbeiten |
 | 4 | Experte | Tiefgreifende Expertise, kann andere anleiten |
 
-Verwenden Sie den Schieberegler neben jeder Fähigkeit, um den Kompetenzgrad anzupassen.
+Jede Fähigkeit zeigt vier Stufenmarken, gefolgt vom Namen der aktuellen Stufe. Klicken Sie auf eine Marke, um die Stufe festzulegen, oder fokussieren Sie die Marken und verwenden Sie die Pfeiltasten. Fahren Sie mit der Maus über eine Marke, um zu sehen, was diese Stufe bedeutet.
 
 **Fähigkeiten entfernen**:
-Klicken Sie auf das Löschen-Symbol neben einer Fähigkeit, um sie aus dem Profil des Mitwirkenden zu entfernen.
+Fahren Sie mit der Maus über eine Fähigkeit und klicken Sie auf das **×**, das am Zeilenende erscheint, um sie aus dem Profil des Mitwirkenden zu entfernen.
 
 **Fähigkeitskategorien**:
-Fähigkeiten sind in zusammenklappbare Kategorien organisiert. Klicken Sie auf eine Kategorieüberschrift, um sie auf- oder zuzuklappen. Kategorien, die ausgewählte Fähigkeiten enthalten, werden automatisch erweitert, wenn Sie den Reiter öffnen.
+Fähigkeiten sind unter ihrer Kategorieüberschrift gruppiert, daneben steht die Anzahl der Fähigkeiten. Mit **Gruppieren nach** über der Liste wechseln Sie stattdessen zu einer Gruppierung nach Niveau, vom Experten abwärts: So sehen Sie auf einen Blick, was diese Person beherrscht. Die Auswahl wird gespeichert. Auf einem breiten Bildschirm fließt die Liste in zwei Spalten.
 
 ---
 
@@ -143,28 +160,13 @@ Klicken Sie auf das **Löschsymbol** neben einem Zeiteintrag, um ihn zu entferne
 
 ---
 
-### Standards
-
-Legen Sie Klassifizierungsstandards fest, die bei neuen Aufgaben, Anfragen und Projekten vorausgefüllt werden, wenn Klassifizierungsfelder noch leer sind. Dies spart Zeit für Mitwirkende, die regelmäßig im selben Bereich arbeiten.
-
-**Was Sie festlegen können**:
-- **Quelle**: Die Standardquell-Klassifizierung
-- **Kategorie**: Die Standard-Kategorie-Klassifizierung
-- **Stream**: Die Standard-Stream-Klassifizierung (nur verfügbar, wenn eine **Kategorie** ausgewählt ist; gefiltert auf Streams, die zu dieser Kategorie gehören)
-- **Unternehmen**: Das Standardunternehmen
-
-Wenn ein Mitwirkender eine neue Aufgabe, Anfrage oder ein neues Projekt erstellt, werden diese Standards verwendet, um die Klassifizierungsfelder automatisch vorzubelegen. Die Änderung der **Kategorie** löscht den **Stream**, wenn der aktuelle Stream nicht zur neu ausgewählten Kategorie gehört.
-
-**Tipp**: Sie können Ihre eigenen Standards auch über **Einstellungen > Profil** erreichen, was direkt zum Reiter **Standards** Ihres Mitwirkenden-Profils verlinkt.
-
----
-
 ## Aktionen
 
 Aus der Arbeitsbereich-Kopfzeile:
-- **Speichern**: Änderungen an Team, Verfügbarkeit, Notizen, Fähigkeiten oder Standards speichern
 - **Löschen**: Diese Mitwirkenden-Konfiguration entfernen (betrifft nicht das Benutzerkonto). Nur beim Bearbeiten des Profils eines anderen Mitwirkenden mit `portfolio_settings:admin` verfügbar.
-- **Zurück-Pfeil**: Zur Mitwirkenden-Liste zurückkehren, oder zu **Einstellungen**, wenn Sie Ihr eigenes Profil geöffnet haben
+- **Zurück-Link**: Zur Mitwirkenden-Liste zurückkehren, oder zu **Einstellungen**, wenn Sie Ihr eigenes Profil geöffnet haben
+
+Es gibt keine Speichern-Schaltfläche: Jede Änderung wird automatisch gespeichert.
 
 ---
 

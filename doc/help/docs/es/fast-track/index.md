@@ -341,7 +341,7 @@ Consulte la [referencia de Informes](../portfolio-reporting.md).
 | Ver informes | Portafolio > Informes |
 | Configurar pesos de evaluación | Portafolio > Configuración > Criterios de evaluación |
 | Configurar colaboradores | Portafolio > Colaboradores |
-| Establecer valores predeterminados de clasificación | Portafolio > Colaboradores > abrir perfil > pestaña Predeterminados |
+| Establecer valores predeterminados de clasificación | Portafolio > Colaboradores > abrir perfil > panel Propiedades |
 
 ---
 

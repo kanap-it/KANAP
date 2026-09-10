@@ -126,10 +126,6 @@
     "closeProperties": "Eigenschaften schließen",
     "contributor": {
       "titleFallback": "Mitwirkender",
-      "actions": {
-        "backToList": "Zurück zur Liste",
-        "backToSettings": "Zurück zu Einstellungen"
-      },
       "chart": {
         "manDays": "Personentage",
         "other": "Sonstige",
@@ -144,18 +140,19 @@
         "category": "Kategorie",
         "company": "Unternehmen",
         "source": "Quelle",
-        "stream": "Stream"
+        "stream": "Stream",
+        "team": "Team",
+        "projectAvailability": "Projektverfügbarkeit"
       },
       "messages": {
         "deleteFailed": "Löschen fehlgeschlagen",
         "saveFailed": "Speichern fehlgeschlagen"
       },
       "placeholders": {
-        "notes": "Zusätzliche Anmerkungen zu diesem Mitwirkenden...",
-        "searchSkills": "Kompetenzen suchen..."
+        "notes": "z. B. nur montags und dienstags verfügbar",
+        "searchSkills": "z. B. Netzwerkadministration"
       },
       "proficiency": {
-        "0": "Keine Kenntnisse",
         "1": "Grundlagen / Theoretisch",
         "2": "Kann mit Unterstützung ausführen",
         "3": "Eigenständig",
@@ -163,30 +160,47 @@
       },
       "sections": {
         "addSkill": "Kompetenz hinzufügen",
-        "classificationDefaults": "Klassifizierungs-Vorgabewerte",
         "classificationDefaultsHelp": "Diese Vorgabewerte werden verwendet, um neue Aufgaben, Anfragen und Projekte vorzubelegen, wenn die Klassifizierungsfelder noch leer sind.",
         "monthlyEffort": "Monatlicher Aufwand (12 Monate)",
         "notes": "Anmerkungen",
-        "projectAvailability": "Projektverfügbarkeit (Tage pro Monat)",
-        "team": "Team",
         "timeStatistics": "Zeitstatistiken"
       },
       "states": {
-        "noSkills": "Keine Kompetenzen ausgewählt. Verwenden Sie das Feld oben, um Kompetenzen hinzuzufügen.",
+        "noSkills": "Noch keine Kompetenzen. Fügen Sie oben eine hinzu.",
         "noTimeData": "Noch keine Zeitdaten verfügbar.",
         "notFound": "Mitwirkender nicht gefunden"
       },
       "tabs": {
-        "defaults": "Vorgabewerte",
         "general": "Allgemein",
         "skills": "Kompetenzen",
         "timeLogged": "Erfasste Zeit"
       },
       "values": {
         "averageMonthlyProjectEffort": "Durchschnittlicher monatlicher Projektaufwand (letzte 6 Monate): {{value}} T/Mon.",
-        "daysPerMonth": "{{count}} Tage/Monat",
-        "skillCount": "({{count}} Kompetenzen)",
-        "unassigned": "Nicht zugeordnet"
+        "unassigned": "Nicht zugeordnet",
+        "skillCount_one": "{{count}} Kompetenz",
+        "skillCount_other": "{{count}} Kompetenzen",
+        "daysPerMonthShort": "{{count}} T/Monat"
+      },
+      "metadata": {
+        "team": "Team",
+        "noTeam": "Kein Team",
+        "editTeam": "Team ändern",
+        "availability": "Verfügbarkeit"
+      },
+      "aria": {
+        "skillLevel": "Niveau {{skill}}",
+        "levelOption": "{{level}} – {{label}}",
+        "removeSkill": "{{skill}} entfernen"
+      },
+      "nav": {
+        "previous": "Vorheriger Mitwirkender",
+        "next": "Nächster Mitwirkender"
+      },
+      "groupBy": {
+        "label": "Gruppieren nach",
+        "category": "Kategorie",
+        "level": "Niveau"
       }
     },
     "project": {
@@ -846,46 +860,6 @@
           "unknownPerson": "Unbekannt"
         }
       }
-    },
-    "teamMember": {
-      "actions": {
-        "backToList": "Zurück zur Liste"
-      },
-      "confirmations": {
-        "remove": "Diese Teammitglied-Konfiguration entfernen?"
-      },
-      "messages": {
-        "deleteFailed": "Löschen fehlgeschlagen",
-        "saveFailed": "Speichern fehlgeschlagen"
-      },
-      "placeholders": {
-        "notes": "Zusätzliche Anmerkungen zu diesem Teammitglied...",
-        "searchSkills": "Kompetenzen suchen..."
-      },
-      "proficiency": {
-        "0": "Keine Kenntnisse",
-        "1": "Grundlagen / Theoretisch",
-        "2": "Kann mit Unterstützung ausführen",
-        "3": "Eigenständig",
-        "4": "Experte"
-      },
-      "sections": {
-        "addSkill": "Kompetenz hinzufügen",
-        "notes": "Anmerkungen",
-        "projectAvailability": "Projektverfügbarkeit (Tage pro Monat)"
-      },
-      "states": {
-        "noSkills": "Keine Kompetenzen ausgewählt. Verwenden Sie das Feld oben, um Kompetenzen hinzuzufügen.",
-        "notFound": "Teammitglied nicht gefunden"
-      },
-      "tabs": {
-        "general": "Allgemein",
-        "skills": "Kompetenzen"
-      },
-      "values": {
-        "daysPerMonth": "{{count}} Tage/Monat",
-        "skillCount": "({{count}} Kompetenzen)"
-      }
     }
   },
   "tasks": {
@@ -1225,7 +1199,9 @@
   "contributors": {
     "title": "Mitwirkende",
     "actions": {
-      "addContributor": "Mitwirkenden hinzufügen"
+      "addContributor": "Mitwirkenden hinzufügen",
+      "collapseTeam": "Team einklappen",
+      "expandTeam": "Team ausklappen"
     },
     "filters": {
       "team": "Nach Team filtern",
@@ -1252,29 +1228,6 @@
     },
     "messages": {
       "addFailed": "Mitwirkender konnte nicht hinzugefügt werden"
-    }
-  },
-  "teamMembers": {
-    "title": "Teammitglieder",
-    "actions": {
-      "addTeamMember": "Teammitglied hinzufügen"
-    },
-    "states": {
-      "empty": "Noch keine Teammitglieder konfiguriert. Fügen Sie Teammitglieder hinzu, um deren Kompetenzen und Verfügbarkeit zu definieren."
-    },
-    "cards": {
-      "skillCount_one": "{{count}} Kompetenz",
-      "skillCount_other": "{{count}} Kompetenzen",
-      "daysPerMonth": "{{count}} Tage/Mon."
-    },
-    "dialog": {
-      "title": "Teammitglied hinzufügen",
-      "selectUser": "Benutzer auswählen",
-      "searchUsers": "Benutzer suchen...",
-      "adding": "Wird hinzugefügt..."
-    },
-    "messages": {
-      "addFailed": "Teammitglied konnte nicht hinzugefügt werden"
     }
   },
   "actions": {

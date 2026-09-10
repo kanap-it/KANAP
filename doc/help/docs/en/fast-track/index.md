@@ -369,7 +369,7 @@ See [Reporting reference](../portfolio-reporting.md).
 | View reports | Portfolio > Reporting |
 | Configure scoring weights | Portfolio > Settings > Scoring Criteria |
 | Set up contributors | Portfolio > Contributors |
-| Set classification defaults | Portfolio > Contributors > open profile > Defaults tab |
+| Set classification defaults | Portfolio > Contributors > open profile > Properties panel |
 
 ---
 

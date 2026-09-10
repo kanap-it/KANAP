@@ -369,7 +369,7 @@ Voir la [référence Rapports](../portfolio-reporting.md).
 | Consulter les rapports | Portefeuille > Rapports |
 | Configurer les pondérations d'évaluation | Portefeuille > Paramètres > Critères d'évaluation |
 | Configurer les contributeurs | Portefeuille > Contributeurs |
-| Définir les valeurs par défaut de classification | Portefeuille > Contributeurs > ouvrir le profil > onglet Valeurs par défaut |
+| Définir les valeurs par défaut de classification | Portefeuille > Contributeurs > ouvrir le profil > panneau Propriétés |
 
 ---
 

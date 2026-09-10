@@ -2,9 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Box, Button, Card, CardActionArea, CardContent, Collapse, Dialog, DialogActions,
-  DialogContent, DialogTitle, Autocomplete, TextField, Stack, Alert, Typography,
-  IconButton, FormControl, InputLabel, Select, MenuItem,
+  Alert, Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
+  IconButton, MenuItem, Stack, TextField,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -14,6 +13,11 @@ import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
+import {
+  compactSelectMenuProps, drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, pageSelectSx,
+} from '../../theme/formSx';
+import { groupContributorsByTeam, sortGroupIds, UNASSIGNED_GROUP } from './contributorsOrdering';
 
 interface Contributor {
   id: string;
@@ -24,7 +28,7 @@ interface Contributor {
   skills: { skill_id: string; proficiency: number }[];
   project_availability: number;
   notes?: string;
-  team_id?: string;
+  team_id?: string | null;
   team_name?: string;
 }
 
@@ -47,6 +51,13 @@ interface ContributorTimeStats {
   avgTotalDays: number;
 }
 
+const statSx = {
+  fontFamily: MONO_FONT_FAMILY,
+  fontSize: 12,
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+} as const;
+
 export default function ContributorsPage() {
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
@@ -58,13 +69,13 @@ export default function ContributorsPage() {
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filterTeamId, setFilterTeamId] = useState<string>('all');
-  const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
+  const [collapsedTeams, setCollapsedTeams] = useState<Record<string, boolean>>({});
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['portfolio-contributors'],
     queryFn: async () => {
       const res = await api.get('/portfolio/team-members');
-      return res.data?.items || [];
+      return (res.data?.items || []) as Contributor[];
     },
   });
 
@@ -72,7 +83,7 @@ export default function ContributorsPage() {
     queryKey: ['portfolio-teams'],
     queryFn: async () => {
       const res = await api.get('/portfolio/teams');
-      return res.data || [];
+      return (res.data || []) as Team[];
     },
   });
 
@@ -88,68 +99,49 @@ export default function ContributorsPage() {
     queryKey: ['users-for-contributor-select'],
     queryFn: async () => {
       const res = await api.get('/users', { params: { limit: 1000 } });
-      return res.data?.items || [];
+      return (res.data?.items || []) as User[];
     },
     enabled: addDialogOpen,
   });
 
-  const contributors = (data || []) as Contributor[];
-  const teams = (teamsData || []) as Team[];
+  const contributors = data || [];
+  const teams = teamsData || [];
 
-  // Group contributors by team
-  const groupedContributors = useMemo(() => {
-    const groups: Record<string, Contributor[]> = {};
+  const getTeamName = useCallback((groupId: string) => {
+    if (groupId === UNASSIGNED_GROUP) return t('contributors.filters.unassigned');
+    return teams.find((team) => team.id === groupId)?.name || t('contributors.teams.unknown');
+  }, [t, teams]);
 
-    // Initialize groups with team IDs
-    for (const team of teams) {
-      groups[team.id] = [];
-    }
-    groups['unassigned'] = [];
+  const groups = useMemo(() => {
+    const grouped = groupContributorsByTeam(contributors, teams);
+    const visibleIds = filterTeamId === 'all'
+      ? Object.keys(grouped)
+      : [filterTeamId].filter((id) => grouped[id]);
+    return sortGroupIds(visibleIds, getTeamName)
+      .map((groupId) => ({ groupId, members: grouped[groupId] || [] }))
+      // Filtering to one team shows it even when empty; "All teams" hides empty ones.
+      .filter(({ members }) => filterTeamId !== 'all' || members.length > 0);
+  }, [contributors, filterTeamId, getTeamName, teams]);
 
-    for (const c of contributors) {
-      if (c.team_id && groups[c.team_id]) {
-        groups[c.team_id].push(c);
-      } else {
-        groups['unassigned'].push(c);
-      }
-    }
-
-    return groups;
-  }, [contributors, teams]);
-
-  // Filter based on selected team
-  const filteredGroups = useMemo(() => {
-    if (filterTeamId === 'all') {
-      return groupedContributors;
-    }
-    if (filterTeamId === 'unassigned') {
-      return { unassigned: groupedContributors['unassigned'] };
-    }
-    return { [filterTeamId]: groupedContributors[filterTeamId] || [] };
-  }, [groupedContributors, filterTeamId]);
-
-  // Filter out users that already have a config, sorted alphabetically
+  // Users without a config yet, sorted by name (email only as a degraded fallback).
   const availableUsers = useMemo(() => {
     if (!allUsers || !data) return [];
-    const existingUserIds = new Set((data as Contributor[]).map((m) => m.user_id));
-    return (allUsers as User[])
+    const existingUserIds = new Set(data.map((m) => m.user_id));
+    return allUsers
       .filter((u) => !existingUserIds.has(u.id))
       .sort((a, b) => (a.display_name || a.email).localeCompare(b.display_name || b.email));
   }, [allUsers, data]);
 
-  const toggleTeam = useCallback((teamId: string) => {
-    setExpandedTeams((prev) => ({ ...prev, [teamId]: !prev[teamId] }));
+  const toggleTeam = useCallback((groupId: string) => {
+    setCollapsedTeams((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
   }, []);
 
   const handleAdd = useCallback(async () => {
     if (!selectedUser) return;
     setAdding(true);
     setError(null);
-
     try {
-      const res = await api.post('/portfolio/team-members', {
-        user_id: selectedUser.id,
-      });
+      const res = await api.post('/portfolio/team-members', { user_id: selectedUser.id });
       setAddDialogOpen(false);
       setSelectedUser(null);
       refetch();
@@ -161,128 +153,117 @@ export default function ContributorsPage() {
     }
   }, [navigate, refetch, selectedUser, t]);
 
-  const handleRowClick = useCallback((contributor: Contributor) => {
-    navigate(`/portfolio/contributors/${contributor.id}`);
-  }, [navigate]);
-
   const actions = canEdit ? (
     <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddDialogOpen(true)}>
       {t('contributors.actions.addContributor')}
     </Button>
   ) : null;
 
-  const getTeamName = (teamId: string) => {
-    if (teamId === 'unassigned') return t('contributors.filters.unassigned');
-    return teams.find((team) => team.id === teamId)?.name || t('contributors.teams.unknown');
-  };
-
   return (
     <>
       <PageHeader title={t('contributors.title')} actions={actions} />
 
       <Box sx={{ p: 2 }}>
-        {/* Filter */}
-        <Box sx={{ mb: 3, maxWidth: 300 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel>{t('contributors.filters.team')}</InputLabel>
-            <Select
-              value={filterTeamId}
-              label={t('contributors.filters.team')}
-              onChange={(e) => setFilterTeamId(e.target.value)}
-            >
-              <MenuItem value="all">{t('contributors.filters.allTeams')}</MenuItem>
-              {teams
-                .filter((t) => t.is_active)
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((team) => (
-                  <MenuItem key={team.id} value={team.id}>
-                    {team.name}
-                  </MenuItem>
-                ))}
-              <MenuItem value="unassigned">{t('contributors.filters.unassigned')}</MenuItem>
-            </Select>
-          </FormControl>
+        <Box sx={{ mb: 3 }}>
+          <TextField
+            select
+            value={filterTeamId}
+            onChange={(e) => setFilterTeamId(e.target.value)}
+            variant="standard"
+            size="small"
+            aria-label={t('contributors.filters.team')}
+            sx={{ ...pageSelectSx, width: 260 }}
+            SelectProps={{ MenuProps: compactSelectMenuProps }}
+          >
+            <MenuItem value="all" sx={drawerMenuItemSx}>{t('contributors.filters.allTeams')}</MenuItem>
+            {teams
+              .filter((team) => team.is_active)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((team) => (
+                <MenuItem key={team.id} value={team.id} sx={drawerMenuItemSx}>
+                  {team.name}
+                </MenuItem>
+              ))}
+            <MenuItem value={UNASSIGNED_GROUP} sx={drawerMenuItemSx}>{t('contributors.filters.unassigned')}</MenuItem>
+          </TextField>
         </Box>
 
-        {isLoading && <Typography>{t('common:status.loading')}</Typography>}
-
         {!isLoading && contributors.length === 0 && (
-          <Alert severity="info">
+          <Box sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary })}>
             {t('contributors.states.empty')}
-          </Alert>
+          </Box>
         )}
 
-        <Stack spacing={2} sx={{ maxWidth: 900 }}>
-          {Object.entries(filteredGroups)
-            .sort(([aId], [bId]) => {
-              // Unassigned always goes last
-              if (aId === 'unassigned') return 1;
-              if (bId === 'unassigned') return -1;
-              // Sort alphabetically by team name
-              return getTeamName(aId).localeCompare(getTeamName(bId));
-            })
-            .map(([teamId, members]) => {
-            // Skip empty groups when filtering
-            if (filterTeamId !== 'all' && members.length === 0) return null;
-
-            const isExpanded = expandedTeams[teamId] !== false; // Default to expanded
-            const teamName = getTeamName(teamId);
-
+        <Stack spacing={2.5} sx={{ maxWidth: 900 }}>
+          {groups.map(({ groupId, members }) => {
+            const isExpanded = !collapsedTeams[groupId];
             return (
-              <Card key={teamId}>
-                <CardContent sx={{ pb: isExpanded ? 2 : '16px !important' }}>
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={1}
-                    sx={{ cursor: 'pointer' }}
-                    onClick={() => toggleTeam(teamId)}
-                  >
-                    <IconButton size="small">
-                      {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    </IconButton>
-                    <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 500, textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: 0.5 }}>
-                      {teamName}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {members.length}
-                    </Typography>
-                  </Stack>
+              <Box key={groupId}>
+                <Box
+                  onClick={() => toggleTeam(groupId)}
+                  sx={(theme) => ({
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    pb: '4px',
+                    borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+                  })}
+                >
+                  <IconButton size="small" sx={{ p: '2px', ml: '-4px' }} aria-label={isExpanded ? t('contributors.actions.collapseTeam') : t('contributors.actions.expandTeam')}>
+                    {isExpanded ? <ExpandLessIcon sx={{ fontSize: 18 }} /> : <ExpandMoreIcon sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                  <Box component="span" sx={(theme) => ({ flex: 1, fontSize: 13, fontWeight: 500, color: theme.palette.kanap.text.primary })}>
+                    {getTeamName(groupId)}
+                  </Box>
+                  <Box component="span" sx={(theme) => ({ ...statSx, color: theme.palette.kanap.text.tertiary })}>
+                    {members.length}
+                  </Box>
+                </Box>
 
-                  <Collapse in={isExpanded}>
-                    <Stack spacing={1} sx={{ mt: members.length > 0 ? 2 : 0 }}>
-                      {members.map((contributor) => (
-                        <Card
-                          key={contributor.id}
-                          variant="outlined"
-                          sx={{ ml: 4 }}
-                        >
-                          <CardActionArea onClick={() => handleRowClick(contributor)}>
-                            <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
-                              <Stack direction="row" alignItems="center" spacing={2}>
-                                <Typography variant="body2" sx={{ flex: 1 }}>
-                                  {contributor.user_display_name || contributor.user_email}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  {t('contributors.cards.skillCount', { count: contributor.skills?.length || 0 })}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  {t('contributors.cards.daysPerMonth', { count: contributor.project_availability ?? 5 })}
-                                </Typography>
-                                {timeStatsData?.[contributor.id] && (
-                                  <Typography variant="body2" color="text.secondary">
-                                    {t('contributors.cards.avgDaysPerMonth', { count: timeStatsData[contributor.id].avgProjectDays })}
-                                  </Typography>
-                                )}
-                              </Stack>
-                            </CardContent>
-                          </CardActionArea>
-                        </Card>
-                      ))}
-                    </Stack>
-                  </Collapse>
-                </CardContent>
-              </Card>
+                {isExpanded && members.map((contributor) => (
+                  <Box
+                    key={contributor.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/portfolio/contributors/${contributor.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(`/portfolio/contributors/${contributor.id}`);
+                      }
+                    }}
+                    sx={(theme) => ({
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '20px',
+                      minHeight: 36,
+                      px: '8px',
+                      mx: '-8px',
+                      borderRadius: '5px',
+                      borderBottom: `1px solid ${theme.palette.kanap.border.soft}`,
+                      cursor: 'pointer',
+                      '&:hover, &:focus-visible': { bgcolor: theme.palette.kanap.bg.hover, outline: 'none' },
+                    })}
+                  >
+                    <Box component="span" sx={(theme) => ({ flex: 1, minWidth: 0, fontSize: 13, color: theme.palette.kanap.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
+                      {contributor.user_display_name || contributor.user_email}
+                    </Box>
+                    <Box component="span" sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.secondary, whiteSpace: 'nowrap' })}>
+                      {t('contributors.cards.skillCount', { count: contributor.skills?.length || 0 })}
+                    </Box>
+                    <Box component="span" sx={(theme) => ({ ...statSx, color: theme.palette.kanap.text.secondary, minWidth: 64, textAlign: 'right' })}>
+                      {t('contributors.cards.daysPerMonth', { count: Number(contributor.project_availability ?? 5) })}
+                    </Box>
+                    <Box component="span" sx={(theme) => ({ ...statSx, color: theme.palette.kanap.text.tertiary, minWidth: 90, textAlign: 'right' })}>
+                      {timeStatsData?.[contributor.id]
+                        ? t('contributors.cards.avgDaysPerMonth', { count: timeStatsData[contributor.id].avgProjectDays })
+                        : ''}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
             );
           })}
         </Stack>
@@ -293,29 +274,22 @@ export default function ContributorsPage() {
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
-
             <Autocomplete
               options={availableUsers}
               getOptionLabel={(option: User) => option.display_name || option.email}
               value={selectedUser}
               onChange={(_, v) => setSelectedUser(v)}
+              ListboxProps={{ sx: drawerAutocompleteListboxSx }}
               renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  <Box>
-                    {option.display_name || option.email}
-                    {option.display_name && (
-                      <Box component="span" sx={{ color: 'text.secondary', ml: 1 }}>
-                        ({option.email})
-                      </Box>
-                    )}
-                  </Box>
-                </li>
+                <li {...props} key={option.id}>{option.display_name || option.email}</li>
               )}
               renderInput={(params) => (
                 <TextField
                   {...params}
+                  variant="standard"
                   label={t('contributors.dialog.selectUser')}
                   placeholder={t('contributors.dialog.searchUsers')}
+                  sx={drawerFieldValueSx}
                 />
               )}
               fullWidth
@@ -324,11 +298,7 @@ export default function ContributorsPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddDialogOpen(false)}>{t('common:buttons.cancel')}</Button>
-          <Button
-            variant="contained"
-            onClick={handleAdd}
-            disabled={adding || !selectedUser}
-          >
+          <Button variant="contained" onClick={handleAdd} disabled={adding || !selectedUser}>
             {adding ? t('contributors.dialog.adding') : t('common:buttons.add')}
           </Button>
         </DialogActions>

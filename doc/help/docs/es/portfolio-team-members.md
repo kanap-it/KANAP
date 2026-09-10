@@ -57,17 +57,35 @@ Haga clic en cualquier tarjeta de colaborador para abrir su espacio de trabajo.
 
 ## El espacio de trabajo del colaborador
 
-Haga clic en una tarjeta de colaborador para abrir su espacio de trabajo. Tiene cuatro pestañas: **General**, **Competencias**, **Tiempo registrado** y **Predeterminados**.
+Haga clic en una fila de colaborador para abrir su espacio de trabajo. El encabezado muestra el nombre del colaborador, su equipo, su disponibilidad y el número de competencias. Use las flechas junto al enlace de retorno (o las teclas de flecha izquierda y derecha) para pasar al colaborador anterior o siguiente en el orden de la lista. Pulse **Esc** para volver a la lista.
+
+El espacio de trabajo tiene tres pestañas, **General**, **Competencias** y **Tiempo registrado**, además de un panel **Propiedades** a la derecha que reúne el equipo, la disponibilidad y los valores predeterminados de clasificación. Abra o cierre el panel con la pestaña situada en su borde, o pulse **P**.
+
+Cada cambio se guarda automáticamente. Una breve nota «Guardando… / Guardado» aparece junto a los metadatos del encabezado mientras se escribe un cambio.
+
+### Panel Propiedades
+
+**Equipo**
+Asigne este colaborador a un equipo. Los equipos son grupos organizacionales configurados en Configuración del portafolio. Esta asignación determina cómo se agrupan los colaboradores en la página de Colaboradores. El equipo también puede cambiarse desde el elemento **Equipo** del encabezado. Este campo solo es visible al editar el perfil de otro colaborador (no el suyo propio).
+
+**Disponibilidad para proyectos**
+Use el deslizador para establecer cuántos días por mes esta persona puede trabajar en proyectos del portafolio. El rango es 0 -- 20 días, con incrementos de 0.5 días. El valor predeterminado es 5 días. El valor se guarda al soltar el deslizador.
+
+**Valores predeterminados de clasificación**
+Establezca los valores de clasificación que se rellenan automáticamente en nuevas tareas, solicitudes y proyectos cuando los campos de clasificación están aún vacíos. Esto ahorra tiempo para colaboradores que trabajan consistentemente en la misma área.
+
+- **Origen**: La clasificación de origen predeterminada
+- **Categoría**: La clasificación de categoría predeterminada
+- **Flujo**: La clasificación de flujo predeterminada (solo disponible una vez seleccionada una **Categoría**; filtrada a flujos que pertenecen a esa categoría)
+- **Empresa**: La empresa predeterminada
+
+Cuando un colaborador crea una nueva tarea, solicitud o proyecto, estos valores predeterminados se usan para rellenar automáticamente los campos de clasificación. Cambiar la **Categoría** borra el **Flujo** si el flujo actual no pertenece a la categoría recién seleccionada.
+
+**Consejo**: También puede acceder a sus propios predeterminados desde **Configuración > Perfil**, que abre su perfil de colaborador con el panel Propiedades visible.
 
 ### General
 
-Configure la asignación de equipo, disponibilidad, vea estadísticas de tiempo y añada notas.
-
-**Equipo**
-Use el desplegable para asignar este colaborador a un equipo. Los equipos son grupos organizacionales configurados en Configuración del portafolio. Esta asignación determina cómo se agrupan los colaboradores en la página de Colaboradores. Este campo solo es visible al editar el perfil de otro colaborador (no el suyo propio).
-
-**Disponibilidad para proyectos (días por mes)**
-Use el deslizador para establecer cuántos días por mes esta persona puede trabajar en proyectos del portafolio. El rango es 0 -- 20 días, con incrementos de 0.5 días. El valor predeterminado es 5 días.
+Vea estadísticas de tiempo y añada notas.
 
 **Estadísticas de tiempo**
 Resumen de solo lectura del tiempo registrado para este colaborador. Requiere `portfolio_settings:reader` para ver.
@@ -79,7 +97,7 @@ Resumen de solo lectura del tiempo registrado para este colaborador. Requiere `p
   - Los meses sin datos se muestran como vacíos en el gráfico
 
 **Notas**
-Campo de texto libre para cualquier información adicional sobre este colaborador -- certificaciones, preferencias, restricciones u otros detalles relevantes.
+Campo de texto libre para cualquier información adicional sobre este colaborador -- certificaciones, preferencias, restricciones u otros detalles relevantes. Las notas se guardan poco después de que deje de escribir.
 
 ---
 
@@ -88,29 +106,28 @@ Campo de texto libre para cualquier información adicional sobre este colaborado
 Rastree lo que este colaborador sabe y su nivel de dominio.
 
 **Añadir competencias**:
-1. Use el desplegable **Añadir competencia** para buscar una competencia
+1. Use el campo **Añadir competencia** para buscar una competencia
 2. Las competencias están agrupadas por categoría
 3. Seleccione una competencia para añadirla al perfil del colaborador
 4. La competencia aparece con un nivel de dominio predeterminado de 2 ("Puede ejecutar con apoyo")
 
 **Niveles de dominio**:
-Cada competencia tiene una calificación de dominio de 0 a 4:
+Cada competencia tiene una calificación de dominio de 1 a 4:
 
 | Nivel | Etiqueta | Descripción |
 |-------|----------|-------------|
-| 0 | Sin conocimiento | No está familiarizado con esta competencia |
 | 1 | Básico / Teórico | Entiende conceptos pero no los ha aplicado |
 | 2 | Puede ejecutar con apoyo | Puede hacer el trabajo con orientación |
 | 3 | Autónomo | Puede trabajar de forma independiente |
 | 4 | Experto | Expertise profundo, puede formar a otros |
 
-Use el deslizador junto a cada competencia para ajustar el nivel de dominio.
+Cada competencia muestra cuatro marcas de nivel seguidas del nombre del nivel actual. Haga clic en una marca para establecer el nivel, o enfoque las marcas y use las teclas de flecha. Pase el cursor sobre una marca para ver qué significa ese nivel.
 
 **Eliminar competencias**:
-Haga clic en el icono de eliminar junto a cualquier competencia para quitarla del perfil del colaborador.
+Pase el cursor sobre una competencia y haga clic en la **×** que aparece al final de la fila para quitarla del perfil del colaborador.
 
 **Categorías de competencias**:
-Las competencias están organizadas en categorías plegables. Haga clic en un encabezado de categoría para expandirlo o contraerlo. Las categorías que contienen competencias seleccionadas se auto-expanden al abrir la pestaña.
+Las competencias se agrupan bajo el encabezado de su categoría, con el número de competencias al lado. Use **Agrupar por** encima de la lista para cambiar a una agrupación por nivel, de experto hacia abajo: muestra de un vistazo lo que domina esta persona. La elección se recuerda. En una pantalla ancha, la lista se distribuye en dos columnas.
 
 ---
 
@@ -143,28 +160,13 @@ Haga clic en el **icono de eliminar** junto a una entrada de tiempo para quitarl
 
 ---
 
-### Predeterminados
-
-Establezca valores predeterminados de clasificación que se rellenan automáticamente en nuevas tareas, solicitudes y proyectos cuando los campos de clasificación están aún vacíos. Esto ahorra tiempo para colaboradores que trabajan consistentemente en la misma área.
-
-**Qué puede establecer**:
-- **Origen**: La clasificación de origen predeterminada
-- **Categoría**: La clasificación de categoría predeterminada
-- **Flujo**: La clasificación de flujo predeterminada (solo disponible una vez seleccionada una **Categoría**; filtrada a flujos que pertenecen a esa categoría)
-- **Empresa**: La empresa predeterminada
-
-Cuando un colaborador crea una nueva tarea, solicitud o proyecto, estos valores predeterminados se usan para rellenar automáticamente los campos de clasificación. Cambiar la **Categoría** borra el **Flujo** si el flujo actual no pertenece a la categoría recién seleccionada.
-
-**Consejo**: También puede acceder a sus propios predeterminados desde **Configuración > Perfil**, que enlaza directamente a la pestaña **Predeterminados** de su perfil de colaborador.
-
----
-
 ## Acciones
 
-Desde la barra de herramientas del encabezado del espacio de trabajo:
-- **Guardar**: Guardar cambios en equipo, disponibilidad, notas, competencias o predeterminados
+Desde el encabezado del espacio de trabajo:
 - **Eliminar**: Eliminar esta configuración de colaborador (no afecta la cuenta de usuario). Solo disponible al editar el perfil de otro colaborador con `portfolio_settings:admin`.
-- **Flecha atrás**: Volver a la lista de colaboradores, o a **Configuración** si abrió su propio perfil
+- **Enlace de retorno**: Volver a la lista de colaboradores, o a **Configuración** si abrió su propio perfil
+
+No hay botón Guardar: cada cambio se guarda automáticamente.
 
 ---
 

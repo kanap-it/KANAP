@@ -1,0 +1,186 @@
+import React from 'react';
+import { Box, MenuItem, Slider, TextField } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { PropertyGroup, PropertyRow } from '../../../components/design';
+import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
+import CompanySelect from '../../../components/fields/CompanySelect';
+import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
+import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
+
+export type ContributorDrawerTeam = { id: string; name: string; is_active: boolean };
+export type ContributorDrawerOption = { id: string; name: string; is_active: boolean };
+export type ContributorDrawerStream = ContributorDrawerOption & { category_id: string };
+
+export type ContributorDrawerValues = {
+  team_id: string | null;
+  project_availability: number;
+  default_source_id: string | null;
+  default_category_id: string | null;
+  default_stream_id: string | null;
+  default_company_id: string | null;
+};
+
+type Props = {
+  values: ContributorDrawerValues;
+  teams: ContributorDrawerTeam[];
+  sources: ContributorDrawerOption[];
+  categories: ContributorDrawerOption[];
+  streams: ContributorDrawerStream[];
+  /** Team assignment is not part of the self-service profile. */
+  showTeam: boolean;
+  canEdit: boolean;
+  canManageTeams: boolean;
+  onChange: (patch: Partial<ContributorDrawerValues>) => void;
+};
+
+const AVAILABILITY_MAX = 20;
+
+export default function ContributorPropertiesDrawer({
+  values,
+  teams,
+  sources,
+  categories,
+  streams,
+  showTeam,
+  canEdit,
+  canManageTeams,
+  onChange,
+}: Props) {
+  const { t } = useTranslation(['portfolio', 'common']);
+  // Local slider position while dragging; the save fires once on release.
+  const [draftAvailability, setDraftAvailability] = React.useState<number | null>(null);
+  const availability = draftAvailability ?? values.project_availability;
+
+  const activeTeams = React.useMemo(
+    () => teams.filter((team) => team.is_active || team.id === values.team_id)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [teams, values.team_id],
+  );
+  const activeSources = React.useMemo(() => sources.filter((s) => s.is_active), [sources]);
+  const activeCategories = React.useMemo(() => categories.filter((c) => c.is_active), [categories]);
+  const categoryStreams = React.useMemo(
+    () => (values.default_category_id
+      ? streams.filter((s) => s.is_active && s.category_id === values.default_category_id)
+      : []),
+    [streams, values.default_category_id],
+  );
+
+  const handleCategoryChange = (nextCategoryId: string) => {
+    const patch: Partial<ContributorDrawerValues> = { default_category_id: nextCategoryId || null };
+    // A stream that no longer belongs to the category travels in the same save.
+    const streamStillValid = !!values.default_stream_id && streams.some(
+      (stream) => stream.id === values.default_stream_id && stream.category_id === nextCategoryId,
+    );
+    if (values.default_stream_id && !streamStillValid) patch.default_stream_id = null;
+    onChange(patch);
+  };
+
+  return (
+    <>
+      <PropertyGroup>
+        {showTeam && (
+          <PropertyRow label={t('portfolio:workspace.contributor.fields.team')}>
+            <TextField
+              select
+              value={values.team_id ?? ''}
+              onChange={(e) => onChange({ team_id: e.target.value || null })}
+              variant="standard"
+              sx={drawerSelectSx}
+              disabled={!canManageTeams}
+            >
+              <MenuItem value="" sx={drawerMenuItemSx}>
+                {t('portfolio:workspace.contributor.values.unassigned')}
+              </MenuItem>
+              {activeTeams.map((team) => (
+                <MenuItem key={team.id} value={team.id} sx={drawerMenuItemSx}>
+                  {team.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </PropertyRow>
+        )}
+        <PropertyRow label={t('portfolio:workspace.contributor.fields.projectAvailability')}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px', pr: '4px' }}>
+            <Slider
+              value={availability}
+              onChange={(_, v) => setDraftAvailability(v as number)}
+              onChangeCommitted={(_, v) => {
+                setDraftAvailability(null);
+                const next = v as number;
+                if (next !== values.project_availability) onChange({ project_availability: next });
+              }}
+              min={0}
+              max={AVAILABILITY_MAX}
+              step={0.5}
+              disabled={!canEdit}
+              aria-label={t('portfolio:workspace.contributor.fields.projectAvailability')}
+              sx={{ flex: 1 }}
+            />
+            <Box
+              component="span"
+              sx={(theme) => ({
+                fontFamily: MONO_FONT_FAMILY,
+                fontSize: 12,
+                color: theme.palette.kanap.text.secondary,
+                whiteSpace: 'nowrap',
+                fontVariantNumeric: 'tabular-nums',
+                minWidth: 56,
+                textAlign: 'right',
+              })}
+            >
+              {t('portfolio:workspace.contributor.values.daysPerMonthShort', { count: availability })}
+            </Box>
+          </Box>
+        </PropertyRow>
+      </PropertyGroup>
+
+      <PropertyGroup>
+        <Box sx={(theme) => ({ fontSize: 12, lineHeight: 1.4, color: theme.palette.kanap.text.tertiary, pb: '4px' })}>
+          {t('portfolio:workspace.contributor.sections.classificationDefaultsHelp')}
+        </Box>
+        <PropertyRow label={t('portfolio:workspace.contributor.fields.source')}>
+          <EnumAutocomplete
+            label=""
+            hideLabel
+            value={values.default_source_id ?? ''}
+            onChange={(value) => onChange({ default_source_id: value || null })}
+            options={activeSources.map((source) => ({ value: source.id, label: source.name }))}
+            disabled={!canEdit}
+            textFieldSx={drawerFieldValueSx}
+          />
+        </PropertyRow>
+        <PropertyRow label={t('portfolio:workspace.contributor.fields.category')}>
+          <EnumAutocomplete
+            label=""
+            hideLabel
+            value={values.default_category_id ?? ''}
+            onChange={handleCategoryChange}
+            options={activeCategories.map((category) => ({ value: category.id, label: category.name }))}
+            disabled={!canEdit}
+            textFieldSx={drawerFieldValueSx}
+          />
+        </PropertyRow>
+        <PropertyRow label={t('portfolio:workspace.contributor.fields.stream')}>
+          <EnumAutocomplete
+            label=""
+            hideLabel
+            value={values.default_stream_id ?? ''}
+            onChange={(value) => onChange({ default_stream_id: value || null })}
+            options={categoryStreams.map((stream) => ({ value: stream.id, label: stream.name }))}
+            disabled={!canEdit || !values.default_category_id}
+            textFieldSx={drawerFieldValueSx}
+          />
+        </PropertyRow>
+        <PropertyRow label={t('portfolio:workspace.contributor.fields.company')}>
+          <CompanySelect
+            value={values.default_company_id}
+            onChange={(value) => onChange({ default_company_id: value })}
+            disabled={!canEdit}
+            hideLabel
+            textFieldSx={drawerFieldValueSx}
+          />
+        </PropertyRow>
+      </PropertyGroup>
+    </>
+  );
+}

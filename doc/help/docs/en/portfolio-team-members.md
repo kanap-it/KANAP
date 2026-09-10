@@ -57,17 +57,35 @@ Click any contributor card to open their workspace.
 
 ## The Contributor workspace
 
-Click a contributor card to open their workspace. It has four tabs: **General**, **Skills**, **Time Logged**, and **Defaults**.
+Click a contributor row to open their workspace. The header shows the contributor's name, their team, availability, and skill count. Use the arrows next to the back link (or the left and right arrow keys) to move to the previous or next contributor in list order. Press **Escape** to return to the list.
+
+The workspace has three tabs, **General**, **Skills**, and **Time Logged**, plus a **Properties** panel on the right that holds the team, availability, and classification defaults. Open or close the panel with the tab on its edge, or press **P**.
+
+Every change saves automatically. A short "Saving… / Saved" note appears next to the header metadata while a change is written.
+
+### Properties panel
+
+**Team**
+Assign this contributor to a team. Teams are organizational groups configured in Portfolio Settings. This assignment determines how contributors are grouped on the Contributors page. The team can also be changed from the **Team** item in the header. This field is only visible when editing another contributor's profile (not your own).
+
+**Project availability**
+Use the slider to set how many days per month this person can work on portfolio projects. Range is 0 -- 20 days, with 0.5-day increments. Default is 5 days. The value is saved when you release the slider.
+
+**Classification defaults**
+Set the classification values that pre-fill new tasks, requests, and projects when classification fields are still empty. This saves time for contributors who consistently work in the same area.
+
+- **Source**: The default source classification
+- **Category**: The default category classification
+- **Stream**: The default stream classification (only available once a **Category** is selected; filtered to streams belonging to that category)
+- **Company**: The default company
+
+When a contributor creates a new task, request, or project, these defaults are used to pre-populate the classification fields automatically. Changing the **Category** clears the **Stream** if the current stream does not belong to the newly selected category.
+
+**Tip**: You can also reach your own defaults from **Settings > Profile**, which opens your contributor profile with the Properties panel visible.
 
 ### General
 
-Configure team assignment, availability, view time statistics, and add notes.
-
-**Team**
-Use the dropdown to assign this contributor to a team. Teams are organizational groups configured in Portfolio Settings. This assignment determines how contributors are grouped on the Contributors page. This field is only visible when editing another contributor's profile (not your own).
-
-**Project Availability (days per month)**
-Use the slider to set how many days per month this person can work on portfolio projects. Range is 0 -- 20 days, with 0.5-day increments. Default is 5 days.
+View time statistics and add notes.
 
 **Time Statistics**
 Read-only summary of logged time for this contributor. Requires `portfolio_settings:reader` to see.
@@ -79,7 +97,7 @@ Read-only summary of logged time for this contributor. Requires `portfolio_setti
   - Months with no data display as gaps in the chart
 
 **Notes**
-Free-text field for any additional information about this contributor -- certifications, preferences, constraints, or other relevant details.
+Free-text field for any additional information about this contributor -- certifications, preferences, constraints, or other relevant details. Notes are saved shortly after you stop typing.
 
 ---
 
@@ -88,29 +106,28 @@ Free-text field for any additional information about this contributor -- certifi
 Track what this contributor knows and how proficient they are.
 
 **Adding skills**:
-1. Use the **Add Skill** dropdown to search for a skill
+1. Use the **Add skill** field to search for a skill
 2. Skills are grouped by category
 3. Select a skill to add it to the contributor's profile
 4. The skill appears with a default proficiency of 2 ("Can execute with support")
 
 **Proficiency levels**:
-Each skill has a proficiency rating from 0 -- 4:
+Each skill has a proficiency rating from 1 -- 4:
 
 | Level | Label | Description |
 |-------|-------|-------------|
-| 0 | No knowledge | Not familiar with this skill |
 | 1 | Basic / Theoretical | Understands concepts but hasn't applied them |
 | 2 | Can execute with support | Can do the work with guidance |
 | 3 | Autonomous | Can work independently |
 | 4 | Expert | Deep expertise, can mentor others |
 
-Use the slider next to each skill to adjust the proficiency level.
+Each skill shows four level markers followed by the name of the current level. Click a marker to set the level, or focus the markers and use the arrow keys. Hover a marker to see what that level means.
 
 **Removing skills**:
-Click the delete icon next to any skill to remove it from the contributor's profile.
+Hover a skill and click the **×** that appears at the end of the row to remove it from the contributor's profile.
 
 **Skill categories**:
-Skills are organized into collapsible categories. Click a category header to expand or collapse it. Categories that contain selected skills are auto-expanded when you open the tab.
+Skills are grouped under their category heading, with the number of skills next to it. Use **Group by** above the list to switch to a grouping by level instead, from expert down: it shows at a glance what this person masters. The choice is remembered. On a wide screen the list flows into two columns.
 
 ---
 
@@ -143,28 +160,13 @@ Click the **delete icon** next to a time entry to remove it. You will be asked t
 
 ---
 
-### Defaults
-
-Set classification defaults that pre-fill new tasks, requests, and projects when classification fields are still empty. This saves time for contributors who consistently work in the same area.
-
-**What you can set**:
-- **Source**: The default source classification
-- **Category**: The default category classification
-- **Stream**: The default stream classification (only available once a **Category** is selected; filtered to streams belonging to that category)
-- **Company**: The default company
-
-When a contributor creates a new task, request, or project, these defaults are used to pre-populate the classification fields automatically. Changing the **Category** clears the **Stream** if the current stream does not belong to the newly selected category.
-
-**Tip**: You can also reach your own defaults from **Settings > Profile**, which links directly to the **Defaults** tab of your contributor profile.
-
----
-
 ## Actions
 
 From the workspace header:
-- **Save**: Save changes to team, availability, notes, skills, or defaults
 - **Delete**: Remove this contributor configuration (doesn't affect the user account). Only available when editing another contributor's profile with `portfolio_settings:admin`.
-- **Back arrow**: Return to the contributors list, or to **Settings** if you opened your own profile
+- **Back link**: Return to the contributors list, or to **Settings** if you opened your own profile
+
+There is no Save button: every change is saved automatically.
 
 ---
 

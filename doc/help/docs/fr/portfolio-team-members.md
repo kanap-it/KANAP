@@ -57,17 +57,35 @@ Cliquez sur n'importe quelle carte de contributeur pour ouvrir son espace de tra
 
 ## L'espace de travail du contributeur
 
-Cliquez sur une carte de contributeur pour ouvrir son espace de travail. Il comporte quatre onglets : **Général**, **Compétences**, **Temps saisi** et **Valeurs par défaut**.
+Cliquez sur une ligne de contributeur pour ouvrir son espace de travail. L'en-tête affiche le nom du contributeur, son équipe, sa disponibilité et le nombre de compétences. Utilisez les flèches à côté du lien de retour (ou les touches fléchées gauche et droite) pour passer au contributeur précédent ou suivant dans l'ordre de la liste. Appuyez sur **Échap** pour revenir à la liste.
+
+L'espace de travail comporte trois onglets, **Général**, **Compétences** et **Temps saisi**, ainsi qu'un panneau **Propriétés** à droite qui regroupe l'équipe, la disponibilité et les valeurs de classification par défaut. Ouvrez ou fermez le panneau avec l'onglet situé sur son bord, ou appuyez sur **P**.
+
+Chaque modification est enregistrée automatiquement. Une courte mention « Enregistrement… / Enregistré » apparaît à côté des métadonnées de l'en-tête pendant l'écriture d'une modification.
+
+### Panneau Propriétés
+
+**Équipe**
+Assignez ce contributeur à une équipe. Les équipes sont des groupes organisationnels configurés dans les Paramètres du portefeuille. Cette affectation détermine comment les contributeurs sont regroupés sur la page Contributeurs. L'équipe peut aussi être changée depuis l'élément **Équipe** de l'en-tête. Ce champ n'est visible que lors de la modification du profil d'un autre contributeur (pas le vôtre).
+
+**Disponibilité projet**
+Utilisez le curseur pour définir combien de jours par mois cette personne peut travailler sur des projets du portefeuille. La plage va de 0 à 20 jours, par incréments de 0,5 jour. La valeur par défaut est de 5 jours. La valeur est enregistrée lorsque vous relâchez le curseur.
+
+**Valeurs de classification par défaut**
+Définissez les valeurs de classification qui pré-remplissent les nouvelles tâches, demandes et projets lorsque les champs de classification sont encore vides. Cela fait gagner du temps aux contributeurs qui travaillent régulièrement dans le même domaine.
+
+- **Source** : La classification source par défaut
+- **Catégorie** : La classification de catégorie par défaut
+- **Flux** : La classification de flux par défaut (disponible uniquement une fois une **Catégorie** sélectionnée ; filtré aux flux appartenant à cette catégorie)
+- **Société** : La société par défaut
+
+Lorsqu'un contributeur crée une nouvelle tâche, demande ou projet, ces valeurs par défaut sont utilisées pour pré-remplir automatiquement les champs de classification. Changer la **Catégorie** efface le **Flux** si le flux actuel n'appartient pas à la catégorie nouvellement sélectionnée.
+
+**Conseil** : Vous pouvez également accéder à vos propres valeurs par défaut depuis **Paramètres > Profil**, qui ouvre votre profil contributeur avec le panneau Propriétés visible.
 
 ### Général
 
-Configurez l'affectation d'équipe, la disponibilité, consultez les statistiques de temps et ajoutez des notes.
-
-**Équipe**
-Utilisez le menu déroulant pour assigner ce contributeur à une équipe. Les équipes sont des groupes organisationnels configurés dans les Paramètres du portefeuille. Cette affectation détermine comment les contributeurs sont regroupés sur la page Contributeurs. Ce champ n'est visible que lors de la modification du profil d'un autre contributeur (pas le vôtre).
-
-**Disponibilité projet (jours par mois)**
-Utilisez le curseur pour définir combien de jours par mois cette personne peut travailler sur des projets du portefeuille. La plage va de 0 à 20 jours, par incréments de 0,5 jour. La valeur par défaut est de 5 jours.
+Consultez les statistiques de temps et ajoutez des notes.
 
 **Statistiques de temps**
 Résumé en lecture seule du temps saisi pour ce contributeur. Nécessite `portfolio_settings:reader` pour être visible.
@@ -79,7 +97,7 @@ Résumé en lecture seule du temps saisi pour ce contributeur. Nécessite `portf
   - Les mois sans données apparaissent comme des espaces dans le graphique
 
 **Notes**
-Champ de texte libre pour toute information complémentaire sur ce contributeur -- certifications, préférences, contraintes ou autres détails pertinents.
+Champ de texte libre pour toute information complémentaire sur ce contributeur -- certifications, préférences, contraintes ou autres détails pertinents. Les notes sont enregistrées peu après que vous avez cessé de taper.
 
 ---
 
@@ -88,29 +106,28 @@ Champ de texte libre pour toute information complémentaire sur ce contributeur 
 Suivez ce que ce contributeur connaît et son niveau de maîtrise.
 
 **Ajouter des compétences** :
-1. Utilisez le menu déroulant **Ajouter une compétence** pour rechercher une compétence
+1. Utilisez le champ **Ajouter une compétence** pour rechercher une compétence
 2. Les compétences sont regroupées par catégorie
 3. Sélectionnez une compétence pour l'ajouter au profil du contributeur
 4. La compétence apparaît avec un niveau de maîtrise par défaut de 2 (« Peut exécuter avec support »)
 
 **Niveaux de maîtrise** :
-Chaque compétence a un niveau de maîtrise de 0 à 4 :
+Chaque compétence a un niveau de maîtrise de 1 à 4 :
 
 | Niveau | Libellé | Description |
 |--------|---------|-------------|
-| 0 | Aucune connaissance | Pas familier avec cette compétence |
 | 1 | Base / Théorique | Comprend les concepts mais ne les a pas appliqués |
 | 2 | Peut exécuter avec support | Peut faire le travail avec un accompagnement |
 | 3 | Autonome | Peut travailler de manière indépendante |
 | 4 | Expert | Expertise approfondie, peut former les autres |
 
-Utilisez le curseur à côté de chaque compétence pour ajuster le niveau de maîtrise.
+Chaque compétence affiche quatre repères de niveau suivis du nom du niveau actuel. Cliquez sur un repère pour définir le niveau, ou placez le focus sur les repères et utilisez les touches fléchées. Survolez un repère pour voir ce que signifie ce niveau.
 
 **Supprimer des compétences** :
-Cliquez sur l'icône de suppression à côté d'une compétence pour la retirer du profil du contributeur.
+Survolez une compétence et cliquez sur le **×** qui apparaît en fin de ligne pour la retirer du profil du contributeur.
 
 **Catégories de compétences** :
-Les compétences sont organisées en catégories repliables. Cliquez sur un en-tête de catégorie pour le développer ou le réduire. Les catégories contenant des compétences sélectionnées sont automatiquement développées lorsque vous ouvrez l'onglet.
+Les compétences sont regroupées sous l'en-tête de leur catégorie, avec le nombre de compétences à côté. Utilisez **Regrouper par** au-dessus de la liste pour passer à un regroupement par niveau, de l'expert vers le débutant : on voit d'un coup d'œil ce que la personne maîtrise. Le choix est mémorisé. Sur un écran large, la liste s'affiche sur deux colonnes.
 
 ---
 
@@ -143,28 +160,13 @@ Cliquez sur l'**icône de suppression** à côté d'une entrée de temps pour la
 
 ---
 
-### Valeurs par défaut
-
-Définissez les valeurs de classification par défaut qui pré-remplissent les nouvelles tâches, demandes et projets lorsque les champs de classification sont encore vides. Cela fait gagner du temps aux contributeurs qui travaillent régulièrement dans le même domaine.
-
-**Ce que vous pouvez définir** :
-- **Source** : La classification source par défaut
-- **Catégorie** : La classification de catégorie par défaut
-- **Flux** : La classification de flux par défaut (disponible uniquement une fois une **Catégorie** sélectionnée ; filtré aux flux appartenant à cette catégorie)
-- **Société** : La société par défaut
-
-Lorsqu'un contributeur crée une nouvelle tâche, demande ou projet, ces valeurs par défaut sont utilisées pour pré-remplir automatiquement les champs de classification. Changer la **Catégorie** efface le **Flux** si le flux actuel n'appartient pas à la catégorie nouvellement sélectionnée.
-
-**Conseil** : Vous pouvez également accéder à vos propres valeurs par défaut depuis **Paramètres > Profil**, qui renvoie directement à l'onglet **Valeurs par défaut** de votre profil contributeur.
-
----
-
 ## Actions
 
 Depuis l'en-tête de l'espace de travail :
-- **Enregistrer** : Sauvegarder les modifications d'équipe, de disponibilité, de notes, de compétences ou de valeurs par défaut
 - **Supprimer** : Retirer cette configuration de contributeur (n'affecte pas le compte utilisateur). Disponible uniquement lors de la modification du profil d'un autre contributeur avec `portfolio_settings:admin`.
-- **Flèche retour** : Retourner à la liste des contributeurs, ou aux **Paramètres** si vous avez ouvert votre propre profil
+- **Lien retour** : Retourner à la liste des contributeurs, ou aux **Paramètres** si vous avez ouvert votre propre profil
+
+Il n'y a pas de bouton Enregistrer : chaque modification est enregistrée automatiquement.
 
 ---
 

@@ -126,10 +126,6 @@
     "closeProperties": "Close properties",
     "contributor": {
       "titleFallback": "Contributor",
-      "actions": {
-        "backToList": "Back to list",
-        "backToSettings": "Back to settings"
-      },
       "chart": {
         "manDays": "Man-days",
         "other": "Other",
@@ -144,18 +140,19 @@
         "category": "Category",
         "company": "Company",
         "source": "Source",
-        "stream": "Stream"
+        "stream": "Stream",
+        "team": "Team",
+        "projectAvailability": "Project availability"
       },
       "messages": {
         "deleteFailed": "Failed to delete",
         "saveFailed": "Failed to save"
       },
       "placeholders": {
-        "notes": "Additional notes about this contributor...",
-        "searchSkills": "Search skills..."
+        "notes": "e.g., Available Mondays and Tuesdays only",
+        "searchSkills": "e.g., Network administration"
       },
       "proficiency": {
-        "0": "No knowledge",
         "1": "Basic / theoretical",
         "2": "Can execute with support",
         "3": "Autonomous",
@@ -163,30 +160,47 @@
       },
       "sections": {
         "addSkill": "Add skill",
-        "classificationDefaults": "Classification defaults",
         "classificationDefaultsHelp": "These defaults are used to pre-fill new tasks, requests, and projects when classification fields are still empty.",
         "monthlyEffort": "Monthly effort (12 months)",
         "notes": "Notes",
-        "projectAvailability": "Project availability (days per month)",
-        "team": "Team",
         "timeStatistics": "Time statistics"
       },
       "states": {
-        "noSkills": "No skills selected. Use the field above to add skills.",
+        "noSkills": "No skills yet. Add one above.",
         "noTimeData": "No time data available yet.",
         "notFound": "Contributor not found"
       },
       "tabs": {
-        "defaults": "Defaults",
         "general": "General",
         "skills": "Skills",
         "timeLogged": "Time logged"
       },
       "values": {
         "averageMonthlyProjectEffort": "Average monthly project effort (last 6 months): {{value}} d/mo",
-        "daysPerMonth": "{{count}} days/month",
-        "skillCount": "({{count}} skills)",
-        "unassigned": "Unassigned"
+        "unassigned": "Unassigned",
+        "skillCount_one": "{{count}} skill",
+        "skillCount_other": "{{count}} skills",
+        "daysPerMonthShort": "{{count}} d/mo"
+      },
+      "metadata": {
+        "team": "Team",
+        "noTeam": "No team",
+        "editTeam": "Change team",
+        "availability": "Availability"
+      },
+      "aria": {
+        "skillLevel": "{{skill}} level",
+        "levelOption": "{{level}} – {{label}}",
+        "removeSkill": "Remove {{skill}}"
+      },
+      "nav": {
+        "previous": "Previous contributor",
+        "next": "Next contributor"
+      },
+      "groupBy": {
+        "label": "Group by",
+        "category": "Category",
+        "level": "Level"
       }
     },
     "project": {
@@ -846,46 +860,6 @@
           "unknownPerson": "Unknown"
         }
       }
-    },
-    "teamMember": {
-      "actions": {
-        "backToList": "Back to list"
-      },
-      "confirmations": {
-        "remove": "Remove this team member configuration?"
-      },
-      "messages": {
-        "deleteFailed": "Failed to delete",
-        "saveFailed": "Failed to save"
-      },
-      "placeholders": {
-        "notes": "Additional notes about this team member...",
-        "searchSkills": "Search skills..."
-      },
-      "proficiency": {
-        "0": "No knowledge",
-        "1": "Basic / theoretical",
-        "2": "Can execute with support",
-        "3": "Autonomous",
-        "4": "Expert"
-      },
-      "sections": {
-        "addSkill": "Add skill",
-        "notes": "Notes",
-        "projectAvailability": "Project availability (days per month)"
-      },
-      "states": {
-        "noSkills": "No skills selected. Use the field above to add skills.",
-        "notFound": "Team member not found"
-      },
-      "tabs": {
-        "general": "General",
-        "skills": "Skills"
-      },
-      "values": {
-        "daysPerMonth": "{{count}} days/month",
-        "skillCount": "({{count}} skills)"
-      }
     }
   },
   "tasks": {
@@ -1225,7 +1199,9 @@
   "contributors": {
     "title": "Contributors",
     "actions": {
-      "addContributor": "Add contributor"
+      "addContributor": "Add contributor",
+      "collapseTeam": "Collapse team",
+      "expandTeam": "Expand team"
     },
     "filters": {
       "team": "Filter by team",
@@ -1252,29 +1228,6 @@
     },
     "messages": {
       "addFailed": "Failed to add contributor"
-    }
-  },
-  "teamMembers": {
-    "title": "Team members",
-    "actions": {
-      "addTeamMember": "Add team member"
-    },
-    "states": {
-      "empty": "No team members configured yet. Add team members to define their skills and availability."
-    },
-    "cards": {
-      "skillCount_one": "{{count}} skill",
-      "skillCount_other": "{{count}} skills",
-      "daysPerMonth": "{{count}} days/mo"
-    },
-    "dialog": {
-      "title": "Add team member",
-      "selectUser": "Select user",
-      "searchUsers": "Search users...",
-      "adding": "Adding..."
-    },
-    "messages": {
-      "addFailed": "Failed to add team member"
     }
   },
   "actions": {

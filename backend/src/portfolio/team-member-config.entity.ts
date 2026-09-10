@@ -33,10 +33,10 @@ export class TeamMemberConfig {
   project_availability!: number;
 
   @Column('text', { nullable: true })
-  notes?: string;
+  notes?: string | null;
 
   @Column('uuid', { nullable: true })
-  team_id?: string;
+  team_id?: string | null;
 
   @Column('uuid', { nullable: true })
   default_source_id?: string | null;
