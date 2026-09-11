@@ -390,10 +390,12 @@ async function seedAiScopeUsers(
   for (const user of [users.actor, users.teammate]) {
     await runner.query(
       `INSERT INTO portfolio_team_member_configs (
-         id, tenant_id, user_id, areas_of_expertise, skills, project_availability, notes, team_id, created_at, updated_at
+         id, tenant_id, user_id, areas_of_expertise, skills, project_availability, notes, team_id, item_number, created_at, updated_at
        )
        VALUES (
-         $1, $2, $3, '[]'::jsonb, '[]'::jsonb, 5, null, $4, now(), now()
+         $1, $2, $3, '[]'::jsonb, '[]'::jsonb, 5, null, $4,
+         COALESCE((SELECT MAX(item_number) FROM portfolio_team_member_configs WHERE tenant_id = $2), 0) + 1,
+         now(), now()
        )`,
       [randomUUID(), tenantId, user.id, users.teamId],
     );
@@ -3579,9 +3581,11 @@ async function testAiUsersEntitySupportsContributorReadsAndTenantIsolation() {
     );
     await runner.query(
       `INSERT INTO portfolio_team_member_configs (
-         id, tenant_id, user_id, areas_of_expertise, skills, project_availability, notes, team_id, created_at, updated_at
+         id, tenant_id, user_id, areas_of_expertise, skills, project_availability, notes, team_id, item_number, created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4::jsonb, '[]'::jsonb, 3.5, null, $5, now(), now())`,
+       VALUES ($1, $2, $3, $4::jsonb, '[]'::jsonb, 3.5, null, $5,
+         COALESCE((SELECT MAX(item_number) FROM portfolio_team_member_configs WHERE tenant_id = $2), 0) + 1,
+         now(), now())`,
       [randomUUID(), tenantA, configuredA, JSON.stringify(['ERP', 'Finance']), teamA],
     );
 
@@ -3595,9 +3599,11 @@ async function testAiUsersEntitySupportsContributorReadsAndTenantIsolation() {
     );
     await runner.query(
       `INSERT INTO portfolio_team_member_configs (
-         id, tenant_id, user_id, areas_of_expertise, skills, project_availability, notes, team_id, created_at, updated_at
+         id, tenant_id, user_id, areas_of_expertise, skills, project_availability, notes, team_id, item_number, created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4::jsonb, '[]'::jsonb, 4.5, null, $5, now(), now())`,
+       VALUES ($1, $2, $3, $4::jsonb, '[]'::jsonb, 4.5, null, $5,
+         COALESCE((SELECT MAX(item_number) FROM portfolio_team_member_configs WHERE tenant_id = $2), 0) + 1,
+         now(), now())`,
       [randomUUID(), tenantB, configuredB, JSON.stringify(['Leakage']), teamB],
     );
 
