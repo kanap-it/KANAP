@@ -1,9 +1,7 @@
 import React from 'react';
-import { Autocomplete, Box, IconButton, TextField } from '@mui/material';
+import { Box, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from 'react-i18next';
-import { PropertyRow } from '../../../components/design';
-import { drawerAutocompleteListboxSx, drawerFieldValueSx } from '../../../theme/formSx';
 import { taskDetailTypography } from '../../tasks/theme/taskDetailTokens';
 import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
 import SkillLevelControl, { clampSkillLevel, SKILL_LEVELS } from './SkillLevelControl';
@@ -24,10 +22,17 @@ type Props = {
   allSkills: SkillOption[];
   selectedSkills: SkillProficiency[];
   canEdit: boolean;
-  onAdd: (skillId: string) => void;
   onRemove: (skillId: string) => void;
   onLevelChange: (skillId: string, level: number) => void;
 };
+
+/** Catalog skills not yet on the profile, sorted by category then name (feeds the add dialog). */
+export function availableSkillOptions(allSkills: SkillOption[], selectedSkills: SkillProficiency[]): SkillOption[] {
+  const selectedIds = new Set(selectedSkills.map((s) => s.skill_id));
+  return allSkills
+    .filter((skill) => skill.enabled && !selectedIds.has(skill.id))
+    .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+}
 
 type SkillRow = { skill: SkillOption; proficiency: number };
 type SkillsGroupBy = 'category' | 'level';
@@ -37,7 +42,6 @@ export default function ContributorSkillsTab({
   allSkills,
   selectedSkills,
   canEdit,
-  onAdd,
   onRemove,
   onLevelChange,
 }: Props) {
@@ -51,13 +55,6 @@ export default function ContributorSkillsTab({
   }), [t]);
 
   const skillsById = React.useMemo(() => new Map(allSkills.map((skill) => [skill.id, skill])), [allSkills]);
-
-  const availableSkills = React.useMemo(() => {
-    const selectedIds = new Set(selectedSkills.map((s) => s.skill_id));
-    return allSkills
-      .filter((skill) => skill.enabled && !selectedIds.has(skill.id))
-      .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-  }, [allSkills, selectedSkills]);
 
   const [groupBy, setGroupBy] = useLocalStorageState<SkillsGroupBy>(GROUP_BY_STORAGE_KEY, 'category');
 
@@ -96,30 +93,7 @@ export default function ContributorSkillsTab({
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {canEdit && (
-        <PropertyRow label={t('portfolio:workspace.contributor.sections.addSkill')} valueSx={{ maxWidth: 420 }}>
-          <Autocomplete
-            options={availableSkills}
-            groupBy={(option) => option.category}
-            getOptionLabel={(option) => option.name}
-            value={null}
-            onChange={(_, option) => { if (option) onAdd(option.id); }}
-            blurOnSelect
-            ListboxProps={{ sx: drawerAutocompleteListboxSx }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                variant="standard"
-                placeholder={t('portfolio:workspace.contributor.placeholders.searchSkills')}
-                sx={drawerFieldValueSx}
-              />
-            )}
-            fullWidth
-          />
-        </PropertyRow>
-      )}
-
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: 900 }}>
       {sections.length === 0 && (
         <Box sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary })}>
           {t('portfolio:workspace.contributor.states.noSkills')}
@@ -161,8 +135,10 @@ export default function ContributorSkillsTab({
               display: 'flex',
               alignItems: 'baseline',
               gap: '8px',
-              mb: '6px',
-              fontSize: 13,
+              mb: '4px',
+              pb: '5px',
+              borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+              fontSize: 14,
               fontWeight: 500,
               color: theme.palette.kanap.text.primary,
             })}
@@ -178,7 +154,6 @@ export default function ContributorSkillsTab({
               // Two readable columns on a wide tab: the name keeps ~250px next
               // to the 120px pip row, and the block never outgrows the General tab.
               gridTemplateColumns: 'repeat(auto-fill, minmax(min(380px, 100%), 1fr))',
-              maxWidth: 900,
               columnGap: '32px',
               rowGap: '2px',
             }}
@@ -191,7 +166,7 @@ export default function ContributorSkillsTab({
                   alignItems: 'center',
                   gap: '10px',
                   minHeight: 30,
-                  pl: '6px',
+                  pl: '10px',
                   pr: '2px',
                   borderRadius: '5px',
                   '&:hover, &:focus-within': { bgcolor: theme.palette.kanap.bg.hover },

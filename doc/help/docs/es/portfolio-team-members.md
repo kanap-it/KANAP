@@ -106,10 +106,10 @@ Campo de texto libre para cualquier información adicional sobre este colaborado
 Rastree lo que este colaborador sabe y su nivel de dominio.
 
 **Añadir competencias**:
-1. Use el campo **Añadir competencia** para buscar una competencia
-2. Las competencias están agrupadas por categoría
-3. Seleccione una competencia para añadirla al perfil del colaborador
-4. La competencia aparece con un nivel de dominio predeterminado de 2 ("Puede ejecutar con apoyo")
+1. Haga clic en **Añadir competencia** en el encabezado del espacio de trabajo (disponible desde cualquier pestaña)
+2. Busque la competencia; la lista está agrupada por categoría
+3. Elija su nivel en el mismo cuadro de diálogo (predeterminado: 2, "Puede ejecutar con apoyo")
+4. Haga clic en **Añadir**: la competencia aparece en su sección con ese nivel ya definido, sin tener que buscarla en una lista larga para ajustarla
 
 **Niveles de dominio**:
 Cada competencia tiene una calificación de dominio de 1 a 4:

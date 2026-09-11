@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material/styles';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -98,7 +98,10 @@ function mockGets(selfConfig: unknown | 'missing' = 'missing') {
     if (url === '/portfolio/teams') return { data: [] };
     if (url === '/portfolio/team-members') return { data: { items: [contributor()] } };
     if (url === '/portfolio/skills') {
-      return { data: { items: [{ id: 'skill-1', category: 'Business applications', name: 'Office suite', enabled: true }] } };
+      return { data: { items: [
+        { id: 'skill-1', category: 'Business applications', name: 'Office suite', enabled: true },
+        { id: 'skill-2', category: 'Data', name: 'Data governance', enabled: true },
+      ] } };
     }
     if (url === '/portfolio/classification/all') return { data: { sources: [], categories: [], streams: [] } };
     if (url === '/companies') return { data: { items: [] } };
@@ -186,5 +189,22 @@ describe('ContributorWorkspacePage autosave', () => {
     const fetches = vi.mocked(api.get).mock.calls.filter(([url]) => url === `/portfolio/team-members/${CONTRIBUTOR_REF}`).length;
     expect(fetches).toBe(0);
     expect(screen.getAllByText(CONTRIBUTOR_REF).length).toBeGreaterThan(0);
+  });
+
+  it('adds a skill with the chosen level from the header dialog', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: { id: CONTRIBUTOR_ID } });
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}/skills`);
+    fireEvent.click(await screen.findByRole('button', { name: 'portfolio:workspace.contributor.actions.addSkill' }));
+    const dialog = await screen.findByRole('dialog');
+    const input = within(dialog).getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Data' } });
+    fireEvent.click(await screen.findByText('Data governance'));
+    fireEvent.click(within(dialog).getAllByRole('radio')[3]);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common:buttons.add' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith(`/portfolio/team-members/${CONTRIBUTOR_REF}`, {
+      skills: [{ skill_id: 'skill-1', proficiency: 2 }, { skill_id: 'skill-2', proficiency: 4 }],
+    }), { timeout: 2000 });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByText('Data governance')).toBeTruthy();
   });
 });

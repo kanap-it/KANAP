@@ -159,14 +159,13 @@
         "4": "Experto"
       },
       "sections": {
-        "addSkill": "Agregar competencia",
         "classificationDefaultsHelp": "Estos valores predeterminados se utilizan para precargar nuevas tareas, solicitudes y proyectos cuando los campos de clasificación aún están vacíos.",
         "monthlyEffort": "Esfuerzo mensual (12 meses)",
         "notes": "Notas",
         "timeStatistics": "Estadísticas de tiempo"
       },
       "states": {
-        "noSkills": "Todavía no hay competencias. Añada una arriba.",
+        "noSkills": "Todavía no hay competencias. Use «Añadir competencia» en el encabezado.",
         "noTimeData": "Aún no hay datos de tiempo disponibles.",
         "notFound": "Colaborador no encontrado"
       },
@@ -200,6 +199,14 @@
       "groupBy": {
         "label": "Agrupar por",
         "category": "Categoría",
+        "level": "Nivel"
+      },
+      "actions": {
+        "addSkill": "Añadir competencia"
+      },
+      "addSkillDialog": {
+        "title": "Añadir una competencia",
+        "skill": "Competencia",
         "level": "Nivel"
       }
     },

@@ -159,14 +159,13 @@
         "4": "Experte"
       },
       "sections": {
-        "addSkill": "Kompetenz hinzufügen",
         "classificationDefaultsHelp": "Diese Vorgabewerte werden verwendet, um neue Aufgaben, Anfragen und Projekte vorzubelegen, wenn die Klassifizierungsfelder noch leer sind.",
         "monthlyEffort": "Monatlicher Aufwand (12 Monate)",
         "notes": "Anmerkungen",
         "timeStatistics": "Zeitstatistiken"
       },
       "states": {
-        "noSkills": "Noch keine Kompetenzen. Fügen Sie oben eine hinzu.",
+        "noSkills": "Noch keine Kompetenzen. Verwenden Sie „Kompetenz hinzufügen“ in der Kopfzeile.",
         "noTimeData": "Noch keine Zeitdaten verfügbar.",
         "notFound": "Mitwirkender nicht gefunden"
       },
@@ -200,6 +199,14 @@
       "groupBy": {
         "label": "Gruppieren nach",
         "category": "Kategorie",
+        "level": "Niveau"
+      },
+      "actions": {
+        "addSkill": "Kompetenz hinzufügen"
+      },
+      "addSkillDialog": {
+        "title": "Kompetenz hinzufügen",
+        "skill": "Kompetenz",
         "level": "Niveau"
       }
     },

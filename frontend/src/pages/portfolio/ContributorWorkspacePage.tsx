@@ -18,7 +18,8 @@ import PortfolioDetailWorkspaceShell, {
 } from './workspace/PortfolioDetailWorkspaceShell';
 import { PortfolioMetadataItem } from './workspace/PortfolioMetadataBar';
 import ContributorTimeLog from './components/ContributorTimeLog';
-import ContributorSkillsTab, { type SkillOption, type SkillProficiency } from './components/ContributorSkillsTab';
+import ContributorSkillsTab, { availableSkillOptions, type SkillOption, type SkillProficiency } from './components/ContributorSkillsTab';
+import AddSkillDialog from './components/AddSkillDialog';
 import ContributorPropertiesDrawer, {
   type ContributorDrawerOption,
   type ContributorDrawerStream,
@@ -172,6 +173,7 @@ export default function ContributorWorkspacePage() {
 
   const [error, setError] = useState<string | null>(null);
   const [teamAnchor, setTeamAnchor] = useState<HTMLElement | null>(null);
+  const [addSkillOpen, setAddSkillOpen] = useState(false);
 
   // Legacy deep links (`/…/defaults`, Settings → Profile) land on General with
   // the properties drawer open, where the defaults now live.
@@ -377,10 +379,14 @@ export default function ContributorWorkspacePage() {
   // ---- Skills handlers ------------------------------------------------------
 
   const skills = member?.skills ?? [];
-  const handleAddSkill = useCallback((skillId: string) => {
+  const handleAddSkill = useCallback((skillId: string, level: number) => {
     if (skills.some((s) => s.skill_id === skillId)) return;
-    patch({ skills: [...skills, { skill_id: skillId, proficiency: 2 }] });
+    patch({ skills: [...skills, { skill_id: skillId, proficiency: level }] });
   }, [patch, skills]);
+  const addableSkills = useMemo(
+    () => availableSkillOptions(skillsData?.items ?? [], skills),
+    [skillsData?.items, skills],
+  );
   const handleRemoveSkill = useCallback((skillId: string) => {
     patch({ skills: skills.filter((s) => s.skill_id !== skillId) });
   }, [patch, skills]);
@@ -468,10 +474,20 @@ export default function ContributorWorkspacePage() {
     </>
   );
 
-  const actions = canDelete ? (
-    <Button variant="action-danger" onClick={handleDelete}>
-      {t('common:buttons.delete')}
-    </Button>
+  const showActions = !isLoading && !notFound && (canEdit || canDelete);
+  const actions = showActions ? (
+    <>
+      {canEdit && (
+        <Button variant="action" onClick={() => setAddSkillOpen(true)}>
+          {t('portfolio:workspace.contributor.actions.addSkill')}
+        </Button>
+      )}
+      {canDelete && (
+        <Button variant="action-danger" onClick={handleDelete}>
+          {t('common:buttons.delete')}
+        </Button>
+      )}
+    </>
   ) : undefined;
 
   return (
@@ -577,7 +593,6 @@ export default function ContributorWorkspacePage() {
             allSkills={skillsData?.items ?? []}
             selectedSkills={skills}
             canEdit={canEdit}
-            onAdd={handleAddSkill}
             onRemove={handleRemoveSkill}
             onLevelChange={handleLevelChange}
           />
@@ -585,6 +600,12 @@ export default function ContributorWorkspacePage() {
 
         {activeTab === 'time-logged' && member?.id && <ContributorTimeLog contributorId={member.id} />}
       </PortfolioDetailWorkspaceShell>
+      <AddSkillDialog
+        open={addSkillOpen}
+        options={addableSkills}
+        onClose={() => setAddSkillOpen(false)}
+        onAdd={handleAddSkill}
+      />
     </Box>
   );
 }

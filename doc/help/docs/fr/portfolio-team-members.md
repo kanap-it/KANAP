@@ -106,10 +106,10 @@ Champ de texte libre pour toute information complémentaire sur ce contributeur 
 Suivez ce que ce contributeur connaît et son niveau de maîtrise.
 
 **Ajouter des compétences** :
-1. Utilisez le champ **Ajouter une compétence** pour rechercher une compétence
-2. Les compétences sont regroupées par catégorie
-3. Sélectionnez une compétence pour l'ajouter au profil du contributeur
-4. La compétence apparaît avec un niveau de maîtrise par défaut de 2 (« Peut exécuter avec support »)
+1. Cliquez sur **Ajouter une compétence** dans l'en-tête de l'espace de travail (disponible depuis tous les onglets)
+2. Recherchez la compétence ; la liste est regroupée par catégorie
+3. Choisissez son niveau dans la même fenêtre (par défaut : 2, « Peut exécuter avec accompagnement »)
+4. Cliquez sur **Ajouter** : la compétence arrive dans sa section avec ce niveau déjà défini, plus besoin de la retrouver dans une longue liste pour l'ajuster
 
 **Niveaux de maîtrise** :
 Chaque compétence a un niveau de maîtrise de 1 à 4 :

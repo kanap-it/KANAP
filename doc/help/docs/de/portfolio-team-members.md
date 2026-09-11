@@ -106,10 +106,10 @@ Freitextfeld für zusätzliche Informationen über diesen Mitwirkenden -- Zertif
 Verfolgen Sie, was dieser Mitwirkende kann und wie kompetent er ist.
 
 **Fähigkeiten hinzufügen**:
-1. Verwenden Sie das Feld **Fähigkeit hinzufügen**, um nach einer Fähigkeit zu suchen
-2. Fähigkeiten sind nach Kategorie gruppiert
-3. Wählen Sie eine Fähigkeit, um sie dem Profil des Mitwirkenden hinzuzufügen
-4. Die Fähigkeit erscheint mit einem Standardkompetenzgrad von 2 („Kann mit Unterstützung ausführen")
+1. Klicken Sie in der Kopfzeile des Arbeitsbereichs auf **Kompetenz hinzufügen** (in jedem Reiter verfügbar)
+2. Suchen Sie die Fähigkeit; die Liste ist nach Kategorie gruppiert
+3. Wählen Sie im selben Dialog das Niveau (Standard: 2, „Kann mit Unterstützung ausführen")
+4. Klicken Sie auf **Hinzufügen**: Die Fähigkeit erscheint in ihrem Abschnitt mit dem bereits gesetzten Niveau, sodass eine lange Liste nie durchsucht werden muss, um es anzupassen
 
 **Kompetenzgrade**:
 Jede Fähigkeit hat eine Kompetenzbewertung von 1 -- 4:

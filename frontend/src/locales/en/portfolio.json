@@ -159,14 +159,13 @@
         "4": "Expert"
       },
       "sections": {
-        "addSkill": "Add skill",
         "classificationDefaultsHelp": "These defaults are used to pre-fill new tasks, requests, and projects when classification fields are still empty.",
         "monthlyEffort": "Monthly effort (12 months)",
         "notes": "Notes",
         "timeStatistics": "Time statistics"
       },
       "states": {
-        "noSkills": "No skills yet. Add one above.",
+        "noSkills": "No skills yet. Use “Add skill” in the header.",
         "noTimeData": "No time data available yet.",
         "notFound": "Contributor not found"
       },
@@ -200,6 +199,14 @@
       "groupBy": {
         "label": "Group by",
         "category": "Category",
+        "level": "Level"
+      },
+      "actions": {
+        "addSkill": "Add skill"
+      },
+      "addSkillDialog": {
+        "title": "Add a skill",
+        "skill": "Skill",
         "level": "Level"
       }
     },

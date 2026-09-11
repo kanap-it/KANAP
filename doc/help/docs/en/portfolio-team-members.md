@@ -106,10 +106,10 @@ Free-text field for any additional information about this contributor -- certifi
 Track what this contributor knows and how proficient they are.
 
 **Adding skills**:
-1. Use the **Add skill** field to search for a skill
-2. Skills are grouped by category
-3. Select a skill to add it to the contributor's profile
-4. The skill appears with a default proficiency of 2 ("Can execute with support")
+1. Click **Add skill** in the workspace header (available from any tab)
+2. Search for the skill; the list is grouped by category
+3. Pick its level in the same dialog (default: 2, "Can execute with support")
+4. Click **Add**: the skill lands in its section with that level already set, so a long list never needs to be scrolled to adjust it
 
 **Proficiency levels**:
 Each skill has a proficiency rating from 1 -- 4:
