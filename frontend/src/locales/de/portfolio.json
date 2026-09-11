@@ -1210,10 +1210,46 @@
       "collapseTeam": "Team einklappen",
       "expandTeam": "Team ausklappen"
     },
+    "views": {
+      "label": "Ansicht der Mitwirkenden",
+      "list": "Liste",
+      "matrix": "Kompetenzmatrix"
+    },
     "filters": {
       "team": "Nach Team filtern",
       "allTeams": "Alle Teams",
       "unassigned": "Nicht zugeordnet"
+    },
+    "matrix": {
+      "filtersLabel": "Filter der Kompetenzmatrix",
+      "orientation": {
+        "label": "Spalten",
+        "contributors": "Mitwirkende",
+        "skills": "Kompetenzen"
+      },
+      "contributorColumn": "Mitwirkender",
+      "skillColumn": "Kompetenz",
+      "summaryColumn": "Kompetenzen",
+      "summaryTooltip": "{{autonomous}} von {{total}} erfassten Kompetenzen auf eigenständigem Niveau oder höher",
+      "summaryHeaderTooltip": "Kompetenzen auf eigenständigem Niveau oder höher, von den erfassten",
+      "coverageRow": "Eigenständig oder Experte",
+      "coverageHeaderTooltip": "Wie viele Personen jede Kompetenz allein abdecken können",
+      "coverageTooltip": "{{skill}}: {{autonomous}} eigenständig oder Experte, {{declared}} mit erfasstem Niveau",
+      "cellTooltip": "{{contributor}} · {{skill}}: {{level}}",
+      "showUnused": "Nicht genutzte Kompetenzen anzeigen",
+      "sheetName": "Kompetenzmatrix",
+      "noContributors": "Kein Mitwirkender in diesem Team.",
+      "noSkills": "Noch keine Kompetenz im Katalog. Fügen Sie Kompetenzen in den Portfolio-Einstellungen hinzu.",
+      "noDeclaredSkills": "Für niemanden ist bisher ein Niveau erfasst. Schalten Sie „Nicht genutzte Kompetenzen anzeigen“ ein, um den ganzen Katalog zu sehen.",
+      "allFiltered": "Alle Kompetenzen sind durch die Filter oben ausgeblendet.",
+      "export": {
+        "action": "Exportieren",
+        "contributor": "Mitwirkender",
+        "reference": "Referenz",
+        "team": "Team",
+        "category": "Kategorie",
+        "skill": "Kompetenz"
+      }
     },
     "states": {
       "empty": "Noch keine Mitwirkenden konfiguriert. Fügen Sie Mitwirkende hinzu, um deren Kompetenzen und Verfügbarkeit zu definieren."

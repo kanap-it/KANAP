@@ -1,0 +1,668 @@
+import React from 'react';
+import { Box, Chip, MenuItem, Select, Tooltip, type Theme } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
+import { useLocalStorageState } from '../../../hooks/useLocalStorageState';
+import { downloadXlsxWorkbook, type XlsxCell } from '../../../lib/simpleXlsx';
+import { buildItemPath, formatItemRef } from '../../../utils/item-ref';
+import { compactSelectMenuProps, drawerMenuItemSx, drawerSelectSx, inlineControlSx } from '../../../theme/formSx';
+import { groupContributorsByTeam, sortGroupIds, UNASSIGNED_GROUP } from '../contributorsOrdering';
+import { clampSkillLevel } from './SkillLevelControl';
+import type { SkillOption, SkillProficiency } from './ContributorSkillsTab';
+
+export type MatrixContributor = {
+  id: string;
+  item_number: number;
+  user_display_name: string;
+  user_email: string;
+  skills: SkillProficiency[];
+  team_id?: string | null;
+};
+
+type Props = {
+  contributors: MatrixContributor[];
+  teams: Array<{ id: string; name: string }>;
+  skills: SkillOption[];
+  /** Same team filter as the list view: 'all', a team id, or 'unassigned'. */
+  filterTeamId: string;
+  /** Hands the export to the page so the action can sit in the page header.
+   *  Called with null while there is nothing on screen to export. */
+  onExportChange?: (exportXlsx: (() => void) | null) => void;
+};
+
+/** Which side of the grid carries the contributors. Catalogues are usually far
+ *  longer than the team, so people go across the top by default. */
+type Orientation = 'contributors' | 'skills';
+
+/** A level of 3 or 4 means the person can carry the skill on their own. */
+const AUTONOMOUS_LEVEL = 3;
+const ORIENTATION_STORAGE_KEY = 'kanap.contributors.matrix.columns';
+const SHOW_UNUSED_STORAGE_KEY = 'kanap.contributors.matrix.showUnused';
+const CATEGORY_STORAGE_KEY = 'kanap.contributors.matrix.hiddenCategories';
+
+const COLUMN_WIDTH = 30;
+const BAND_ROW_HEIGHT = 24;
+const COLUMN_HEADER_HEIGHT = 124;
+const HEAD_COLUMN_WIDTH = 230;
+const SUMMARY_COLUMN_WIDTH = 96;
+
+/** How a per-entry summary is coloured: a gap shouts, a count states, a ratio whispers. */
+type SummaryTone = 'gap' | 'count' | 'ratio';
+
+type AxisEntry = {
+  id: string;
+  label: string;
+  /** Set when the entry has a workspace to open. */
+  onOpen?: () => void;
+  summaryText: string;
+  summaryTone: SummaryTone;
+  summaryTooltip: string;
+  /** Leading cells this entry contributes when it forms the export's rows. */
+  exportCells: XlsxCell[];
+};
+
+type Axis = {
+  kind: 'contributor' | 'skill';
+  /** Name of the axis itself, shown above or beside the entry labels. */
+  label: string;
+  /** Name of the line carrying every entry's summary. */
+  summaryLabel: string;
+  summaryTooltip: string;
+  groups: Array<{ key: string; label: string; entries: AxisEntry[] }>;
+  entries: AxisEntry[];
+  exportHeaders: string[];
+};
+
+const monoSx = {
+  fontFamily: MONO_FONT_FAMILY,
+  fontSize: 12,
+  fontVariantNumeric: 'tabular-nums',
+} as const;
+
+const cellSx = {
+  ...monoSx,
+  textAlign: 'center' as const,
+  width: COLUMN_WIDTH,
+  minWidth: COLUMN_WIDTH,
+  px: 0,
+};
+
+function countLevels(levels: Array<number | undefined>) {
+  let declared = 0;
+  let autonomous = 0;
+  for (const level of levels) {
+    if (!level) continue;
+    declared += 1;
+    if (level >= AUTONOMOUS_LEVEL) autonomous += 1;
+  }
+  return { declared, autonomous };
+}
+
+/**
+ * Read-only grid crossing contributors with skills, one digit 1-4 per cell.
+ * Either side can hold the columns; contributors do by default because a skill
+ * catalogue is normally the longer of the two. Whichever side holds the rows
+ * gets its summaries in a trailing column, the other in the footer line. The
+ * skill summary counts who can carry that skill alone, which is the "where are
+ * we thin" reading. Editing stays in the contributor workspace.
+ */
+export default function ContributorsSkillsMatrix({ contributors, teams, skills, filterTeamId, onExportChange }: Props) {
+  const { t } = useTranslation(['portfolio']);
+  const navigate = useNavigate();
+  const [orientation, setOrientation] = useLocalStorageState<Orientation>(ORIENTATION_STORAGE_KEY, 'contributors');
+  // Off by default: a catalogue is mostly skills nobody has declared yet, and
+  // those columns bury the ones that carry real work.
+  const [showUnused, setShowUnused] = useLocalStorageState<boolean>(SHOW_UNUSED_STORAGE_KEY, false);
+  const [hiddenCategories, setHiddenCategories] = useLocalStorageState<string[]>(CATEGORY_STORAGE_KEY, []);
+
+  const levelLabels = React.useMemo<Record<number, string>>(() => ({
+    1: t('workspace.contributor.proficiency.1'),
+    2: t('workspace.contributor.proficiency.2'),
+    3: t('workspace.contributor.proficiency.3'),
+    4: t('workspace.contributor.proficiency.4'),
+  }), [t]);
+
+  const teamName = React.useCallback((groupId: string) => (
+    groupId === UNASSIGNED_GROUP
+      ? t('contributors.filters.unassigned')
+      : teams.find((team) => team.id === groupId)?.name || t('contributors.teams.unknown')
+  ), [t, teams]);
+
+  // Contributors follow the list view exactly: teams alphabetically, unassigned last.
+  const contributorGroups = React.useMemo(() => {
+    const grouped = groupContributorsByTeam(contributors, teams);
+    const ids = filterTeamId === 'all' ? Object.keys(grouped) : [filterTeamId].filter((id) => grouped[id]);
+    return sortGroupIds(ids, teamName)
+      .map((groupId) => ({ groupId, rows: grouped[groupId] || [] }))
+      .filter(({ rows }) => rows.length > 0);
+  }, [contributors, filterTeamId, teamName, teams]);
+
+  const visibleContributors = React.useMemo(
+    () => contributorGroups.flatMap((group) => group.rows),
+    [contributorGroups],
+  );
+
+  const levels = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const contributor of contributors) {
+      for (const entry of contributor.skills ?? []) {
+        map.set(`${contributor.id}:${entry.skill_id}`, clampSkillLevel(entry.proficiency));
+      }
+    }
+    return map;
+  }, [contributors]);
+
+  const levelOf = React.useCallback(
+    (contributorId: string, skillId: string) => levels.get(`${contributorId}:${skillId}`),
+    [levels],
+  );
+
+  const categories = React.useMemo(() => {
+    const byCategory = new Map<string, SkillOption[]>();
+    for (const skill of skills) {
+      if (!skill.enabled) continue;
+      byCategory.set(skill.category, [...(byCategory.get(skill.category) ?? []), skill]);
+    }
+    return [...byCategory.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([category, list]) => ({
+        category,
+        skills: [...list].sort((a, b) => a.name.localeCompare(b.name)),
+      }));
+  }, [skills]);
+
+  const shownCategories = React.useMemo(
+    () => categories.filter(({ category }) => !hiddenCategories.includes(category)),
+    [categories, hiddenCategories],
+  );
+
+  const skillGroups = React.useMemo(() => shownCategories
+    .map(({ category, skills: list }) => ({
+      category,
+      skills: showUnused
+        ? list
+        : list.filter((skill) => visibleContributors.some((row) => levelOf(row.id, skill.id))),
+    }))
+    .filter(({ skills: list }) => list.length > 0),
+  [levelOf, showUnused, shownCategories, visibleContributors]);
+
+  const visibleSkills = React.useMemo(() => skillGroups.flatMap((group) => group.skills), [skillGroups]);
+
+  const contributorAxis = React.useMemo<Axis>(() => {
+    const groups = contributorGroups.map(({ groupId, rows }) => ({
+      key: groupId,
+      label: teamName(groupId),
+      entries: rows.map<AxisEntry>((row) => {
+        const label = row.user_display_name || row.user_email;
+        const { declared, autonomous } = countLevels(visibleSkills.map((skill) => levelOf(row.id, skill.id)));
+        const reference = formatItemRef('contributor', row.item_number);
+        return {
+          id: row.id,
+          label,
+          onOpen: () => navigate(`${buildItemPath('contributor', reference)}/skills`),
+          summaryText: declared > 0 ? `${autonomous}/${declared}` : '',
+          summaryTone: 'ratio',
+          summaryTooltip: t('contributors.matrix.summaryTooltip', { autonomous, total: declared }),
+          exportCells: [label, reference, teamName(groupId)],
+        };
+      }),
+    }));
+    return {
+      kind: 'contributor',
+      label: t('contributors.matrix.contributorColumn'),
+      summaryLabel: t('contributors.matrix.summaryColumn'),
+      summaryTooltip: t('contributors.matrix.summaryHeaderTooltip'),
+      groups,
+      entries: groups.flatMap((group) => group.entries),
+      exportHeaders: [
+        t('contributors.matrix.export.contributor'),
+        t('contributors.matrix.export.reference'),
+        t('contributors.matrix.export.team'),
+      ],
+    };
+  }, [contributorGroups, levelOf, navigate, t, teamName, visibleSkills]);
+
+  const skillAxis = React.useMemo<Axis>(() => {
+    const groups = skillGroups.map(({ category, skills: list }) => ({
+      key: category,
+      label: category,
+      entries: list.map<AxisEntry>((skill) => {
+        const { declared, autonomous } = countLevels(visibleContributors.map((row) => levelOf(row.id, skill.id)));
+        return {
+          id: skill.id,
+          label: skill.name,
+          summaryText: String(autonomous),
+          summaryTone: autonomous === 0 ? 'gap' : 'count',
+          summaryTooltip: t('contributors.matrix.coverageTooltip', { skill: skill.name, autonomous, declared }),
+          exportCells: [category, skill.name],
+        };
+      }),
+    }));
+    return {
+      kind: 'skill',
+      label: t('contributors.matrix.skillColumn'),
+      summaryLabel: t('contributors.matrix.coverageRow'),
+      summaryTooltip: t('contributors.matrix.coverageHeaderTooltip'),
+      groups,
+      entries: groups.flatMap((group) => group.entries),
+      exportHeaders: [t('contributors.matrix.export.category'), t('contributors.matrix.export.skill')],
+    };
+  }, [levelOf, skillGroups, t, visibleContributors]);
+
+  const columnAxis = orientation === 'contributors' ? contributorAxis : skillAxis;
+  const rowAxis = orientation === 'contributors' ? skillAxis : contributorAxis;
+
+  const levelAt = React.useCallback((rowId: string, columnId: string) => (
+    rowAxis.kind === 'contributor' ? levelOf(rowId, columnId) : levelOf(columnId, rowId)
+  ), [levelOf, rowAxis.kind]);
+
+  const cellTooltip = React.useCallback((rowEntry: AxisEntry, columnEntry: AxisEntry, level: number) => {
+    const contributor = rowAxis.kind === 'contributor' ? rowEntry.label : columnEntry.label;
+    const skill = rowAxis.kind === 'contributor' ? columnEntry.label : rowEntry.label;
+    return t('contributors.matrix.cellTooltip', { contributor, skill, level: levelLabels[level] });
+  }, [levelLabels, rowAxis.kind, t]);
+
+  const summaryColor = (tone: SummaryTone) => (theme: Theme) => {
+    if (tone === 'gap') return theme.palette.kanap.orange;
+    if (tone === 'count') return theme.palette.kanap.text.primary;
+    return theme.palette.kanap.text.tertiary;
+  };
+
+  const toggleCategory = (category: string) => {
+    setHiddenCategories((prev) => (
+      prev.includes(category) ? prev.filter((item) => item !== category) : [...prev, category]
+    ));
+  };
+
+  const exportXlsx = React.useCallback(() => {
+    const pad = Array<XlsxCell>(rowAxis.exportHeaders.length - 1).fill('');
+    const header = [
+      ...rowAxis.exportHeaders,
+      ...columnAxis.entries.map((entry) => entry.label),
+      rowAxis.summaryLabel,
+    ];
+    const rows = rowAxis.entries.map((rowEntry) => [
+      ...rowEntry.exportCells,
+      ...columnAxis.entries.map((columnEntry) => levelAt(rowEntry.id, columnEntry.id) ?? null),
+      rowEntry.summaryText,
+    ]);
+    const footer = [
+      columnAxis.summaryLabel,
+      ...pad,
+      ...columnAxis.entries.map((entry) => entry.summaryText),
+      '',
+    ];
+    downloadXlsxWorkbook(`skills-matrix-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+      { name: t('contributors.matrix.sheetName'), rows: [header, ...rows, footer] },
+    ]);
+  }, [columnAxis, levelAt, rowAxis, t]);
+
+  const emptyMessage = (() => {
+    if (visibleContributors.length === 0) return t('contributors.matrix.noContributors');
+    if (categories.length === 0) return t('contributors.matrix.noSkills');
+    if (shownCategories.length === 0) return t('contributors.matrix.allFiltered');
+    // Every remaining skill was dropped for being unused, which the category
+    // pills cannot explain: point at the toggle that would bring them back.
+    if (visibleSkills.length === 0) {
+      return showUnused ? t('contributors.matrix.allFiltered') : t('contributors.matrix.noDeclaredSkills');
+    }
+    return null;
+  })();
+
+  React.useEffect(() => {
+    onExportChange?.(emptyMessage ? null : exportXlsx);
+  }, [emptyMessage, exportXlsx, onExportChange]);
+
+  React.useEffect(() => () => onExportChange?.(null), [onExportChange]);
+
+  return (
+    // The block is as wide as the grid needs, so the controls keep hugging its
+    // right edge instead of stranding Export at the far side of the page.
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px', width: 'fit-content', maxWidth: '100%' }}>
+      <Box
+        role="group"
+        aria-label={t('contributors.matrix.filtersLabel')}
+        sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', width: '100%' }}
+      >
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', mr: '8px' }}>
+          <Box component="span" sx={(theme) => ({ fontSize: 11, color: theme.palette.kanap.text.tertiary })}>
+            {t('contributors.matrix.orientation.label')}
+          </Box>
+          <Select
+            variant="standard"
+            value={orientation}
+            onChange={(event) => setOrientation(event.target.value as Orientation)}
+            aria-label={t('contributors.matrix.orientation.label')}
+            sx={[drawerSelectSx, inlineControlSx, { width: 'auto', flexShrink: 0 }]}
+            MenuProps={compactSelectMenuProps}
+          >
+            <MenuItem value="contributors" sx={drawerMenuItemSx}>{t('contributors.matrix.orientation.contributors')}</MenuItem>
+            <MenuItem value="skills" sx={drawerMenuItemSx}>{t('contributors.matrix.orientation.skills')}</MenuItem>
+          </Select>
+        </Box>
+
+        {categories.length > 1 && categories.map(({ category }) => {
+          const active = !hiddenCategories.includes(category);
+          return (
+            <Chip
+              key={category}
+              clickable
+              size="small"
+              label={category}
+              aria-pressed={active}
+              color={active ? 'primary' : 'default'}
+              variant={active ? 'filled' : 'outlined'}
+              onClick={() => toggleCategory(category)}
+            />
+          );
+        })}
+        <Box sx={{ flex: 1, minWidth: '8px' }} />
+        <Chip
+          clickable
+          size="small"
+          label={t('contributors.matrix.showUnused')}
+          aria-pressed={showUnused}
+          color={showUnused ? 'primary' : 'default'}
+          variant={showUnused ? 'filled' : 'outlined'}
+          onClick={() => setShowUnused(!showUnused)}
+        />
+      </Box>
+
+      {emptyMessage ? (
+        <Box sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary })}>{emptyMessage}</Box>
+      ) : (
+        <Box
+          sx={(theme) => ({
+            overflow: 'auto',
+            width: 'fit-content',
+            maxWidth: '100%',
+            maxHeight: 'calc(100vh - 250px)',
+            border: `1px solid ${theme.palette.kanap.border.default}`,
+            borderRadius: '8px',
+            bgcolor: theme.palette.kanap.bg.primary,
+          })}
+        >
+          <Box
+            component="table"
+            sx={(theme) => ({
+              borderCollapse: 'separate',
+              borderSpacing: 0,
+              width: 'max-content',
+              '& th, & td': { whiteSpace: 'nowrap', borderBottom: `1px solid ${theme.palette.kanap.border.soft}` },
+              '& thead th': {
+                position: 'sticky',
+                zIndex: 2,
+                bgcolor: theme.palette.kanap.bg.page,
+                fontWeight: 500,
+                fontSize: 12,
+                color: theme.palette.kanap.text.tertiary,
+              },
+              '& thead tr:first-of-type th': { top: 0 },
+              '& thead tr:last-of-type th': {
+                top: BAND_ROW_HEIGHT,
+                borderBottom: `1px solid ${theme.palette.kanap.border.default}`,
+              },
+              '& thead th:first-of-type': { left: 0, zIndex: 4 },
+              '& tbody th': {
+                position: 'sticky',
+                left: 0,
+                zIndex: 1,
+                bgcolor: theme.palette.kanap.bg.primary,
+                textAlign: 'left',
+                fontWeight: 400,
+              },
+              '& tbody tr.entry:hover td, & tbody tr.entry:focus-visible td': {
+                bgcolor: theme.palette.kanap.bg.hover,
+              },
+              // The head column is frozen, so its highlight has to stay opaque:
+              // the hover token is translucent and would let the scrolling
+              // columns show through. Compositing it over the surface colour
+              // gives the same tint without the bleed-through.
+              '& tbody tr.entry:hover th, & tbody tr.entry:focus-visible th': {
+                backgroundColor: theme.palette.kanap.bg.primary,
+                backgroundImage: `linear-gradient(${theme.palette.kanap.bg.hover}, ${theme.palette.kanap.bg.hover})`,
+              },
+              '& tbody tr.entry': { outline: 'none' },
+              '& tbody tr.openable': { cursor: 'pointer' },
+              '& tbody tr.openable:focus-visible th': {
+                boxShadow: `inset 2px 0 0 ${theme.palette.primary.main}`,
+              },
+              '& tfoot th, & tfoot td': {
+                position: 'sticky',
+                bottom: 0,
+                zIndex: 2,
+                bgcolor: theme.palette.kanap.bg.page,
+                borderTop: `1px solid ${theme.palette.kanap.border.default}`,
+                borderBottom: 0,
+              },
+              '& tfoot th': { left: 0, zIndex: 3, textAlign: 'left', fontWeight: 500 },
+            })}
+          >
+            <thead>
+              <tr>
+                <Box component="th" sx={{ height: BAND_ROW_HEIGHT, minWidth: HEAD_COLUMN_WIDTH, px: '12px' }} />
+                {columnAxis.groups.map((group) => (
+                  <Tooltip key={group.key} title={group.label} placement="top" enterDelay={400}>
+                    <Box
+                      component="th"
+                      colSpan={group.entries.length}
+                      sx={(theme) => ({
+                        height: BAND_ROW_HEIGHT,
+                        textAlign: 'left',
+                        px: '6px',
+                        maxWidth: group.entries.length * COLUMN_WIDTH,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        borderLeft: `1px solid ${theme.palette.kanap.border.default}`,
+                      })}
+                    >
+                      {group.label}
+                    </Box>
+                  </Tooltip>
+                ))}
+                <Box component="th" sx={{ height: BAND_ROW_HEIGHT, minWidth: SUMMARY_COLUMN_WIDTH }} />
+              </tr>
+              <tr>
+                <Box component="th" scope="col" sx={{ px: '12px', verticalAlign: 'bottom', pb: '8px', textAlign: 'left' }}>
+                  {rowAxis.label}
+                </Box>
+                {columnAxis.groups.map((group) => group.entries.map((entry, index) => (
+                  <Tooltip key={entry.id} title={entry.label} placement="top" enterDelay={400}>
+                    <Box
+                      component="th"
+                      scope="col"
+                      sx={(theme) => ({
+                        ...cellSx,
+                        height: COLUMN_HEADER_HEIGHT,
+                        verticalAlign: 'bottom',
+                        pb: '8px',
+                        fontFamily: 'inherit',
+                        borderLeft: index === 0 ? `1px solid ${theme.palette.kanap.border.default}` : undefined,
+                      })}
+                    >
+                      <Box
+                        component={entry.onOpen ? 'button' : 'span'}
+                        type={entry.onOpen ? 'button' : undefined}
+                        onClick={entry.onOpen}
+                        sx={(theme) => ({
+                          display: 'inline-block',
+                          writingMode: 'vertical-rl',
+                          transform: 'rotate(180deg)',
+                          maxHeight: COLUMN_HEADER_HEIGHT - 16,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          lineHeight: 1.2,
+                          font: 'inherit',
+                          fontWeight: 400,
+                          color: 'inherit',
+                          ...(entry.onOpen ? {
+                            p: 0,
+                            border: 0,
+                            background: 'none',
+                            cursor: 'pointer',
+                            '&:hover': { color: theme.palette.kanap.text.primary },
+                            '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: '1px' },
+                          } : {}),
+                        })}
+                      >
+                        {entry.label}
+                      </Box>
+                    </Box>
+                  </Tooltip>
+                )))}
+                <Tooltip title={rowAxis.summaryTooltip} placement="top" enterDelay={400}>
+                  <Box
+                    component="th"
+                    scope="col"
+                    sx={{
+                      px: '12px',
+                      minWidth: SUMMARY_COLUMN_WIDTH,
+                      maxWidth: SUMMARY_COLUMN_WIDTH,
+                      verticalAlign: 'bottom',
+                      pb: '8px',
+                      textAlign: 'right',
+                      '&&': { whiteSpace: 'normal' },
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {rowAxis.summaryLabel}
+                  </Box>
+                </Tooltip>
+              </tr>
+            </thead>
+            <tbody>
+              {rowAxis.groups.map((group) => (
+                <React.Fragment key={group.key}>
+                  <tr>
+                    <Box
+                      component="td"
+                      colSpan={columnAxis.entries.length + 2}
+                      sx={(theme) => ({ p: 0, bgcolor: theme.palette.kanap.bg.page })}
+                    >
+                      {/* The cell spans the whole table; the label sticks so the group stays readable while scrolling sideways. */}
+                      <Box
+                        component="span"
+                        sx={(theme) => ({
+                          position: 'sticky',
+                          left: 0,
+                          display: 'inline-block',
+                          px: '12px',
+                          py: '6px',
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: theme.palette.kanap.text.tertiary,
+                        })}
+                      >
+                        {group.label}
+                      </Box>
+                    </Box>
+                  </tr>
+                  {group.entries.map((rowEntry) => (
+                    <tr
+                      key={rowEntry.id}
+                      className={rowEntry.onOpen ? 'entry openable' : 'entry'}
+                      aria-label={rowEntry.label}
+                      tabIndex={rowEntry.onOpen ? 0 : undefined}
+                      onClick={rowEntry.onOpen}
+                      onKeyDown={rowEntry.onOpen && ((event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          rowEntry.onOpen?.();
+                        }
+                      })}
+                    >
+                      <Box
+                        component="th"
+                        scope="row"
+                        sx={(theme) => ({
+                          px: '12px',
+                          height: 30,
+                          fontSize: 13,
+                          color: theme.palette.kanap.text.primary,
+                          maxWidth: 260,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        })}
+                      >
+                        {rowEntry.label}
+                      </Box>
+                      {columnAxis.groups.map((group2) => group2.entries.map((columnEntry, index) => {
+                        const level = levelAt(rowEntry.id, columnEntry.id);
+                        const cell = (
+                          <Box
+                            component="td"
+                            sx={(theme) => ({
+                              ...cellSx,
+                              color: level && level >= AUTONOMOUS_LEVEL
+                                ? theme.palette.kanap.text.primary
+                                : theme.palette.kanap.text.tertiary,
+                              borderLeft: index === 0 ? `1px solid ${theme.palette.kanap.border.default}` : undefined,
+                            })}
+                          >
+                            {level ?? ''}
+                          </Box>
+                        );
+                        if (!level) return <React.Fragment key={columnEntry.id}>{cell}</React.Fragment>;
+                        return (
+                          <Tooltip
+                            key={columnEntry.id}
+                            title={cellTooltip(rowEntry, columnEntry, level)}
+                            placement="top"
+                            enterDelay={400}
+                          >
+                            {cell}
+                          </Tooltip>
+                        );
+                      }))}
+                      <Tooltip title={rowEntry.summaryTooltip} placement="top" enterDelay={400}>
+                        <Box
+                          component="td"
+                          data-thin={rowEntry.summaryTone === 'gap' ? 'true' : undefined}
+                          sx={(theme) => ({
+                            ...monoSx,
+                            minWidth: SUMMARY_COLUMN_WIDTH,
+                            px: '12px',
+                            textAlign: 'right',
+                            fontWeight: rowEntry.summaryTone === 'ratio' ? 400 : 500,
+                            color: summaryColor(rowEntry.summaryTone)(theme),
+                          })}
+                        >
+                          {rowEntry.summaryText}
+                        </Box>
+                      </Tooltip>
+                    </tr>
+                  ))}
+                </React.Fragment>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <Box component="th" scope="row" sx={{ px: '12px', height: 30, fontSize: 12 }}>
+                  {columnAxis.summaryLabel}
+                </Box>
+                {columnAxis.groups.map((group) => group.entries.map((entry, index) => (
+                  <Tooltip key={entry.id} title={entry.summaryTooltip} placement="top" enterDelay={400}>
+                    <Box
+                      component="td"
+                      data-thin={entry.summaryTone === 'gap' ? 'true' : undefined}
+                      sx={(theme) => ({
+                        ...cellSx,
+                        fontWeight: entry.summaryTone === 'ratio' ? 400 : 500,
+                        color: summaryColor(entry.summaryTone)(theme),
+                        borderLeft: index === 0 ? `1px solid ${theme.palette.kanap.border.default}` : undefined,
+                      })}
+                    >
+                      {entry.summaryText}
+                    </Box>
+                  </Tooltip>
+                )))}
+                <Box component="td" sx={{ minWidth: SUMMARY_COLUMN_WIDTH }} />
+              </tr>
+            </tfoot>
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+}

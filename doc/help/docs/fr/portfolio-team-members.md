@@ -53,6 +53,35 @@ Les contributeurs sont affichés sous forme de cartes regroupées par équipe.
 
 Cliquez sur n'importe quelle carte de contributeur pour ouvrir son espace de travail.
 
+**Changer de vue** :
+Au-dessus du filtre par équipe, **Liste** et **Matrice de compétences** basculent entre les deux lectures des mêmes personnes. Le filtre par équipe s'applique aux deux. L'adresse devient `?view=matrix`, ce qui permet de mettre un lien vers la matrice en favori ou de le partager, et la dernière vue utilisée est mémorisée dans votre navigateur.
+
+---
+
+## La matrice de compétences
+
+La matrice de compétences répond à deux questions sur un seul écran : ce que chacun sait faire, et quelles compétences ne sont couvertes par personne. C'est une vue en lecture seule -- les niveaux se saisissent dans l'onglet Compétences de chaque contributeur.
+
+**Lire la grille** :
+- Les **lignes** sont les compétences de votre catalogue, groupées par catégorie. Les compétences désactivées dans les paramètres du portefeuille n'apparaissent jamais, et celles que personne n'a déclarées sont masquées au départ
+- Les **colonnes** sont les contributeurs, groupés par équipe. Leurs noms se lisent de bas en haut ; cliquez sur l'un d'eux pour ouvrir son onglet Compétences
+- Les **cellules** portent le niveau, de 1 à 4. Les niveaux 3 et 4 (autonome et expert) s'affichent en couleur de texte pleine, les niveaux 1 et 2 restent estompés, et une cellule vide signifie que la compétence n'a jamais été déclarée pour cette personne. Survolez une cellule pour lire le nom du niveau
+- La colonne **Autonome ou expert** à droite compte, pour chaque compétence, combien de personnes affichées sont au niveau 3 ou 4. **Le compte passe en orange lorsqu'il vaut zéro** : personne ne couvre actuellement cette compétence seul
+- La ligne **Compétences** en bas résume chaque personne sous la forme « autonome / déclarées », par exemple `2/5`
+
+**Retourner la grille** :
+Les catalogues sont en général plus longs que les équipes, c'est pourquoi les contributeurs occupent les colonnes par défaut et les noms de compétences restent lisibles le long des lignes. Utilisez le contrôle **Colonnes** au-dessus de la grille pour y placer les compétences à la place, ce qui convient à un catalogue court ou à une grande équipe. Tout suit : les deux résumés changent de côté, et un contributeur s'ouvre alors depuis sa ligne plutôt que depuis son en-tête de colonne. Le choix est mémorisé dans votre navigateur.
+
+**Réduire la grille** :
+- La grille démarre sur les compétences que les personnes possèdent réellement. **Afficher les compétences non utilisées** ramène le reste du catalogue, utile quand vous préparez un plan de formation plutôt que vous ne lisez l'existant
+- Chaque catégorie de compétences dispose d'une pastille au-dessus de la grille. Désactivez une catégorie pour la retirer
+- Le filtre par équipe restreint les personnes, et les comptes de couverture suivent : filtrez sur une équipe et vous lisez la couverture de cette équipe
+- Les pastilles de catégorie comme l'interrupteur des compétences non utilisées sont mémorisés dans votre navigateur
+
+**Agir sur ce que vous voyez** :
+- Cliquez sur un contributeur pour ouvrir son onglet **Compétences**, où les niveaux se modifient
+- **Exporter**, à côté d'**Ajouter un contributeur** en haut de la page, télécharge ce qui est affiché dans un fichier `.xlsx`, disposé dans le même sens, les niveaux en chiffres. Utile pour les revues de compétences et les plans de formation
+
 ---
 
 ## L'espace de travail du contributeur

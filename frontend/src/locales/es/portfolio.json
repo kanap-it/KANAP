@@ -1210,10 +1210,46 @@
       "collapseTeam": "Contraer equipo",
       "expandTeam": "Expandir equipo"
     },
+    "views": {
+      "label": "Vista de colaboradores",
+      "list": "Lista",
+      "matrix": "Matriz de competencias"
+    },
     "filters": {
       "team": "Filtrar por equipo",
       "allTeams": "Todos los equipos",
       "unassigned": "Sin asignar"
+    },
+    "matrix": {
+      "filtersLabel": "Filtros de la matriz de competencias",
+      "orientation": {
+        "label": "Columnas",
+        "contributors": "Colaboradores",
+        "skills": "Competencias"
+      },
+      "contributorColumn": "Colaborador",
+      "skillColumn": "Competencia",
+      "summaryColumn": "Competencias",
+      "summaryTooltip": "{{autonomous}} de {{total}} competencias declaradas en nivel autónomo o superior",
+      "summaryHeaderTooltip": "Competencias en nivel autónomo o superior, de las declaradas",
+      "coverageRow": "Autónomo o experto",
+      "coverageHeaderTooltip": "Cuántas personas pueden cubrir cada competencia por su cuenta",
+      "coverageTooltip": "{{skill}}: {{autonomous}} autónomo(s) o experto(s), {{declared}} con un nivel declarado",
+      "cellTooltip": "{{contributor}} · {{skill}}: {{level}}",
+      "showUnused": "Mostrar competencias sin uso",
+      "sheetName": "Matriz de competencias",
+      "noContributors": "Ningún colaborador en este equipo.",
+      "noSkills": "Todavía no hay competencias en el catálogo. Añada competencias en la configuración del portafolio.",
+      "noDeclaredSkills": "Todavía nadie tiene un nivel definido. Active «Mostrar competencias sin uso» para ver todo el catálogo.",
+      "allFiltered": "Todas las competencias están ocultas por los filtros anteriores.",
+      "export": {
+        "action": "Exportar",
+        "contributor": "Colaborador",
+        "reference": "Referencia",
+        "team": "Equipo",
+        "category": "Categoría",
+        "skill": "Competencia"
+      }
     },
     "states": {
       "empty": "Aún no hay colaboradores configurados. Agregue colaboradores para definir sus competencias y disponibilidad."

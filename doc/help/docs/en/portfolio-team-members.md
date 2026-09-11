@@ -4,10 +4,10 @@ Contributors lets you define skills, team assignments, project availability, and
 
 ## Getting started
 
-Navigate to **Portfolio > Contributors** to see configured contributors grouped by team. Click **Add Contributor** to add someone from your user list.
+Navigate to **Portfolio > Contributors** to see configured contributors grouped by team. Click **Add contributor** to add someone from your user list.
 
 **To add a contributor**:
-1. Click **Add Contributor**
+1. Click **Add contributor**
 2. Search for and select a user from the dropdown
 3. Click **Add** to create their profile
 4. Configure their team, availability, skills, and defaults in the workspace
@@ -52,6 +52,35 @@ Contributors are displayed as cards grouped by team.
 - Teams are sorted alphabetically; **Unassigned** always appears last
 
 Click any contributor card to open their workspace.
+
+**Switching views**:
+Above the team filter, **List** and **Skills matrix** switch between the two readings of the same people. The team filter applies to both. The address changes to `?view=matrix`, so a matrix link can be bookmarked or shared, and the last view you used is remembered in your browser.
+
+---
+
+## The skills matrix
+
+The skills matrix answers two questions on one screen: what each person can do, and which skills nobody can cover. It is a read-only view -- levels are set in each contributor's Skills tab.
+
+**Reading the grid**:
+- **Rows** are the skills of your catalog, grouped by category. Skills you have disabled in Portfolio Settings never appear, and skills nobody has declared start hidden
+- **Columns** are the contributors, grouped by team. Their names read bottom to top; click one to open that person's Skills tab
+- **Cells** hold the level, 1 to 4. Levels 3 and 4 (autonomous and expert) print in full text color, levels 1 and 2 stay faint, and an empty cell means the skill was never declared for that person. Hover a cell to read the level name
+- The **Autonomous or expert** column on the right counts, for every skill, how many of the people on screen are at level 3 or 4. **The count turns orange when it is zero**: nobody currently covers that skill on their own
+- The **Skills** line at the bottom summarizes each person as "autonomous / declared", for example `2/5`
+
+**Turning the grid around**:
+Catalogs are usually longer than teams, so contributors sit in the columns by default and skill names stay readable across the rows. Use the **Columns** control above the grid to put the skills in the columns instead, which suits a short catalog or a large team. Everything swaps with it: the two summaries change sides, and a contributor then opens from their row rather than from their column header. The choice is remembered in your browser.
+
+**Narrowing the grid**:
+- The grid starts on the skills people actually have. **Show unused skills** brings back the rest of the catalog, for when you are planning what to train rather than reading what you already cover
+- Each skill category has a pill above the grid. Switch a category off to drop it
+- The team filter restricts the people, and the coverage counts follow: filter on one team and you read that team's coverage
+- The category pills and the unused-skills toggle are both remembered in your browser
+
+**Acting on what you see**:
+- Click a contributor to open their **Skills** tab, where levels can be changed
+- **Export**, next to **Add contributor** at the top of the page, downloads what is on screen as an `.xlsx` file, laid out the same way round, levels as numbers. Useful for skill reviews and training plans
 
 ---
 

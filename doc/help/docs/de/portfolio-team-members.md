@@ -53,6 +53,35 @@ Mitwirkende werden als Karten angezeigt, gruppiert nach Team.
 
 Klicken Sie auf eine Mitwirkenden-Karte, um ihren Arbeitsbereich zu öffnen.
 
+**Ansicht wechseln**:
+Über dem Team-Filter wechseln **Liste** und **Kompetenzmatrix** zwischen den beiden Lesarten derselben Personen. Der Team-Filter gilt für beide. Die Adresse ändert sich zu `?view=matrix`, sodass ein Link auf die Matrix als Lesezeichen gespeichert oder geteilt werden kann, und die zuletzt verwendete Ansicht wird in Ihrem Browser gemerkt.
+
+---
+
+## Die Kompetenzmatrix
+
+Die Kompetenzmatrix beantwortet zwei Fragen auf einem Bildschirm: was jede Person kann und welche Kompetenzen niemand abdeckt. Sie ist eine reine Leseansicht -- die Niveaus werden im Reiter Kompetenzen des jeweiligen Mitwirkenden gesetzt.
+
+**Das Raster lesen**:
+- **Zeilen** sind die Kompetenzen Ihres Katalogs, nach Kategorie gruppiert. In den Portfolio-Einstellungen deaktivierte Kompetenzen erscheinen nie, und Kompetenzen, die niemand erfasst hat, sind zunächst ausgeblendet
+- **Spalten** sind die Mitwirkenden, nach Team gruppiert. Ihre Namen werden von unten nach oben gelesen; ein Klick öffnet den Reiter Kompetenzen dieser Person
+- **Zellen** enthalten das Niveau von 1 bis 4. Die Niveaus 3 und 4 (eigenständig und Experte) erscheinen in voller Textfarbe, die Niveaus 1 und 2 bleiben blass, und eine leere Zelle bedeutet, dass die Kompetenz für diese Person nie erfasst wurde. Fahren Sie über eine Zelle, um den Namen des Niveaus zu lesen
+- Die Spalte **Eigenständig oder Experte** rechts zählt für jede Kompetenz, wie viele der angezeigten Personen auf Niveau 3 oder 4 sind. **Der Zähler wird orange, wenn er null ist**: Niemand deckt diese Kompetenz derzeit allein ab
+- Die Zeile **Kompetenzen** unten fasst jede Person als „eigenständig / erfasst“ zusammen, zum Beispiel `2/5`
+
+**Das Raster drehen**:
+Kataloge sind meist länger als Teams, deshalb stehen die Mitwirkenden standardmäßig in den Spalten und die Kompetenznamen bleiben entlang der Zeilen lesbar. Mit dem Steuerelement **Spalten** über dem Raster stellen Sie stattdessen die Kompetenzen in die Spalten, was zu einem kurzen Katalog oder einem großen Team passt. Alles wechselt mit: Die beiden Zusammenfassungen tauschen die Seiten, und ein Mitwirkender wird dann über seine Zeile statt über seine Spaltenkopfzeile geöffnet. Die Wahl wird in Ihrem Browser gemerkt.
+
+**Das Raster eingrenzen**:
+- Das Raster beginnt bei den Kompetenzen, die tatsächlich vorhanden sind. **Nicht genutzte Kompetenzen anzeigen** holt den Rest des Katalogs zurück -- für die Schulungsplanung statt der Bestandsaufnahme
+- Jede Kompetenzkategorie hat eine Pille über dem Raster. Schalten Sie eine Kategorie aus, um sie zu entfernen
+- Der Team-Filter schränkt die Personen ein, und die Abdeckungszähler folgen: Filtern Sie auf ein Team, und Sie lesen die Abdeckung dieses Teams
+- Sowohl die Kategorie-Pillen als auch der Schalter für nicht genutzte Kompetenzen werden in Ihrem Browser gemerkt
+
+**Auf das Gesehene reagieren**:
+- Klicken Sie auf einen Mitwirkenden, um seinen Reiter **Kompetenzen** zu öffnen, in dem sich die Niveaus ändern lassen
+- **Exportieren** neben **Mitwirkenden hinzufügen** oben auf der Seite lädt das Angezeigte als `.xlsx`-Datei herunter, in derselben Ausrichtung, die Niveaus als Zahlen. Nützlich für Kompetenzbewertungen und Schulungspläne
+
 ---
 
 ## Der Mitwirkenden-Arbeitsbereich

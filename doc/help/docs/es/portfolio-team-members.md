@@ -4,10 +4,10 @@ Colaboradores le permite definir competencias, asignaciones de equipo, disponibi
 
 ## Primeros pasos
 
-Navegue a **Portafolio > Colaboradores** para ver los colaboradores configurados agrupados por equipo. Haga clic en **Añadir colaborador** para añadir a alguien de su lista de usuarios.
+Navegue a **Portafolio > Colaboradores** para ver los colaboradores configurados agrupados por equipo. Haga clic en **Agregar colaborador** para añadir a alguien de su lista de usuarios.
 
 **Para añadir un colaborador**:
-1. Haga clic en **Añadir colaborador**
+1. Haga clic en **Agregar colaborador**
 2. Busque y seleccione un usuario del desplegable
 3. Haga clic en **Añadir** para crear su perfil
 4. Configure su equipo, disponibilidad, competencias y valores predeterminados en el espacio de trabajo
@@ -52,6 +52,35 @@ Los colaboradores se muestran como tarjetas agrupadas por equipo.
 - Los equipos se ordenan alfabéticamente; **Sin asignar** siempre aparece último
 
 Haga clic en cualquier tarjeta de colaborador para abrir su espacio de trabajo.
+
+**Cambiar de vista**:
+Encima del filtro por equipo, **Lista** y **Matriz de competencias** alternan entre las dos lecturas de las mismas personas. El filtro por equipo se aplica a ambas. La dirección cambia a `?view=matrix`, de modo que un enlace a la matriz puede guardarse en favoritos o compartirse, y la última vista utilizada se recuerda en su navegador.
+
+---
+
+## La matriz de competencias
+
+La matriz de competencias responde a dos preguntas en una sola pantalla: qué sabe hacer cada persona y qué competencias no cubre nadie. Es una vista de solo lectura: los niveles se definen en la pestaña Competencias de cada colaborador.
+
+**Leer la cuadrícula**:
+- Las **filas** son las competencias de su catálogo, agrupadas por categoría. Las competencias desactivadas en la configuración del portafolio nunca aparecen, y las que nadie ha declarado están ocultas al principio
+- Las **columnas** son los colaboradores, agrupados por equipo. Sus nombres se leen de abajo arriba; haga clic en uno para abrir su pestaña Competencias
+- Las **celdas** contienen el nivel, de 1 a 4. Los niveles 3 y 4 (autónomo y experto) se muestran en color de texto pleno, los niveles 1 y 2 quedan atenuados, y una celda vacía significa que la competencia nunca se declaró para esa persona. Pase el cursor sobre una celda para leer el nombre del nivel
+- La columna **Autónomo o experto** de la derecha cuenta, para cada competencia, cuántas de las personas en pantalla están en nivel 3 o 4. **El recuento se vuelve naranja cuando es cero**: nadie cubre actualmente esa competencia por su cuenta
+- La línea **Competencias** de abajo resume a cada persona como «autónomo / declaradas», por ejemplo `2/5`
+
+**Girar la cuadrícula**:
+Los catálogos suelen ser más largos que los equipos, por eso los colaboradores ocupan las columnas de forma predeterminada y los nombres de las competencias se leen bien a lo largo de las filas. Use el control **Columnas** encima de la cuadrícula para poner las competencias en las columnas, lo que conviene a un catálogo corto o a un equipo grande. Todo cambia con él: los dos resúmenes cambian de lado, y un colaborador se abre entonces desde su fila en lugar de desde su encabezado de columna. La elección se recuerda en su navegador.
+
+**Acotar la cuadrícula**:
+- La cuadrícula empieza por las competencias que las personas realmente tienen. **Mostrar competencias sin uso** trae de vuelta el resto del catálogo, útil cuando prepara un plan de formación en lugar de leer lo que ya cubre
+- Cada categoría de competencias tiene una píldora encima de la cuadrícula. Desactive una categoría para quitarla
+- El filtro por equipo restringe las personas, y los recuentos de cobertura lo siguen: filtre por un equipo y leerá la cobertura de ese equipo
+- Tanto las píldoras de categoría como el interruptor de competencias sin uso se recuerdan en su navegador
+
+**Actuar sobre lo que ve**:
+- Haga clic en un colaborador para abrir su pestaña **Competencias**, donde se pueden cambiar los niveles
+- **Exportar**, junto a **Agregar colaborador** en la parte superior de la página, descarga lo que está en pantalla como archivo `.xlsx`, con la misma disposición, los niveles como números. Útil para revisiones de competencias y planes de formación
 
 ---
 

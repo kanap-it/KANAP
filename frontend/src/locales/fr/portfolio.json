@@ -1210,10 +1210,46 @@
       "collapseTeam": "Replier l'équipe",
       "expandTeam": "Déplier l'équipe"
     },
+    "views": {
+      "label": "Vue des contributeurs",
+      "list": "Liste",
+      "matrix": "Matrice de compétences"
+    },
     "filters": {
       "team": "Filtrer par équipe",
       "allTeams": "Toutes les équipes",
       "unassigned": "Non affectés"
+    },
+    "matrix": {
+      "filtersLabel": "Filtres de la matrice de compétences",
+      "orientation": {
+        "label": "Colonnes",
+        "contributors": "Contributeurs",
+        "skills": "Compétences"
+      },
+      "contributorColumn": "Contributeur",
+      "skillColumn": "Compétence",
+      "summaryColumn": "Compétences",
+      "summaryTooltip": "{{autonomous}} sur {{total}} compétences déclarées au niveau autonome ou supérieur",
+      "summaryHeaderTooltip": "Compétences au niveau autonome ou supérieur, sur celles déclarées",
+      "coverageRow": "Autonome ou expert",
+      "coverageHeaderTooltip": "Combien de personnes peuvent porter chaque compétence seules",
+      "coverageTooltip": "{{skill}} : {{autonomous}} autonome(s) ou expert(s), {{declared}} avec un niveau déclaré",
+      "cellTooltip": "{{contributor}} · {{skill}} : {{level}}",
+      "showUnused": "Afficher les compétences non utilisées",
+      "sheetName": "Matrice de compétences",
+      "noContributors": "Aucun contributeur dans cette équipe.",
+      "noSkills": "Aucune compétence dans le catalogue. Ajoutez des compétences dans les paramètres du portefeuille.",
+      "noDeclaredSkills": "Personne n'a encore de niveau renseigné. Activez « Afficher les compétences non utilisées » pour voir tout le catalogue.",
+      "allFiltered": "Toutes les compétences sont masquées par les filtres ci-dessus.",
+      "export": {
+        "action": "Exporter",
+        "contributor": "Contributeur",
+        "reference": "Référence",
+        "team": "Équipe",
+        "category": "Catégorie",
+        "skill": "Compétence"
+      }
     },
     "states": {
       "empty": "Aucun contributeur configuré pour le moment. Ajoutez des contributeurs pour définir leurs compétences et leur disponibilité."

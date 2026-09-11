@@ -1210,10 +1210,46 @@
       "collapseTeam": "Collapse team",
       "expandTeam": "Expand team"
     },
+    "views": {
+      "label": "Contributors view",
+      "list": "List",
+      "matrix": "Skills matrix"
+    },
     "filters": {
       "team": "Filter by team",
       "allTeams": "All teams",
       "unassigned": "Unassigned"
+    },
+    "matrix": {
+      "filtersLabel": "Skills matrix filters",
+      "orientation": {
+        "label": "Columns",
+        "contributors": "Contributors",
+        "skills": "Skills"
+      },
+      "contributorColumn": "Contributor",
+      "skillColumn": "Skill",
+      "summaryColumn": "Skills",
+      "summaryTooltip": "{{autonomous}} of {{total}} declared skills at autonomous level or above",
+      "summaryHeaderTooltip": "Skills at autonomous level or above, out of those declared",
+      "coverageRow": "Autonomous or expert",
+      "coverageHeaderTooltip": "How many people can carry each skill on their own",
+      "coverageTooltip": "{{skill}}: {{autonomous}} autonomous or expert, {{declared}} with a declared level",
+      "cellTooltip": "{{contributor}} · {{skill}}: {{level}}",
+      "showUnused": "Show unused skills",
+      "sheetName": "Skills matrix",
+      "noContributors": "No contributor in this team.",
+      "noSkills": "No skill in the catalog yet. Add skills in Portfolio settings.",
+      "noDeclaredSkills": "Nobody has a skill level set yet. Turn on Show unused skills to see the whole catalog.",
+      "allFiltered": "Every skill is hidden by the filters above.",
+      "export": {
+        "action": "Export",
+        "contributor": "Contributor",
+        "reference": "Reference",
+        "team": "Team",
+        "category": "Category",
+        "skill": "Skill"
+      }
     },
     "states": {
       "empty": "No contributors configured yet. Add contributors to define their skills and availability."
