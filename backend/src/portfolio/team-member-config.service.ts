@@ -3,13 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { TeamMemberConfig, SkillProficiency } from './team-member-config.entity';
 import { AuditService } from '../audit/audit.service';
+import { ItemNumberService } from '../common/item-number.service';
 
 type TeamMemberConfigCreateInput = {
   user_id: string;
   areas_of_expertise?: string[];
   skills?: SkillProficiency[];
   project_availability?: number;
-  notes?: string;
+  notes?: string | null;
   team_id?: string | null;
   default_source_id?: string | null;
   default_category_id?: string | null;
@@ -21,7 +22,7 @@ type TeamMemberConfigUpdateInput = {
   areas_of_expertise?: string[];
   skills?: SkillProficiency[];
   project_availability?: number;
-  notes?: string;
+  notes?: string | null;
   team_id?: string | null;
   default_source_id?: string | null;
   default_category_id?: string | null;
@@ -33,7 +34,7 @@ type TeamMemberConfigSelfServiceInput = {
   areas_of_expertise?: string[];
   skills?: SkillProficiency[];
   project_availability?: number;
-  notes?: string;
+  notes?: string | null;
   default_source_id?: string | null;
   default_category_id?: string | null;
   default_stream_id?: string | null;
@@ -46,6 +47,7 @@ export class TeamMemberConfigService {
     @InjectRepository(TeamMemberConfig)
     private readonly repo: Repository<TeamMemberConfig>,
     private readonly audit: AuditService,
+    private readonly itemNumbers: ItemNumberService,
   ) {}
 
   private getCurrentMonthStartUtc(): Date {
@@ -176,6 +178,7 @@ export class TeamMemberConfigService {
       default_company_id: body.default_company_id ?? null,
     });
 
+    entity.item_number = await this.itemNumbers.nextItemNumber('contributor', tenantId, mg);
     const saved = await repo.save(entity);
 
     await this.audit.log({
@@ -214,11 +217,14 @@ export class TeamMemberConfigService {
     if (body.project_availability !== undefined) {
       existing.project_availability = body.project_availability;
     }
+    // Omitted fields stay untouched; an explicit clear must reach the DB as
+    // NULL. TypeORM skips `undefined` properties on save, so `|| undefined`
+    // silently kept the previous value when the user emptied the field.
     if (body.notes !== undefined) {
-      existing.notes = body.notes || undefined;
+      existing.notes = body.notes || null;
     }
     if (body.team_id !== undefined) {
-      existing.team_id = body.team_id || undefined;
+      existing.team_id = body.team_id || null;
     }
     if (body.default_source_id !== undefined) {
       existing.default_source_id = body.default_source_id ?? null;

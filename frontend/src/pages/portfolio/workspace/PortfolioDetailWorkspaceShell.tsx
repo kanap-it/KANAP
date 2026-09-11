@@ -43,6 +43,8 @@ type PortfolioDetailWorkspaceShellProps = {
   children: React.ReactNode;
   drawerStorageKey: string;
   forceDrawerOpen?: boolean;
+  /** Overrides the stored drawer state on mount only (e.g. a deep link that targets a drawer field). */
+  initialDrawerOpen?: boolean;
   isCreate?: boolean;
   itemReference?: string | null;
   metadata?: React.ReactNode;
@@ -233,6 +235,7 @@ export default function PortfolioDetailWorkspaceShell({
   children,
   drawerStorageKey,
   forceDrawerOpen = false,
+  initialDrawerOpen,
   isCreate = false,
   itemReference,
   metadata,
@@ -251,8 +254,13 @@ export default function PortfolioDetailWorkspaceShell({
   const { t } = useTranslation('portfolio');
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isCompact = useMediaQuery(theme.breakpoints.down('sm'));
-  const [drawerOpen, setDrawerOpen] = React.useState(() => getStoredDrawerState(drawerStorageKey));
-  const effectiveDrawerOpen = forceDrawerOpen || drawerOpen;
+  const [drawerOpen, setDrawerOpen] = React.useState(
+    () => initialDrawerOpen ?? getStoredDrawerState(drawerStorageKey),
+  );
+  // The classeur toggle only renders on desktop: on mobile the properties
+  // always stack under the content, otherwise a stored "closed" state would
+  // hide them with no visible way back.
+  const effectiveDrawerOpen = forceDrawerOpen || drawerOpen || isMobile;
 
   React.useEffect(() => {
     if (forceDrawerOpen) return;

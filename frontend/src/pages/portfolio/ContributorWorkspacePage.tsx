@@ -1,186 +1,206 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Alert, Autocomplete, Box, Button, Card, CardContent, Collapse, FormControl, IconButton,
-  InputLabel, MenuItem, Select, Slider, Stack, Tab, Tabs, TextField, Tooltip, Typography,
-} from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import { Alert, Box, Button, Menu, MenuItem, TextField } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import PageHeader from '../../components/PageHeader';
 import ChartCard from '../../components/reports/ChartCard';
-import EnumAutocomplete from '../../components/fields/EnumAutocomplete';
-import CompanySelect from '../../components/fields/CompanySelect';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { useLocale } from '../../i18n/useLocale';
-import ContributorTimeLog from './components/ContributorTimeLog';
-import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import useAutosave from '../../hooks/useAutosave';
+import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
+import { drawerMenuItemSx, longFormSurfaceFieldSx } from '../../theme/formSx';
 import { useKanapDialogs } from '../../components/design';
-
-interface SkillProficiency {
-  skill_id: string;
-  proficiency: number;
-}
-
-interface Skill {
-  id: string;
-  category: string;
-  name: string;
-  enabled: boolean;
-}
-
-interface Team {
-  id: string;
-  name: string;
-  is_active: boolean;
-}
+import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { taskDetailTypography } from '../tasks/theme/taskDetailTokens';
+import PortfolioDetailWorkspaceShell, {
+  type PortfolioDetailWorkspaceTab,
+} from './workspace/PortfolioDetailWorkspaceShell';
+import { PortfolioMetadataItem } from './workspace/PortfolioMetadataBar';
+import ContributorTimeLog from './components/ContributorTimeLog';
+import ContributorSkillsTab, { availableSkillOptions, type SkillOption, type SkillProficiency } from './components/ContributorSkillsTab';
+import AddSkillDialog from './components/AddSkillDialog';
+import ContributorPropertiesDrawer, {
+  type ContributorDrawerOption,
+  type ContributorDrawerStream,
+  type ContributorDrawerTeam,
+  type ContributorDrawerValues,
+} from './components/ContributorPropertiesDrawer';
+import { orderContributors } from './contributorsOrdering';
+import { buildItemPath, formatItemRef } from '../../utils/item-ref';
 
 interface ContributorConfig {
-  id: string;
+  id: string | null;
+  item_number: number | null;
   user_id: string;
   user_display_name: string;
   user_email: string;
   areas_of_expertise: string[];
   skills: SkillProficiency[];
   project_availability: number;
-  notes?: string;
-  team_id?: string;
-  team_name?: string;
-  default_source_id?: string | null;
-  default_category_id?: string | null;
-  default_stream_id?: string | null;
-  default_company_id?: string | null;
+  notes: string | null;
+  team_id: string | null;
+  team_name?: string | null;
+  default_source_id: string | null;
+  default_category_id: string | null;
+  default_stream_id: string | null;
+  default_company_id: string | null;
 }
 
-interface ClassificationType {
-  id: string;
-  name: string;
-  is_active: boolean;
-}
-
-interface ClassificationCategory {
-  id: string;
-  name: string;
-  is_active: boolean;
-}
-
-interface ClassificationStream {
-  id: string;
-  name: string;
-  category_id: string;
-  is_active: boolean;
-}
+/** Fields the workspace can PATCH; the contributor cache is the source of truth for all of them. */
+type ContributorPatch = Partial<Pick<ContributorConfig,
+  'skills' | 'project_availability' | 'notes' | 'team_id'
+  | 'default_source_id' | 'default_category_id' | 'default_stream_id' | 'default_company_id'
+>>;
 
 interface TimeStats {
   userId: string;
   averageProjectDays: number;
-  monthly: Array<{
-    yearMonth: string;
-    projectDays: number;
-    otherDays: number;
-    totalDays: number;
-  }>;
+  monthly: Array<{ yearMonth: string; projectDays: number; otherDays: number; totalDays: number }>;
 }
 
-const PROFICIENCY_MARKS = [
-  { value: 0, label: '0' },
-  { value: 1, label: '1' },
-  { value: 2, label: '2' },
-  { value: 3, label: '3' },
-  { value: 4, label: '4' },
-];
+type ContributorTabKey = 'general' | 'skills' | 'time-logged';
+const LEGACY_DEFAULTS_TAB = 'defaults';
+
+const isContributorTab = (value: string | undefined): value is ContributorTabKey =>
+  value === 'general' || value === 'skills' || value === 'time-logged';
+
+const DEFAULT_AVAILABILITY = 5;
+
+/** The numeric column arrives as a string; a stored 0 is a valid value and must survive. */
+function normalizeAvailability(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : DEFAULT_AVAILABILITY;
+}
+
+function normalizeConfig(raw: any): ContributorConfig {
+  return {
+    id: raw?.id ?? null,
+    item_number: typeof raw?.item_number === 'number' ? raw.item_number : (raw?.item_number ? Number(raw.item_number) : null),
+    user_id: raw?.user_id ?? '',
+    user_display_name: raw?.user_display_name ?? '',
+    user_email: raw?.user_email ?? '',
+    areas_of_expertise: raw?.areas_of_expertise ?? [],
+    skills: raw?.skills ?? [],
+    project_availability: normalizeAvailability(raw?.project_availability),
+    notes: raw?.notes ?? null,
+    team_id: raw?.team_id ?? null,
+    team_name: raw?.team_name ?? null,
+    default_source_id: raw?.default_source_id ?? null,
+    default_category_id: raw?.default_category_id ?? null,
+    default_stream_id: raw?.default_stream_id ?? null,
+    default_company_id: raw?.default_company_id ?? null,
+  };
+}
+
+/**
+ * Notes keep a local draft: the field must not be driven straight by the
+ * query cache, whose observer notifications are batched asynchronously — a
+ * controlled textarea would snap back to a stale value between keystrokes and
+ * drop characters. The draft follows the cache only while the field is not
+ * focused (initial load, rollback after a failed save, prev/next).
+ */
+function ContributorNotesField({
+  value,
+  onChange,
+  readOnly,
+  placeholder,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  readOnly: boolean;
+  placeholder: string;
+}) {
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) setDraft(value);
+  }, [value]);
+  return (
+    <TextField
+      value={draft}
+      onChange={(e) => { setDraft(e.target.value); onChange(e.target.value); }}
+      inputRef={inputRef}
+      multiline
+      minRows={4}
+      maxRows={12}
+      fullWidth
+      variant="standard"
+      InputProps={{ readOnly }}
+      placeholder={placeholder}
+      sx={longFormSurfaceFieldSx}
+    />
+  );
+}
 
 const formatMonth = (yearMonth: string, locale: string) => {
   const date = new Date(`${yearMonth}T00:00:00Z`);
   return date.toLocaleString(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' });
 };
 
-type ContributorTabKey = 'general' | 'skills' | 'time-logged' | 'defaults';
-
-const isContributorTab = (value: string | undefined): value is ContributorTabKey =>
-  value === 'general' || value === 'skills' || value === 'time-logged' || value === 'defaults';
-
 export default function ContributorWorkspacePage() {
-  const { t } = useTranslation(['portfolio', 'common', 'errors']);
+  const { t } = useTranslation(['portfolio', 'common', 'nav', 'errors']);
   const dialogs = useKanapDialogs();
   const locale = useLocale();
-  const location = useLocation();
   const { id: idParam, tab } = useParams<{ id?: string; tab?: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { hasLevel, profile } = useAuth();
-  const contributorIdFromPath = useMemo(() => {
-    const segments = location.pathname.split('/').filter(Boolean);
-    return segments[2] || undefined;
-  }, [location.pathname]);
-  const contributorId = idParam ?? contributorIdFromPath;
-  const isSelfRoute = contributorId === 'me';
+
+  // Both `/contributors/me` and `/contributors/:id` render this page; on the
+  // self route there is no `:id` param.
+  // `:id` is the CTR-N business reference (or a legacy row UUID; the API
+  // accepts both and the page rewrites the URL to the reference once loaded).
+  const isSelfRoute = !idParam;
+  const contributorId = idParam;
   const contributorRouteId = contributorId || 'me';
+  const basePath = `/portfolio/contributors/${contributorRouteId}`;
+  const endpoint = isSelfRoute ? '/portfolio/team-members/me' : `/portfolio/team-members/${contributorId}`;
+
   const hasAnyPortfolioReader = (
-    hasLevel('tasks', 'reader') ||
-    hasLevel('portfolio_requests', 'reader') ||
-    hasLevel('portfolio_projects', 'reader') ||
-    hasLevel('portfolio_planning', 'reader') ||
-    hasLevel('portfolio_reports', 'reader') ||
-    hasLevel('portfolio_settings', 'reader')
+    hasLevel('tasks', 'reader')
+    || hasLevel('portfolio_requests', 'reader')
+    || hasLevel('portfolio_projects', 'reader')
+    || hasLevel('portfolio_planning', 'reader')
+    || hasLevel('portfolio_reports', 'reader')
+    || hasLevel('portfolio_settings', 'reader')
   );
   const canEdit = isSelfRoute ? hasAnyPortfolioReader : hasLevel('portfolio_settings', 'member');
   const canDelete = !isSelfRoute && hasLevel('portfolio_settings', 'admin');
   const canManageTeams = !isSelfRoute && hasLevel('portfolio_settings', 'member');
   const canViewTime = hasLevel('portfolio_settings', 'reader');
+  const canListContributors = !isSelfRoute && hasLevel('portfolio_settings', 'reader');
 
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [teamAnchor, setTeamAnchor] = useState<HTMLElement | null>(null);
+  const [addSkillOpen, setAddSkillOpen] = useState(false);
 
-  // Form state
-  const [projectAvailability, setProjectAvailability] = useState(5);
-  const [notes, setNotes] = useState('');
-  const [teamId, setTeamId] = useState<string>('');
-  const [selectedSkills, setSelectedSkills] = useState<SkillProficiency[]>([]);
-  const [defaultSourceId, setDefaultSourceId] = useState('');
-  const [defaultCategoryId, setDefaultCategoryId] = useState('');
-  const [defaultStreamId, setDefaultStreamId] = useState('');
-  const [defaultCompanyId, setDefaultCompanyId] = useState<string | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const proficiencyLabels = useMemo<Record<number, string>>(() => ({
-    0: t('portfolio:workspace.contributor.proficiency.0'),
-    1: t('portfolio:workspace.contributor.proficiency.1'),
-    2: t('portfolio:workspace.contributor.proficiency.2'),
-    3: t('portfolio:workspace.contributor.proficiency.3'),
-    4: t('portfolio:workspace.contributor.proficiency.4'),
-  }), [t]);
-  const contributorTabs = useMemo<Array<{ key: ContributorTabKey; label: string }>>(() => ([
+  // Legacy deep links (`/…/defaults`, Settings → Profile) land on General with
+  // the properties drawer open, where the defaults now live.
+  const legacyDefaultsLink = tab === LEGACY_DEFAULTS_TAB;
+  const initialDrawerOpenRef = useRef<boolean | undefined>(legacyDefaultsLink ? true : undefined);
+  useEffect(() => {
+    if (legacyDefaultsLink) navigate(basePath, { replace: true });
+  }, [basePath, legacyDefaultsLink, navigate]);
+
+  const tabs = useMemo<PortfolioDetailWorkspaceTab[]>(() => [
     { key: 'general', label: t('portfolio:workspace.contributor.tabs.general') },
     { key: 'skills', label: t('portfolio:workspace.contributor.tabs.skills') },
-    { key: 'time-logged', label: t('portfolio:workspace.contributor.tabs.timeLogged') },
-    { key: 'defaults', label: t('portfolio:workspace.contributor.tabs.defaults') },
-  ]), [t]);
-  const availableTabs = useMemo(
-    () => contributorTabs.filter((tabDef) => (tabDef.key === 'time-logged' ? canViewTime : true)),
-    [canViewTime, contributorTabs],
-  );
+    ...(canViewTime ? [{ key: 'time-logged', label: t('portfolio:workspace.contributor.tabs.timeLogged') }] : []),
+  ], [canViewTime, t]);
   const activeTab: ContributorTabKey = (
-    isContributorTab(tab) && availableTabs.some((tabDef) => tabDef.key === tab)
+    isContributorTab(tab) && tabs.some((tabDef) => tabDef.key === tab)
   ) ? tab : 'general';
 
-  const handleTabChange = useCallback((_: React.SyntheticEvent, nextValue: ContributorTabKey) => {
-    navigate(`/portfolio/contributors/${contributorRouteId}/${nextValue}`);
-  }, [contributorRouteId, navigate]);
+  // ---- Data -----------------------------------------------------------------
 
-  // Fetch contributor
-  const { data: member, isLoading } = useQuery({
-    queryKey: ['portfolio-contributor', contributorRouteId],
+  const queryKey = useMemo(() => ['portfolio-contributor', contributorRouteId] as const, [contributorRouteId]);
+  const { data: member, isLoading, isError } = useQuery({
+    queryKey,
     queryFn: async () => {
       try {
-        const endpoint = isSelfRoute
-          ? '/portfolio/team-members/me'
-          : `/portfolio/team-members/${contributorId}`;
         const res = await api.get(endpoint);
-        return (res.data as ContributorConfig) || null;
+        return res.data ? normalizeConfig(res.data) : null;
       } catch (e: any) {
         if (isSelfRoute && e?.response?.status === 404) return null;
         throw e;
@@ -188,6 +208,17 @@ export default function ContributorWorkspacePage() {
     },
     enabled: isSelfRoute ? hasAnyPortfolioReader : !!contributorId,
   });
+
+  const reference = member?.item_number ? formatItemRef('contributor', member.item_number) : null;
+  const referencePath = reference ? buildItemPath('contributor', reference) : null;
+  // Legacy UUID links: swap the URL for the readable reference, keeping the
+  // loaded record under the new cache key so nothing refetches or flickers.
+  useEffect(() => {
+    if (isSelfRoute || !member || !reference || !referencePath || contributorId === reference) return;
+    queryClient.setQueryData(['portfolio-contributor', reference], member);
+    const suffix = isContributorTab(tab) && tab !== 'general' ? `/${tab}` : '';
+    navigate(`${referencePath}${suffix}`, { replace: true });
+  }, [contributorId, isSelfRoute, member, navigate, queryClient, reference, referencePath, tab]);
 
   const { data: timeStats } = useQuery({
     queryKey: ['contributor-time-stats', member?.id],
@@ -198,195 +229,132 @@ export default function ContributorWorkspacePage() {
     enabled: canViewTime && !!member?.id,
   });
 
-  // Fetch teams
-  const { data: teamsData } = useQuery({
+  const { data: teams = [] } = useQuery({
     queryKey: ['portfolio-teams'],
-    queryFn: async () => {
-      const res = await api.get('/portfolio/teams');
-      return res.data as Team[];
-    },
-    enabled: canManageTeams,
+    queryFn: async () => (await api.get('/portfolio/teams')).data as ContributorDrawerTeam[],
+    enabled: canManageTeams || canListContributors,
   });
 
-  const teams = teamsData || [];
+  const { data: contributorsList } = useQuery({
+    queryKey: ['portfolio-contributors'],
+    queryFn: async () => ((await api.get('/portfolio/team-members')).data?.items || []) as Array<{ id: string; item_number?: number; team_id?: string | null }>,
+    enabled: canListContributors,
+  });
 
-  // Fetch all skills
   const { data: skillsData } = useQuery({
     queryKey: ['portfolio-skills'],
-    queryFn: async () => {
-      const res = await api.get('/portfolio/skills');
-      return res.data as { items: Skill[]; grouped: Record<string, Skill[]> };
-    },
+    queryFn: async () => (await api.get('/portfolio/skills')).data as { items: SkillOption[] },
     enabled: isSelfRoute ? hasAnyPortfolioReader : hasLevel('portfolio_settings', 'reader'),
   });
 
   const { data: classificationData } = useQuery({
     queryKey: ['portfolio-classification'],
-    queryFn: async () => {
-      const res = await api.get('/portfolio/classification/all');
-      return res.data as {
-        sources: ClassificationType[];
-        categories: ClassificationCategory[];
-        streams: ClassificationStream[];
-      };
+    queryFn: async () => (await api.get('/portfolio/classification/all')).data as {
+      sources: ContributorDrawerOption[];
+      categories: ContributorDrawerOption[];
+      streams: ContributorDrawerStream[];
     },
-    enabled: activeTab === 'defaults',
+    enabled: canEdit,
   });
 
-  const allSkills = skillsData?.items || [];
-  const sources = classificationData?.sources?.filter((t) => t.is_active) || [];
-  const categories = classificationData?.categories?.filter((c) => c.is_active) || [];
-  const streams = classificationData?.streams?.filter((s) => s.is_active) || [];
-  const filteredDefaultStreams = useMemo(() => {
-    if (!defaultCategoryId) return [];
-    return streams.filter((s) => s.category_id === defaultCategoryId);
-  }, [streams, defaultCategoryId]);
+  // ---- Autosave -------------------------------------------------------------
+  // The contributor query cache is the single source of truth: every edit is
+  // written to it optimistically, buffered in `pendingPatchRef`, and flushed
+  // by one debounced controller so PATCHes never overlap.
 
-  // Initialize form from member data
-  useEffect(() => {
-    if (member) {
-      // project_availability comes as string from DB numeric column - convert to number
-      setProjectAvailability(Number(member.project_availability) || 5);
-      setNotes(member.notes || '');
-      setTeamId(member.team_id || '');
-      setSelectedSkills(member.skills || []);
-      setDefaultSourceId(member.default_source_id || '');
-      setDefaultCategoryId(member.default_category_id || '');
-      setDefaultStreamId(member.default_stream_id || '');
-      setDefaultCompanyId(member.default_company_id || null);
-    } else if (isSelfRoute) {
-      setProjectAvailability(5);
-      setNotes('');
-      setTeamId('');
-      setSelectedSkills([]);
-      setDefaultSourceId('');
-      setDefaultCategoryId('');
-      setDefaultStreamId('');
-      setDefaultCompanyId(null);
+  const pendingPatchRef = useRef<ContributorPatch>({});
+  const saveTargetRef = useRef<{ endpoint: string; queryKey: readonly unknown[]; isSelf: boolean } | null>(null);
+  const deletedRef = useRef(false);
+
+  const handleAutosaveError = useCallback((e: unknown) => {
+    // Drop the buffer and roll the cache back to the server state; the user
+    // sees the error and re-applies the edit. No silent retry storm.
+    pendingPatchRef.current = {};
+    setError(getApiErrorMessage(e, t, t('portfolio:workspace.contributor.messages.saveFailed')));
+    const target = saveTargetRef.current;
+    if (target) void queryClient.invalidateQueries({ queryKey: target.queryKey });
+  }, [queryClient, t]);
+
+  const { schedule: scheduleSave, flush: flushSave, status: autosaveStatus } = useAutosave({
+    onError: handleAutosaveError,
+  });
+
+  const flushPending = useCallback(async () => {
+    const patch = pendingPatchRef.current;
+    pendingPatchRef.current = {};
+    const target = saveTargetRef.current;
+    if (deletedRef.current || !target || Object.keys(patch).length === 0) return;
+    const res = await api.patch(target.endpoint, patch);
+    const savedId: string | undefined = res.data?.id;
+    // Keep the optimistic values (an edit made during the request must win);
+    // only the id is taken from the response, which matters for the first
+    // self-service save that creates the config.
+    if (savedId) {
+      queryClient.setQueryData<ContributorConfig | null>(target.queryKey, (previous) => (
+        previous && !previous.id ? { ...previous, id: savedId } : previous
+      ));
     }
-  }, [member, isSelfRoute]);
-
-  // Skills that are not yet selected
-  const availableSkills = useMemo(() => {
-    const selectedIds = new Set(selectedSkills.map((s) => s.skill_id));
-    return allSkills.filter((s) => s.enabled && !selectedIds.has(s.id));
-  }, [allSkills, selectedSkills]);
-
-  // Get skill details by ID
-  const getSkillById = useCallback((skillId: string) => {
-    return allSkills.find((s) => s.id === skillId);
-  }, [allSkills]);
-
-  // Handle adding a skill
-  const handleAddSkill = useCallback((skill: Skill | null) => {
-    if (!skill) return;
-    setSelectedSkills((prev) => [...prev, { skill_id: skill.id, proficiency: 2 }]);
-  }, []);
-
-  // Handle removing a skill
-  const handleRemoveSkill = useCallback((skillId: string) => {
-    setSelectedSkills((prev) => prev.filter((s) => s.skill_id !== skillId));
-  }, []);
-
-  // Handle proficiency change
-  const handleProficiencyChange = useCallback((skillId: string, proficiency: number) => {
-    setSelectedSkills((prev) =>
-      prev.map((s) => (s.skill_id === skillId ? { ...s, proficiency } : s))
-    );
-  }, []);
-
-  // Toggle category expansion
-  const toggleCategory = useCallback((category: string) => {
-    setExpandedCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleDefaultCategoryChange = useCallback((nextCategoryId: string) => {
-    setDefaultCategoryId(nextCategoryId);
-    if (!defaultStreamId) return;
-    const streamBelongsToCategory = streams.some(
-      (stream) => stream.id === defaultStreamId && stream.category_id === nextCategoryId,
-    );
-    if (!streamBelongsToCategory) {
-      setDefaultStreamId('');
+    if (!target.isSelf) {
+      void queryClient.invalidateQueries({ queryKey: ['portfolio-contributors'] });
+      void queryClient.invalidateQueries({ queryKey: ['portfolio-teams'] });
     }
-  }, [defaultStreamId, streams]);
-
-  // Auto-expand all categories when skills are loaded
-  useEffect(() => {
-    if (selectedSkills.length > 0 && allSkills.length > 0) {
-      const categories = new Set<string>();
-      for (const sp of selectedSkills) {
-        const skill = allSkills.find((s) => s.id === sp.skill_id);
-        if (skill) categories.add(skill.category);
-      }
-      setExpandedCategories(categories);
+    void queryClient.invalidateQueries({ queryKey: ['portfolio-contributor', 'me'], exact: true, refetchType: 'none' });
+    if (profile?.id) {
+      void queryClient.invalidateQueries({ queryKey: ['classification-defaults', profile.id] });
     }
-  }, [selectedSkills, allSkills]);
+  }, [profile?.id, queryClient]);
 
-  // Save handler
-  const handleSave = useCallback(async () => {
-    if (!isSelfRoute && !contributorId) return;
-    setSaving(true);
-    setError(null);
+  const patch = useCallback((partial: ContributorPatch) => {
+    if (!canEdit) return;
+    queryClient.setQueryData<ContributorConfig | null>(queryKey, (previous) => ({
+      ...(previous ?? normalizeConfig({ user_id: profile?.id })),
+      ...partial,
+    }));
+    pendingPatchRef.current = { ...pendingPatchRef.current, ...partial };
+    saveTargetRef.current = { endpoint, queryKey, isSelf: isSelfRoute };
+    scheduleSave(flushPending);
+  }, [canEdit, endpoint, flushPending, isSelfRoute, profile?.id, queryClient, queryKey, scheduleSave]);
 
-    try {
-      const endpoint = isSelfRoute
-        ? '/portfolio/team-members/me'
-        : `/portfolio/team-members/${contributorId}`;
-      const payload: Record<string, unknown> = {
-        project_availability: projectAvailability,
-        notes: notes || null,
-        skills: selectedSkills,
-        default_source_id: defaultSourceId || null,
-        default_category_id: defaultCategoryId || null,
-        default_stream_id: defaultStreamId || null,
-        default_company_id: defaultCompanyId || null,
-      };
-      if (!isSelfRoute) {
-        payload.team_id = teamId || null;
-      }
+  // ---- Navigation (all controlled transitions drain the autosave first) -----
 
-      await api.patch(endpoint, payload);
-      queryClient.invalidateQueries({ queryKey: ['portfolio-contributor', contributorRouteId] });
-      queryClient.invalidateQueries({ queryKey: ['portfolio-contributor', 'me'] });
-      if (!isSelfRoute) {
-        queryClient.invalidateQueries({ queryKey: ['portfolio-contributors'] });
-        queryClient.invalidateQueries({ queryKey: ['portfolio-teams'] });
-      }
-      if (profile?.id) {
-        queryClient.invalidateQueries({ queryKey: ['classification-defaults', profile.id] });
-      }
-    } catch (e: any) {
-      setError(getApiErrorMessage(e, t, t('portfolio:workspace.contributor.messages.saveFailed')));
-    } finally {
-      setSaving(false);
-    }
-  }, [
-    contributorId,
-    isSelfRoute,
-    contributorRouteId,
-    projectAvailability,
-    notes,
-    teamId,
-    selectedSkills,
-    defaultSourceId,
-    defaultCategoryId,
-    defaultStreamId,
-    defaultCompanyId,
-    profile?.id,
-    queryClient,
-    t,
-  ]);
+  const handleTabChange = useCallback(async (nextTab: string) => {
+    if (nextTab === activeTab) return;
+    if (!(await flushSave())) return;
+    navigate(nextTab === 'general' ? basePath : `${basePath}/${nextTab}`);
+  }, [activeTab, basePath, flushSave, navigate]);
 
-  // Delete handler
+  const backPath = isSelfRoute ? '/settings/profile' : '/portfolio/contributors';
+  const handleBack = useCallback(async () => {
+    if (!(await flushSave())) return;
+    navigate(backPath);
+  }, [backPath, flushSave, navigate]);
+
+  const orderedRefs = useMemo(() => (
+    contributorsList
+      ? orderContributors(contributorsList, teams, t('portfolio:contributors.filters.unassigned'))
+        .filter((c) => c.item_number)
+        .map((c) => formatItemRef('contributor', c.item_number as number))
+      : []
+  ), [contributorsList, t, teams]);
+  const navIndex = reference ? orderedRefs.indexOf(reference) : -1;
+  const goToContributor = useCallback(async (targetRef: string | undefined) => {
+    if (!targetRef || !(await flushSave())) return;
+    const path = buildItemPath('contributor', targetRef);
+    navigate(activeTab === 'general' ? path : `${path}/${activeTab}`);
+  }, [activeTab, flushSave, navigate]);
+  const nav = navIndex >= 0 ? {
+    currentIndex: navIndex + 1,
+    totalCount: orderedRefs.length,
+    hasPrev: navIndex > 0,
+    hasNext: navIndex < orderedRefs.length - 1,
+    onPrev: () => { void goToContributor(orderedRefs[navIndex - 1]); },
+    onNext: () => { void goToContributor(orderedRefs[navIndex + 1]); },
+    previousLabel: t('portfolio:workspace.contributor.nav.previous'),
+    nextLabel: t('portfolio:workspace.contributor.nav.next'),
+  } : undefined;
+
+  // ---- Delete ---------------------------------------------------------------
+
   const handleDelete = useCallback(async () => {
     if (!contributorId || isSelfRoute) return;
     if (!(await dialogs.confirm({
@@ -394,380 +362,250 @@ export default function ContributorWorkspacePage() {
       confirmLabel: t('common:buttons.remove'),
       intent: 'danger',
     }))) return;
-
+    // Nothing pending may reach the server after the row is gone.
+    pendingPatchRef.current = {};
+    await flushSave();
     try {
       await api.delete(`/portfolio/team-members/${contributorId}`);
-      queryClient.invalidateQueries({ queryKey: ['portfolio-contributors'] });
+      deletedRef.current = true;
+      queryClient.removeQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: ['portfolio-contributors'] });
       navigate('/portfolio/contributors');
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('portfolio:workspace.contributor.messages.deleteFailed')));
     }
-  }, [contributorId, dialogs, isSelfRoute, navigate, queryClient, t]);
+  }, [contributorId, dialogs, flushSave, isSelfRoute, navigate, queryClient, queryKey, t]);
 
-  // Group selected skills by category
-  const selectedSkillsByCategory = useMemo(() => {
-    const grouped: Record<string, SkillProficiency[]> = {};
-    for (const sp of selectedSkills) {
-      const skill = getSkillById(sp.skill_id);
-      if (skill) {
-        if (!grouped[skill.category]) grouped[skill.category] = [];
-        grouped[skill.category].push(sp);
-      }
-    }
-    return grouped;
-  }, [selectedSkills, getSkillById]);
+  // ---- Skills handlers ------------------------------------------------------
 
-  if (isLoading) {
-    return <Typography>{t('common:status.loading')}</Typography>;
-  }
+  const skills = member?.skills ?? [];
+  const handleAddSkill = useCallback((skillId: string, level: number) => {
+    if (skills.some((s) => s.skill_id === skillId)) return;
+    patch({ skills: [...skills, { skill_id: skillId, proficiency: level }] });
+  }, [patch, skills]);
+  const addableSkills = useMemo(
+    () => availableSkillOptions(skillsData?.items ?? [], skills),
+    [skillsData?.items, skills],
+  );
+  const handleRemoveSkill = useCallback((skillId: string) => {
+    patch({ skills: skills.filter((s) => s.skill_id !== skillId) });
+  }, [patch, skills]);
+  const handleLevelChange = useCallback((skillId: string, level: number) => {
+    patch({ skills: skills.map((s) => (s.skill_id === skillId ? { ...s, proficiency: level } : s)) });
+  }, [patch, skills]);
 
-  if (!member && !isSelfRoute) {
-    return <Typography>{t('portfolio:workspace.contributor.states.notFound')}</Typography>;
-  }
+  // ---- Render ---------------------------------------------------------------
 
   const contributorTitle = (
-    member?.user_display_name ||
-    [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim() ||
-    member?.user_email ||
-    profile?.email ||
-    t('portfolio:workspace.contributor.titleFallback')
+    member?.user_display_name
+    || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim()
+    || member?.user_email
+    || profile?.email
+    || ''
   );
-  const backPath = isSelfRoute ? '/settings/profile' : '/portfolio/contributors';
+  const notFound = !isLoading && !isError && !member && !isSelfRoute;
+  const view = member ?? normalizeConfig({ user_id: profile?.id });
+  const teamName = view.team_id
+    ? (teams.find((team) => team.id === view.team_id)?.name || view.team_name || '')
+    : '';
 
-  const actions = (
-    <Stack direction="row" spacing={1}>
-      <IconButton
-        onClick={() => navigate(backPath)}
-        title={isSelfRoute
-          ? t('portfolio:workspace.contributor.actions.backToSettings')
-          : t('portfolio:workspace.contributor.actions.backToList')}
-      >
-        <ArrowBackIcon />
-      </IconButton>
+  const savingHint = autosaveStatus === 'saving' || autosaveStatus === 'pending'
+    ? t('common:status.saving')
+    : autosaveStatus === 'saved'
+      ? t('common:status.saved')
+      : null;
+
+  const drawerValues: ContributorDrawerValues = {
+    team_id: view.team_id,
+    project_availability: view.project_availability,
+    default_source_id: view.default_source_id,
+    default_category_id: view.default_category_id,
+    default_stream_id: view.default_stream_id,
+    default_company_id: view.default_company_id,
+  };
+
+  const metadata = (
+    <>
+      {!isSelfRoute && (
+        <>
+          <PortfolioMetadataItem
+            label={t('portfolio:workspace.contributor.metadata.team')}
+            onClick={canManageTeams ? (event) => setTeamAnchor(event.currentTarget) : undefined}
+            title={canManageTeams ? t('portfolio:workspace.contributor.metadata.editTeam') : undefined}
+          >
+            {teamName || t('portfolio:workspace.contributor.metadata.noTeam')}
+          </PortfolioMetadataItem>
+          <Menu anchorEl={teamAnchor} open={!!teamAnchor} onClose={() => setTeamAnchor(null)}>
+            {view.team_id && (
+              <MenuItem
+                onClick={() => { patch({ team_id: null }); setTeamAnchor(null); }}
+                sx={drawerMenuItemSx}
+              >
+                — {t('common:buttons.clear')} —
+              </MenuItem>
+            )}
+            {teams
+              .filter((team) => team.is_active || team.id === view.team_id)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((team) => (
+                <MenuItem
+                  key={team.id}
+                  selected={team.id === view.team_id}
+                  onClick={() => { patch({ team_id: team.id }); setTeamAnchor(null); }}
+                  sx={drawerMenuItemSx}
+                >
+                  {team.name}
+                </MenuItem>
+              ))}
+          </Menu>
+        </>
+      )}
+      <PortfolioMetadataItem label={t('portfolio:workspace.contributor.metadata.availability')} mono>
+        {t('portfolio:workspace.contributor.values.daysPerMonthShort', { count: view.project_availability })}
+      </PortfolioMetadataItem>
+      <PortfolioMetadataItem>
+        {t('portfolio:workspace.contributor.values.skillCount', { count: skills.length })}
+      </PortfolioMetadataItem>
+      {savingHint && (
+        <Box component="span" sx={(theme) => ({ ...taskDetailTypography.metaLabel, color: theme.palette.kanap.text.tertiary })}>
+          {savingHint}
+        </Box>
+      )}
+    </>
+  );
+
+  const showActions = !isLoading && !notFound && (canEdit || canDelete);
+  const actions = showActions ? (
+    <>
       {canEdit && (
-        <Button
-          variant="contained"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? t('common:status.saving') : t('common:buttons.save')}
+        <Button variant="action" onClick={() => setAddSkillOpen(true)}>
+          {t('portfolio:workspace.contributor.actions.addSkill')}
         </Button>
       )}
       {canDelete && (
-        <Button
-          variant="outlined"
-          color="error"
-          onClick={handleDelete}
-        >
+        <Button variant="action-danger" onClick={handleDelete}>
           {t('common:buttons.delete')}
         </Button>
       )}
-    </Stack>
-  );
+    </>
+  ) : undefined;
 
   return (
-    <>
-      <PageHeader
+    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      {error && (
+        <Alert severity="error" sx={{ mx: 2, mt: 1 }} onClose={() => setError(null)}>{error}</Alert>
+      )}
+      <PortfolioDetailWorkspaceShell
+        activeTab={activeTab}
+        tabs={tabs}
+        onTabChange={(next) => { void handleTabChange(next); }}
+        drawerStorageKey="kanap.contributors.drawerOpen"
+        initialDrawerOpen={initialDrawerOpenRef.current}
+        backLabel={isSelfRoute ? t('nav:breadcrumbs.settings') : t('nav:breadcrumbs.contributors')}
+        onBack={() => { void handleBack(); }}
         title={contributorTitle}
-        breadcrumbTitle={contributorTitle}
+        titleFallback={t('portfolio:workspace.contributor.titleFallback')}
+        itemReference={reference}
+        onCopyReference={reference ? () => { void navigator.clipboard?.writeText(reference); } : undefined}
+        nav={nav}
+        metadata={isLoading || notFound ? undefined : metadata}
         actions={actions}
-      />
-
-      <Box sx={{ p: 3, maxWidth: 1000 }}>
-        {error && (
-          <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
-            {error}
-          </Alert>
+        properties={isLoading || notFound ? null : (
+          <ContributorPropertiesDrawer
+            values={drawerValues}
+            teams={teams}
+            sources={classificationData?.sources ?? []}
+            categories={classificationData?.categories ?? []}
+            streams={classificationData?.streams ?? []}
+            showTeam={!isSelfRoute}
+            canEdit={canEdit}
+            canManageTeams={canManageTeams}
+            onChange={(partial) => patch(partial)}
+          />
+        )}
+      >
+        {notFound && (
+          <Box sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary })}>
+            {t('portfolio:workspace.contributor.states.notFound')}
+          </Box>
         )}
 
-        <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 3 }}>
-          {availableTabs.map((tabDef) => (
-            <Tab key={tabDef.key} value={tabDef.key} label={tabDef.label} />
-          ))}
-        </Tabs>
-
-        {/* General Tab */}
-        {activeTab === 'general' && (
-          <Stack spacing={3}>
-            {!isSelfRoute && (
-              <Card>
-                <CardContent>
-                  <Typography variant="subtitle2" gutterBottom>
-                    {t('portfolio:workspace.contributor.sections.team')}
-                  </Typography>
-                  <FormControl fullWidth size="small" sx={{ maxWidth: 400 }}>
-                    <InputLabel>{t('portfolio:workspace.contributor.fields.assignTeam')}</InputLabel>
-                    <Select
-                      value={teamId}
-                      label={t('portfolio:workspace.contributor.fields.assignTeam')}
-                      onChange={(e) => setTeamId(e.target.value)}
-                      disabled={!canManageTeams}
-                    >
-                      <MenuItem value="">
-                        <em>{t('portfolio:workspace.contributor.values.unassigned')}</em>
-                      </MenuItem>
-                      {teams
-                        .filter((t) => t.is_active)
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((team) => (
-                          <MenuItem key={team.id} value={team.id}>
-                            {team.name}
-                          </MenuItem>
-                        ))}
-                    </Select>
-                  </FormControl>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle2" gutterBottom>
-                  {t('portfolio:workspace.contributor.sections.projectAvailability')}
-                </Typography>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Slider
-                    value={projectAvailability}
-                    onChange={(_, v) => setProjectAvailability(v as number)}
-                    min={0}
-                    max={20}
-                    step={0.5}
-                    valueLabelDisplay="on"
-                    disabled={!canEdit}
-                    sx={{ flex: 1, maxWidth: 400 }}
-                  />
-                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: 100 }}>
-                    {t('portfolio:workspace.contributor.values.daysPerMonth', {
-                      count: projectAvailability,
-                    })}
-                  </Typography>
-                </Stack>
-              </CardContent>
-            </Card>
+        {!isLoading && !notFound && activeTab === 'general' && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: 900 }}>
+            <Box>
+              <Box sx={(theme) => ({ ...taskDetailTypography.sectionLabel, color: theme.palette.kanap.text.tertiary, mb: '6px' })}>
+                {t('portfolio:workspace.contributor.sections.notes')}
+              </Box>
+              <ContributorNotesField
+                key={member?.id ?? 'new'}
+                value={view.notes ?? ''}
+                onChange={(next) => patch({ notes: next })}
+                readOnly={!canEdit}
+                placeholder={t('portfolio:workspace.contributor.placeholders.notes')}
+              />
+            </Box>
 
             {canViewTime && (
-              <Card>
-                <CardContent>
-                  <Typography variant="subtitle2" gutterBottom>
-                    {t('portfolio:workspace.contributor.sections.timeStatistics')}
-                  </Typography>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    {t('portfolio:workspace.contributor.values.averageMonthlyProjectEffort', {
-                      value: timeStats?.averageProjectDays ?? 0,
-                    })}
-                  </Typography>
-                  {timeStats ? (
-                    timeStats.monthly.length ? (
-                      <ChartCard
-                        title={t('portfolio:workspace.contributor.sections.monthlyEffort')}
-                        height={280}
-                        options={{
-                          data: timeStats.monthly.map((m) => ({
-                            month: formatMonth(m.yearMonth, locale),
-                            project: m.projectDays,
-                            other: m.otherDays,
-                            total: m.totalDays,
-                          })),
-                          series: [
-                            { type: 'line', xKey: 'month', yKey: 'total', yName: t('portfolio:workspace.contributor.chart.total') },
-                            { type: 'line', xKey: 'month', yKey: 'project', yName: t('portfolio:workspace.contributor.chart.project') },
-                            { type: 'line', xKey: 'month', yKey: 'other', yName: t('portfolio:workspace.contributor.chart.other') },
-                          ],
-                          axes: [
-                            { type: 'category', position: 'bottom' },
-                            { type: 'number', position: 'left', title: { text: t('portfolio:workspace.contributor.chart.manDays') } },
-                          ],
-                          legend: { enabled: true, position: 'bottom' },
-                        }}
-                      />
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        {t('portfolio:workspace.contributor.states.noTimeData')}
-                      </Typography>
-                    )
-                  ) : null}
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle2" gutterBottom>
-                  {t('portfolio:workspace.contributor.sections.notes')}
-                </Typography>
-                <TextField
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  multiline
-                  rows={4}
-                  fullWidth
-                  disabled={!canEdit}
-                  placeholder={t('portfolio:workspace.contributor.placeholders.notes')}
-                />
-              </CardContent>
-            </Card>
-          </Stack>
-        )}
-
-        {/* Skills Tab */}
-        {activeTab === 'skills' && (
-          <Stack spacing={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle2" gutterBottom>
-                  {t('portfolio:workspace.contributor.sections.addSkill')}
-                </Typography>
-                <Autocomplete
-                  options={availableSkills}
-                  groupBy={(option) => option.category}
-                  getOptionLabel={(option) => option.name}
-                  value={null}
-                  onChange={(_, v) => handleAddSkill(v)}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      placeholder={t('portfolio:workspace.contributor.placeholders.searchSkills')}
-                    />
-                  )}
-                  disabled={!canEdit}
-                  fullWidth
-                />
-              </CardContent>
-            </Card>
-
-            {selectedSkills.length === 0 && (
-              <Alert severity="info">
-                {t('portfolio:workspace.contributor.states.noSkills')}
-              </Alert>
-            )}
-
-            {Object.keys(selectedSkillsByCategory).sort().map((category) => {
-              const isExpanded = expandedCategories.has(category);
-              const skillCount = selectedSkillsByCategory[category].length;
-
-              return (
-                <Card key={category}>
-                  <Box
-                    onClick={() => toggleCategory(category)}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      px: 2,
-                      py: 1.5,
-                      cursor: 'pointer',
-                      '&:hover': { bgcolor: 'action.hover' },
+              <Box>
+                <Box sx={(theme) => ({ ...taskDetailTypography.sectionLabel, color: theme.palette.kanap.text.tertiary, mb: '6px' })}>
+                  {t('portfolio:workspace.contributor.sections.timeStatistics')}
+                </Box>
+                <Box sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.primary, mb: '12px' })}>
+                  {t('portfolio:workspace.contributor.values.averageMonthlyProjectEffort', {
+                    value: timeStats?.averageProjectDays ?? 0,
+                  })}
+                </Box>
+                {timeStats && (timeStats.monthly.length ? (
+                  <ChartCard
+                    title={t('portfolio:workspace.contributor.sections.monthlyEffort')}
+                    height={280}
+                    options={{
+                      data: timeStats.monthly.map((m) => ({
+                        month: formatMonth(m.yearMonth, locale),
+                        project: m.projectDays,
+                        other: m.otherDays,
+                        total: m.totalDays,
+                      })),
+                      series: [
+                        { type: 'line', xKey: 'month', yKey: 'total', yName: t('portfolio:workspace.contributor.chart.total') },
+                        { type: 'line', xKey: 'month', yKey: 'project', yName: t('portfolio:workspace.contributor.chart.project') },
+                        { type: 'line', xKey: 'month', yKey: 'other', yName: t('portfolio:workspace.contributor.chart.other') },
+                      ],
+                      axes: [
+                        { type: 'category', position: 'bottom' },
+                        { type: 'number', position: 'left', title: { text: t('portfolio:workspace.contributor.chart.manDays') } },
+                      ],
+                      legend: { enabled: true, position: 'bottom' },
                     }}
-                  >
-                    <Typography variant="subtitle1">
-                      {category}
-                      <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                        {t('portfolio:workspace.contributor.values.skillCount', { count: skillCount })}
-                      </Typography>
-                    </Typography>
-                    {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  />
+                ) : (
+                  <Box sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary })}>
+                    {t('portfolio:workspace.contributor.states.noTimeData')}
                   </Box>
-
-                  <Collapse in={isExpanded}>
-                    <Stack spacing={2} sx={{ px: 2, pb: 2 }}>
-                      {selectedSkillsByCategory[category].map((sp) => {
-                        const skill = getSkillById(sp.skill_id);
-                        if (!skill) return null;
-
-                        return (
-                          <Stack
-                            key={sp.skill_id}
-                            direction="row"
-                            alignItems="center"
-                            sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1 }}
-                          >
-                            <Typography variant="body2" sx={{ width: 200, flexShrink: 0 }}>
-                              {skill.name}
-                            </Typography>
-
-                            <Tooltip title={proficiencyLabels[sp.proficiency]} placement="top">
-                              <Box sx={{ width: 300, flexShrink: 0, mx: 2 }}>
-                                <Slider
-                                  value={sp.proficiency}
-                                  onChange={(_, v) => handleProficiencyChange(sp.skill_id, v as number)}
-                                  min={0}
-                                  max={4}
-                                  step={1}
-                                  marks={PROFICIENCY_MARKS}
-                                  valueLabelDisplay="auto"
-                                  valueLabelFormat={(v) => proficiencyLabels[v]}
-                                  disabled={!canEdit}
-                                />
-                              </Box>
-                            </Tooltip>
-
-                            <Box sx={{ flex: 1 }} />
-
-                            {canEdit && (
-                              <IconButton
-                                size="small"
-                                onClick={() => handleRemoveSkill(sp.skill_id)}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            )}
-                          </Stack>
-                        );
-                      })}
-                    </Stack>
-                  </Collapse>
-                </Card>
-              );
-            })}
-          </Stack>
+                ))}
+              </Box>
+            )}
+          </Box>
         )}
 
-        {activeTab === 'defaults' && (
-          <Stack spacing={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="subtitle2" gutterBottom>
-                  {t('portfolio:workspace.contributor.sections.classificationDefaults')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  {t('portfolio:workspace.contributor.sections.classificationDefaultsHelp')}
-                </Typography>
-                <Stack spacing={2} sx={{ maxWidth: 480 }}>
-                  <EnumAutocomplete
-                    label={t('portfolio:workspace.contributor.fields.source')}
-                    value={defaultSourceId}
-                    onChange={(value) => setDefaultSourceId(value)}
-                    options={sources.map((source) => ({ value: source.id, label: source.name }))}
-                    disabled={!canEdit}
-                  />
-                  <EnumAutocomplete
-                    label={t('portfolio:workspace.contributor.fields.category')}
-                    value={defaultCategoryId}
-                    onChange={handleDefaultCategoryChange}
-                    options={categories.map((category) => ({ value: category.id, label: category.name }))}
-                    disabled={!canEdit}
-                  />
-                  <EnumAutocomplete
-                    label={t('portfolio:workspace.contributor.fields.stream')}
-                    value={defaultStreamId}
-                    onChange={(value) => setDefaultStreamId(value)}
-                    options={filteredDefaultStreams.map((stream) => ({ value: stream.id, label: stream.name }))}
-                    disabled={!canEdit || !defaultCategoryId}
-                  />
-                  <CompanySelect
-                    label={t('portfolio:workspace.contributor.fields.company')}
-                    value={defaultCompanyId}
-                    onChange={(value) => setDefaultCompanyId(value)}
-                    disabled={!canEdit}
-                  />
-                </Stack>
-              </CardContent>
-            </Card>
-          </Stack>
+        {!isLoading && !notFound && activeTab === 'skills' && (
+          <ContributorSkillsTab
+            allSkills={skillsData?.items ?? []}
+            selectedSkills={skills}
+            canEdit={canEdit}
+            onRemove={handleRemoveSkill}
+            onLevelChange={handleLevelChange}
+          />
         )}
 
         {activeTab === 'time-logged' && member?.id && <ContributorTimeLog contributorId={member.id} />}
-      </Box>
-    </>
+      </PortfolioDetailWorkspaceShell>
+      <AddSkillDialog
+        open={addSkillOpen}
+        options={addableSkills}
+        onClose={() => setAddSkillOpen(false)}
+        onAdd={handleAddSkill}
+      />
+    </Box>
   );
 }

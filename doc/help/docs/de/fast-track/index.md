@@ -341,7 +341,7 @@ Siehe [Berichte-Referenz](../portfolio-reporting.md).
 | Berichte anzeigen | Portfolio > Berichte |
 | Bewertungsgewichte konfigurieren | Portfolio > Einstellungen > Bewertungskriterien |
 | Mitwirkende einrichten | Portfolio > Mitwirkende |
-| Klassifizierungs-Standardwerte festlegen | Portfolio > Mitwirkende > Profil öffnen > Standardwerte-Tab |
+| Klassifizierungs-Standardwerte festlegen | Portfolio > Mitwirkende > Profil öffnen > Eigenschaften-Panel |
 
 ---
 

@@ -3,12 +3,16 @@ import { Breadcrumbs, Link as MLink, Typography, Stack, Box } from '@mui/materia
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-type Crumb = { label: string; to?: string };
+type Crumb = { label: string; to?: string; /** Raw path segment the crumb was built from. */ segment: string };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isUuid(value: string): boolean {
   return UUID_RE.test(value);
+}
+
+function isEntitySegment(value: string): boolean {
+  return value === 'me' || isUuid(value);
 }
 
 function humanizeSegment(value: string): string {
@@ -66,7 +70,7 @@ function useBreadcrumbs(): Crumb[] {
   // Determine the root based on the first part of the path
   const crumbs: Crumb[] = [];
   if (parts.length === 0) {
-    crumbs.push({ label: t('breadcrumbs.dashboard'), to: '/ops' });
+    crumbs.push({ label: t('breadcrumbs.dashboard'), to: '/ops', segment: '' });
     return crumbs;
   }
 
@@ -76,7 +80,7 @@ function useBreadcrumbs(): Crumb[] {
     acc += '/' + parts[i];
     const label = mapLabel(parts[i]);
     const to = i < parts.length - 1 ? acc : undefined;
-    crumbs.push({ label, to });
+    crumbs.push({ label, to, segment: parts[i] });
   }
   return crumbs;
 }
@@ -97,22 +101,16 @@ export default function PageHeader({
   const { t } = useTranslation('nav');
   let crumbs = useBreadcrumbs();
 
-  // For /:id/:tab routes, replace UUID breadcrumb with tab label.
-  if (crumbs.length >= 2) {
-    const idCrumb = crumbs[crumbs.length - 2];
-    const tabCrumb = crumbs[crumbs.length - 1];
-    if (isUuid(idCrumb.label)) {
-      crumbs = [
-        ...crumbs.slice(0, -2),
-        { ...idCrumb, label: humanizeSegment(tabCrumb.label) },
-        tabCrumb,
-      ];
-    }
-  }
-
-  // Override last breadcrumb label if provided
+  // The entity crumb is the one built from the id segment (a UUID, or `me` for
+  // self-service routes). On `/…/:id/:tab` it sits before the tab crumb and
+  // keeps its link back to the entity; on `/…/:id` it is the last crumb.
+  // Test the raw segment: the label has already been humanized.
   if (breadcrumbTitle && crumbs.length > 0) {
-    crumbs = [...crumbs.slice(0, -1), { ...crumbs[crumbs.length - 1], label: breadcrumbTitle, to: undefined }];
+    const last = crumbs.length - 1;
+    const entityIndex = crumbs.length >= 2 && isEntitySegment(crumbs[last - 1].segment) ? last - 1 : last;
+    crumbs = crumbs.map((crumb, idx) => (
+      idx === entityIndex ? { ...crumb, label: breadcrumbTitle } : crumb
+    ));
   }
 
   const location = useLocation();

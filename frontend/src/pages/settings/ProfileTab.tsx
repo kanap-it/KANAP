@@ -216,7 +216,7 @@ export default function ProfileTab() {
             <Box>
               <Link
                 component={RouterLink}
-                to="/portfolio/contributors/me/defaults"
+                to="/portfolio/contributors/me"
                 sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
               >
                 {t('settings:profile.actions.viewContributorProfile')}

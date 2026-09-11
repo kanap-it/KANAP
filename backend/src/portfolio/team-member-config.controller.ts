@@ -13,6 +13,8 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireAnyLevel, RequireLevel } from '../auth/require-level.decorator';
+import { EntityManager } from 'typeorm';
+import { resolveToUuid } from '../common/resolve-item-id';
 import { TeamMemberConfigService } from './team-member-config.service';
 
 const PORTFOLIO_READER_REQUIREMENTS = [
@@ -28,6 +30,11 @@ const PORTFOLIO_READER_REQUIREMENTS = [
 @Controller('portfolio/team-members')
 export class TeamMemberConfigController {
   constructor(private readonly svc: TeamMemberConfigService) {}
+
+  /** `:id` routes accept the row UUID or the CTR-N business reference. */
+  private resolveId(idOrRef: string, req: any): Promise<string> {
+    return resolveToUuid(idOrRef, 'contributor', req?.queryRunner?.manager as EntityManager);
+  }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_settings', 'reader')
@@ -66,21 +73,24 @@ export class TeamMemberConfigController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_settings', 'reader')
   @Get(':id/time-stats')
-  getTimeStats(@Param('id') id: string, @Req() req: any) {
+  async getTimeStats(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolveId(idOrRef, req);
     return this.svc.getTimeStats(id, { manager: req?.queryRunner?.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_settings', 'reader')
   @Get(':id/time-entries')
-  listTimeEntries(@Param('id') id: string, @Req() req: any) {
+  async listTimeEntries(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolveId(idOrRef, req);
     return this.svc.listTimeEntries(id, { manager: req?.queryRunner?.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_settings', 'reader')
   @Get(':id')
-  get(@Param('id') id: string, @Req() req: any) {
+  async get(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolveId(idOrRef, req);
     return this.svc.get(id, { manager: req?.queryRunner?.manager });
   }
 
@@ -119,7 +129,8 @@ export class TeamMemberConfigController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_settings', 'member')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+  async update(@Param('id') idOrRef: string, @Body() body: any, @Req() req: any) {
+    const id = await this.resolveId(idOrRef, req);
     const userId = req?.user?.id ?? null;
     return this.svc.update(id, body, userId, { manager: req?.queryRunner?.manager });
   }
@@ -138,7 +149,8 @@ export class TeamMemberConfigController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_settings', 'admin')
   @Delete(':id')
-  delete(@Param('id') id: string, @Req() req: any) {
+  async delete(@Param('id') idOrRef: string, @Req() req: any) {
+    const id = await this.resolveId(idOrRef, req);
     const userId = req?.user?.id ?? null;
     return this.svc.delete(id, userId, { manager: req?.queryRunner?.manager });
   }

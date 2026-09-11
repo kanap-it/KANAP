@@ -126,10 +126,6 @@
     "closeProperties": "Cerrar propiedades",
     "contributor": {
       "titleFallback": "Colaborador",
-      "actions": {
-        "backToList": "Volver a la lista",
-        "backToSettings": "Volver a configuración"
-      },
       "chart": {
         "manDays": "Días-persona",
         "other": "Otros",
@@ -144,49 +140,74 @@
         "category": "Categoría",
         "company": "Empresa",
         "source": "Origen",
-        "stream": "Línea"
+        "stream": "Línea",
+        "team": "Equipo",
+        "projectAvailability": "Disponibilidad para proyectos"
       },
       "messages": {
         "deleteFailed": "Error al eliminar",
         "saveFailed": "Error al guardar"
       },
       "placeholders": {
-        "notes": "Notas adicionales sobre este colaborador...",
-        "searchSkills": "Buscar competencias..."
+        "notes": "p. ej., disponible solo lunes y martes",
+        "searchSkills": "p. ej., administración de redes"
       },
       "proficiency": {
-        "0": "Sin conocimiento",
         "1": "Básico / Teórico",
         "2": "Puede ejecutar con soporte",
         "3": "Autónomo",
         "4": "Experto"
       },
       "sections": {
-        "addSkill": "Agregar competencia",
-        "classificationDefaults": "Valores de clasificación predeterminados",
         "classificationDefaultsHelp": "Estos valores predeterminados se utilizan para precargar nuevas tareas, solicitudes y proyectos cuando los campos de clasificación aún están vacíos.",
         "monthlyEffort": "Esfuerzo mensual (12 meses)",
         "notes": "Notas",
-        "projectAvailability": "Disponibilidad de proyecto (días por mes)",
-        "team": "Equipo",
         "timeStatistics": "Estadísticas de tiempo"
       },
       "states": {
-        "noSkills": "No se han seleccionado competencias. Use el campo de arriba para agregar competencias.",
+        "noSkills": "Todavía no hay competencias. Use «Añadir competencia» en el encabezado.",
         "noTimeData": "Aún no hay datos de tiempo disponibles.",
         "notFound": "Colaborador no encontrado"
       },
       "tabs": {
-        "defaults": "Valores predeterminados",
         "general": "General",
         "skills": "Competencias",
         "timeLogged": "Tiempo registrado"
       },
       "values": {
         "averageMonthlyProjectEffort": "Esfuerzo promedio mensual en proyectos (últimos 6 meses): {{value}} d/mes",
-        "daysPerMonth": "{{count}} días/mes",
-        "skillCount": "({{count}} competencias)",
-        "unassigned": "Sin asignar"
+        "unassigned": "Sin asignar",
+        "skillCount_one": "{{count}} competencia",
+        "skillCount_other": "{{count}} competencias",
+        "daysPerMonthShort": "{{count}} d/mes"
+      },
+      "metadata": {
+        "team": "Equipo",
+        "noTeam": "Sin equipo",
+        "editTeam": "Cambiar de equipo",
+        "availability": "Disponibilidad"
+      },
+      "aria": {
+        "skillLevel": "Nivel de {{skill}}",
+        "levelOption": "{{level}} – {{label}}",
+        "removeSkill": "Quitar {{skill}}"
+      },
+      "nav": {
+        "previous": "Colaborador anterior",
+        "next": "Colaborador siguiente"
+      },
+      "groupBy": {
+        "label": "Agrupar por",
+        "category": "Categoría",
+        "level": "Nivel"
+      },
+      "actions": {
+        "addSkill": "Añadir competencia"
+      },
+      "addSkillDialog": {
+        "title": "Añadir una competencia",
+        "skill": "Competencia",
+        "level": "Nivel"
       }
     },
     "project": {
@@ -846,46 +867,6 @@
           "unknownPerson": "Desconocido"
         }
       }
-    },
-    "teamMember": {
-      "actions": {
-        "backToList": "Volver a la lista"
-      },
-      "confirmations": {
-        "remove": "¿Eliminar la configuración de este miembro del equipo?"
-      },
-      "messages": {
-        "deleteFailed": "Error al eliminar",
-        "saveFailed": "Error al guardar"
-      },
-      "placeholders": {
-        "notes": "Notas adicionales sobre este miembro del equipo...",
-        "searchSkills": "Buscar competencias..."
-      },
-      "proficiency": {
-        "0": "Sin conocimiento",
-        "1": "Básico / Teórico",
-        "2": "Puede ejecutar con soporte",
-        "3": "Autónomo",
-        "4": "Experto"
-      },
-      "sections": {
-        "addSkill": "Agregar competencia",
-        "notes": "Notas",
-        "projectAvailability": "Disponibilidad de proyecto (días por mes)"
-      },
-      "states": {
-        "noSkills": "No se han seleccionado competencias. Use el campo de arriba para agregar competencias.",
-        "notFound": "Miembro del equipo no encontrado"
-      },
-      "tabs": {
-        "general": "General",
-        "skills": "Competencias"
-      },
-      "values": {
-        "daysPerMonth": "{{count}} días/mes",
-        "skillCount": "({{count}} competencias)"
-      }
     }
   },
   "tasks": {
@@ -1225,7 +1206,9 @@
   "contributors": {
     "title": "Colaboradores",
     "actions": {
-      "addContributor": "Agregar colaborador"
+      "addContributor": "Agregar colaborador",
+      "collapseTeam": "Contraer equipo",
+      "expandTeam": "Expandir equipo"
     },
     "filters": {
       "team": "Filtrar por equipo",
@@ -1252,29 +1235,6 @@
     },
     "messages": {
       "addFailed": "Error al agregar el colaborador"
-    }
-  },
-  "teamMembers": {
-    "title": "Miembros del equipo",
-    "actions": {
-      "addTeamMember": "Agregar miembro del equipo"
-    },
-    "states": {
-      "empty": "Aún no hay miembros del equipo configurados. Agregue miembros del equipo para definir sus competencias y disponibilidad."
-    },
-    "cards": {
-      "skillCount_one": "{{count}} competencia",
-      "skillCount_other": "{{count}} competencias",
-      "daysPerMonth": "{{count}} días/mes"
-    },
-    "dialog": {
-      "title": "Agregar miembro del equipo",
-      "selectUser": "Seleccionar usuario",
-      "searchUsers": "Buscar usuarios...",
-      "adding": "Agregando..."
-    },
-    "messages": {
-      "addFailed": "Error al agregar el miembro del equipo"
     }
   },
   "actions": {
