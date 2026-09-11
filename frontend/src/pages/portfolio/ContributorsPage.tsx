@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert, Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Stack, TextField,
+  IconButton, MenuItem, Stack, Tab, Tabs, TextField, type Theme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -19,6 +19,9 @@ import {
 } from '../../theme/formSx';
 import { groupContributorsByTeam, sortGroupIds, UNASSIGNED_GROUP } from './contributorsOrdering';
 import { buildItemPath, formatItemRef } from '../../utils/item-ref';
+import { useLocalStorageState } from '../../hooks/useLocalStorageState';
+import ContributorsSkillsMatrix from './components/ContributorsSkillsMatrix';
+import type { SkillOption } from './components/ContributorSkillsTab';
 
 interface Contributor {
   id: string;
@@ -64,6 +67,24 @@ const statSx = {
   whiteSpace: 'nowrap',
 } as const;
 
+type ViewKey = 'list' | 'matrix';
+
+const VIEW_STORAGE_KEY = 'kanap.contributors.view';
+
+const viewTabSx = (active: boolean) => (theme: Theme) => ({
+  minHeight: 'auto',
+  px: 0,
+  py: '4px',
+  mr: '20px',
+  minWidth: 'auto',
+  textTransform: 'none' as const,
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: active ? 500 : 400,
+  color: active ? theme.palette.kanap.teal : theme.palette.kanap.text.secondary,
+  '&:hover': { color: active ? theme.palette.kanap.teal : theme.palette.kanap.text.primary },
+});
+
 export default function ContributorsPage() {
   const navigate = useNavigate();
   const { hasLevel } = useAuth();
@@ -76,6 +97,28 @@ export default function ContributorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [filterTeamId, setFilterTeamId] = useState<string>('all');
   const [collapsedTeams, setCollapsedTeams] = useState<Record<string, boolean>>({});
+
+  // The URL owns the view so a matrix link can be shared; localStorage only
+  // remembers the last choice when the address carries no ?view=.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [storedView, setStoredView] = useLocalStorageState<ViewKey>(VIEW_STORAGE_KEY, 'list');
+  const urlView = searchParams.get('view');
+  const view: ViewKey = urlView === 'matrix' || urlView === 'list' ? urlView : storedView;
+
+  // The matrix owns the grid's shape, so it hands its export up here and the
+  // action sits with the other page actions instead of floating over the grid.
+  const [exportMatrix, setExportMatrix] = useState<(() => void) | null>(null);
+  const handleExportChange = useCallback((exportXlsx: (() => void) | null) => {
+    setExportMatrix(() => exportXlsx);
+  }, []);
+
+  const changeView = useCallback((next: ViewKey) => {
+    setStoredView(next);
+    const params = new URLSearchParams(searchParams);
+    if (next === 'list') params.delete('view');
+    else params.set('view', next);
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams, setStoredView]);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['portfolio-contributors'],
@@ -101,6 +144,12 @@ export default function ContributorsPage() {
     },
   });
 
+  const { data: skillsData } = useQuery({
+    queryKey: ['portfolio-skills'],
+    queryFn: async () => (await api.get('/portfolio/skills')).data as { items: SkillOption[] },
+    enabled: view === 'matrix',
+  });
+
   const { data: allUsers } = useQuery({
     queryKey: ['users-for-contributor-select'],
     queryFn: async () => {
@@ -112,6 +161,7 @@ export default function ContributorsPage() {
 
   const contributors = data || [];
   const teams = teamsData || [];
+  const skills = skillsData?.items || [];
 
   const getTeamName = useCallback((groupId: string) => {
     if (groupId === UNASSIGNED_GROUP) return t('contributors.filters.unassigned');
@@ -159,10 +209,22 @@ export default function ContributorsPage() {
     }
   }, [navigate, refetch, selectedUser, t]);
 
-  const actions = canEdit ? (
-    <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddDialogOpen(true)}>
-      {t('contributors.actions.addContributor')}
-    </Button>
+  // Same shape as the requests page: the primary action first, secondary ones
+  // as plain text buttons after it.
+  const canExport = view === 'matrix' && exportMatrix !== null;
+  const actions = canExport || canEdit ? (
+    <Stack direction="row" spacing={1}>
+      {canEdit && (
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddDialogOpen(true)}>
+          {t('contributors.actions.addContributor')}
+        </Button>
+      )}
+      {canExport && (
+        <Button onClick={() => exportMatrix?.()}>
+          {t('contributors.matrix.export.action')}
+        </Button>
+      )}
+    </Stack>
   ) : null;
 
   return (
@@ -170,7 +232,16 @@ export default function ContributorsPage() {
       <PageHeader title={t('contributors.title')} actions={actions} />
 
       <Box sx={{ p: 2 }}>
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '24px', mb: 3 }}>
+          <Tabs
+            value={view}
+            onChange={(_, next) => changeView(next as ViewKey)}
+            aria-label={t('contributors.views.label')}
+            sx={{ minHeight: 'auto', '& .MuiTabs-indicator': { display: 'none' } }}
+          >
+            <Tab value="list" label={t('contributors.views.list')} sx={viewTabSx(view === 'list')} />
+            <Tab value="matrix" label={t('contributors.views.matrix')} sx={viewTabSx(view === 'matrix')} />
+          </Tabs>
           <TextField
             select
             value={filterTeamId}
@@ -200,6 +271,17 @@ export default function ContributorsPage() {
           </Box>
         )}
 
+        {view === 'matrix' && contributors.length > 0 && (
+          <ContributorsSkillsMatrix
+            contributors={contributors}
+            teams={teams}
+            skills={skills}
+            filterTeamId={filterTeamId}
+            onExportChange={handleExportChange}
+          />
+        )}
+
+        {view === 'list' && (
         <Stack spacing={2.5} sx={{ maxWidth: 900 }}>
           {groups.map(({ groupId, members }) => {
             const isExpanded = !collapsedTeams[groupId];
@@ -273,6 +355,7 @@ export default function ContributorsPage() {
             );
           })}
         </Stack>
+        )}
       </Box>
 
       <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
