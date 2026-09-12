@@ -1163,6 +1163,31 @@ async function testAddTicketGroupIsAdditiveIdempotentAndRestrictedToAssignableGr
   }
 }
 
+async function testCategoriesCatalogueAndWrite() {
+  const service = createService();
+  const originalFetch = global.fetch;
+  const requests: Array<{url: string; body: any}> = [];
+  const session = { baseUrl: 'https://glpi.internal/', sessionToken: 'session-token', appToken: null };
+  try {
+    global.fetch = (async (url: any, init: any) => {
+      requests.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
+      return new Response(JSON.stringify(init?.method === 'PUT' ? { id: 17 } : [
+        { id: 2, name: 'SAP', completename: 'Software &#62; SAP', itilcategories_id: 1 },
+        { id: 3, name: 'Hardware', completename: 'Hardware', itilcategories_id: 0 },
+      ]), { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as typeof fetch;
+    const categories = await service.listCategories(session);
+    assert.deepEqual(categories.map((item) => item.id), [3, 2]);
+    assert.equal(categories[1].completename, 'Software > SAP');
+    assert.equal(categories[1].parentId, 1);
+    await service.listCategories(session);
+    assert.equal(requests.length, 1);
+    assert.match(requests[0].url, /apirest\.php\/ITILCategory\?/);
+    await service.updateTicketFields(session, 17, { itilcategories_id: 2 });
+    assert.deepEqual(requests[1].body, { input: { itilcategories_id: 2 } });
+  } finally { global.fetch = originalFetch; }
+}
+
 async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
@@ -1189,6 +1214,7 @@ async function run() {
   await testSearchTicketsForScopeTreatsZeroResultsAsEmpty();
   await testListReferenceSubtreeIdsExpandsDescendantsAndCachesTree();
   await testSearchTicketsForScopeUsesUnderCriteriaAndMembershipForSubtrees();
+  await testCategoriesCatalogueAndWrite();
   await testAssignableGroupsCatalogueFiltersSortsAndCaches();
   await testAddTicketGroupIsAdditiveIdempotentAndRestrictedToAssignableGroups();
 }

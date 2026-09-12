@@ -242,6 +242,14 @@ export type SimilarTicket = {
 export type TicketClassificationContext = {
   ticketId: string;
   category?: string | null;
+  categoryKey?: string | null;
+  classificationSupported?: boolean;
+  categoryCatalogTruncated?: boolean;
+  options?: {
+    types: Array<{ key: string; label: string }>;
+    priorities: Array<{ key: string; label: string }>;
+    categories: Array<{ key: string; label: string }>;
+  };
   service?: string | null;
   type?: string | null;
   priority?: string | null;
@@ -317,7 +325,8 @@ export type TicketClassificationUpdateActionPayload = {
   ticketId: string;
   action: 'classification_update';
   current: TicketClassificationContext;
-  proposed: TicketClassificationUpdateProposal;
+  // Input category is a catalogue key; the prepared payload carries its display label.
+  proposed: TicketClassificationUpdateProposal & { categoryKey?: string };
   providerFields?: Record<string, unknown>;
   reason: string;
 };
@@ -780,7 +789,7 @@ export interface TicketingProvider extends ProviderBase {
   // Expand tree-catalog ids (categories/entities) to the ids plus all their
   // descendants, input ids first. Backs recursive targeting selection.
   resolveReferenceSubtree(context: ProviderContext, input: { kind: TicketReferenceCatalogKind; ids: string[] }): Promise<AdapterResult<{ ids: string[] }>>;
-  getTicketClassificationContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketClassificationContext>>;
+  getTicketClassificationContext(context: ProviderContext, input: { ticketId: string; categoryScopeKeys?: string[] }): Promise<AdapterResult<TicketClassificationContext>>;
   getTicketLifecycleContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketLifecycleContext>>;
   getTicketRoutingContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketRoutingContext>>;
   getTicketParticipantContext(context: ProviderContext, input: { ticketId: string }): Promise<AdapterResult<TicketParticipantContext>>;
