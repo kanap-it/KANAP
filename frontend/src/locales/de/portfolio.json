@@ -1220,7 +1220,8 @@
     "views": {
       "label": "Ansicht der Mitwirkenden",
       "list": "Liste",
-      "matrix": "Kompetenzmatrix"
+      "matrix": "Kompetenzmatrix",
+      "org": "Organigramm"
     },
     "filters": {
       "team": "Nach Team filtern",
@@ -1258,6 +1259,36 @@
         "team": "Team",
         "category": "Kategorie",
         "skill": "Kompetenz"
+      }
+    },
+    "org": {
+      "filtersLabel": "Einstellungen des Organigramms",
+      "canvasLabel": "Berichtslinie",
+      "root": {
+        "label": "Beginnen bei",
+        "everyone": "Alle"
+      },
+      "depth": {
+        "label": "Ebenen",
+        "all": "Alle Ebenen",
+        "levels_one": "{{count}} Ebene",
+        "levels_other": "{{count}} Ebenen"
+      },
+      "includeDisabled": "Deaktivierte Konten einbeziehen",
+      "via": "Zugeordnet über {{names}}",
+      "collapse_one": "{{count}} unterstellte Person ausblenden",
+      "collapse_other": "{{count}} unterstellte Personen ausblenden",
+      "expand_one": "{{count}} unterstellte Person anzeigen",
+      "expand_other": "{{count}} unterstellte Personen anzeigen",
+      "zoom": {
+        "in": "Vergrößern",
+        "out": "Verkleinern",
+        "reset": "Zoom zurücksetzen"
+      },
+      "exportPng": "Als PNG exportieren",
+      "exportFailed": "Das Organigramm konnte nicht exportiert werden.",
+      "states": {
+        "allFiltered": "Alle Mitwirkenden sind durch die Filter oben ausgeblendet."
       }
     },
     "states": {

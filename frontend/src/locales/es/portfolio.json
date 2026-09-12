@@ -1220,7 +1220,8 @@
     "views": {
       "label": "Vista de colaboradores",
       "list": "Lista",
-      "matrix": "Matriz de competencias"
+      "matrix": "Matriz de competencias",
+      "org": "Organigrama"
     },
     "filters": {
       "team": "Filtrar por equipo",
@@ -1258,6 +1259,36 @@
         "team": "Equipo",
         "category": "Categoría",
         "skill": "Competencia"
+      }
+    },
+    "org": {
+      "filtersLabel": "Ajustes del organigrama",
+      "canvasLabel": "Línea jerárquica",
+      "root": {
+        "label": "Empezar por",
+        "everyone": "Todos"
+      },
+      "depth": {
+        "label": "Niveles",
+        "all": "Todos los niveles",
+        "levels_one": "{{count}} nivel",
+        "levels_other": "{{count}} niveles"
+      },
+      "includeDisabled": "Incluir cuentas desactivadas",
+      "via": "Asignado a través de {{names}}",
+      "collapse_one": "Ocultar {{count}} subordinado",
+      "collapse_other": "Ocultar {{count}} subordinados",
+      "expand_one": "Mostrar {{count}} subordinado",
+      "expand_other": "Mostrar {{count}} subordinados",
+      "zoom": {
+        "in": "Acercar",
+        "out": "Alejar",
+        "reset": "Restablecer el zoom"
+      },
+      "exportPng": "Exportar a PNG",
+      "exportFailed": "No se ha podido exportar el organigrama.",
+      "states": {
+        "allFiltered": "Todos los colaboradores están ocultos por los filtros anteriores."
       }
     },
     "states": {

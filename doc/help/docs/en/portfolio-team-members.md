@@ -45,7 +45,7 @@ Contributors are displayed as cards grouped by team.
 - Use the **Filter by Team** dropdown to show only contributors from a specific team
 - Select **Unassigned** to see contributors who haven't been assigned to a team yet
 - Select **All Teams** to see everyone
-- Use the **Filter by contract type** dropdown next to it to show only internal staff, only externals, and so on. The two filters combine, and both apply to the list and to the skills matrix.
+- Use the **Filter by contract type** dropdown next to it to show only internal staff, only externals, and so on. The two filters combine, and both apply to the list and to the skills matrix. The org chart has its own controls instead, because a reporting line crosses teams.
 
 **Team groups**:
 - Each team is displayed as a collapsible card with a member count badge
@@ -55,7 +55,7 @@ Contributors are displayed as cards grouped by team.
 Click any contributor card to open their workspace.
 
 **Switching views**:
-Above the team filter, **List** and **Skills matrix** switch between the two readings of the same people. The team filter applies to both. The address changes to `?view=matrix`, so a matrix link can be bookmarked or shared, and the last view you used is remembered in your browser.
+Above the team filter, **List**, **Skills matrix** and **Org chart** switch between three readings of the same people. The team filter applies to the first two. The address changes to `?view=matrix` or `?view=org`, so a link can be bookmarked or shared, and the last view you used is remembered in your browser.
 
 ---
 
@@ -82,6 +82,33 @@ Catalogs are usually longer than teams, so contributors sit in the columns by de
 **Acting on what you see**:
 - Click a contributor to open their **Skills** tab, where levels can be changed
 - **Export**, next to **Add contributor** at the top of the page, downloads what is on screen as an `.xlsx` file, laid out the same way round, levels as numbers. Useful for skill reviews and training plans
+
+---
+
+## The org chart
+
+The org chart draws the reporting line of your contributors, built from the **Manager** set on each profile. Everyone who has no manager among the contributors sits at the top, side by side, so several independent branches can be read at once.
+
+**Reading a card**:
+- Initials, name, job title, contract type, and the number of skills on the profile
+- Click a card to open that contributor
+- A card with people below it carries a small chevron on its bottom edge. Click it to fold that branch away, click again to unfold it
+- Hover a card that was moved up the chart to read which manager was skipped, for example "Reports through Claire Meunier"
+
+**Who appears**:
+- Only contributors are drawn. If someone's manager is not a contributor, that person becomes a top-of-chart entry rather than disappearing
+- Disabled accounts are left out. **Include disabled accounts** brings them back, which is useful while a departure is being handed over
+- Each contract type has a pill above the chart. Switch one off and those people leave the chart, **but their own reports stay**: they move up to the nearest manager still on screen. Hiding the externals therefore keeps your internal staff in one readable tree instead of cutting whole branches away
+
+**Framing the chart**:
+- **Start from** narrows the chart to one person and everyone below them, which is how you produce a single department's chart
+- **Levels** limits how far down the chart goes, for example the top two levels for a management overview
+- The zoom controls on the right scale the drawing; the chart scrolls in both directions inside its frame
+- Every one of these choices is written into the address, so a branch chart can be sent to someone as a link exactly as you framed it
+
+**Exporting and printing**:
+- **Export PNG**, next to **Add contributor** at the top of the page, saves the whole chart as an image, always on a white background whatever theme you are reading in. The export date is stamped in the bottom-left corner. Folded branches stay folded, and a folded card carries the number of people hidden below it. The zoom on screen does not change the image
+- Your browser's print command prints the chart on its own, in landscape and without the surrounding application
 
 ---
 

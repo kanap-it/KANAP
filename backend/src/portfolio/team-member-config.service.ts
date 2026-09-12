@@ -164,6 +164,7 @@ export class TeamMemberConfigService {
         TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_display_name,
         u.email as user_email,
         u.job_title as job_title,
+        u.status as user_status,
         pt.name as team_name,
         TRIM(COALESCE(mgr.first_name, '') || ' ' || COALESCE(mgr.last_name, '')) as manager_name,
         et.name as employment_type_name
@@ -189,6 +190,7 @@ export class TeamMemberConfigService {
         TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_display_name,
         u.email as user_email,
         u.job_title as job_title,
+        u.status as user_status,
         pt.name as team_name,
         TRIM(COALESCE(mgr.first_name, '') || ' ' || COALESCE(mgr.last_name, '')) as manager_name,
         et.name as employment_type_name

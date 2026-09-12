@@ -21,6 +21,8 @@ import { groupContributorsByTeam, sortGroupIds, UNASSIGNED_GROUP } from './contr
 import { buildItemPath, formatItemRef } from '../../utils/item-ref';
 import { useLocalStorageState } from '../../hooks/useLocalStorageState';
 import ContributorsSkillsMatrix from './components/ContributorsSkillsMatrix';
+import ContributorsOrgChart from './components/ContributorsOrgChart';
+import { ORG_CHART_PARAMS } from './orgChart';
 import type { SkillOption } from './components/ContributorSkillsTab';
 
 interface Contributor {
@@ -36,6 +38,10 @@ interface Contributor {
   team_id?: string | null;
   team_name?: string;
   employment_type_id?: string | null;
+  employment_type_name?: string | null;
+  job_title?: string | null;
+  user_status?: string | null;
+  manager_user_id?: string | null;
 }
 
 interface Team {
@@ -74,7 +80,7 @@ const statSx = {
   whiteSpace: 'nowrap',
 } as const;
 
-type ViewKey = 'list' | 'matrix';
+type ViewKey = 'list' | 'matrix' | 'org';
 
 const VIEW_STORAGE_KEY = 'kanap.contributors.view';
 
@@ -111,13 +117,14 @@ export default function ContributorsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [storedView, setStoredView] = useLocalStorageState<ViewKey>(VIEW_STORAGE_KEY, 'list');
   const urlView = searchParams.get('view');
-  const view: ViewKey = urlView === 'matrix' || urlView === 'list' ? urlView : storedView;
+  const view: ViewKey = urlView === 'matrix' || urlView === 'org' || urlView === 'list' ? urlView : storedView;
 
-  // The matrix owns the grid's shape, so it hands its export up here and the
-  // action sits with the other page actions instead of floating over the grid.
-  const [exportMatrix, setExportMatrix] = useState<(() => void) | null>(null);
-  const handleExportChange = useCallback((exportXlsx: (() => void) | null) => {
-    setExportMatrix(() => exportXlsx);
+  // Each view owns its own action (export for the matrix, print for the org
+  // chart) and hands it up here, so it sits with the other page actions instead
+  // of floating over the content.
+  const [viewAction, setViewAction] = useState<{ label: string; run: () => void } | null>(null);
+  const handleActionChange = useCallback((action: { label: string; run: () => void } | null) => {
+    setViewAction(action);
   }, []);
 
   const changeView = useCallback((next: ViewKey) => {
@@ -125,6 +132,8 @@ export default function ContributorsPage() {
     const params = new URLSearchParams(searchParams);
     if (next === 'list') params.delete('view');
     else params.set('view', next);
+    // The org chart's own parameters mean nothing anywhere else.
+    if (next !== 'org') for (const key of ORG_CHART_PARAMS) params.delete(key);
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams, setStoredView]);
 
@@ -180,7 +189,9 @@ export default function ContributorsPage() {
   const skills = skillsData?.items || [];
 
   // Filtering upstream of the views keeps the list and the matrix coherent
-  // through one code path; the matrix only knows about the team filter.
+  // through one code path; the matrix only knows about the team filter. The org
+  // chart is deliberately left out: a reporting line crosses teams, and it
+  // carries its own contract-type pills.
   const contributors = useMemo(() => {
     const all = data || [];
     if (filterEmploymentTypeId === 'all') return all;
@@ -235,19 +246,14 @@ export default function ContributorsPage() {
 
   // Same shape as the requests page: the primary action first, secondary ones
   // as plain text buttons after it.
-  const canExport = view === 'matrix' && exportMatrix !== null;
-  const actions = canExport || canEdit ? (
+  const actions = viewAction || canEdit ? (
     <Stack direction="row" spacing={1}>
       {canEdit && (
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddDialogOpen(true)}>
           {t('contributors.actions.addContributor')}
         </Button>
       )}
-      {canExport && (
-        <Button onClick={() => exportMatrix?.()}>
-          {t('contributors.matrix.export.action')}
-        </Button>
-      )}
+      {viewAction && <Button onClick={viewAction.run}>{viewAction.label}</Button>}
     </Stack>
   ) : null;
 
@@ -265,50 +271,55 @@ export default function ContributorsPage() {
           >
             <Tab value="list" label={t('contributors.views.list')} sx={viewTabSx(view === 'list')} />
             <Tab value="matrix" label={t('contributors.views.matrix')} sx={viewTabSx(view === 'matrix')} />
+            <Tab value="org" label={t('contributors.views.org')} sx={viewTabSx(view === 'org')} />
           </Tabs>
-          <TextField
-            select
-            value={filterTeamId}
-            onChange={(e) => setFilterTeamId(e.target.value)}
-            variant="standard"
-            size="small"
-            aria-label={t('contributors.filters.team')}
-            sx={{ ...pageSelectSx, width: 260 }}
-            SelectProps={{ MenuProps: compactSelectMenuProps }}
-          >
-            <MenuItem value="all" sx={drawerMenuItemSx}>{t('contributors.filters.allTeams')}</MenuItem>
-            {teams
-              .filter((team) => team.is_active)
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((team) => (
-                <MenuItem key={team.id} value={team.id} sx={drawerMenuItemSx}>
-                  {team.name}
-                </MenuItem>
-              ))}
-            <MenuItem value={UNASSIGNED_GROUP} sx={drawerMenuItemSx}>{t('contributors.filters.unassigned')}</MenuItem>
-          </TextField>
-          <TextField
-            select
-            value={filterEmploymentTypeId}
-            onChange={(e) => setFilterEmploymentTypeId(e.target.value)}
-            variant="standard"
-            size="small"
-            aria-label={t('contributors.filters.employmentType')}
-            sx={{ ...pageSelectSx, width: 260 }}
-            SelectProps={{ MenuProps: compactSelectMenuProps }}
-          >
-            <MenuItem value="all" sx={drawerMenuItemSx}>{t('contributors.filters.allEmploymentTypes')}</MenuItem>
-            {employmentTypes
-              .filter((type) => type.is_active)
-              .map((type) => (
-                <MenuItem key={type.id} value={type.id} sx={drawerMenuItemSx}>
-                  {type.name}
-                </MenuItem>
-              ))}
-          </TextField>
+          {view !== 'org' && (
+            <>
+              <TextField
+                select
+                value={filterTeamId}
+                onChange={(e) => setFilterTeamId(e.target.value)}
+                variant="standard"
+                size="small"
+                aria-label={t('contributors.filters.team')}
+                sx={{ ...pageSelectSx, width: 260 }}
+                SelectProps={{ MenuProps: compactSelectMenuProps }}
+              >
+                <MenuItem value="all" sx={drawerMenuItemSx}>{t('contributors.filters.allTeams')}</MenuItem>
+                {teams
+                  .filter((team) => team.is_active)
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((team) => (
+                    <MenuItem key={team.id} value={team.id} sx={drawerMenuItemSx}>
+                      {team.name}
+                    </MenuItem>
+                  ))}
+                <MenuItem value={UNASSIGNED_GROUP} sx={drawerMenuItemSx}>{t('contributors.filters.unassigned')}</MenuItem>
+              </TextField>
+              <TextField
+                select
+                value={filterEmploymentTypeId}
+                onChange={(e) => setFilterEmploymentTypeId(e.target.value)}
+                variant="standard"
+                size="small"
+                aria-label={t('contributors.filters.employmentType')}
+                sx={{ ...pageSelectSx, width: 260 }}
+                SelectProps={{ MenuProps: compactSelectMenuProps }}
+              >
+                <MenuItem value="all" sx={drawerMenuItemSx}>{t('contributors.filters.allEmploymentTypes')}</MenuItem>
+                {employmentTypes
+                  .filter((type) => type.is_active)
+                  .map((type) => (
+                    <MenuItem key={type.id} value={type.id} sx={drawerMenuItemSx}>
+                      {type.name}
+                    </MenuItem>
+                  ))}
+              </TextField>
+            </>
+          )}
         </Box>
 
-        {!isLoading && contributors.length === 0 && (
+        {!isLoading && (view === 'org' ? (data || []).length === 0 : contributors.length === 0) && (
           <Box sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary })}>
             {(data || []).length === 0
               ? t('contributors.states.empty')
@@ -322,7 +333,15 @@ export default function ContributorsPage() {
             teams={teams}
             skills={skills}
             filterTeamId={filterTeamId}
-            onExportChange={handleExportChange}
+            onActionChange={handleActionChange}
+          />
+        )}
+
+        {view === 'org' && (data || []).length > 0 && (
+          <ContributorsOrgChart
+            contributors={data || []}
+            employmentTypes={employmentTypes}
+            onActionChange={handleActionChange}
           />
         )}
 

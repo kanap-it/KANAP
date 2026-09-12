@@ -45,7 +45,7 @@ Mitwirkende werden als Karten angezeigt, gruppiert nach Team.
 - Verwenden Sie das Dropdown **Nach Team filtern**, um nur Mitwirkende eines bestimmten Teams anzuzeigen
 - Wählen Sie **Nicht zugewiesen**, um Mitwirkende zu sehen, die noch keinem Team zugewiesen sind
 - Wählen Sie **Alle Teams**, um alle zu sehen
-- Verwenden Sie daneben das Dropdown **Nach Vertragsart filtern**, um nur internes Personal, nur Externe und so weiter anzuzeigen. Beide Filter wirken zusammen und gelten sowohl für die Liste als auch für die Kompetenzmatrix.
+- Verwenden Sie daneben das Dropdown **Nach Vertragsart filtern**, um nur internes Personal, nur Externe und so weiter anzuzeigen. Beide Filter wirken zusammen und gelten sowohl für die Liste als auch für die Kompetenzmatrix. Das Organigramm hat stattdessen eigene Bedienelemente, da eine Berichtslinie über Teams hinweg verläuft.
 
 **Teamgruppen**:
 - Jedes Team wird als zusammenklappbare Karte mit einem Mitgliederzahl-Badge angezeigt
@@ -55,7 +55,7 @@ Mitwirkende werden als Karten angezeigt, gruppiert nach Team.
 Klicken Sie auf eine Mitwirkenden-Karte, um ihren Arbeitsbereich zu öffnen.
 
 **Ansicht wechseln**:
-Über dem Team-Filter wechseln **Liste** und **Kompetenzmatrix** zwischen den beiden Lesarten derselben Personen. Der Team-Filter gilt für beide. Die Adresse ändert sich zu `?view=matrix`, sodass ein Link auf die Matrix als Lesezeichen gespeichert oder geteilt werden kann, und die zuletzt verwendete Ansicht wird in Ihrem Browser gemerkt.
+Über dem Team-Filter wechseln **Liste**, **Kompetenzmatrix** und **Organigramm** zwischen drei Lesarten derselben Personen. Der Team-Filter gilt für die ersten beiden. Die Adresse ändert sich zu `?view=matrix` oder `?view=org`, sodass ein Link als Lesezeichen gespeichert oder geteilt werden kann, und die zuletzt verwendete Ansicht wird in Ihrem Browser gemerkt.
 
 ---
 
@@ -82,6 +82,33 @@ Kataloge sind meist länger als Teams, deshalb stehen die Mitwirkenden standardm
 **Auf das Gesehene reagieren**:
 - Klicken Sie auf einen Mitwirkenden, um seinen Reiter **Kompetenzen** zu öffnen, in dem sich die Niveaus ändern lassen
 - **Exportieren** neben **Mitwirkenden hinzufügen** oben auf der Seite lädt das Angezeigte als `.xlsx`-Datei herunter, in derselben Ausrichtung, die Niveaus als Zahlen. Nützlich für Kompetenzbewertungen und Schulungspläne
+
+---
+
+## Das Organigramm
+
+Das Organigramm zeichnet die Berichtslinie Ihrer Mitwirkenden, aufgebaut aus dem **Vorgesetzten**, der in jedem Profil hinterlegt ist. Alle, deren Vorgesetzter kein Mitwirkender ist, stehen nebeneinander an der Spitze, sodass mehrere unabhängige Zweige gleichzeitig lesbar sind.
+
+**Eine Karte lesen**:
+- Initialen, Name, Position, Vertragsart und die Anzahl der Kompetenzen im Profil
+- Klicken Sie auf eine Karte, um diesen Mitwirkenden zu öffnen
+- Eine Karte mit Personen darunter trägt am unteren Rand einen kleinen Pfeil. Ein Klick klappt diesen Zweig zu, ein weiterer klappt ihn wieder auf
+- Fahren Sie über eine Karte, die im Organigramm nach oben gerückt wurde, um zu sehen, welcher Vorgesetzte übersprungen wurde, zum Beispiel „Zugeordnet über Claire Meunier“
+
+**Wer erscheint**:
+- Es werden nur Mitwirkende gezeichnet. Ist der Vorgesetzte einer Person kein Mitwirkender, rückt diese Person an die Spitze des Organigramms, statt zu verschwinden
+- Deaktivierte Konten bleiben außen vor. **Deaktivierte Konten einbeziehen** holt sie zurück, was während der Übergabe eines Austritts nützlich ist
+- Jede Vertragsart hat eine Pille über dem Organigramm. Schalten Sie eine ab, verlassen diese Personen das Organigramm, **ihre eigenen unterstellten Personen bleiben jedoch**: Sie rücken zur nächsten noch sichtbaren Führungskraft auf. Die Externen auszublenden erhält so Ihre internen Teams als lesbaren Baum, statt ganze Zweige abzuschneiden
+
+**Das Organigramm zuschneiden**:
+- **Beginnen bei** reduziert das Organigramm auf eine Person und alles darunter — so entsteht das Organigramm einer einzelnen Abteilung
+- **Ebenen** begrenzt, wie weit das Organigramm nach unten reicht, zum Beispiel die obersten zwei Ebenen für eine Führungsübersicht
+- Die Zoom-Schaltflächen rechts skalieren die Zeichnung; das Organigramm scrollt innerhalb seines Rahmens in beide Richtungen
+- Jede dieser Einstellungen wird in die Adresse geschrieben, sodass das Organigramm eines Zweigs genau so als Link weitergegeben werden kann, wie Sie es zugeschnitten haben
+
+**Exportieren und drucken**:
+- **Als PNG exportieren** neben **Mitwirkenden hinzufügen** oben auf der Seite speichert das gesamte Organigramm als Bild, immer auf weißem Grund, unabhängig vom Design, in dem Sie es gerade lesen. Das Exportdatum steht unten links. Zugeklappte Zweige bleiben zugeklappt, und eine zugeklappte Karte trägt die Anzahl der darunter verborgenen Personen. Der Zoom am Bildschirm verändert das Bild nicht
+- Der Druckbefehl Ihres Browsers druckt das Organigramm allein, im Querformat und ohne die umgebende Anwendung
 
 ---
 

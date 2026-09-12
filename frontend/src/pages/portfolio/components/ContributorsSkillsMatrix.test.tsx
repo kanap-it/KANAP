@@ -106,7 +106,7 @@ function renderMatrix(props: Partial<React.ComponentProps<typeof ContributorsSki
                 teams={TEAMS}
                 skills={SKILLS}
                 filterTeamId="all"
-                onExportChange={(run) => { exported.run = run; }}
+                onActionChange={(action) => { exported.run = action?.run ?? null; }}
                 {...props}
               />
             )}

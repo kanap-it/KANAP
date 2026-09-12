@@ -1220,7 +1220,8 @@
     "views": {
       "label": "Vue des contributeurs",
       "list": "Liste",
-      "matrix": "Matrice de compétences"
+      "matrix": "Matrice de compétences",
+      "org": "Organigramme"
     },
     "filters": {
       "team": "Filtrer par équipe",
@@ -1258,6 +1259,36 @@
         "team": "Équipe",
         "category": "Catégorie",
         "skill": "Compétence"
+      }
+    },
+    "org": {
+      "filtersLabel": "Réglages de l'organigramme",
+      "canvasLabel": "Ligne hiérarchique",
+      "root": {
+        "label": "Commencer par",
+        "everyone": "Tout le monde"
+      },
+      "depth": {
+        "label": "Niveaux",
+        "all": "Tous les niveaux",
+        "levels_one": "{{count}} niveau",
+        "levels_other": "{{count}} niveaux"
+      },
+      "includeDisabled": "Inclure les comptes désactivés",
+      "via": "Rattaché via {{names}}",
+      "collapse_one": "Masquer {{count}} subordonné",
+      "collapse_other": "Masquer {{count}} subordonnés",
+      "expand_one": "Afficher {{count}} subordonné",
+      "expand_other": "Afficher {{count}} subordonnés",
+      "zoom": {
+        "in": "Zoom avant",
+        "out": "Zoom arrière",
+        "reset": "Réinitialiser le zoom"
+      },
+      "exportPng": "Exporter en PNG",
+      "exportFailed": "L'organigramme n'a pas pu être exporté.",
+      "states": {
+        "allFiltered": "Tous les contributeurs sont masqués par les filtres ci-dessus."
       }
     },
     "states": {
