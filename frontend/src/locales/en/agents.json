@@ -776,7 +776,14 @@
       "empty": "Nothing available.",
       "groupsEmpty": "The ticketing system exposes no assignable group.",
       "groupsDisabled": "Enable Assignment in Capabilities to let the agent route tickets to a group.",
-      "classificationNote": "Category, priority and type are not driven by the instructions."
+      "categories": "Categories",
+      "priorities": "Priorities",
+      "types": "Types",
+      "classificationDisabled": "Enable Classification in Capabilities to let the instructions guide category, priority and type.",
+      "categoriesSearch": "e.g., SAP",
+      "categoriesMore": "Type to narrow the list.",
+      "categoriesScope": "Search covers every category. With a very large catalogue, the agent works from the categories you target first.",
+      "catalogueError": "The catalogue could not be loaded."
     },
     "modelInfo": "Which AI model this agent runs on. Models are managed in Administration under AI models.",
     "maxTicketsInfo": "The most tickets the agent picks up in a single check. The rest wait for the next one.",
@@ -830,6 +837,14 @@
     "assignToGroup": "Assign to group",
     "currentGroups": "Currently assigned",
     "noGroupAssigned": "No group assigned",
-    "participantUpdate": "Participant update"
+    "participantUpdate": "Participant update",
+    "classificationFields": {
+      "category": "Category",
+      "type": "Type",
+      "priority": "Priority",
+      "urgency": "Urgency",
+      "impact": "Impact",
+      "service": "Service"
+    }
   }
 }

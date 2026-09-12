@@ -776,7 +776,14 @@
       "empty": "Nada disponible.",
       "groupsEmpty": "La herramienta de tickets no expone ningún grupo asignable.",
       "groupsDisabled": "Active «Asignación» en las capacidades para que el agente pueda dirigir tickets a un grupo.",
-      "classificationNote": "La categoría, la prioridad y el tipo no se controlan desde las instrucciones."
+      "categories": "Categorías",
+      "priorities": "Prioridades",
+      "types": "Tipos",
+      "classificationDisabled": "Active «Clasificación» en las capacidades para definir la categoría, la prioridad y el tipo mediante las instrucciones.",
+      "categoriesSearch": "P. ej., SAP",
+      "categoriesMore": "Escriba un nombre para acotar la lista.",
+      "categoriesScope": "La búsqueda abarca todas las categorías. Si el catálogo es muy grande, el agente parte primero de las categorías de su selección.",
+      "catalogueError": "No se pudo cargar el catálogo."
     },
     "modelInfo": "Con qué modelo de IA funciona este agente. Los modelos se gestionan en Administración, en Modelos de IA.",
     "maxTicketsInfo": "El máximo de tickets que el agente toma en cada comprobación. El resto espera a la siguiente.",
@@ -830,6 +837,14 @@
     "assignToGroup": "Asignar al grupo",
     "currentGroups": "Asignado actualmente",
     "noGroupAssigned": "Ningún grupo asignado",
-    "participantUpdate": "Actualización de participantes"
+    "participantUpdate": "Actualización de participantes",
+    "classificationFields": {
+      "category": "Categoría",
+      "type": "Tipo",
+      "priority": "Prioridad",
+      "urgency": "Urgencia",
+      "impact": "Impacto",
+      "service": "Servicio"
+    }
   }
 }

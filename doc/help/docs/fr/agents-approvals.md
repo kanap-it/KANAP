@@ -20,7 +20,7 @@ Chaque proposition correspond à une action concrète qu'un agent souhaite effec
 | --- | --- |
 | **Réponse demandeur** | Un message que l'agent souhaite envoyer à la personne qui a ouvert le ticket. |
 | **Note interne** | Une note que l'agent souhaite ajouter pour votre équipe, non visible par le demandeur. |
-| **Classification** | Une modification de la catégorie, du type, de l'urgence ou d'attributs similaires du ticket. |
+| **Classification** | Modifie la catégorie, le type, la priorité ou l’urgence du ticket selon les instructions. Une proposition peut contenir plusieurs champs ; elle affiche les valeurs actuelles et proposées, avec les noms des catégories. |
 | **Statut** | Un passage à un autre statut de ticket (par exemple, de **Nouveau** à **En attente**). |
 | **Clôturer le ticket** | Clôture le ticket — voir [Clôturer et résoudre les tickets](#cloturer-et-resoudre-les-tickets). |
 | **Résoudre le ticket** | Marque le ticket comme résolu — voir [Clôturer et résoudre les tickets](#cloturer-et-resoudre-les-tickets). |

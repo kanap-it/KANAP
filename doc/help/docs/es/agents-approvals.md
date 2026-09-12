@@ -20,7 +20,7 @@ Cada propuesta es una acción concreta que un agente quiere realizar sobre un ti
 | --- | --- |
 | **Respuesta al solicitante** | Un mensaje que el agente quiere enviar a la persona que abrió el ticket. |
 | **Nota interna** | Una nota que el agente quiere añadir para su equipo, no visible para el solicitante. |
-| **Clasificación** | Un cambio en la categoría, el tipo, la urgencia u otros atributos similares del ticket. |
+| **Clasificación** | Modifica la categoría, el tipo, la prioridad o la urgencia del ticket según las instrucciones. Una propuesta puede contener varios campos y muestra los valores actuales y propuestos con los nombres de las categorías. |
 | **Estado** | Un paso a un estado de ticket diferente (por ejemplo, de **Nuevo** a **Pendiente**). |
 | **Cerrar ticket** | Cierra el ticket; consulte [Cerrar y resolver tickets](#cerrar-y-resolver-tickets). |
 | **Resolver ticket** | Marca el ticket como resuelto; consulte [Cerrar y resolver tickets](#cerrar-y-resolver-tickets). |
