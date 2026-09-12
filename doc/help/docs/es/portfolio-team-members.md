@@ -45,7 +45,7 @@ Los colaboradores se muestran como tarjetas agrupadas por equipo.
 - Use el desplegable **Filtrar por equipo** para mostrar solo colaboradores de un equipo específico
 - Seleccione **Sin asignar** para ver colaboradores que no han sido asignados a un equipo todavía
 - Seleccione **Todos los equipos** para ver a todos
-- Use el desplegable **Filtrar por tipo de contrato** que está al lado para mostrar solo al personal interno, solo a los externos, y así sucesivamente. Ambos filtros se combinan y se aplican tanto a la lista como a la matriz de competencias.
+- Use el desplegable **Filtrar por tipo de contrato** que está al lado para mostrar solo al personal interno, solo a los externos, y así sucesivamente. Ambos filtros se combinan y se aplican tanto a la lista como a la matriz de competencias. El organigrama dispone de sus propios controles, porque una línea jerárquica atraviesa los equipos.
 
 **Grupos de equipo**:
 - Cada equipo se muestra como una tarjeta plegable con un indicador de número de miembros
@@ -55,7 +55,7 @@ Los colaboradores se muestran como tarjetas agrupadas por equipo.
 Haga clic en cualquier tarjeta de colaborador para abrir su espacio de trabajo.
 
 **Cambiar de vista**:
-Encima del filtro por equipo, **Lista** y **Matriz de competencias** alternan entre las dos lecturas de las mismas personas. El filtro por equipo se aplica a ambas. La dirección cambia a `?view=matrix`, de modo que un enlace a la matriz puede guardarse en favoritos o compartirse, y la última vista utilizada se recuerda en su navegador.
+Encima del filtro por equipo, **Lista**, **Matriz de competencias** y **Organigrama** alternan entre tres lecturas de las mismas personas. El filtro por equipo se aplica a las dos primeras. La dirección cambia a `?view=matrix` o `?view=org`, de modo que un enlace puede guardarse en favoritos o compartirse, y la última vista utilizada se recuerda en su navegador.
 
 ---
 
@@ -82,6 +82,33 @@ Los catálogos suelen ser más largos que los equipos, por eso los colaboradores
 **Actuar sobre lo que ve**:
 - Haga clic en un colaborador para abrir su pestaña **Competencias**, donde se pueden cambiar los niveles
 - **Exportar**, junto a **Agregar colaborador** en la parte superior de la página, descarga lo que está en pantalla como archivo `.xlsx`, con la misma disposición, los niveles como números. Útil para revisiones de competencias y planes de formación
+
+---
+
+## El organigrama
+
+El organigrama dibuja la línea jerárquica de sus colaboradores, construida a partir del **Responsable** definido en cada perfil. Todas las personas cuyo responsable no es colaborador se sitúan arriba, una al lado de la otra, de modo que se pueden leer varias ramas independientes a la vez.
+
+**Leer una tarjeta**:
+- Iniciales, nombre, puesto, tipo de contrato y número de competencias del perfil
+- Haga clic en una tarjeta para abrir a ese colaborador
+- Una tarjeta con personas por debajo lleva una pequeña flecha en su borde inferior. Haga clic para plegar esa rama y vuelva a hacer clic para desplegarla
+- Pase el cursor sobre una tarjeta que haya subido en el organigrama para saber qué responsable se ha omitido, por ejemplo «Asignado a través de Claire Meunier»
+
+**Quién aparece**:
+- Solo se dibujan los colaboradores. Si el responsable de alguien no es colaborador, esa persona pasa a lo alto del organigrama en lugar de desaparecer
+- Las cuentas desactivadas quedan fuera. **Incluir cuentas desactivadas** las recupera, lo que resulta útil mientras se traspasa una salida
+- Cada tipo de contrato tiene una píldora encima del organigrama. Desactive una y esas personas salen del organigrama, **pero sus propios subordinados permanecen**: suben hasta el responsable visible más cercano. Ocultar a los externos mantiene así a su personal interno en un árbol legible en lugar de cortar ramas enteras
+
+**Encuadrar el organigrama**:
+- **Empezar por** reduce el organigrama a una persona y a todo lo que está por debajo de ella: así se produce el organigrama de un solo departamento
+- **Niveles** limita hasta dónde baja el organigrama, por ejemplo los dos primeros niveles para una vista de dirección
+- Los controles de zoom de la derecha escalan el dibujo; el organigrama se desplaza en ambas direcciones dentro de su marco
+- Cada una de estas opciones queda escrita en la dirección, de modo que el organigrama de una rama puede enviarse como enlace exactamente con el encuadre que usted le dio
+
+**Exportar e imprimir**:
+- **Exportar a PNG**, junto a **Agregar colaborador** en la parte superior de la página, guarda el organigrama completo como imagen, siempre sobre fondo blanco sea cual sea el tema en el que lo esté consultando. La fecha de exportación figura en la esquina inferior izquierda. Las ramas plegadas siguen plegadas, y una tarjeta plegada lleva el número de personas ocultas debajo. El zoom en pantalla no cambia la imagen
+- El comando de impresión de su navegador imprime el organigrama solo, en horizontal y sin la aplicación alrededor
 
 ---
 

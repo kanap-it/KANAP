@@ -28,7 +28,7 @@ type Props = {
   filterTeamId: string;
   /** Hands the export to the page so the action can sit in the page header.
    *  Called with null while there is nothing on screen to export. */
-  onExportChange?: (exportXlsx: (() => void) | null) => void;
+  onActionChange?: (action: { label: string; run: () => void } | null) => void;
 };
 
 /** Which side of the grid carries the contributors. Catalogues are usually far
@@ -107,7 +107,7 @@ function countLevels(levels: Array<number | undefined>) {
  * skill summary counts who can carry that skill alone, which is the "where are
  * we thin" reading. Editing stays in the contributor workspace.
  */
-export default function ContributorsSkillsMatrix({ contributors, teams, skills, filterTeamId, onExportChange }: Props) {
+export default function ContributorsSkillsMatrix({ contributors, teams, skills, filterTeamId, onActionChange }: Props) {
   const { t } = useTranslation(['portfolio']);
   const navigate = useNavigate();
   const [orientation, setOrientation] = useLocalStorageState<Orientation>(ORIENTATION_STORAGE_KEY, 'contributors');
@@ -311,10 +311,10 @@ export default function ContributorsSkillsMatrix({ contributors, teams, skills, 
   })();
 
   React.useEffect(() => {
-    onExportChange?.(emptyMessage ? null : exportXlsx);
-  }, [emptyMessage, exportXlsx, onExportChange]);
+    onActionChange?.(emptyMessage ? null : { label: t('contributors.matrix.export.action'), run: exportXlsx });
+  }, [emptyMessage, exportXlsx, onActionChange, t]);
 
-  React.useEffect(() => () => onExportChange?.(null), [onExportChange]);
+  React.useEffect(() => () => onActionChange?.(null), [onActionChange]);
 
   return (
     // The block is as wide as the grid needs, so the controls keep hugging its
@@ -333,7 +333,7 @@ export default function ContributorsSkillsMatrix({ contributors, teams, skills, 
             variant="standard"
             value={orientation}
             onChange={(event) => setOrientation(event.target.value as Orientation)}
-            aria-label={t('contributors.matrix.orientation.label')}
+            SelectDisplayProps={{ 'aria-label': t('contributors.matrix.orientation.label') }}
             sx={[drawerSelectSx, inlineControlSx, { width: 'auto', flexShrink: 0 }]}
             MenuProps={compactSelectMenuProps}
           >

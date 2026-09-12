@@ -299,6 +299,45 @@ async function testEmploymentTypeLifecycle() {
   }
 }
 
+// ----------------------------------------------------------- org chart ----
+
+/**
+ * The org chart filters disabled accounts client-side, so the account status
+ * has to travel with the contributor rows. Both reads are twins; they must
+ * carry the same columns.
+ */
+async function testContributorReadsCarryTheAccountStatus() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+  try {
+    const tenantId = randomUUID();
+    const roleId = await seedTenant(runner, tenantId, 'status');
+    await setCurrentTenant(runner, tenantId);
+
+    const activeUser = await seedUser(runner, tenantId, roleId, 'Nora');
+    const leaverUser = await seedUser(runner, tenantId, roleId, 'Otto');
+    await runner.query(`UPDATE users SET status = 'disabled' WHERE id = $1`, [leaverUser]);
+    const activeConfig = await seedContributor(runner, tenantId, activeUser);
+    await seedContributor(runner, tenantId, leaverUser);
+
+    const contributors = contributorService(runner);
+    const { items } = await contributors.list(tenantId);
+    const byUser = new Map<string, any>(items.map((row: any) => [row.user_id, row]));
+    assert.equal(byUser.get(activeUser).user_status, 'enabled');
+    assert.equal(byUser.get(leaverUser).user_status, 'disabled');
+
+    // The chart also needs the manager link and the display name off the same read.
+    assert.equal(byUser.get(activeUser).manager_user_id, null);
+    assert.equal(byUser.get(activeUser).user_display_name, 'Nora Tester');
+
+    assert.equal((await contributors.get(activeConfig)).user_status, 'enabled');
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 // ----------------------------------------------------------- concurrency ----
 
 /**
@@ -400,6 +439,7 @@ async function run() {
     await testInactiveTypeRefusedButAssignedOneSurvives();
     await testEntraManagerLockAndOrphanException();
     await testEmploymentTypeLifecycle();
+    await testContributorReadsCarryTheAccountStatus();
     await testConcurrentManagerWritesCannotCloseACycle();
   } finally {
     await dataSource.destroy();

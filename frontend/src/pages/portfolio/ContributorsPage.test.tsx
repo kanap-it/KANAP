@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from '../../api';
 import { downloadXlsxWorkbook } from '../../lib/simpleXlsx';
 import { createAppTheme } from '../../config/ThemeContext';
+import { KanapDialogProvider } from '../../components/design';
 import portfolioEn from '../../locales/en/portfolio.json';
 import ContributorsPage from './ContributorsPage';
 
@@ -20,15 +21,22 @@ vi.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({ hasLevel: () => true, profile: { id: 'user-1' } }),
 }));
 
-function resolveKey(key: string): string | undefined {
-  return key.split('.').reduce<any>((node, part) => (node == null ? undefined : node[part]), portfolioEn);
+function resolveKey(key: string, opts?: Record<string, unknown>): string | undefined {
+  const read = (candidate: string) => candidate
+    .split('.')
+    .reduce<any>((node, part) => (node == null ? undefined : node[part]), portfolioEn);
+  if (opts && typeof opts.count === 'number') {
+    const plural = read(`${key}_${opts.count === 1 ? 'one' : 'other'}`);
+    if (typeof plural === 'string') return plural;
+  }
+  return read(key);
 }
 
 // `t` must keep a stable identity across renders, as i18next's does: the matrix
 // memoizes its export on `t`, and a fresh function each render would feed an
 // endless onExportChange -> setState -> re-render cycle that never settles.
 const translate = (key: string, opts?: Record<string, unknown>) => {
-  const template = resolveKey(key);
+  const template = resolveKey(key, opts);
   if (typeof template !== 'string') return key;
   return template.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(opts?.[name] ?? ''));
 };
@@ -83,8 +91,8 @@ function contributor(overrides: Record<string, unknown>) {
 
 const MIXED_CONTRIBUTORS = [
   contributor({ id: 'c-1', item_number: 1, user_id: 'u-1', user_display_name: 'Ada Lovelace', employment_type_id: 'type-1', team_id: 'team-1' }),
-  contributor({ id: 'c-2', item_number: 2, user_id: 'u-2', user_display_name: 'Bob Stone', employment_type_id: 'type-2', team_id: 'team-1' }),
-  contributor({ id: 'c-3', item_number: 3, user_id: 'u-3', user_display_name: 'Cleo Marsh', employment_type_id: 'type-1', team_id: null }),
+  contributor({ id: 'c-2', item_number: 2, user_id: 'u-2', user_display_name: 'Bob Stone', employment_type_id: 'type-2', team_id: 'team-1', manager_user_id: 'u-1' }),
+  contributor({ id: 'c-3', item_number: 3, user_id: 'u-3', user_display_name: 'Cleo Marsh', employment_type_id: 'type-1', team_id: null, manager_user_id: 'u-2' }),
 ];
 
 function LocationProbe() {
@@ -97,13 +105,17 @@ function renderAt(path: string) {
   return render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[path]}>
-          <Routes>
-            <Route path="/portfolio/contributors" element={<ContributorsPage />} />
-            <Route path="*" element={<div />} />
-          </Routes>
-          <LocationProbe />
-        </MemoryRouter>
+        {/* The org chart reports an export failure through the shared dialogs,
+            which main.tsx provides above every page. */}
+        <KanapDialogProvider>
+          <MemoryRouter initialEntries={[path]}>
+            <Routes>
+              <Route path="/portfolio/contributors" element={<ContributorsPage />} />
+              <Route path="*" element={<div />} />
+            </Routes>
+            <LocationProbe />
+          </MemoryRouter>
+        </KanapDialogProvider>
       </QueryClientProvider>
     </ThemeProvider>,
   );
@@ -166,6 +178,36 @@ describe('ContributorsPage view switch', () => {
 
     fireEvent.click(exportButton);
     expect(downloadXlsxWorkbook).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens straight on the org chart when the address asks for it', async () => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/portfolio/team-members') return { data: { items: MIXED_CONTRIBUTORS } } as any;
+      if (url === '/portfolio/teams') return { data: TEAMS } as any;
+      if (url === '/portfolio/employment-types') return { data: EMPLOYMENT_TYPES } as any;
+      if (url === '/portfolio/team-members/time-stats') return { data: { stats: {} } } as any;
+      return { data: {} } as any;
+    });
+
+    renderAt('/portfolio/contributors?view=org');
+    await screen.findByRole('group', { name: 'Reporting line' });
+
+    // The reporting line crosses teams, so the page filters step aside and the
+    // chart's own contract-type pills take over.
+    expect(screen.queryByText('All teams')).toBeNull();
+    expect(screen.getByRole('button', { name: 'External' })).toBeInTheDocument();
+    // Nothing extra is fetched: the chart reads the rows the list already has.
+    expect(calledUrls()).not.toContain('/portfolio/skills');
+    expect(await screen.findByRole('button', { name: 'Export PNG' })).toBeInTheDocument();
+  });
+
+  it('drops the org chart parameters when another view is chosen', async () => {
+    renderAt('/portfolio/contributors?view=org&root=CTR-1&hide=External&depth=2&disabled=1');
+    await screen.findByRole('tab', { name: 'Org chart' });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Skills matrix' }));
+    await screen.findByRole('table');
+    expect(screen.getByTestId('search').textContent).toBe('?view=matrix');
   });
 
   it('remembers the last view for the next visit without a view in the address', async () => {

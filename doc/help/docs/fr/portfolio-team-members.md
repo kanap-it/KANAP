@@ -45,7 +45,7 @@ Les contributeurs sont affichés sous forme de cartes regroupées par équipe.
 - Utilisez le menu déroulant **Filtrer par équipe** pour n'afficher que les contributeurs d'une équipe spécifique
 - Sélectionnez **Non assigné** pour voir les contributeurs qui n'ont pas encore été assignés à une équipe
 - Sélectionnez **Toutes les équipes** pour voir tout le monde
-- Utilisez le menu déroulant **Filtrer par type de contrat** à côté pour n'afficher que les internes, que les externes, etc. Les deux filtres se combinent et s'appliquent aussi bien à la liste qu'à la matrice de compétences.
+- Utilisez le menu déroulant **Filtrer par type de contrat** à côté pour n'afficher que les internes, que les externes, etc. Les deux filtres se combinent et s'appliquent aussi bien à la liste qu'à la matrice de compétences. L'organigramme dispose de ses propres réglages, car une ligne hiérarchique traverse les équipes.
 
 **Groupes d'équipes** :
 - Chaque équipe est affichée comme une carte repliable avec un badge de nombre de membres
@@ -55,7 +55,7 @@ Les contributeurs sont affichés sous forme de cartes regroupées par équipe.
 Cliquez sur n'importe quelle carte de contributeur pour ouvrir son espace de travail.
 
 **Changer de vue** :
-Au-dessus du filtre par équipe, **Liste** et **Matrice de compétences** basculent entre les deux lectures des mêmes personnes. Le filtre par équipe s'applique aux deux. L'adresse devient `?view=matrix`, ce qui permet de mettre un lien vers la matrice en favori ou de le partager, et la dernière vue utilisée est mémorisée dans votre navigateur.
+Au-dessus du filtre par équipe, **Liste**, **Matrice de compétences** et **Organigramme** basculent entre trois lectures des mêmes personnes. Le filtre par équipe s'applique aux deux premières. L'adresse devient `?view=matrix` ou `?view=org`, ce qui permet de mettre un lien en favori ou de le partager, et la dernière vue utilisée est mémorisée dans votre navigateur.
 
 ---
 
@@ -82,6 +82,33 @@ Les catalogues sont en général plus longs que les équipes, c'est pourquoi les
 **Agir sur ce que vous voyez** :
 - Cliquez sur un contributeur pour ouvrir son onglet **Compétences**, où les niveaux se modifient
 - **Exporter**, à côté d'**Ajouter un contributeur** en haut de la page, télécharge ce qui est affiché dans un fichier `.xlsx`, disposé dans le même sens, les niveaux en chiffres. Utile pour les revues de compétences et les plans de formation
+
+---
+
+## L'organigramme
+
+L'organigramme dessine la ligne hiérarchique de vos contributeurs, à partir du **Responsable** défini sur chaque profil. Toutes les personnes dont le responsable n'est pas contributeur se placent en haut, côte à côte, ce qui permet de lire plusieurs branches indépendantes en même temps.
+
+**Lire une carte** :
+- Initiales, nom, intitulé de poste, type de contrat et nombre de compétences du profil
+- Cliquez sur une carte pour ouvrir ce contributeur
+- Une carte qui a des personnes en dessous porte un petit chevron sur son bord inférieur. Cliquez dessus pour replier la branche, cliquez à nouveau pour la déplier
+- Survolez une carte qui a été remontée dans l'organigramme pour savoir quel responsable a été sauté, par exemple « Rattaché via Claire Meunier »
+
+**Qui apparaît** :
+- Seuls les contributeurs sont dessinés. Si le responsable d'une personne n'est pas contributeur, cette personne se retrouve en haut de l'organigramme plutôt que de disparaître
+- Les comptes désactivés sont exclus. **Inclure les comptes désactivés** les fait revenir, ce qui est utile pendant la passation d'un départ
+- Chaque type de contrat dispose d'une pastille au-dessus de l'organigramme. Désactivez-en une et ces personnes quittent l'organigramme, **mais leurs propres subordonnés restent** : ils remontent au responsable visible le plus proche. Masquer les externes conserve donc vos équipes internes dans un arbre lisible au lieu de couper des branches entières
+
+**Cadrer l'organigramme** :
+- **Commencer par** réduit l'organigramme à une personne et à tout ce qui se trouve en dessous d'elle : c'est ainsi que l'on produit l'organigramme d'un seul service
+- **Niveaux** limite la profondeur affichée, par exemple les deux premiers niveaux pour une vue de direction
+- Les commandes de zoom à droite mettent le dessin à l'échelle ; l'organigramme défile dans les deux directions à l'intérieur de son cadre
+- Chacun de ces choix est inscrit dans l'adresse : l'organigramme d'une branche peut donc être envoyé par lien, cadré exactement comme vous l'avez laissé
+
+**Exporter et imprimer** :
+- **Exporter en PNG**, à côté d'**Ajouter un contributeur** en haut de la page, enregistre l'organigramme entier sous forme d'image, toujours sur fond blanc quel que soit le thème dans lequel vous le consultez. La date d'export est inscrite en bas à gauche. Les branches repliées restent repliées, et une carte repliée porte le nombre de personnes masquées en dessous. Le zoom à l'écran ne change pas l'image
+- La commande d'impression de votre navigateur imprime l'organigramme seul, en paysage et sans l'interface autour
 
 ---
 

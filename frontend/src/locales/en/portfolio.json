@@ -1220,7 +1220,8 @@
     "views": {
       "label": "Contributors view",
       "list": "List",
-      "matrix": "Skills matrix"
+      "matrix": "Skills matrix",
+      "org": "Org chart"
     },
     "filters": {
       "team": "Filter by team",
@@ -1258,6 +1259,36 @@
         "team": "Team",
         "category": "Category",
         "skill": "Skill"
+      }
+    },
+    "org": {
+      "filtersLabel": "Org chart controls",
+      "canvasLabel": "Reporting line",
+      "root": {
+        "label": "Start from",
+        "everyone": "Everyone"
+      },
+      "depth": {
+        "label": "Levels",
+        "all": "All levels",
+        "levels_one": "{{count}} level",
+        "levels_other": "{{count}} levels"
+      },
+      "includeDisabled": "Include disabled accounts",
+      "via": "Reports through {{names}}",
+      "collapse_one": "Hide {{count}} report",
+      "collapse_other": "Hide {{count}} reports",
+      "expand_one": "Show {{count}} report",
+      "expand_other": "Show {{count}} reports",
+      "zoom": {
+        "in": "Zoom in",
+        "out": "Zoom out",
+        "reset": "Reset zoom"
+      },
+      "exportPng": "Export PNG",
+      "exportFailed": "The chart could not be exported.",
+      "states": {
+        "allFiltered": "Every contributor is hidden by the filters above."
       }
     },
     "states": {
