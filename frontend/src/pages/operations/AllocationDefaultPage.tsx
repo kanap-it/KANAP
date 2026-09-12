@@ -16,6 +16,13 @@ import {
 
 const METHODS: AllocationMethod[] = ['headcount', 'it_users', 'turnover'];
 
+/** Locale keys are camelCase while the API values are snake_case. */
+const METHOD_LABEL_KEYS: Record<AllocationMethod, string> = {
+  headcount: 'headcount',
+  it_users: 'itUsers',
+  turnover: 'turnover',
+};
+
 export default function AllocationDefaultPage() {
   const { t } = useTranslation(['ops', 'common']);
   const { hasLevel } = useAuth();
@@ -60,7 +67,9 @@ export default function AllocationDefaultPage() {
 
   const methodLabel = React.useCallback(
     (method: AllocationMethod | null | undefined) =>
-      method ? t(`operations.allocationDefault.methods.${method}`) : '',
+      method
+        ? t(`operations.allocationDefault.methods.${METHOD_LABEL_KEYS[method] ?? METHOD_LABEL_KEYS.headcount}`)
+        : '',
     [t],
   );
 
@@ -70,7 +79,10 @@ export default function AllocationDefaultPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <PageHeader title={t('operations.allocationDefault.title')} />
+      <PageHeader
+        title={t('operations.allocationDefault.title')}
+        breadcrumbTitle={t('operations.allocationDefault.title')}
+      />
       <Typography variant="body1" sx={{ color: 'text.secondary' }}>
         {t('operations.allocationDefault.subtitle')}
       </Typography>
