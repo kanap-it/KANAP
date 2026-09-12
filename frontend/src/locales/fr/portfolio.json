@@ -142,7 +142,9 @@
         "source": "Source",
         "stream": "Filière",
         "team": "Équipe",
-        "projectAvailability": "Disponibilité projet"
+        "projectAvailability": "Disponibilité projet",
+        "manager": "Responsable",
+        "employmentType": "Type de contrat"
       },
       "messages": {
         "deleteFailed": "Échec de la suppression",
@@ -179,13 +181,18 @@
         "unassigned": "Non affecté",
         "skillCount_one": "{{count}} compétence",
         "skillCount_other": "{{count}} compétences",
-        "daysPerMonthShort": "{{count}} j/mois"
+        "daysPerMonthShort": "{{count}} j/mois",
+        "noManager": "Sans responsable",
+        "managerFromEntra": "Depuis Microsoft Entra"
       },
       "metadata": {
         "team": "Équipe",
         "noTeam": "Sans équipe",
         "editTeam": "Changer d'équipe",
-        "availability": "Disponibilité"
+        "availability": "Disponibilité",
+        "manager": "Responsable",
+        "noManager": "Sans responsable",
+        "openManager": "Ouvrir la fiche du responsable"
       },
       "aria": {
         "skillLevel": "Niveau {{skill}}",
@@ -1218,7 +1225,9 @@
     "filters": {
       "team": "Filtrer par équipe",
       "allTeams": "Toutes les équipes",
-      "unassigned": "Non affectés"
+      "unassigned": "Non affectés",
+      "employmentType": "Filtrer par type de contrat",
+      "allEmploymentTypes": "Tous les types de contrat"
     },
     "matrix": {
       "filtersLabel": "Filtres de la matrice de compétences",
@@ -1252,7 +1261,8 @@
       }
     },
     "states": {
-      "empty": "Aucun contributeur configuré pour le moment. Ajoutez des contributeurs pour définir leurs compétences et leur disponibilité."
+      "empty": "Aucun contributeur configuré pour le moment. Ajoutez des contributeurs pour définir leurs compétences et leur disponibilité.",
+      "noneMatchFilter": "Aucun contributeur ne correspond aux filtres en cours."
     },
     "teams": {
       "unknown": "Équipe inconnue"
@@ -1822,7 +1832,8 @@
       "skills": "Compétences",
       "phaseTemplates": "Modèles de phase",
       "classification": "Classification",
-      "teams": "Équipes"
+      "teams": "Équipes",
+      "employmentTypes": "Types de contrat"
     },
     "actions": {
       "addCriterion": "Ajouter un critère",
@@ -1835,7 +1846,8 @@
       "addTaskType": "Ajouter un type de tâche",
       "addValue": "Ajouter une valeur",
       "addPhase": "Ajouter une phase",
-      "seedDefaults": "Initialiser les valeurs par défaut"
+      "seedDefaults": "Initialiser les valeurs par défaut",
+      "addEmploymentType": "Ajouter un type de contrat"
     },
     "fields": {
       "name": "Nom",
@@ -1984,6 +1996,21 @@
         "seedDefaultsFailed": "Échec de l'initialisation des valeurs par défaut",
         "deleteFailed": "Échec de la suppression de l'équipe",
         "updateFailed": "Échec de la mise à jour de l'équipe"
+      }
+    },
+    "employmentTypes": {
+      "empty": "Aucun type de contrat pour le moment. Utilisez « Initialiser les valeurs par défaut » pour charger Interne, Externe, Apprenti et Autre, ou ajoutez les vôtres.",
+      "description": "Les types de contrat décrivent la façon dont un contributeur travaille avec vous : salarié, prestataire ou apprenti, par exemple. Chaque contributeur démarre en Interne ; modifiez-le sur sa fiche.",
+      "usageCount_one": "{{count}} contributeur",
+      "usageCount_other": "{{count}} contributeurs",
+      "dialog": {
+        "editTitle": "Modifier le type de contrat",
+        "createTitle": "Créer un type de contrat"
+      },
+      "messages": {
+        "seedDefaultsFailed": "Échec de l'initialisation des valeurs par défaut",
+        "deleteFailed": "Échec de la suppression du type de contrat",
+        "updateFailed": "Échec de la mise à jour du type de contrat"
       }
     }
   }

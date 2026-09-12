@@ -48,6 +48,11 @@ function contributor(overrides: Record<string, unknown> = {}) {
     project_availability: '0.0',
     notes: 'Initial notes',
     team_id: null,
+    manager_user_id: null,
+    manager_source: null,
+    manager_name: null,
+    employment_type_id: 'type-1',
+    employment_type_name: 'Internal',
     default_source_id: null,
     default_category_id: null,
     default_stream_id: null,
@@ -83,9 +88,27 @@ function renderAt(path: string) {
   );
 }
 
-function mockGets(selfConfig: unknown | 'missing' = 'missing') {
+const MANAGER = { id: 'mgr-cfg', item_number: 7, user_id: 'user-3', user_display_name: 'Grace HOPPER' };
+
+function mockGets(
+  selfConfig: unknown | 'missing' = 'missing',
+  opts: { subject?: Record<string, unknown>; listItems?: unknown[] } = {},
+) {
+  const subject = contributor(opts.subject);
   vi.mocked(api.get).mockImplementation(async (url: string) => {
-    if (url === `/portfolio/team-members/${CONTRIBUTOR_ID}` || url === `/portfolio/team-members/${CONTRIBUTOR_REF}`) return { data: contributor() };
+    if (url === `/portfolio/team-members/${CONTRIBUTOR_ID}` || url === `/portfolio/team-members/${CONTRIBUTOR_REF}`) return { data: subject };
+    if (url === '/portfolio/employment-types') {
+      return { data: [
+        { id: 'type-1', name: 'Internal', is_active: true },
+        { id: 'type-2', name: 'External', is_active: true },
+      ] };
+    }
+    if (url === '/users') {
+      return { data: { items: [
+        { id: 'user-3', first_name: 'Grace', last_name: 'Hopper' },
+        { id: 'user-9', first_name: 'Antoine', last_name: 'Kandel' },
+      ] } };
+    }
     if (url === '/portfolio/team-members/me') {
       if (selfConfig === 'missing') {
         const error: any = new Error('Not found');
@@ -96,7 +119,7 @@ function mockGets(selfConfig: unknown | 'missing' = 'missing') {
     }
     if (url.endsWith('/time-stats')) return { data: { userId: 'user-9', averageProjectDays: 0, monthly: [] } };
     if (url === '/portfolio/teams') return { data: [] };
-    if (url === '/portfolio/team-members') return { data: { items: [contributor()] } };
+    if (url === '/portfolio/team-members') return { data: { items: opts.listItems ?? [subject] } };
     if (url === '/portfolio/skills') {
       return { data: { items: [
         { id: 'skill-1', category: 'Business applications', name: 'Office suite', enabled: true },
@@ -206,5 +229,109 @@ describe('ContributorWorkspacePage autosave', () => {
     }), { timeout: 2000 });
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByText('Data governance')).toBeTruthy();
+  });
+});
+
+describe('ContributorWorkspacePage manager and employment type', () => {
+  beforeEach(() => {
+    vi.mocked(api.get).mockReset();
+    vi.mocked(api.patch).mockReset();
+    vi.mocked(api.patch).mockResolvedValue({ data: { id: CONTRIBUTOR_ID } });
+  });
+
+  const openEmploymentTypeSelect = async () => {
+    fireEvent.mouseDown(await screen.findByText('Internal'));
+    return within(await screen.findByRole('listbox'));
+  };
+
+  const managerField = () => screen.findByPlaceholderText('portfolio:workspace.contributor.values.noManager') as Promise<HTMLInputElement>;
+
+  it('saves the manager picked in the drawer, excluding the contributor themselves', async () => {
+    mockGets();
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    const field = await managerField();
+    fireEvent.mouseDown(field);
+    fireEvent.change(field, { target: { value: 'a' } });
+
+    const options = within(await screen.findByRole('listbox'));
+    await waitFor(() => expect(options.queryByText('Grace Hopper')).toBeTruthy());
+    // user-9 is the contributor under edit: nobody manages themselves.
+    expect(options.queryByText('Antoine Kandel')).toBeNull();
+
+    fireEvent.click(options.getByText('Grace Hopper'));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith(
+      `/portfolio/team-members/${CONTRIBUTOR_REF}`,
+      { manager_user_id: 'user-3' },
+    ), { timeout: 2000 });
+  });
+
+  it('clears the manager as an explicit null', async () => {
+    mockGets('missing', { subject: { manager_user_id: 'user-3', manager_source: 'manual', manager_name: 'Grace HOPPER' } });
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    const field = await managerField();
+    await waitFor(() => expect(field.value).toBe('Grace Hopper'));
+    fireEvent.click(screen.getByLabelText('Clear'));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith(
+      `/portfolio/team-members/${CONTRIBUTOR_REF}`,
+      { manager_user_id: null },
+    ), { timeout: 2000 });
+  });
+
+  it('shows an Entra manager read-only, with no picker', async () => {
+    mockGets('missing', { subject: { manager_user_id: 'user-3', manager_source: 'entra', manager_name: 'Grace HOPPER' } });
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    expect(await screen.findByText('portfolio:workspace.contributor.values.managerFromEntra')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('portfolio:workspace.contributor.values.noManager')).toBeNull();
+  });
+
+  it('keeps an orphaned Entra manager editable', async () => {
+    // The account was deleted: the foreign key nulled the id, the source stayed.
+    mockGets('missing', { subject: { manager_user_id: null, manager_source: 'entra' } });
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    expect(await managerField()).toBeTruthy();
+    expect(screen.queryByText('portfolio:workspace.contributor.values.managerFromEntra')).toBeNull();
+  });
+
+  it('saves the employment type', async () => {
+    mockGets();
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    fireEvent.click((await openEmploymentTypeSelect()).getByText('External'));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith(
+      `/portfolio/team-members/${CONTRIBUTOR_REF}`,
+      { employment_type_id: 'type-2' },
+    ), { timeout: 2000 });
+  });
+
+  it('offers no empty choice for the contract type', async () => {
+    mockGets();
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    const options = await openEmploymentTypeSelect();
+    expect(options.getAllByRole('option').map((o) => o.textContent)).toEqual(['Internal', 'External']);
+  });
+
+  it('opens the manager from the metadata bar when they are a contributor', async () => {
+    mockGets('missing', {
+      subject: { manager_user_id: 'user-3', manager_source: 'manual', manager_name: 'Grace HOPPER' },
+      listItems: [contributor(), MANAGER],
+    });
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    const link = await screen.findByRole('button', { name: /metadata\.manager Grace HOPPER/ });
+    fireEvent.click(link);
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/portfolio/contributors/CTR-7'));
+  });
+
+  it('leaves a manager who is not a contributor unlinked', async () => {
+    mockGets('missing', { subject: { manager_user_id: 'user-3', manager_source: 'manual', manager_name: 'Grace HOPPER' } });
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    await screen.findAllByText('Grace HOPPER');
+    expect(screen.queryByRole('button', { name: /metadata\.manager Grace HOPPER/ })).toBeNull();
+  });
+
+  it('hides both fields on the self-service route', async () => {
+    mockGets(contributor());
+    renderAt('/portfolio/contributors/me');
+    await waitFor(() => notesField());
+    expect(screen.queryByText('portfolio:workspace.contributor.fields.manager')).toBeNull();
+    expect(screen.queryByText('portfolio:workspace.contributor.fields.employmentType')).toBeNull();
   });
 });

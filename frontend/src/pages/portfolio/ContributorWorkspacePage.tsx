@@ -41,6 +41,11 @@ interface ContributorConfig {
   notes: string | null;
   team_id: string | null;
   team_name?: string | null;
+  manager_user_id: string | null;
+  manager_source: string | null;
+  manager_name?: string | null;
+  employment_type_id: string | null;
+  employment_type_name?: string | null;
   default_source_id: string | null;
   default_category_id: string | null;
   default_stream_id: string | null;
@@ -49,7 +54,7 @@ interface ContributorConfig {
 
 /** Fields the workspace can PATCH; the contributor cache is the source of truth for all of them. */
 type ContributorPatch = Partial<Pick<ContributorConfig,
-  'skills' | 'project_availability' | 'notes' | 'team_id'
+  'skills' | 'project_availability' | 'notes' | 'team_id' | 'manager_user_id' | 'employment_type_id'
   | 'default_source_id' | 'default_category_id' | 'default_stream_id' | 'default_company_id'
 >>;
 
@@ -86,6 +91,11 @@ function normalizeConfig(raw: any): ContributorConfig {
     notes: raw?.notes ?? null,
     team_id: raw?.team_id ?? null,
     team_name: raw?.team_name ?? null,
+    manager_user_id: raw?.manager_user_id ?? null,
+    manager_source: raw?.manager_source ?? null,
+    manager_name: raw?.manager_name ?? null,
+    employment_type_id: raw?.employment_type_id ?? null,
+    employment_type_name: raw?.employment_type_name ?? null,
     default_source_id: raw?.default_source_id ?? null,
     default_category_id: raw?.default_category_id ?? null,
     default_stream_id: raw?.default_stream_id ?? null,
@@ -173,6 +183,10 @@ export default function ContributorWorkspacePage() {
 
   const [error, setError] = useState<string | null>(null);
   const [teamAnchor, setTeamAnchor] = useState<HTMLElement | null>(null);
+  // `manager_name` is a joined column: the optimistic cache keeps the id the
+  // picker just wrote but not the name behind it, and refetching mid-edit would
+  // clobber a half-typed note. The picked name covers the gap until the next read.
+  const [pickedManager, setPickedManager] = useState<{ id: string; name: string } | null>(null);
   const [addSkillOpen, setAddSkillOpen] = useState(false);
 
   // Legacy deep links (`/…/defaults`, Settings → Profile) land on General with
@@ -235,9 +249,15 @@ export default function ContributorWorkspacePage() {
     enabled: canManageTeams || canListContributors,
   });
 
+  const { data: employmentTypes = [] } = useQuery({
+    queryKey: ['portfolio-employment-types'],
+    queryFn: async () => (await api.get('/portfolio/employment-types')).data as ContributorDrawerOption[],
+    enabled: canManageTeams || canListContributors,
+  });
+
   const { data: contributorsList } = useQuery({
     queryKey: ['portfolio-contributors'],
-    queryFn: async () => ((await api.get('/portfolio/team-members')).data?.items || []) as Array<{ id: string; item_number?: number; team_id?: string | null }>,
+    queryFn: async () => ((await api.get('/portfolio/team-members')).data?.items || []) as Array<{ id: string; item_number?: number; team_id?: string | null; user_id?: string }>,
     enabled: canListContributors,
   });
 
@@ -415,8 +435,23 @@ export default function ContributorWorkspacePage() {
       ? t('common:status.saved')
       : null;
 
+  const managerName = (
+    pickedManager && pickedManager.id === view.manager_user_id
+      ? pickedManager.name
+      : (view.manager_name || '')
+  );
+  const managerContributor = view.manager_user_id
+    ? contributorsList?.find((c) => c.user_id === view.manager_user_id)
+    : undefined;
+  const managerReference = managerContributor?.item_number
+    ? formatItemRef('contributor', managerContributor.item_number)
+    : null;
+
   const drawerValues: ContributorDrawerValues = {
     team_id: view.team_id,
+    manager_user_id: view.manager_user_id,
+    manager_source: view.manager_source,
+    employment_type_id: view.employment_type_id,
     project_availability: view.project_availability,
     default_source_id: view.default_source_id,
     default_category_id: view.default_category_id,
@@ -458,6 +493,13 @@ export default function ContributorWorkspacePage() {
                 </MenuItem>
               ))}
           </Menu>
+          <PortfolioMetadataItem
+            label={t('portfolio:workspace.contributor.metadata.manager')}
+            onClick={managerReference ? () => navigate(buildItemPath('contributor', managerReference)) : undefined}
+            title={managerReference ? t('portfolio:workspace.contributor.metadata.openManager') : undefined}
+          >
+            {managerName || t('portfolio:workspace.contributor.metadata.noManager')}
+          </PortfolioMetadataItem>
         </>
       )}
       <PortfolioMetadataItem label={t('portfolio:workspace.contributor.metadata.availability')} mono>
@@ -514,13 +556,17 @@ export default function ContributorWorkspacePage() {
           <ContributorPropertiesDrawer
             values={drawerValues}
             teams={teams}
+            employmentTypes={employmentTypes}
             sources={classificationData?.sources ?? []}
             categories={classificationData?.categories ?? []}
             streams={classificationData?.streams ?? []}
+            managerName={managerName}
+            contributorUserId={view.user_id || null}
             showTeam={!isSelfRoute}
             canEdit={canEdit}
             canManageTeams={canManageTeams}
             onChange={(partial) => patch(partial)}
+            onManagerPicked={(id, name) => setPickedManager(id && name ? { id, name } : null)}
           />
         )}
       >

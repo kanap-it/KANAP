@@ -44,6 +44,7 @@ export const TENANT_PURGE_TABLES = [
   'portfolio_criteria',
   'portfolio_team_member_configs',
   'portfolio_teams',
+  'portfolio_employment_types',
   'portfolio_phase_template_items',
   'portfolio_phase_templates',
   'portfolio_streams',

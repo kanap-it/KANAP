@@ -1,6 +1,6 @@
 # Paramètres du portefeuille
 
-Les paramètres du portefeuille vous permettent de configurer le système d'évaluation, les compétences d'équipe, les modèles de phases de projet et la structure de classification utilisés dans toutes les demandes et projets du portefeuille. Ces paramètres déterminent comment les demandes sont évaluées, comment les projets sont structurés et comment les éléments sont catégorisés.
+Les paramètres du portefeuille vous permettent de configurer le système d'évaluation, les compétences d'équipe, les modèles de phases de projet, la structure de classification et les types de contrat utilisés dans toutes les demandes et projets du portefeuille. Ces paramètres déterminent comment les demandes sont évaluées, comment les projets sont structurés et comment les éléments sont catégorisés.
 
 ## Où les trouver
 
@@ -194,9 +194,41 @@ Catégorie (par ex., "Transformation numérique")
 
 ---
 
+## Types de contrat
+
+Les types de contrat indiquent comment chaque contributeur travaille avec vous. Ils apparaissent sous forme de liste déroulante dans le panneau Propriétés de chaque contributeur, et comme filtre sur la page Contributeurs. Chaque contributeur démarre en Interne.
+
+Quatre types sont créés avec chaque espace de travail :
+
+- **Interne** : la valeur par défaut de tout nouveau contributeur
+- **Externe**
+- **Apprenti**
+- **Autre**
+
+### Gérer les types de contrat
+
+**Pour ajouter un type** :
+1. Ouvrez l'onglet **Types de contrat**
+2. Cliquez sur **Ajouter un type de contrat**
+3. Saisissez un nom et cliquez sur **Enregistrer**
+
+**Pour renommer un type** : cliquez sur l'icône de modification, changez le nom et enregistrez. Les contributeurs déjà sur ce type le conservent.
+
+**Pour désactiver un type** : utilisez l'interrupteur. Un type inactif disparaît de la liste déroulante pour les nouvelles affectations, mais les contributeurs qui le portent déjà le conservent et continuent de l'afficher.
+
+**Pour supprimer un type** : cliquez sur l'icône de suppression. Elle n'est disponible que pour les types que vous avez créés vous-même et qu'aucun contributeur n'utilise ; le compteur à côté de chaque type indique combien de personnes le portent. Les quatre types intégrés peuvent être renommés mais jamais supprimés.
+
+**Initialiser les valeurs par défaut** : si la liste est vide, **Initialiser les valeurs par défaut** recrée Interne, Externe, Apprenti et Autre.
+
+Les types de contrat ne sont jamais importés depuis Microsoft Entra : ils vous appartiennent.
+
+---
+
 ## Conseils
 
   - **Commencez par l'évaluation** : Définissez vos critères d'évaluation en premier pour que les demandes puissent être correctement priorisées
   - **Utilisez les modèles** : Créez des modèles qui correspondent à la méthodologie de livraison de votre organisation
   - **Gardez la classification simple** : Trop d'options créent de la confusion ; commencez petit et élargissez au besoin
   - **Révisez régulièrement** : Au fur et à mesure que votre organisation évolue, revisitez ces paramètres pour vous assurer qu'ils restent pertinents
+  - **Gardez peu de types de contrat** : quatre ou cinq types suffisent généralement à répondre à la question « qui est interne et qui ne l'est pas »
+

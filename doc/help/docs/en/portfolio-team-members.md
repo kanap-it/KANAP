@@ -45,6 +45,7 @@ Contributors are displayed as cards grouped by team.
 - Use the **Filter by Team** dropdown to show only contributors from a specific team
 - Select **Unassigned** to see contributors who haven't been assigned to a team yet
 - Select **All Teams** to see everyone
+- Use the **Filter by contract type** dropdown next to it to show only internal staff, only externals, and so on. The two filters combine, and both apply to the list and to the skills matrix.
 
 **Team groups**:
 - Each team is displayed as a collapsible card with a member count badge
@@ -96,6 +97,16 @@ Every change saves automatically. A short "Saving… / Saved" note appears next 
 
 **Team**
 Assign this contributor to a team. Teams are organizational groups configured in Portfolio Settings. This assignment determines how contributors are grouped on the Contributors page. The team can also be changed from the **Team** item in the header. This field is only visible when editing another contributor's profile (not your own).
+
+**Manager**
+The person this contributor reports to. Click the field, search by name, and pick anyone in your organization -- the manager does not have to be a contributor themselves. Use **Clear** to remove the link. A contributor cannot be their own manager, and you cannot pick someone who already reports to them, directly or through a chain of managers.
+
+When the manager comes from Microsoft Entra, the field is read-only and shows **From Microsoft Entra** underneath. Change it in your directory, not here.
+
+Once set, the manager's name also appears in the workspace header, and clicking it opens their contributor profile when they have one. This field is only visible when editing another contributor's profile (not your own).
+
+**Contract type**
+How this person works with you. Every contributor starts as **Internal**; switch to **External**, **Apprentice** or **Other** when that is not the case. The list is yours to adapt in **Portfolio > Settings > Contract types**. Contract type is never imported from Microsoft Entra. This field is only visible when editing another contributor's profile (not your own).
 
 **Project availability**
 Use the slider to set how many days per month this person can work on portfolio projects. Range is 0 -- 20 days, with 0.5-day increments. Default is 5 days. The value is saved when you release the slider.
@@ -229,6 +240,24 @@ Contributors can be assigned to organizational teams for better organization. Te
 - Add, edit, or disable teams
 - Use **Seed Defaults** to populate with standard teams
 - Teams with members assigned cannot be deleted
+
+---
+
+## Contract types
+
+Contract types record how each person works with you: an employee, someone from a supplier, an apprentice, and whatever else your organization needs. They are configured in **Portfolio > Settings > Contract types**. Every contributor starts as Internal.
+
+**Default types** (can be renamed):
+- Internal
+- External
+- Apprentice
+- Other
+
+**Managing contract types**:
+- Go to **Portfolio > Settings** and open the **Contract types** tab
+- Add your own types, rename any of them, or switch one off to keep it out of new assignments without losing the contributors already on it
+- The four built-in types can be renamed but not deleted
+- A type that is assigned to at least one contributor cannot be deleted; the tab shows how many contributors use each one
 
 ---
 

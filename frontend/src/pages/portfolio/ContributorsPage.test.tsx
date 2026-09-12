@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material/styles';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -24,15 +24,18 @@ function resolveKey(key: string): string | undefined {
   return key.split('.').reduce<any>((node, part) => (node == null ? undefined : node[part]), portfolioEn);
 }
 
+// `t` must keep a stable identity across renders, as i18next's does: the matrix
+// memoizes its export on `t`, and a fresh function each render would feed an
+// endless onExportChange -> setState -> re-render cycle that never settles.
+const translate = (key: string, opts?: Record<string, unknown>) => {
+  const template = resolveKey(key);
+  if (typeof template !== 'string') return key;
+  return template.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(opts?.[name] ?? ''));
+};
+const translation = { t: translate, i18n: { language: 'en', resolvedLanguage: 'en' } };
+
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, opts?: Record<string, unknown>) => {
-      const template = resolveKey(key);
-      if (typeof template !== 'string') return key;
-      return template.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(opts?.[name] ?? ''));
-    },
-    i18n: { language: 'en', resolvedLanguage: 'en' },
-  }),
+  useTranslation: () => translation,
 }));
 
 if (!window.localStorage) {
@@ -66,6 +69,24 @@ const CONTRIBUTORS = [{
 
 const SKILLS = [{ id: 's-aws', category: 'Cloud', name: 'AWS', enabled: true }];
 
+const EMPLOYMENT_TYPES = [
+  { id: 'type-1', name: 'Internal', is_active: true },
+  { id: 'type-2', name: 'External', is_active: true },
+  { id: 'type-3', name: 'Freelance', is_active: true },
+];
+
+const TEAMS = [{ id: 'team-1', name: 'Infrastructure', description: null, is_active: true, member_count: 2 }];
+
+function contributor(overrides: Record<string, unknown>) {
+  return { ...CONTRIBUTORS[0], skills: [{ skill_id: 's-aws', proficiency: 4 }], ...overrides };
+}
+
+const MIXED_CONTRIBUTORS = [
+  contributor({ id: 'c-1', item_number: 1, user_id: 'u-1', user_display_name: 'Ada Lovelace', employment_type_id: 'type-1', team_id: 'team-1' }),
+  contributor({ id: 'c-2', item_number: 2, user_id: 'u-2', user_display_name: 'Bob Stone', employment_type_id: 'type-2', team_id: 'team-1' }),
+  contributor({ id: 'c-3', item_number: 3, user_id: 'u-3', user_display_name: 'Cleo Marsh', employment_type_id: 'type-1', team_id: null }),
+];
+
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="search">{location.search}</div>;
@@ -94,6 +115,7 @@ beforeEach(() => {
   vi.mocked(api.get).mockImplementation(async (url: string) => {
     if (url === '/portfolio/team-members') return { data: { items: CONTRIBUTORS } } as any;
     if (url === '/portfolio/teams') return { data: [] } as any;
+    if (url === '/portfolio/employment-types') return { data: EMPLOYMENT_TYPES } as any;
     if (url === '/portfolio/team-members/time-stats') return { data: { stats: {} } } as any;
     if (url === '/portfolio/skills') return { data: { items: SKILLS } } as any;
     return { data: {} } as any;
@@ -155,5 +177,65 @@ describe('ContributorsPage view switch', () => {
 
     renderAt('/portfolio/contributors');
     await screen.findByRole('table');
+  });
+});
+
+describe('ContributorsPage contract type filter', () => {
+  beforeEach(() => {
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url === '/portfolio/team-members') return { data: { items: MIXED_CONTRIBUTORS } } as any;
+      if (url === '/portfolio/teams') return { data: TEAMS } as any;
+      if (url === '/portfolio/employment-types') return { data: EMPLOYMENT_TYPES } as any;
+      if (url === '/portfolio/team-members/time-stats') return { data: { stats: {} } } as any;
+      if (url === '/portfolio/skills') return { data: { items: SKILLS } } as any;
+      return { data: {} } as any;
+    });
+  });
+
+  const chooseEmploymentType = async (option: string) => {
+    fireEvent.mouseDown(await screen.findByText('All contract types'));
+    fireEvent.click(within(await screen.findByRole('listbox')).getByText(option));
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+  };
+
+  const chooseTeam = async (option: string) => {
+    fireEvent.mouseDown(await screen.findByText('All teams'));
+    fireEvent.click(within(await screen.findByRole('listbox')).getByText(option));
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+  };
+
+  it('narrows the list to one contract type', async () => {
+    renderAt('/portfolio/contributors');
+    await screen.findByText('Ada Lovelace');
+    await chooseEmploymentType('External');
+    expect(screen.getByText('Bob Stone')).toBeInTheDocument();
+    expect(screen.queryByText('Ada Lovelace')).toBeNull();
+    expect(screen.queryByText('Cleo Marsh')).toBeNull();
+  });
+
+  it('narrows the matrix through the same filter', async () => {
+    renderAt('/portfolio/contributors?view=matrix');
+    await screen.findByRole('columnheader', { name: 'Bob Stone' });
+    await chooseEmploymentType('Internal');
+    expect(screen.getByRole('columnheader', { name: 'Ada Lovelace' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Bob Stone' })).toBeNull();
+  });
+
+  it('composes with the team filter', async () => {
+    renderAt('/portfolio/contributors');
+    await screen.findByText('Cleo Marsh');
+    await chooseTeam('Infrastructure');
+    expect(screen.queryByText('Cleo Marsh')).toBeNull();
+    await chooseEmploymentType('External');
+    expect(screen.getByText('Bob Stone')).toBeInTheDocument();
+    expect(screen.queryByText('Ada Lovelace')).toBeNull();
+  });
+
+  it('says nothing matches instead of claiming there are no contributors', async () => {
+    renderAt('/portfolio/contributors');
+    await screen.findByText('Ada Lovelace');
+    await chooseEmploymentType('Freelance');
+    expect(screen.getByText('No contributor matches the current filters.')).toBeInTheDocument();
+    expect(screen.queryByText('Ada Lovelace')).toBeNull();
   });
 });

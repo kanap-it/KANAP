@@ -1,6 +1,6 @@
 # Portfolio Settings
 
-Portfolio Settings let you configure the scoring system, team skills, project phase templates, and classification structure used across all portfolio requests and projects. These settings shape how requests are evaluated, how projects are structured, and how items are categorized.
+Portfolio Settings let you configure the scoring system, team skills, project phase templates, the classification structure, and the contract types used across all portfolio requests and projects. These settings shape how requests are evaluated, how projects are structured, and how items are categorized.
 
 ## Where to find it
 
@@ -194,10 +194,42 @@ Category (e.g., "Digital Transformation")
 
 ---
 
+## Contract Types
+
+Contract types record how each contributor works with you. They appear as a dropdown on every contributor's Properties panel, and as a filter on the Contributors page. Every contributor starts as Internal.
+
+Four types are created with every workspace:
+
+- **Internal** -- the default for every new contributor
+- **External**
+- **Apprentice**
+- **Other**
+
+### Managing Contract Types
+
+**To add a type**:
+1. Open the **Contract types** tab
+2. Click **Add contract type**
+3. Enter a name and click **Save**
+
+**To rename a type**: Click the edit icon, change the name and save. Contributors already on that type keep it.
+
+**To switch a type off**: Use the toggle. An inactive type disappears from the dropdown for new assignments, but contributors already on it keep it and still show it.
+
+**To delete a type**: Click the delete icon. It is only available for types you created yourself and that no contributor uses -- the count beside each type tells you how many are on it. The four built-in types can be renamed but never deleted.
+
+**Seed defaults**: If the list is ever empty, **Seed defaults** recreates Internal, External, Apprentice and Other.
+
+Contract types are never imported from Microsoft Entra: they are yours to maintain.
+
+---
+
 ## Tips
 
   - **Start with scoring**: Define your evaluation criteria first so requests can be properly prioritized
   - **Use templates**: Create templates that match your organization's delivery methodology
   - **Keep classification simple**: Too many options create confusion; start small and expand as needed
   - **Review regularly**: As your organization evolves, revisit these settings to ensure they remain relevant
+  - **Keep contract types few**: Four or five types are usually enough to answer "who is internal and who is not"
+
 

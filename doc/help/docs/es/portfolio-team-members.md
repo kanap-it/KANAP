@@ -45,6 +45,7 @@ Los colaboradores se muestran como tarjetas agrupadas por equipo.
 - Use el desplegable **Filtrar por equipo** para mostrar solo colaboradores de un equipo específico
 - Seleccione **Sin asignar** para ver colaboradores que no han sido asignados a un equipo todavía
 - Seleccione **Todos los equipos** para ver a todos
+- Use el desplegable **Filtrar por tipo de contrato** que está al lado para mostrar solo al personal interno, solo a los externos, y así sucesivamente. Ambos filtros se combinan y se aplican tanto a la lista como a la matriz de competencias.
 
 **Grupos de equipo**:
 - Cada equipo se muestra como una tarjeta plegable con un indicador de número de miembros
@@ -96,6 +97,16 @@ Cada cambio se guarda automáticamente. Una breve nota «Guardando… / Guardado
 
 **Equipo**
 Asigne este colaborador a un equipo. Los equipos son grupos organizacionales configurados en Configuración del portafolio. Esta asignación determina cómo se agrupan los colaboradores en la página de Colaboradores. El equipo también puede cambiarse desde el elemento **Equipo** del encabezado. Este campo solo es visible al editar el perfil de otro colaborador (no el suyo propio).
+
+**Responsable**
+La persona a la que reporta este colaborador. Haga clic en el campo, busque por nombre y elija a cualquier persona de su organización: el responsable no tiene por qué ser colaborador. Use **Borrar** para quitar el vínculo. Un colaborador no puede ser su propio responsable, y no puede elegir a alguien que ya le reporta, directamente o a través de una cadena de responsables.
+
+Cuando el responsable proviene de Microsoft Entra, el campo es de solo lectura y muestra **Desde Microsoft Entra** debajo. Cámbielo en su directorio, no aquí.
+
+Una vez definido, el nombre del responsable también aparece en el encabezado del espacio de trabajo, y al hacer clic se abre su ficha de colaborador cuando tiene una. Este campo solo es visible al editar el perfil de otro colaborador (no el suyo propio).
+
+**Tipo de contrato**
+Cómo trabaja esta persona con usted. Cada colaborador empieza como **Interno**; cambie a **Externo**, **Aprendiz** u **Otro** cuando no sea el caso. La lista es suya y se adapta en **Portafolio > Configuración > Tipos de contrato**. El tipo de contrato nunca se importa desde Microsoft Entra. Este campo solo es visible al editar el perfil de otro colaborador (no el suyo propio).
 
 **Disponibilidad para proyectos**
 Use el deslizador para establecer cuántos días por mes esta persona puede trabajar en proyectos del portafolio. El rango es 0 -- 20 días, con incrementos de 0.5 días. El valor predeterminado es 5 días. El valor se guarda al soltar el deslizador.
@@ -229,6 +240,24 @@ Los colaboradores pueden asignarse a equipos organizacionales para una mejor org
 - Añadir, editar o deshabilitar equipos
 - Use **Establecer valores predeterminados** para llenar con equipos estándar
 - Los equipos con miembros asignados no pueden eliminarse
+
+---
+
+## Tipos de contrato
+
+Los tipos de contrato registran cómo trabaja cada persona con usted: un empleado, alguien de un proveedor, un aprendiz, y lo que su organización necesite. Se configuran en **Portafolio > Configuración > Tipos de contrato**. Cada colaborador empieza como Interno.
+
+**Tipos predeterminados** (se pueden renombrar):
+- Interno
+- Externo
+- Aprendiz
+- Otro
+
+**Gestionar los tipos de contrato**:
+- Vaya a **Portafolio > Configuración** y abra la pestaña **Tipos de contrato**
+- Agregue sus propios tipos, renómbrelos, o desactive uno para excluirlo de las nuevas asignaciones sin perder a los colaboradores que ya lo tienen
+- Los cuatro tipos integrados pueden renombrarse pero no eliminarse
+- Un tipo asignado al menos a un colaborador no puede eliminarse; la pestaña indica cuántos colaboradores usan cada uno
 
 ---
 

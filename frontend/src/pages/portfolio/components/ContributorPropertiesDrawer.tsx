@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { PropertyGroup, PropertyRow } from '../../../components/design';
 import EnumAutocomplete from '../../../components/fields/EnumAutocomplete';
 import CompanySelect from '../../../components/fields/CompanySelect';
+import UserSelect from '../../../components/fields/UserSelect';
+import { formatMetadataUserName } from '../../../components/workspace/MetadataUserPicker';
 import { MONO_FONT_FAMILY } from '../../../config/ThemeContext';
 import { drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 
@@ -13,6 +15,9 @@ export type ContributorDrawerStream = ContributorDrawerOption & { category_id: s
 
 export type ContributorDrawerValues = {
   team_id: string | null;
+  manager_user_id: string | null;
+  manager_source: string | null;
+  employment_type_id: string | null;
   project_availability: number;
   default_source_id: string | null;
   default_category_id: string | null;
@@ -23,14 +28,21 @@ export type ContributorDrawerValues = {
 type Props = {
   values: ContributorDrawerValues;
   teams: ContributorDrawerTeam[];
+  employmentTypes: ContributorDrawerOption[];
   sources: ContributorDrawerOption[];
   categories: ContributorDrawerOption[];
   streams: ContributorDrawerStream[];
-  /** Team assignment is not part of the self-service profile. */
+  /** Name of the current manager, for the Entra read-only row. */
+  managerName?: string | null;
+  /** The contributor's own user, kept out of the manager list. */
+  contributorUserId?: string | null;
+  /** Team, manager and employment type are not part of the self-service profile. */
   showTeam: boolean;
   canEdit: boolean;
   canManageTeams: boolean;
   onChange: (patch: Partial<ContributorDrawerValues>) => void;
+  /** Carries the picked name so the metadata bar does not wait for a refetch. */
+  onManagerPicked?: (userId: string | null, name: string | null) => void;
 };
 
 const AVAILABILITY_MAX = 20;
@@ -38,13 +50,17 @@ const AVAILABILITY_MAX = 20;
 export default function ContributorPropertiesDrawer({
   values,
   teams,
+  employmentTypes,
   sources,
   categories,
   streams,
+  managerName,
+  contributorUserId,
   showTeam,
   canEdit,
   canManageTeams,
   onChange,
+  onManagerPicked,
 }: Props) {
   const { t } = useTranslation(['portfolio', 'common']);
   // Local slider position while dragging; the save fires once on release.
@@ -56,6 +72,14 @@ export default function ContributorPropertiesDrawer({
       .sort((a, b) => a.name.localeCompare(b.name)),
     [teams, values.team_id],
   );
+  // A type deactivated after it was assigned stays in the list, like teams.
+  const activeEmploymentTypes = React.useMemo(
+    () => employmentTypes.filter((type) => type.is_active || type.id === values.employment_type_id),
+    [employmentTypes, values.employment_type_id],
+  );
+  // Same rule as the server: an Entra manager is read-only, unless the account
+  // it pointed at is gone and the foreign key already cleared the reference.
+  const managerFromEntra = values.manager_source === 'entra' && !!values.manager_user_id;
   const activeSources = React.useMemo(() => sources.filter((s) => s.is_active), [sources]);
   const activeCategories = React.useMemo(() => categories.filter((c) => c.is_active), [categories]);
   const categoryStreams = React.useMemo(
@@ -87,6 +111,7 @@ export default function ContributorPropertiesDrawer({
               variant="standard"
               sx={drawerSelectSx}
               disabled={!canManageTeams}
+              SelectProps={{ displayEmpty: true }}
             >
               <MenuItem value="" sx={drawerMenuItemSx}>
                 {t('portfolio:workspace.contributor.values.unassigned')}
@@ -94,6 +119,53 @@ export default function ContributorPropertiesDrawer({
               {activeTeams.map((team) => (
                 <MenuItem key={team.id} value={team.id} sx={drawerMenuItemSx}>
                   {team.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </PropertyRow>
+        )}
+        {showTeam && (
+          <PropertyRow label={t('portfolio:workspace.contributor.fields.manager')}>
+            {managerFromEntra ? (
+              <Box>
+                <Box sx={(theme) => ({ fontSize: 13, lineHeight: 1.4, color: theme.palette.kanap.text.primary })}>
+                  {managerName || t('portfolio:workspace.contributor.values.noManager')}
+                </Box>
+                <Box sx={(theme) => ({ fontSize: 12, lineHeight: 1.4, color: theme.palette.kanap.text.tertiary })}>
+                  {t('portfolio:workspace.contributor.values.managerFromEntra')}
+                </Box>
+              </Box>
+            ) : (
+              <UserSelect
+                label=""
+                hideLabel
+                size="small"
+                value={values.manager_user_id}
+                placeholder={t('portfolio:workspace.contributor.values.noManager')}
+                disabled={!canManageTeams}
+                excludeUserId={contributorUserId}
+                onChange={(value, user) => {
+                  onChange({ manager_user_id: value });
+                  onManagerPicked?.(value, formatMetadataUserName(user));
+                }}
+                textFieldSx={drawerFieldValueSx}
+              />
+            )}
+          </PropertyRow>
+        )}
+        {showTeam && (
+          <PropertyRow label={t('portfolio:workspace.contributor.fields.employmentType')}>
+            <TextField
+              select
+              value={values.employment_type_id ?? ''}
+              onChange={(e) => onChange({ employment_type_id: e.target.value || null })}
+              variant="standard"
+              sx={drawerSelectSx}
+              disabled={!canManageTeams}
+            >
+              {activeEmploymentTypes.map((type) => (
+                <MenuItem key={type.id} value={type.id} sx={drawerMenuItemSx}>
+                  {type.name}
                 </MenuItem>
               ))}
             </TextField>

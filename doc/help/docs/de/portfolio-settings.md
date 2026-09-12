@@ -1,6 +1,6 @@
 # Portfolio-Einstellungen
 
-Die Portfolio-Einstellungen ermöglichen es Ihnen, das Bewertungssystem, die Teamfähigkeiten, Projektphasenvorlagen und die Klassifizierungsstruktur zu konfigurieren, die über alle Portfolio-Anfragen und -Projekte hinweg verwendet werden. Diese Einstellungen bestimmen, wie Anfragen bewertet, wie Projekte strukturiert und wie Elemente kategorisiert werden.
+Die Portfolio-Einstellungen ermöglichen es Ihnen, das Bewertungssystem, die Teamfähigkeiten, Projektphasenvorlagen, die Klassifizierungsstruktur und die Vertragsarten zu konfigurieren, die über alle Portfolio-Anfragen und -Projekte hinweg verwendet werden. Diese Einstellungen bestimmen, wie Anfragen bewertet, wie Projekte strukturiert und wie Elemente kategorisiert werden.
 
 ## Wo Sie es finden
 
@@ -194,9 +194,41 @@ Kategorie (z. B. „Digitale Transformation")
 
 ---
 
+## Vertragsarten
+
+Vertragsarten halten fest, wie jeder Mitwirkende mit Ihnen zusammenarbeitet. Sie erscheinen als Dropdown im Eigenschaften-Panel jedes Mitwirkenden und als Filter auf der Mitwirkenden-Seite. Jeder Mitwirkende beginnt als Intern.
+
+Vier Arten werden mit jedem Arbeitsbereich angelegt:
+
+- **Intern** -- der Standard für jeden neuen Mitwirkenden
+- **Extern**
+- **Auszubildender**
+- **Sonstige**
+
+### Vertragsarten verwalten
+
+**Eine Art hinzufügen**:
+1. Öffnen Sie den Tab **Vertragsarten**
+2. Klicken Sie auf **Vertragsart hinzufügen**
+3. Geben Sie einen Namen ein und klicken Sie auf **Speichern**
+
+**Eine Art umbenennen**: Klicken Sie auf das Bearbeiten-Symbol, ändern Sie den Namen und speichern Sie. Mitwirkende, die diese Art bereits haben, behalten sie.
+
+**Eine Art deaktivieren**: Verwenden Sie den Schalter. Eine inaktive Art verschwindet aus dem Dropdown für neue Zuordnungen, aber Mitwirkende, die sie bereits haben, behalten und zeigen sie weiterhin.
+
+**Eine Art löschen**: Klicken Sie auf das Löschen-Symbol. Es steht nur für selbst angelegte Arten zur Verfügung, die kein Mitwirkender verwendet -- die Zahl neben jeder Art zeigt, wie viele sie haben. Die vier integrierten Arten können umbenannt, aber nie gelöscht werden.
+
+**Standardwerte laden**: Sollte die Liste jemals leer sein, legt **Standardwerte laden** Intern, Extern, Auszubildender und Sonstige erneut an.
+
+Vertragsarten werden nie aus Microsoft Entra importiert: Sie pflegen sie selbst.
+
+---
+
 ## Tipps
 
   - **Beginnen Sie mit der Bewertung**: Definieren Sie zuerst Ihre Bewertungskriterien, damit Anfragen richtig priorisiert werden können
   - **Verwenden Sie Vorlagen**: Erstellen Sie Vorlagen, die zur Umsetzungsmethodik Ihrer Organisation passen
   - **Halten Sie die Klassifizierung einfach**: Zu viele Optionen erzeugen Verwirrung; beginnen Sie klein und erweitern Sie nach Bedarf
   - **Überprüfen Sie regelmäßig**: Wenn sich Ihre Organisation weiterentwickelt, überprüfen Sie diese Einstellungen, um sicherzustellen, dass sie weiterhin relevant sind
+  - **Halten Sie die Vertragsarten übersichtlich**: Vier oder fünf Arten genügen meist für die Frage «wer ist intern und wer nicht»
+

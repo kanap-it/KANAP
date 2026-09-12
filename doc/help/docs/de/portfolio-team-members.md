@@ -45,6 +45,7 @@ Mitwirkende werden als Karten angezeigt, gruppiert nach Team.
 - Verwenden Sie das Dropdown **Nach Team filtern**, um nur Mitwirkende eines bestimmten Teams anzuzeigen
 - Wählen Sie **Nicht zugewiesen**, um Mitwirkende zu sehen, die noch keinem Team zugewiesen sind
 - Wählen Sie **Alle Teams**, um alle zu sehen
+- Verwenden Sie daneben das Dropdown **Nach Vertragsart filtern**, um nur internes Personal, nur Externe und so weiter anzuzeigen. Beide Filter wirken zusammen und gelten sowohl für die Liste als auch für die Kompetenzmatrix.
 
 **Teamgruppen**:
 - Jedes Team wird als zusammenklappbare Karte mit einem Mitgliederzahl-Badge angezeigt
@@ -96,6 +97,16 @@ Jede Änderung wird automatisch gespeichert. Ein kurzer Hinweis „Speichern… 
 
 **Team**
 Weisen Sie diesen Mitwirkenden einem Team zu. Teams sind Organisationsgruppen, die in den Portfolio-Einstellungen konfiguriert sind. Diese Zuweisung bestimmt, wie Mitwirkende auf der Mitwirkenden-Seite gruppiert werden. Das Team kann auch über den Eintrag **Team** in der Kopfzeile geändert werden. Dieses Feld ist nur beim Bearbeiten des Profils eines anderen Mitwirkenden sichtbar (nicht Ihres eigenen).
+
+**Vorgesetzter**
+Die Person, an die dieser Mitwirkende berichtet. Klicken Sie auf das Feld, suchen Sie nach dem Namen und wählen Sie eine beliebige Person Ihrer Organisation aus -- der Vorgesetzte muss selbst kein Mitwirkender sein. Mit **Löschen** entfernen Sie die Verknüpfung. Ein Mitwirkender kann nicht sein eigener Vorgesetzter sein, und Sie können niemanden auswählen, der bereits an ihn berichtet, weder direkt noch über eine Kette von Vorgesetzten.
+
+Stammt der Vorgesetzte aus Microsoft Entra, ist das Feld schreibgeschützt und zeigt darunter **Aus Microsoft Entra**. Ändern Sie ihn in Ihrem Verzeichnis, nicht hier.
+
+Einmal gesetzt, erscheint der Name des Vorgesetzten auch in der Kopfzeile des Arbeitsbereichs; ein Klick öffnet dessen Mitwirkenden-Profil, sofern vorhanden. Dieses Feld ist nur beim Bearbeiten des Profils eines anderen Mitwirkenden sichtbar (nicht Ihres eigenen).
+
+**Vertragsart**
+Wie diese Person mit Ihnen zusammenarbeitet. Jeder Mitwirkende beginnt als **Intern**; wechseln Sie zu **Extern**, **Auszubildender** oder **Sonstige**, wenn das nicht zutrifft. Die Liste können Sie unter **Portfolio > Einstellungen > Vertragsarten** anpassen. Die Vertragsart wird nie aus Microsoft Entra importiert. Dieses Feld ist nur beim Bearbeiten des Profils eines anderen Mitwirkenden sichtbar (nicht Ihres eigenen).
 
 **Projektverfügbarkeit**
 Verwenden Sie den Schieberegler, um festzulegen, wie viele Tage pro Monat diese Person an Portfolio-Projekten arbeiten kann. Der Bereich ist 0 -- 20 Tage, in 0,5-Tage-Schritten. Standard ist 5 Tage. Der Wert wird gespeichert, sobald Sie den Schieberegler loslassen.
@@ -229,6 +240,24 @@ Mitwirkende können organisatorischen Teams zugewiesen werden, um die Organisati
 - Teams hinzufügen, bearbeiten oder deaktivieren
 - Verwenden Sie **Standardwerte laden**, um mit Standardteams zu befüllen
 - Teams mit zugewiesenen Mitgliedern können nicht gelöscht werden
+
+---
+
+## Vertragsarten
+
+Vertragsarten halten fest, wie jede Person mit Ihnen zusammenarbeitet: als Angestellter, als Person eines Dienstleisters, als Auszubildender und was Ihre Organisation sonst braucht. Sie werden unter **Portfolio > Einstellungen > Vertragsarten** konfiguriert. Jeder Mitwirkende beginnt als Intern.
+
+**Standardarten** (umbenennbar):
+- Intern
+- Extern
+- Auszubildender
+- Sonstige
+
+**Vertragsarten verwalten**:
+- Gehen Sie zu **Portfolio > Einstellungen** und öffnen Sie den Tab **Vertragsarten**
+- Legen Sie eigene Arten an, benennen Sie sie um, oder deaktivieren Sie eine, um sie von neuen Zuordnungen auszunehmen, ohne die bereits zugeordneten Mitwirkenden zu verlieren
+- Die vier integrierten Arten können umbenannt, aber nicht gelöscht werden
+- Eine Art, die mindestens einem Mitwirkenden zugeordnet ist, kann nicht gelöscht werden; der Tab zeigt, wie viele Mitwirkende jede Art verwenden
 
 ---
 

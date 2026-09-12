@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { TeamMemberConfig, SkillProficiency } from './team-member-config.entity';
@@ -12,18 +12,24 @@ type TeamMemberConfigCreateInput = {
   project_availability?: number;
   notes?: string | null;
   team_id?: string | null;
+  manager_user_id?: string | null;
+  employment_type_id?: string | null;
   default_source_id?: string | null;
   default_category_id?: string | null;
   default_stream_id?: string | null;
   default_company_id?: string | null;
 };
 
+// `manager_source` is deliberately absent: it is derived by the service, never
+// accepted from a request body. The Entra sync passes it through `opts` instead.
 type TeamMemberConfigUpdateInput = {
   areas_of_expertise?: string[];
   skills?: SkillProficiency[];
   project_availability?: number;
   notes?: string | null;
   team_id?: string | null;
+  manager_user_id?: string | null;
+  employment_type_id?: string | null;
   default_source_id?: string | null;
   default_category_id?: string | null;
   default_stream_id?: string | null;
@@ -67,6 +73,86 @@ export class TeamMemberConfigService {
     return Math.round((hours / 8) * 10) / 10;
   }
 
+  // ==================== MANAGER / EMPLOYMENT TYPE VALIDATION ====================
+
+  private static readonly MAX_MANAGER_CHAIN = 50;
+
+  /**
+   * A manager must be a user of the tenant, must not be the contributor
+   * themselves, and must not already report to them.
+   *
+   * The cycle check reads before it writes, so it is serialized per tenant by a
+   * transaction-scoped advisory lock: without it two concurrent requests setting
+   * A -> B and B -> A would both pass. Requests already run inside a transaction
+   * (common/tenant.interceptor.ts), which releases the lock on commit.
+   */
+  private async assertManagerAssignable(
+    mg: EntityManager,
+    tenantId: string,
+    contributorUserId: string,
+    managerUserId: string,
+  ) {
+    if (managerUserId === contributorUserId) {
+      throw new BadRequestException('A contributor cannot be their own manager');
+    }
+
+    const managerRows = await mg.query(
+      `SELECT 1 FROM users WHERE id = $1 AND tenant_id = $2`,
+      [managerUserId, tenantId],
+    );
+    if (managerRows.length === 0) {
+      throw new BadRequestException('Manager not found');
+    }
+
+    await mg.query(`SELECT pg_advisory_xact_lock(hashtext($1)::bigint)`, [
+      `contributor-manager:${tenantId}`,
+    ]);
+
+    // One tenant-scoped read, then the chain is walked in memory: the reporting
+    // line is a linked list, and point queries per hop would be an N+1.
+    const rows: Array<{ user_id: string; manager_user_id: string }> = await mg.query(
+      `SELECT user_id, manager_user_id
+       FROM portfolio_team_member_configs
+       WHERE tenant_id = $1 AND manager_user_id IS NOT NULL`,
+      [tenantId],
+    );
+    const managerOf = new Map(rows.map((row) => [row.user_id, row.manager_user_id]));
+
+    let current: string | undefined = managerUserId;
+    for (let hop = 0; current && hop < TeamMemberConfigService.MAX_MANAGER_CHAIN; hop += 1) {
+      if (current === contributorUserId) {
+        throw new BadRequestException('That person already reports to this contributor');
+      }
+      current = managerOf.get(current);
+    }
+  }
+
+  /** The tenant's first built-in type, Internal unless renamed. */
+  private async defaultEmploymentTypeId(mg: EntityManager, tenantId: string): Promise<string | null> {
+    const rows = await mg.query(
+      `SELECT id FROM portfolio_employment_types
+       WHERE tenant_id = $1 AND is_system = true AND is_active = true
+       ORDER BY display_order ASC LIMIT 1`,
+      [tenantId],
+    );
+    return rows[0]?.id ?? null;
+  }
+
+  private async assertEmploymentTypeUsable(
+    mg: EntityManager,
+    tenantId: string,
+    employmentTypeId: string,
+  ) {
+    const rows = await mg.query(
+      `SELECT 1 FROM portfolio_employment_types
+       WHERE id = $1 AND tenant_id = $2 AND is_active = true`,
+      [employmentTypeId, tenantId],
+    );
+    if (rows.length === 0) {
+      throw new BadRequestException('Contract type not found');
+    }
+  }
+
   // ==================== LIST ====================
   async list(tenantId: string, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
@@ -77,10 +163,15 @@ export class TeamMemberConfigService {
         tmc.*,
         TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_display_name,
         u.email as user_email,
-        pt.name as team_name
+        u.job_title as job_title,
+        pt.name as team_name,
+        TRIM(COALESCE(mgr.first_name, '') || ' ' || COALESCE(mgr.last_name, '')) as manager_name,
+        et.name as employment_type_name
       FROM portfolio_team_member_configs tmc
       LEFT JOIN users u ON u.id = tmc.user_id
       LEFT JOIN portfolio_teams pt ON pt.id = tmc.team_id
+      LEFT JOIN users mgr ON mgr.id = tmc.manager_user_id
+      LEFT JOIN portfolio_employment_types et ON et.id = tmc.employment_type_id
       WHERE tmc.tenant_id = $1
       ORDER BY u.first_name ASC, u.last_name ASC, u.email ASC
     `, [tenantId]);
@@ -97,10 +188,15 @@ export class TeamMemberConfigService {
         tmc.*,
         TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) as user_display_name,
         u.email as user_email,
-        pt.name as team_name
+        u.job_title as job_title,
+        pt.name as team_name,
+        TRIM(COALESCE(mgr.first_name, '') || ' ' || COALESCE(mgr.last_name, '')) as manager_name,
+        et.name as employment_type_name
       FROM portfolio_team_member_configs tmc
       LEFT JOIN users u ON u.id = tmc.user_id
       LEFT JOIN portfolio_teams pt ON pt.id = tmc.team_id
+      LEFT JOIN users mgr ON mgr.id = tmc.manager_user_id
+      LEFT JOIN portfolio_employment_types et ON et.id = tmc.employment_type_id
       WHERE tmc.id = $1
     `, [id]);
 
@@ -159,10 +255,19 @@ export class TeamMemberConfigService {
     body: TeamMemberConfigCreateInput,
     tenantId: string,
     userId: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; managerSource?: 'entra' | 'manual' },
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(TeamMemberConfig);
+
+    if (body.manager_user_id) {
+      await this.assertManagerAssignable(mg, tenantId, body.user_id, body.manager_user_id);
+    }
+    if (body.employment_type_id) {
+      await this.assertEmploymentTypeUsable(mg, tenantId, body.employment_type_id);
+    }
+    // A contributor is never without a contract type: Internal unless said otherwise.
+    const employmentTypeId = body.employment_type_id || await this.defaultEmploymentTypeId(mg, tenantId);
 
     const entity = repo.create({
       tenant_id: tenantId,
@@ -172,6 +277,9 @@ export class TeamMemberConfigService {
       project_availability: body.project_availability ?? 5,
       notes: body.notes || null,
       team_id: body.team_id ?? undefined,
+      manager_user_id: body.manager_user_id ?? null,
+      manager_source: body.manager_user_id ? (opts?.managerSource ?? 'manual') : null,
+      employment_type_id: employmentTypeId,
       default_source_id: body.default_source_id ?? null,
       default_category_id: body.default_category_id ?? null,
       default_stream_id: body.default_stream_id ?? null,
@@ -198,7 +306,7 @@ export class TeamMemberConfigService {
     id: string,
     body: TeamMemberConfigUpdateInput,
     userId: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; managerSource?: 'entra' | 'manual' },
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(TeamMemberConfig);
@@ -225,6 +333,30 @@ export class TeamMemberConfigService {
     }
     if (body.team_id !== undefined) {
       existing.team_id = body.team_id || null;
+    }
+    if (body.manager_user_id !== undefined) {
+      // A manager that came from Entra is owned by the directory: only the sync
+      // itself may rewrite it. The one exception is an orphaned value, whose
+      // user was deleted and whose column the foreign key already nulled --
+      // that one is editable by hand again.
+      const entraOwned = existing.manager_source === 'entra' && !!existing.manager_user_id;
+      if (entraOwned && opts?.managerSource !== 'entra') {
+        throw new BadRequestException('The manager comes from Microsoft Entra and cannot be changed here');
+      }
+      if (body.manager_user_id) {
+        await this.assertManagerAssignable(mg, existing.tenant_id, existing.user_id, body.manager_user_id);
+        existing.manager_user_id = body.manager_user_id;
+        existing.manager_source = opts?.managerSource ?? 'manual';
+      } else {
+        existing.manager_user_id = null;
+        existing.manager_source = null;
+      }
+    }
+    if (body.employment_type_id !== undefined) {
+      if (body.employment_type_id) {
+        await this.assertEmploymentTypeUsable(mg, existing.tenant_id, body.employment_type_id);
+      }
+      existing.employment_type_id = body.employment_type_id || null;
     }
     if (body.default_source_id !== undefined) {
       existing.default_source_id = body.default_source_id ?? null;

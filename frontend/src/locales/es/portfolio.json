@@ -142,7 +142,9 @@
         "source": "Origen",
         "stream": "Línea",
         "team": "Equipo",
-        "projectAvailability": "Disponibilidad para proyectos"
+        "projectAvailability": "Disponibilidad para proyectos",
+        "manager": "Responsable",
+        "employmentType": "Tipo de contrato"
       },
       "messages": {
         "deleteFailed": "Error al eliminar",
@@ -179,13 +181,18 @@
         "unassigned": "Sin asignar",
         "skillCount_one": "{{count}} competencia",
         "skillCount_other": "{{count}} competencias",
-        "daysPerMonthShort": "{{count}} d/mes"
+        "daysPerMonthShort": "{{count}} d/mes",
+        "noManager": "Sin responsable",
+        "managerFromEntra": "Desde Microsoft Entra"
       },
       "metadata": {
         "team": "Equipo",
         "noTeam": "Sin equipo",
         "editTeam": "Cambiar de equipo",
-        "availability": "Disponibilidad"
+        "availability": "Disponibilidad",
+        "manager": "Responsable",
+        "noManager": "Sin responsable",
+        "openManager": "Abrir la ficha del responsable"
       },
       "aria": {
         "skillLevel": "Nivel de {{skill}}",
@@ -1218,7 +1225,9 @@
     "filters": {
       "team": "Filtrar por equipo",
       "allTeams": "Todos los equipos",
-      "unassigned": "Sin asignar"
+      "unassigned": "Sin asignar",
+      "employmentType": "Filtrar por tipo de contrato",
+      "allEmploymentTypes": "Todos los tipos de contrato"
     },
     "matrix": {
       "filtersLabel": "Filtros de la matriz de competencias",
@@ -1252,7 +1261,8 @@
       }
     },
     "states": {
-      "empty": "Aún no hay colaboradores configurados. Agregue colaboradores para definir sus competencias y disponibilidad."
+      "empty": "Aún no hay colaboradores configurados. Agregue colaboradores para definir sus competencias y disponibilidad.",
+      "noneMatchFilter": "Ningún colaborador coincide con los filtros actuales."
     },
     "teams": {
       "unknown": "Equipo desconocido"
@@ -1822,7 +1832,8 @@
       "skills": "Competencias",
       "phaseTemplates": "Plantillas de fase",
       "classification": "Clasificación",
-      "teams": "Equipos"
+      "teams": "Equipos",
+      "employmentTypes": "Tipos de contrato"
     },
     "actions": {
       "addCriterion": "Agregar criterio",
@@ -1835,7 +1846,8 @@
       "addTaskType": "Agregar tipo de tarea",
       "addValue": "Agregar valor",
       "addPhase": "Agregar fase",
-      "seedDefaults": "Cargar valores predeterminados"
+      "seedDefaults": "Cargar valores predeterminados",
+      "addEmploymentType": "Agregar tipo de contrato"
     },
     "fields": {
       "name": "Nombre",
@@ -1984,6 +1996,21 @@
         "seedDefaultsFailed": "Error al cargar los valores predeterminados",
         "deleteFailed": "Error al eliminar el equipo",
         "updateFailed": "Error al actualizar el equipo"
+      }
+    },
+    "employmentTypes": {
+      "empty": "Aún no hay tipos de contrato. Use «Cargar valores predeterminados» para cargar Interno, Externo, Aprendiz y Otro, o agregue los suyos.",
+      "description": "Los tipos de contrato describen cómo trabaja cada colaborador con usted: empleado, proveedor o aprendiz, por ejemplo. Cada colaborador empieza como Interno; cámbielo en su ficha.",
+      "usageCount_one": "{{count}} colaborador",
+      "usageCount_other": "{{count}} colaboradores",
+      "dialog": {
+        "editTitle": "Editar tipo de contrato",
+        "createTitle": "Crear tipo de contrato"
+      },
+      "messages": {
+        "seedDefaultsFailed": "Error al cargar los valores predeterminados",
+        "deleteFailed": "Error al eliminar el tipo de contrato",
+        "updateFailed": "Error al actualizar el tipo de contrato"
       }
     }
   }
