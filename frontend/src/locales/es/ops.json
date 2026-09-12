@@ -138,7 +138,8 @@
       "selectDepartment": "Seleccionar departamento",
       "noCompanies": "Sin empresas",
       "noDepartments": "Sin departamentos",
-      "defaultManual": "Por defecto ({{count}} sociedades)"
+      "defaultManual": "Por defecto ({{count}} sociedades)",
+      "defaultManual_one": "Por defecto ({{count}} sociedad)"
     },
     "relations": {
       "projects": "Proyectos",
@@ -349,7 +350,8 @@
       "selectDepartment": "Seleccionar departamento",
       "noCompanies": "Sin empresas",
       "noDepartments": "Sin departamentos",
-      "defaultManual": "Por defecto ({{count}} sociedades)"
+      "defaultManual": "Por defecto ({{count}} sociedades)",
+      "defaultManual_one": "Por defecto ({{count}} sociedad)"
     },
     "relations": {
       "projects": "Proyectos",
@@ -521,7 +523,8 @@
       "modeManualHelp": "El generador se aplica únicamente a las sociedades seleccionadas.",
       "companies": "Sociedades",
       "companiesSelected": "{{count}} sociedades seleccionadas",
-      "companiesHint": "Seleccione al menos una sociedad: la selección se guarda en cuanto elija una.",
+      "companiesSelected_one": "{{count}} sociedad seleccionada",
+      "companiesHint": "Seleccione al menos una sociedad: la selección se guarda al cerrar la lista.",
       "companiesPlaceholder": "Seleccionar sociedades",
       "method": "Método por defecto",
       "methodHelp": "Se aplica a todas las partidas de OPEX y CAPEX que usan el método por defecto. Las partidas con un método explícito o una asignación manual no se ven afectadas.",
@@ -617,6 +620,7 @@
         "error": "Error"
       },
       "defaultManualLabel": "sociedades seleccionadas ({{count}})",
+      "defaultManualLabel_one": "sociedad seleccionada ({{count}})",
       "defaultBasisWarning": "{{count}} partidas siguen con la asignación por defecto: {{destinationYear}} usa {{destinationLabel}} mientras que {{sourceYear}} usa {{sourceLabel}}. Las partidas copiadas siguen usando el valor por defecto de su propio año — configure {{destinationYear}} en la administración presupuestaria si la base debe mantenerse igual."
     },
     "copyBudgetColumns": {

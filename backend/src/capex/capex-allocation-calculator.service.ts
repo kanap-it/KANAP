@@ -80,6 +80,10 @@ export class CapexAllocationCalculatorService {
     const years = Array.from(new Set(versions.map((v) => v.budget_year))).sort();
 
     let defaultLookup = new Map<string, DefaultResolution>();
+    // A manual company default is identical for every version of one (tenant, fiscal year):
+    // compute it once per key instead of once per version (lists and reports run hundreds).
+    // The promise is cached so a rejected selection surfaces the same error on each version.
+    const manualDefaultShares = new Map<string, Promise<Map<string, number>>>();
     if (years.length > 0) {
       const tenantIds = Array.from(
         new Set(versions.map((v) => ((v as any).tenant_id ?? null) as string | null)),
@@ -253,13 +257,19 @@ export class CapexAllocationCalculatorService {
       // an error instead of silently renormalising the chargeback over other companies.
       if (resolvedDefault.kind === 'manual_company') {
         try {
-          const distribution = await computeCompanyShares({
-            manager,
-            tenantId: version.tenant_id,
-            fiscalYear: version.budget_year,
-            companyIds: resolvedDefault.companyIds,
-            driver: resolvedDefault.method,
-          });
+          const key = defaultMethodKey(version.tenant_id, version.budget_year);
+          let pending = manualDefaultShares.get(key);
+          if (!pending) {
+            pending = computeCompanyShares({
+              manager,
+              tenantId: version.tenant_id,
+              fiscalYear: version.budget_year,
+              companyIds: resolvedDefault.companyIds,
+              driver: resolvedDefault.method,
+            });
+            manualDefaultShares.set(key, pending);
+          }
+          const distribution = await pending;
           const shares = Array.from(distribution.entries())
             .map(([company_id, allocation_pct]) => ({
               company_id,

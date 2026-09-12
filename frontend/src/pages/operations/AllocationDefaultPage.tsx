@@ -96,6 +96,14 @@ export default function AllocationDefaultPage() {
     mutationFn: (payload: { mode: AllocationRuleMode; method: AllocationMethod; companyIds: string[] | null }) =>
       saveAllocationRule(year, payload),
     onSuccess: applyResult,
+    // A rejected save (unusable selection, lost permission…) must not leave the controls
+    // showing a state the server refused: fall back to what is actually stored.
+    onError: () => {
+      const stored = queryClient.getQueryData<AllocationRuleResolution>(['allocation-rule', year]);
+      setSelectedCompanies(stored?.company_ids ?? []);
+      setPendingMode(null);
+      setPendingMethod(null);
+    },
   });
 
   const resetMutation = useMutation({
@@ -148,12 +156,22 @@ export default function AllocationDefaultPage() {
     }
   };
 
+  // Picking companies only updates the local selection; it is saved once the menu closes,
+  // so choosing five companies is one save (and one audit entry), not five.
   const applyCompanies = (next: string[]) => {
     setSelectedCompanies(next);
     setPendingMode('manual_company');
-    if (next.length > 0) {
-      saveMutation.mutate({ mode: 'manual_company', method, companyIds: next });
-    }
+  };
+
+  const commitCompanies = () => {
+    if (selectedCompanies.length === 0) return;
+    const stored = data?.mode === 'manual_company' ? data.company_ids ?? [] : null;
+    const unchanged = stored !== null
+      && stored.length === selectedCompanies.length
+      && stored.every((id, idx) => id === selectedCompanies[idx])
+      && data?.method === method;
+    if (unchanged) return;
+    saveMutation.mutate({ mode: 'manual_company', method, companyIds: selectedCompanies });
   };
 
   const applyDriver = (next: AllocationMethod) => {
@@ -248,6 +266,7 @@ export default function AllocationDefaultPage() {
                   variant="standard"
                   value={selectedCompanies}
                   onChange={(e) => applyCompanies(e.target.value as string[])}
+                  onClose={commitCompanies}
                   sx={pageSelectSx}
                   MenuProps={compactSelectMenuProps}
                   disabled={isLoading || busy}

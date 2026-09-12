@@ -138,7 +138,8 @@
       "selectDepartment": "Choisir un département",
       "noCompanies": "Aucune société",
       "noDepartments": "Aucun département",
-      "defaultManual": "Par défaut ({{count}} sociétés)"
+      "defaultManual": "Par défaut ({{count}} sociétés)",
+      "defaultManual_one": "Par défaut ({{count}} société)"
     },
     "relations": {
       "projects": "Projets",
@@ -349,7 +350,8 @@
       "selectDepartment": "Choisir un département",
       "noCompanies": "Aucune société",
       "noDepartments": "Aucun département",
-      "defaultManual": "Par défaut ({{count}} sociétés)"
+      "defaultManual": "Par défaut ({{count}} sociétés)",
+      "defaultManual_one": "Par défaut ({{count}} société)"
     },
     "relations": {
       "projects": "Projets",
@@ -521,7 +523,8 @@
       "modeManualHelp": "L'inducteur s'applique uniquement aux sociétés sélectionnées.",
       "companies": "Sociétés",
       "companiesSelected": "{{count}} sociétés sélectionnées",
-      "companiesHint": "Sélectionnez au moins une société : la sélection est enregistrée dès le premier choix.",
+      "companiesSelected_one": "{{count}} société sélectionnée",
+      "companiesHint": "Sélectionnez au moins une société : la sélection est enregistrée à la fermeture de la liste.",
       "companiesPlaceholder": "Sélectionner des sociétés",
       "method": "Méthode par défaut",
       "methodHelp": "S'applique à tous les postes OPEX et CAPEX qui utilisent la méthode par défaut. Les postes dotés d'une méthode explicite ou d'une ventilation manuelle ne sont pas affectés.",
@@ -617,6 +620,7 @@
         "error": "Erreur"
       },
       "defaultManualLabel": "sociétés sélectionnées ({{count}})",
+      "defaultManualLabel_one": "société sélectionnée ({{count}})",
       "defaultBasisWarning": "{{count}} postes sont laissés en ventilation par défaut : {{destinationYear}} utilise {{destinationLabel}} alors que {{sourceYear}} utilise {{sourceLabel}}. Les postes copiés continuent de suivre le défaut de leur propre année — configurez {{destinationYear}} dans l'administration budgétaire si la base doit rester identique."
     },
     "copyBudgetColumns": {

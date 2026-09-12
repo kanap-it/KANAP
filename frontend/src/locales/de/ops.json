@@ -138,7 +138,8 @@
       "selectDepartment": "Abteilung wählen",
       "noCompanies": "Keine Unternehmen",
       "noDepartments": "Keine Abteilungen",
-      "defaultManual": "Standard ({{count}} Unternehmen)"
+      "defaultManual": "Standard ({{count}} Unternehmen)",
+      "defaultManual_one": "Standard ({{count}} Unternehmen)"
     },
     "relations": {
       "projects": "Projekte",
@@ -349,7 +350,8 @@
       "selectDepartment": "Abteilung wählen",
       "noCompanies": "Keine Unternehmen",
       "noDepartments": "Keine Abteilungen",
-      "defaultManual": "Standard ({{count}} Unternehmen)"
+      "defaultManual": "Standard ({{count}} Unternehmen)",
+      "defaultManual_one": "Standard ({{count}} Unternehmen)"
     },
     "relations": {
       "projects": "Projekte",
@@ -521,7 +523,8 @@
       "modeManualHelp": "Der Treiber wird nur auf die ausgewählten Unternehmen angewendet.",
       "companies": "Unternehmen",
       "companiesSelected": "{{count}} Unternehmen ausgewählt",
-      "companiesHint": "Wählen Sie mindestens ein Unternehmen: die Auswahl wird beim ersten Klick gespeichert.",
+      "companiesSelected_one": "{{count}} Unternehmen ausgewählt",
+      "companiesHint": "Wählen Sie mindestens ein Unternehmen: die Auswahl wird beim Schließen der Liste gespeichert.",
       "companiesPlaceholder": "Unternehmen auswählen",
       "method": "Standardmethode",
       "methodHelp": "Gilt für alle OPEX- und CAPEX-Positionen, die die Standardmethode verwenden. Positionen mit einer expliziten Methode oder einer manuellen Zuordnung sind nicht betroffen.",
@@ -617,6 +620,7 @@
         "error": "Fehler"
       },
       "defaultManualLabel": "ausgewählte Unternehmen ({{count}})",
+      "defaultManualLabel_one": "ausgewähltes Unternehmen ({{count}})",
       "defaultBasisWarning": "{{count}} Positionen stehen auf der Standardzuordnung: {{destinationYear}} verwendet {{destinationLabel}}, {{sourceYear}} dagegen {{sourceLabel}}. Kopierte Positionen folgen weiterhin der Standardeinstellung ihres eigenen Jahres — konfigurieren Sie {{destinationYear}} in der Budget-Administration, wenn die Basis gleich bleiben soll."
     },
     "copyBudgetColumns": {

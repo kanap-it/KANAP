@@ -46,14 +46,6 @@ function assertYear(year: number): void {
   }
 }
 
-/** PostgreSQL unique violation, unwrapped from TypeORM's QueryFailedError. */
-function isUniqueViolation(err: unknown): boolean {
-  if (typeof err !== 'object' || err === null) return false;
-  const direct = (err as any).code;
-  const driver = (err as any).driverError?.code;
-  return direct === '23505' || driver === '23505';
-}
-
 @Injectable()
 export class AllocationRulesService {
   constructor(
@@ -191,25 +183,15 @@ export class AllocationRulesService {
     const existing = await repo.findOne({ where: { tenant_id: tenantId, fiscal_year: year } as any });
     const values = { mode, method: input.method, company_ids: companyIds, status: 'active' as const };
 
-    let previous = existing
+    const previous = existing
       ? { mode: existing.mode, method: existing.method, company_ids: existing.company_ids, status: existing.status }
       : null;
-    let saved: AllocationRule;
-    if (existing) {
-      saved = await repo.save({ ...existing, ...values } as AllocationRule);
-    } else {
-      try {
-        saved = await repo.save(repo.create({ tenant_id: tenantId, fiscal_year: year, ...values }));
-      } catch (err) {
-        // Two admins saving the same year concurrently: the loser's INSERT hits
-        // UNIQUE(tenant_id, fiscal_year). Update the row that won instead of surfacing a 500.
-        if (!isUniqueViolation(err)) throw err;
-        const winner = await repo.findOne({ where: { tenant_id: tenantId, fiscal_year: year } as any });
-        if (!winner) throw err;
-        previous = { mode: winner.mode, method: winner.method, company_ids: winner.company_ids, status: winner.status };
-        saved = await repo.save({ ...winner, ...values } as AllocationRule);
-      }
-    }
+    // Two admins creating the same year at once: the loser hits UNIQUE(tenant_id, fiscal_year).
+    // The request transaction is already aborted at that point, so no in-transaction retry
+    // can succeed; the error is left to surface and the second save simply has to be redone.
+    const saved = existing
+      ? await repo.save({ ...existing, ...values } as AllocationRule)
+      : await repo.save(repo.create({ tenant_id: tenantId, fiscal_year: year, ...values }));
 
     await this.audit.log(
       {

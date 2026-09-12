@@ -167,7 +167,8 @@
       "selectDepartment": "Select department",
       "noCompanies": "No companies",
       "noDepartments": "No departments",
-      "defaultManual": "Default ({{count}} companies)"
+      "defaultManual": "Default ({{count}} companies)",
+      "defaultManual_one": "Default ({{count}} company)"
     },
     "relations": {
       "projects": "Projects",
@@ -349,7 +350,8 @@
       "selectDepartment": "Select department",
       "noCompanies": "No companies",
       "noDepartments": "No departments",
-      "defaultManual": "Default ({{count}} companies)"
+      "defaultManual": "Default ({{count}} companies)",
+      "defaultManual_one": "Default ({{count}} company)"
     },
     "relations": {
       "projects": "Projects",
@@ -521,7 +523,8 @@
       "modeManualHelp": "The driver is applied to the selected companies only.",
       "companies": "Companies",
       "companiesSelected": "{{count}} companies selected",
-      "companiesHint": "Select at least one company: the selection is saved as soon as one is chosen.",
+      "companiesSelected_one": "{{count}} company selected",
+      "companiesHint": "Select at least one company: the selection is saved when the list closes.",
       "companiesPlaceholder": "Select companies",
       "method": "Default method",
       "methodHelp": "Applies to every OPEX and CAPEX item that uses the default method. Items with an explicit method or a manual allocation are not affected.",
@@ -617,6 +620,7 @@
         "error": "Error"
       },
       "defaultManualLabel": "selected companies ({{count}})",
+      "defaultManualLabel_one": "selected company ({{count}})",
       "defaultBasisWarning": "{{count}} items are left on the default allocation: {{destinationYear}} uses {{destinationLabel}} while {{sourceYear}} uses {{sourceLabel}}. Copied items keep following the default of their own year — configure {{destinationYear}} in Budget administration if the basis should stay the same."
     },
     "copyBudgetColumns": {
