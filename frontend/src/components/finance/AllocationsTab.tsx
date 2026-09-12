@@ -328,7 +328,7 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
     ? t('common:status.saving', 'Saving…')
     : autosave.status === 'saved' ? t('common:status.saved', 'Saved') : null;
 
-  // "Default" follows the method configured for the tenant (Administration > Default
+  // "Default" follows the setting configured for the tenant (Administration > Default
   // allocation method); the explicit entries pin a method on this item regardless of
   // later changes to that setting.
   const methodOptionLabels: Record<'headcount' | 'it_users' | 'turnover', string> = {
@@ -336,10 +336,15 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
     it_users: t(`${config.i18nPrefix}.allocations.itUsers`),
     turnover: t(`${config.i18nPrefix}.allocations.turnover`),
   };
-  const defaultMethodOptionLabel = t(`${config.i18nPrefix}.allocations.defaultWithMethod`, {
-    method: methodOptionLabels[allocationRule?.method ?? 'headcount'],
-    defaultValue: t(`${config.i18nPrefix}.allocations.headcountDefault`),
-  });
+  const defaultMethodOptionLabel = allocationRule?.mode === 'manual_company'
+    ? t(`${config.i18nPrefix}.allocations.defaultManual`, {
+        count: allocationRule.company_ids?.length ?? 0,
+        defaultValue: t(`${config.i18nPrefix}.allocations.headcountDefault`),
+      })
+    : t(`${config.i18nPrefix}.allocations.defaultWithMethod`, {
+        method: methodOptionLabels[allocationRule?.method ?? 'headcount'],
+        defaultValue: t(`${config.i18nPrefix}.allocations.headcountDefault`),
+      });
 
   const methodOptions: Array<{ value: Method; label: string }> = [
     { value: 'default', label: defaultMethodOptionLabel },

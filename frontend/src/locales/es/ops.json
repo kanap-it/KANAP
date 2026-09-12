@@ -137,7 +137,8 @@
       "selectCompany": "Seleccionar empresa",
       "selectDepartment": "Seleccionar departamento",
       "noCompanies": "Sin empresas",
-      "noDepartments": "Sin departamentos"
+      "noDepartments": "Sin departamentos",
+      "defaultManual": "Por defecto ({{count}} sociedades)"
     },
     "relations": {
       "projects": "Proyectos",
@@ -347,7 +348,8 @@
       "selectCompany": "Seleccionar empresa",
       "selectDepartment": "Seleccionar departamento",
       "noCompanies": "Sin empresas",
-      "noDepartments": "Sin departamentos"
+      "noDepartments": "Sin departamentos",
+      "defaultManual": "Por defecto ({{count}} sociedades)"
     },
     "relations": {
       "projects": "Proyectos",
@@ -513,12 +515,25 @@
       "title": "Método de asignación por defecto",
       "subtitle": "Elija cómo se asignan los costes entre sociedades por defecto, en cada ejercicio.",
       "year": "Ejercicio",
+      "mode": "Sociedades",
+      "modeAuto": "Todas las sociedades activas",
+      "modeManual": "Sociedades seleccionadas",
+      "modeManualHelp": "El generador se aplica únicamente a las sociedades seleccionadas.",
+      "companies": "Sociedades",
+      "companiesSelected": "{{count}} sociedades seleccionadas",
+      "companiesHint": "Seleccione al menos una sociedad: la selección se guarda en cuanto elija una.",
+      "companiesPlaceholder": "Seleccionar sociedades",
       "method": "Método por defecto",
       "methodHelp": "Se aplica a todas las partidas de OPEX y CAPEX que usan el método por defecto. Las partidas con un método explícito o una asignación manual no se ven afectadas.",
+      "sharesTitle": "Reparto calculado",
+      "sharesEmpty": "Todavía no hay reparto. Seleccione al menos una sociedad para ver los porcentajes.",
+      "companyColumn": "Sociedad",
+      "driverValue": "Generador",
+      "previewError": "La selección actual no se puede calcular: {{reason}}",
       "standardNote": "Método estándar — no hay personalización configurada para este año.",
       "overriddenNote": "Configurado para su organización. Método estándar: {{method}}.",
       "resetToStandard": "Volver al método estándar",
-      "scopeNote": "El método se resuelve al calcular las asignaciones, a partir de la plantilla, los usuarios IT o la facturación de cada sociedad activa para el año seleccionado. Al cambiarlo se recalculan todas las partidas que siguen con el método por defecto; las asignaciones manuales conservan sus porcentajes.",
+      "scopeNote": "El método se resuelve al calcular las asignaciones: a partir de la plantilla, los usuarios IT o la facturación de cada sociedad activa del año, o del generador de las sociedades seleccionadas para el valor por defecto. Al cambiarlo se recalculan todas las partidas que siguen con el método por defecto; las asignaciones manuales conservan sus porcentajes.",
       "loadError": "No se pudo cargar el método de asignación por defecto.",
       "saveError": "No se pudo guardar el método de asignación por defecto.",
       "noPermission": "Necesita permisos de administración presupuestaria para cambiar el método por defecto. La configuración actual sigue visible.",
@@ -600,7 +615,9 @@
         "skip_no_source_allocations": "Omitida – sin asignaciones en el origen",
         "skip_destination_has_data": "Omitida – el destino tiene datos",
         "error": "Error"
-      }
+      },
+      "defaultManualLabel": "sociedades seleccionadas ({{count}})",
+      "defaultBasisWarning": "{{count}} partidas siguen con la asignación por defecto: {{destinationYear}} usa {{destinationLabel}} mientras que {{sourceYear}} usa {{sourceLabel}}. Las partidas copiadas siguen usando el valor por defecto de su propio año — configure {{destinationYear}} en la administración presupuestaria si la base debe mantenerse igual."
     },
     "copyBudgetColumns": {
       "title": "Copiar columnas presupuestarias",

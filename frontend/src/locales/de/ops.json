@@ -137,7 +137,8 @@
       "selectCompany": "Unternehmen wählen",
       "selectDepartment": "Abteilung wählen",
       "noCompanies": "Keine Unternehmen",
-      "noDepartments": "Keine Abteilungen"
+      "noDepartments": "Keine Abteilungen",
+      "defaultManual": "Standard ({{count}} Unternehmen)"
     },
     "relations": {
       "projects": "Projekte",
@@ -347,7 +348,8 @@
       "selectCompany": "Unternehmen wählen",
       "selectDepartment": "Abteilung wählen",
       "noCompanies": "Keine Unternehmen",
-      "noDepartments": "Keine Abteilungen"
+      "noDepartments": "Keine Abteilungen",
+      "defaultManual": "Standard ({{count}} Unternehmen)"
     },
     "relations": {
       "projects": "Projekte",
@@ -513,12 +515,25 @@
       "title": "Standard-Zuordnungsmethode",
       "subtitle": "Legen Sie fest, wie Kosten standardmäßig je Geschäftsjahr zwischen Unternehmen zugeordnet werden.",
       "year": "Geschäftsjahr",
+      "mode": "Unternehmen",
+      "modeAuto": "Alle aktiven Unternehmen",
+      "modeManual": "Ausgewählte Unternehmen",
+      "modeManualHelp": "Der Treiber wird nur auf die ausgewählten Unternehmen angewendet.",
+      "companies": "Unternehmen",
+      "companiesSelected": "{{count}} Unternehmen ausgewählt",
+      "companiesHint": "Wählen Sie mindestens ein Unternehmen: die Auswahl wird beim ersten Klick gespeichert.",
+      "companiesPlaceholder": "Unternehmen auswählen",
       "method": "Standardmethode",
       "methodHelp": "Gilt für alle OPEX- und CAPEX-Positionen, die die Standardmethode verwenden. Positionen mit einer expliziten Methode oder einer manuellen Zuordnung sind nicht betroffen.",
+      "sharesTitle": "Berechnete Aufteilung",
+      "sharesEmpty": "Noch keine Aufteilung. Wählen Sie mindestens ein Unternehmen, um die Prozentsätze zu sehen.",
+      "companyColumn": "Unternehmen",
+      "driverValue": "Treiberwert",
+      "previewError": "Die aktuelle Auswahl kann nicht berechnet werden: {{reason}}",
       "standardNote": "Standardmethode — für dieses Jahr ist keine Abweichung konfiguriert.",
       "overriddenNote": "Für Ihre Organisation konfiguriert. Standardmethode: {{method}}.",
       "resetToStandard": "Standardmethode verwenden",
-      "scopeNote": "Die Methode wird bei der Berechnung der Zuordnungen aufgelöst, aus Mitarbeiterzahl, IT-Benutzern oder Umsatz jedes aktiven Unternehmens für das gewählte Jahr. Eine Änderung berechnet alle Positionen neu, die auf der Standardmethode stehen; manuelle Zuordnungen behalten ihre Prozentsätze.",
+      "scopeNote": "Die Methode wird bei der Berechnung der Zuordnungen aufgelöst: entweder aus Mitarbeiterzahl, IT-Benutzern oder Umsatz jedes für das Jahr aktiven Unternehmens oder aus dem Treiberwert der für die Standardeinstellung ausgewählten Unternehmen. Eine Änderung berechnet alle Positionen neu, die auf der Standardmethode stehen; manuelle Zuordnungen behalten ihre Prozentsätze.",
       "loadError": "Die Standard-Zuordnungsmethode konnte nicht geladen werden.",
       "saveError": "Die Standard-Zuordnungsmethode konnte nicht gespeichert werden.",
       "noPermission": "Zum Ändern der Standardmethode sind Budget-Administrationsrechte erforderlich. Die aktuelle Einstellung bleibt sichtbar.",
@@ -600,7 +615,9 @@
         "skip_no_source_allocations": "Übersprungen – keine Zuordnungen in der Quelle",
         "skip_destination_has_data": "Übersprungen – Ziel enthält Daten",
         "error": "Fehler"
-      }
+      },
+      "defaultManualLabel": "ausgewählte Unternehmen ({{count}})",
+      "defaultBasisWarning": "{{count}} Positionen stehen auf der Standardzuordnung: {{destinationYear}} verwendet {{destinationLabel}}, {{sourceYear}} dagegen {{sourceLabel}}. Kopierte Positionen folgen weiterhin der Standardeinstellung ihres eigenen Jahres — konfigurieren Sie {{destinationYear}} in der Budget-Administration, wenn die Basis gleich bleiben soll."
     },
     "copyBudgetColumns": {
       "title": "Budgetspalten kopieren",

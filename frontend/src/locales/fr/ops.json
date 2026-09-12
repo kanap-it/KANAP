@@ -137,7 +137,8 @@
       "selectCompany": "Choisir une société",
       "selectDepartment": "Choisir un département",
       "noCompanies": "Aucune société",
-      "noDepartments": "Aucun département"
+      "noDepartments": "Aucun département",
+      "defaultManual": "Par défaut ({{count}} sociétés)"
     },
     "relations": {
       "projects": "Projets",
@@ -347,7 +348,8 @@
       "selectCompany": "Choisir une société",
       "selectDepartment": "Choisir un département",
       "noCompanies": "Aucune société",
-      "noDepartments": "Aucun département"
+      "noDepartments": "Aucun département",
+      "defaultManual": "Par défaut ({{count}} sociétés)"
     },
     "relations": {
       "projects": "Projets",
@@ -513,12 +515,25 @@
       "title": "Méthode de ventilation par défaut",
       "subtitle": "Choisissez comment les coûts sont répartis entre sociétés par défaut, pour chaque exercice.",
       "year": "Exercice",
+      "mode": "Sociétés",
+      "modeAuto": "Toutes les sociétés actives",
+      "modeManual": "Sociétés sélectionnées",
+      "modeManualHelp": "L'inducteur s'applique uniquement aux sociétés sélectionnées.",
+      "companies": "Sociétés",
+      "companiesSelected": "{{count}} sociétés sélectionnées",
+      "companiesHint": "Sélectionnez au moins une société : la sélection est enregistrée dès le premier choix.",
+      "companiesPlaceholder": "Sélectionner des sociétés",
       "method": "Méthode par défaut",
       "methodHelp": "S'applique à tous les postes OPEX et CAPEX qui utilisent la méthode par défaut. Les postes dotés d'une méthode explicite ou d'une ventilation manuelle ne sont pas affectés.",
+      "sharesTitle": "Répartition calculée",
+      "sharesEmpty": "Aucune répartition. Sélectionnez au moins une société pour voir les pourcentages.",
+      "companyColumn": "Société",
+      "driverValue": "Inducteur",
+      "previewError": "La sélection actuelle ne peut pas être calculée : {{reason}}",
       "standardNote": "Méthode standard — aucune personnalisation pour cette année.",
       "overriddenNote": "Configurée pour votre organisation. Méthode standard : {{method}}.",
       "resetToStandard": "Revenir à la méthode standard",
-      "scopeNote": "La méthode est résolue au moment du calcul des ventilations, à partir de l'effectif, des utilisateurs IT ou du chiffre d'affaires de chaque société active pour l'année sélectionnée. La modifier recalcule tous les postes restés en méthode par défaut ; les ventilations manuelles conservent leurs pourcentages.",
+      "scopeNote": "La méthode est résolue au moment du calcul des ventilations : soit à partir de l'effectif, des utilisateurs IT ou du chiffre d'affaires de chaque société active pour l'année, soit à partir de l'inducteur des sociétés sélectionnées pour le défaut. La modifier recalcule tous les postes restés en méthode par défaut ; les ventilations manuelles conservent leurs pourcentages.",
       "loadError": "Impossible de charger la méthode de ventilation par défaut.",
       "saveError": "Impossible d'enregistrer la méthode de ventilation par défaut.",
       "noPermission": "Vous devez disposer des droits d'administration budgétaire pour modifier la méthode par défaut. Le réglage actuel reste visible.",
@@ -600,7 +615,9 @@
         "skip_no_source_allocations": "Ignoré – pas de ventilations dans la source",
         "skip_destination_has_data": "Ignoré – la destination contient des données",
         "error": "Erreur"
-      }
+      },
+      "defaultManualLabel": "sociétés sélectionnées ({{count}})",
+      "defaultBasisWarning": "{{count}} postes sont laissés en ventilation par défaut : {{destinationYear}} utilise {{destinationLabel}} alors que {{sourceYear}} utilise {{sourceLabel}}. Les postes copiés continuent de suivre le défaut de leur propre année — configurez {{destinationYear}} dans l'administration budgétaire si la base doit rester identique."
     },
     "copyBudgetColumns": {
       "title": "Copier les colonnes budgétaires",
