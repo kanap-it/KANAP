@@ -13,10 +13,22 @@ vi.mock('../../api', () => ({
   default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
+// Mutable so a case can take a permission away or turn the tenant's SSO on.
+// Every member is created once: an identity that changes per render would
+// re-create the page's autosave callbacks on every pass.
+const auth = vi.hoisted(() => ({
+  profile: {} as Record<string, unknown>,
+  tenantAuth: null as { sso_provider: string; sso_enabled: boolean } | null,
+  denied: new Set<string>(),
+  refreshMe: vi.fn(),
+}));
+
 vi.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({
-    hasLevel: () => true,
-    profile: { id: 'user-1', first_name: 'Ada', last_name: 'Lovelace', email: 'ada@example.com' },
+    hasLevel: (resource: string) => !auth.denied.has(resource),
+    profile: auth.profile,
+    tenantAuth: auth.tenantAuth,
+    refreshMe: auth.refreshMe,
   }),
 }));
 
@@ -43,6 +55,8 @@ function contributor(overrides: Record<string, unknown> = {}) {
     user_id: 'user-9',
     user_display_name: 'Antoine KANDEL',
     user_email: 'antoine@example.com',
+    job_title: 'Cheese buyer',
+    external_auth_provider: null,
     areas_of_expertise: [],
     skills: [{ skill_id: 'skill-1', proficiency: 2 }],
     project_availability: '0.0',
@@ -132,16 +146,25 @@ function mockGets(
   });
 }
 
+function jobTitleField() {
+  return screen.findByLabelText('portfolio:workspace.contributor.fields.jobTitle') as Promise<HTMLInputElement>;
+}
+
 function notesField() {
   return screen.getByPlaceholderText('portfolio:workspace.contributor.placeholders.notes') as HTMLTextAreaElement;
 }
 
+beforeEach(() => {
+  vi.mocked(api.get).mockReset();
+  vi.mocked(api.patch).mockReset();
+  auth.profile = { id: 'user-1', first_name: 'Ada', last_name: 'Lovelace', email: 'ada@example.com' };
+  auth.tenantAuth = null;
+  auth.denied.clear();
+  auth.refreshMe.mockClear();
+  mockGets();
+});
+
 describe('ContributorWorkspacePage autosave', () => {
-  beforeEach(() => {
-    vi.mocked(api.get).mockReset();
-    vi.mocked(api.patch).mockReset();
-    mockGets();
-  });
 
   it('keeps a zero availability instead of falling back to the default', async () => {
     renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
@@ -234,8 +257,6 @@ describe('ContributorWorkspacePage autosave', () => {
 
 describe('ContributorWorkspacePage manager and employment type', () => {
   beforeEach(() => {
-    vi.mocked(api.get).mockReset();
-    vi.mocked(api.patch).mockReset();
     vi.mocked(api.patch).mockResolvedValue({ data: { id: CONTRIBUTOR_ID } });
   });
 
@@ -280,7 +301,7 @@ describe('ContributorWorkspacePage manager and employment type', () => {
   it('shows an Entra manager read-only, with no picker', async () => {
     mockGets('missing', { subject: { manager_user_id: 'user-3', manager_source: 'entra', manager_name: 'Grace HOPPER' } });
     renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
-    expect(await screen.findByText('portfolio:workspace.contributor.values.managerFromEntra')).toBeTruthy();
+    expect(await screen.findByText('portfolio:workspace.contributor.values.fromEntra')).toBeTruthy();
     expect(screen.queryByPlaceholderText('portfolio:workspace.contributor.values.noManager')).toBeNull();
   });
 
@@ -289,7 +310,7 @@ describe('ContributorWorkspacePage manager and employment type', () => {
     mockGets('missing', { subject: { manager_user_id: null, manager_source: 'entra' } });
     renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
     expect(await managerField()).toBeTruthy();
-    expect(screen.queryByText('portfolio:workspace.contributor.values.managerFromEntra')).toBeNull();
+    expect(screen.queryByText('portfolio:workspace.contributor.values.fromEntra')).toBeNull();
   });
 
   it('saves the employment type', async () => {
@@ -307,6 +328,87 @@ describe('ContributorWorkspacePage manager and employment type', () => {
     renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
     const options = await openEmploymentTypeSelect();
     expect(options.getAllByRole('option').map((o) => o.textContent)).toEqual(['Internal', 'External']);
+  });
+
+  it('saves the job title on blur, and only when it changed', async () => {
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    const field = await jobTitleField();
+    // eslint-disable-next-line no-console
+    await waitFor(() => expect(field.value).toBe('Cheese buyer'));
+
+    // A blur with nothing typed must cost nothing: the write goes to `users`
+    // and would leave an audit row per visit.
+    fireEvent.blur(field);
+    expect(api.patch).not.toHaveBeenCalled();
+
+    fireEvent.change(field, { target: { value: '  Head of cheese  ' } });
+    fireEvent.blur(field);
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith(
+      `/portfolio/team-members/${CONTRIBUTOR_REF}`,
+      { job_title: 'Head of cheese' },
+    ), { timeout: 2000 });
+  });
+
+  it('sends an emptied job title as an explicit null', async () => {
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    const field = await jobTitleField();
+    await waitFor(() => expect(field.value).toBe('Cheese buyer'));
+    fireEvent.change(field, { target: { value: '   ' } });
+    fireEvent.blur(field);
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith(
+      `/portfolio/team-members/${CONTRIBUTOR_REF}`,
+      { job_title: null },
+    ), { timeout: 2000 });
+  });
+
+  it('locks the job title on an Entra account and says where it comes from', async () => {
+    auth.tenantAuth = { sso_provider: 'entra', sso_enabled: true };
+    mockGets('missing', { subject: { external_auth_provider: 'entra' } });
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+
+    const field = await jobTitleField();
+    expect(field.readOnly).toBe(true);
+    expect(await screen.findByText('portfolio:workspace.contributor.values.fromEntra')).toBeTruthy();
+
+    fireEvent.change(field, { target: { value: 'Typed by hand' } });
+    fireEvent.blur(field);
+    await new Promise((resolve) => { setTimeout(resolve, 1200); });
+    expect(api.patch).not.toHaveBeenCalled();
+  });
+
+  it('leaves an Entra account editable once the tenant no longer signs in through it', async () => {
+    // Nothing syncs the column any more, so the value is ours again.
+    auth.tenantAuth = { sso_provider: 'entra', sso_enabled: false };
+    mockGets('missing', { subject: { external_auth_provider: 'entra' } });
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    expect((await jobTitleField()).readOnly).toBe(false);
+  });
+
+  it('shows someone else\'s job title read-only without users:admin', async () => {
+    auth.denied.add('users');
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    const field = await jobTitleField();
+    expect(field.readOnly).toBe(true);
+    expect(field.value).toBe('Cheese buyer');
+    // Not an Entra lock: nothing claims the directory owns it.
+    expect(screen.queryByText('portfolio:workspace.contributor.values.fromEntra')).toBeNull();
+  });
+
+  it('lets a contributor edit their own job title without users:admin', async () => {
+    auth.denied.add('users');
+    auth.profile = { id: 'user-9', first_name: 'Antoine', last_name: 'Kandel' };
+    renderAt(`/portfolio/contributors/${CONTRIBUTOR_REF}`);
+    const field = await jobTitleField();
+    expect(field.readOnly).toBe(false);
+
+    fireEvent.change(field, { target: { value: 'Head of cheese' } });
+    fireEvent.blur(field);
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith(
+      `/portfolio/team-members/${CONTRIBUTOR_REF}`,
+      { job_title: 'Head of cheese' },
+    ), { timeout: 2000 });
+    // Their own `users` row changed, so the signed-in profile must catch up.
+    await waitFor(() => expect(auth.refreshMe).toHaveBeenCalled());
   });
 
   it('opens the manager from the metadata bar when they are a contributor', async () => {

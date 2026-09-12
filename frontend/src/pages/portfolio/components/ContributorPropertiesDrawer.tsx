@@ -14,6 +14,8 @@ export type ContributorDrawerOption = { id: string; name: string; is_active: boo
 export type ContributorDrawerStream = ContributorDrawerOption & { category_id: string };
 
 export type ContributorDrawerValues = {
+  /** A column of `users`, shared by the whole app. See `canEditJobTitle`. */
+  job_title: string | null;
   team_id: string | null;
   manager_user_id: string | null;
   manager_source: string | null;
@@ -40,12 +42,68 @@ type Props = {
   showTeam: boolean;
   canEdit: boolean;
   canManageTeams: boolean;
+  /** Own profile or `users:admin`; a portfolio right is not enough. */
+  canEditJobTitle: boolean;
+  /** The directory owns the job title and rewrites it at every sync. */
+  jobTitleFromEntra: boolean;
   onChange: (patch: Partial<ContributorDrawerValues>) => void;
   /** Carries the picked name so the metadata bar does not wait for a refetch. */
   onManagerPicked?: (userId: string | null, name: string | null) => void;
 };
 
 const AVAILABILITY_MAX = 20;
+
+/**
+ * The query cache is the only state for drawer fields and its observer
+ * notifications are batched, so an input driven straight by it drops characters
+ * between keystrokes. Same local draft as the notes field on the page, which
+ * follows the cache only while the field is not focused, with the save on blur
+ * (charter rule 15 for short text).
+ */
+function JobTitleField({
+  ariaLabel,
+  value,
+  readOnly,
+  placeholder,
+  onCommit,
+}: {
+  ariaLabel: string;
+  value: string;
+  readOnly: boolean;
+  placeholder: string;
+  onCommit: (next: string | null) => void;
+}) {
+  const [draft, setDraft] = React.useState(value);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  React.useEffect(() => {
+    if (document.activeElement !== inputRef.current) setDraft(value);
+  }, [value]);
+  return (
+    <TextField
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => {
+        const next = draft.trim();
+        // `readOnly` stops a person typing, not a programmatic change, and a
+        // blur with nothing typed must not cost a PATCH nor an audit row.
+        if (readOnly || next === value.trim()) {
+          setDraft(value);
+          return;
+        }
+        onCommit(next || null);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
+      }}
+      inputRef={inputRef}
+      fullWidth
+      variant="standard"
+      InputProps={{ readOnly }}
+      placeholder={placeholder}
+      inputProps={{ 'aria-label': ariaLabel }}
+    />
+  );
+}
 
 export default function ContributorPropertiesDrawer({
   values,
@@ -59,6 +117,8 @@ export default function ContributorPropertiesDrawer({
   showTeam,
   canEdit,
   canManageTeams,
+  canEditJobTitle,
+  jobTitleFromEntra,
   onChange,
   onManagerPicked,
 }: Props) {
@@ -99,9 +159,27 @@ export default function ContributorPropertiesDrawer({
     onChange(patch);
   };
 
+  const jobTitleReadOnly = !canEditJobTitle || jobTitleFromEntra;
+
   return (
     <>
       <PropertyGroup>
+        <PropertyRow
+          label={t('portfolio:workspace.contributor.fields.jobTitle')}
+          helperText={jobTitleFromEntra ? t('portfolio:workspace.contributor.values.fromEntra') : undefined}
+        >
+          <JobTitleField
+            ariaLabel={t('portfolio:workspace.contributor.fields.jobTitle')}
+            value={values.job_title ?? ''}
+            readOnly={jobTitleReadOnly}
+            placeholder={
+              jobTitleReadOnly
+                ? t('common:selects.notSet')
+                : t('portfolio:workspace.contributor.placeholders.jobTitle')
+            }
+            onCommit={(next) => onChange({ job_title: next })}
+          />
+        </PropertyRow>
         {showTeam && (
           <PropertyRow label={t('portfolio:workspace.contributor.fields.team')}>
             <TextField
@@ -132,7 +210,7 @@ export default function ContributorPropertiesDrawer({
                   {managerName || t('portfolio:workspace.contributor.values.noManager')}
                 </Box>
                 <Box sx={(theme) => ({ fontSize: 12, lineHeight: 1.4, color: theme.palette.kanap.text.tertiary })}>
-                  {t('portfolio:workspace.contributor.values.managerFromEntra')}
+                  {t('portfolio:workspace.contributor.values.fromEntra')}
                 </Box>
               </Box>
             ) : (

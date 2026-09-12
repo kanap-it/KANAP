@@ -144,7 +144,8 @@
         "team": "Team",
         "projectAvailability": "Project availability",
         "manager": "Manager",
-        "employmentType": "Contract type"
+        "employmentType": "Contract type",
+        "jobTitle": "Job title"
       },
       "messages": {
         "deleteFailed": "Failed to delete",
@@ -152,7 +153,8 @@
       },
       "placeholders": {
         "notes": "e.g., Available Mondays and Tuesdays only",
-        "searchSkills": "e.g., Network administration"
+        "searchSkills": "e.g., Network administration",
+        "jobTitle": "e.g., Service desk manager"
       },
       "proficiency": {
         "1": "Basic / theoretical",
@@ -183,7 +185,7 @@
         "skillCount_other": "{{count}} skills",
         "daysPerMonthShort": "{{count}} d/mo",
         "noManager": "No manager",
-        "managerFromEntra": "From Microsoft Entra"
+        "fromEntra": "From Microsoft Entra"
       },
       "metadata": {
         "team": "Team",

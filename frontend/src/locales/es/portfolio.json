@@ -144,7 +144,8 @@
         "team": "Equipo",
         "projectAvailability": "Disponibilidad para proyectos",
         "manager": "Responsable",
-        "employmentType": "Tipo de contrato"
+        "employmentType": "Tipo de contrato",
+        "jobTitle": "Puesto"
       },
       "messages": {
         "deleteFailed": "Error al eliminar",
@@ -152,7 +153,8 @@
       },
       "placeholders": {
         "notes": "p. ej., disponible solo lunes y martes",
-        "searchSkills": "p. ej., administración de redes"
+        "searchSkills": "p. ej., administración de redes",
+        "jobTitle": "p. ej., Responsable del centro de servicios"
       },
       "proficiency": {
         "1": "Básico / Teórico",
@@ -183,7 +185,7 @@
         "skillCount_other": "{{count}} competencias",
         "daysPerMonthShort": "{{count}} d/mes",
         "noManager": "Sin responsable",
-        "managerFromEntra": "Desde Microsoft Entra"
+        "fromEntra": "Desde Microsoft Entra"
       },
       "metadata": {
         "team": "Equipo",

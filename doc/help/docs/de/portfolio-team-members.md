@@ -116,11 +116,18 @@ Das Organigramm zeichnet die Berichtslinie Ihrer Mitwirkenden, aufgebaut aus dem
 
 Klicken Sie auf eine Mitwirkenden-Zeile, um ihren Arbeitsbereich zu öffnen. Die Kopfzeile zeigt die Referenz des Mitwirkenden (`CTR-1`, `CTR-2`…, zum Kopieren anklicken), seinen Namen, sein Team, seine Verfügbarkeit und die Anzahl der Fähigkeiten. Diese Referenz steht auch in der Seitenadresse. Verwenden Sie die Pfeile neben dem Zurück-Link (oder die Pfeiltasten links und rechts), um in Listenreihenfolge zum vorherigen oder nächsten Mitwirkenden zu wechseln. Drücken Sie **Esc**, um zur Liste zurückzukehren.
 
-Der Arbeitsbereich hat drei Reiter, **Allgemein**, **Fähigkeiten** und **Erfasste Zeit**, sowie ein **Eigenschaften**-Panel auf der rechten Seite, das Team, Verfügbarkeit und Klassifizierungsstandards enthält. Öffnen oder schließen Sie das Panel über die Lasche an seinem Rand oder drücken Sie **P**.
+Der Arbeitsbereich hat drei Reiter, **Allgemein**, **Fähigkeiten** und **Erfasste Zeit**, sowie ein **Eigenschaften**-Panel auf der rechten Seite, das Position, Team, Verfügbarkeit und Klassifizierungsstandards enthält. Öffnen oder schließen Sie das Panel über die Lasche an seinem Rand oder drücken Sie **P**.
 
 Jede Änderung wird automatisch gespeichert. Ein kurzer Hinweis „Speichern… / Gespeichert“ erscheint neben den Metadaten der Kopfzeile, während eine Änderung geschrieben wird.
 
 ### Eigenschaften-Panel
+
+**Position**
+Die Position der Person, dieselbe, die überall dort erscheint, wo sie in KANAP auftaucht -- im Organigramm, in ihrem Benutzerdatensatz, in ihrem Profil. Es ist keine Bezeichnung nur für das Portfolio: Wer sie hier ändert, ändert sie überall. Tippen Sie sie ein und klicken Sie daneben, um zu speichern.
+
+Ihre eigene können Sie immer setzen. Die einer anderen Person zu setzen erfordert die Stufe **Administrator** für Benutzer; ohne dieses Recht sehen Sie den Wert weiterhin, das Feld ist aber schreibgeschützt.
+
+Stammt das Konto aus Microsoft Entra, ist das Feld schreibgeschützt und zeigt darunter **Aus Microsoft Entra**. Ändern Sie sie in Ihrem Verzeichnis, nicht hier: Sowohl die nächtliche Synchronisierung als auch die nächste Anmeldung holen den Wert aus dem Verzeichnis zurück, sodass hier Eingetipptes überschrieben würde.
 
 **Team**
 Weisen Sie diesen Mitwirkenden einem Team zu. Teams sind Organisationsgruppen, die in den Portfolio-Einstellungen konfiguriert sind. Diese Zuweisung bestimmt, wie Mitwirkende auf der Mitwirkenden-Seite gruppiert werden. Das Team kann auch über den Eintrag **Team** in der Kopfzeile geändert werden. Dieses Feld ist nur beim Bearbeiten des Profils eines anderen Mitwirkenden sichtbar (nicht Ihres eigenen).

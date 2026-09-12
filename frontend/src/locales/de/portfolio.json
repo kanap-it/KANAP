@@ -144,7 +144,8 @@
         "team": "Team",
         "projectAvailability": "Projektverfügbarkeit",
         "manager": "Vorgesetzter",
-        "employmentType": "Vertragsart"
+        "employmentType": "Vertragsart",
+        "jobTitle": "Position"
       },
       "messages": {
         "deleteFailed": "Löschen fehlgeschlagen",
@@ -152,7 +153,8 @@
       },
       "placeholders": {
         "notes": "z. B. nur montags und dienstags verfügbar",
-        "searchSkills": "z. B. Netzwerkadministration"
+        "searchSkills": "z. B. Netzwerkadministration",
+        "jobTitle": "z. B. Leiter Service Desk"
       },
       "proficiency": {
         "1": "Grundlagen / Theoretisch",
@@ -183,7 +185,7 @@
         "skillCount_other": "{{count}} Kompetenzen",
         "daysPerMonthShort": "{{count}} T/Monat",
         "noManager": "Kein Vorgesetzter",
-        "managerFromEntra": "Aus Microsoft Entra"
+        "fromEntra": "Aus Microsoft Entra"
       },
       "metadata": {
         "team": "Team",

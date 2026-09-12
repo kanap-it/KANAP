@@ -15,7 +15,23 @@ import { PermissionGuard } from '../auth/permission.guard';
 import { RequireAnyLevel, RequireLevel } from '../auth/require-level.decorator';
 import { EntityManager } from 'typeorm';
 import { resolveToUuid } from '../common/resolve-item-id';
-import { TeamMemberConfigService } from './team-member-config.service';
+import { PermissionLevel, PermissionsService } from '../permissions/permissions.service';
+import { ContributorProfileActor, TeamMemberConfigService } from './team-member-config.service';
+
+const RANK: Record<PermissionLevel, number> = {
+  reader: 1,
+  contributor: 2,
+  member: 3,
+  admin: 4,
+};
+
+/**
+ * The JWT payload carries the user id as `sub` and has no `id`, so the former
+ * `req.user.id ?? null` stamped every contributor audit row with no author.
+ */
+function actorId(req: any): string | null {
+  return req?.user?.id ?? req?.user?.sub ?? null;
+}
 
 const PORTFOLIO_READER_REQUIREMENTS = [
   { resource: 'tasks', level: 'reader' as const },
@@ -29,7 +45,60 @@ const PORTFOLIO_READER_REQUIREMENTS = [
 @UseGuards(JwtAuthGuard)
 @Controller('portfolio/team-members')
 export class TeamMemberConfigController {
-  constructor(private readonly svc: TeamMemberConfigService) {}
+  constructor(
+    private readonly svc: TeamMemberConfigService,
+    private readonly permissionsSvc: PermissionsService,
+  ) {}
+
+  /**
+   * The job title is a `users` column, and these routes are gated on
+   * `portfolio_settings`, so `req.permissionLevel` says nothing about the
+   * caller's rights over the directory. Resolve the `users` level from their
+   * roles, as `portfolio-requests.controller.ts` does for `tasks`.
+   *
+   * Editing someone else's job title stays reserved to `users:admin`
+   * (fried, 2026-09-12): a portfolio maintainer would otherwise gain a write on
+   * the directory from a portfolio permission. Editing one's own is already
+   * self-service, and `UsersService.updateUser` enforces that rule itself.
+   */
+  private async profileActor(req: any): Promise<ContributorProfileActor> {
+    const actorUserId = actorId(req);
+    if (req?.isAdmin === true) return { actorUserId, canManageUsers: true };
+
+    const manager: EntityManager | undefined = req?.queryRunner?.manager;
+    if (!actorUserId || !manager) return { actorUserId, canManageUsers: false };
+
+    const userRows = await manager.query(
+      'SELECT role_id FROM users WHERE id = $1 LIMIT 1',
+      [actorUserId],
+    ) as Array<{ role_id: string | null }>;
+    const extraRoleRows = await manager.query(
+      'SELECT role_id FROM user_roles WHERE user_id = $1',
+      [actorUserId],
+    ) as Array<{ role_id: string | null }>;
+    const roleIds = Array.from(new Set([
+      userRows[0]?.role_id,
+      ...extraRoleRows.map((row) => row.role_id),
+    ].filter(Boolean) as string[]));
+
+    const permissions = await this.permissionsSvc.listForRoles(roleIds, { manager });
+    const usersLevel = permissions.get('users');
+    return {
+      actorUserId,
+      canManageUsers: !!usersLevel && RANK[usersLevel] >= RANK.admin,
+    };
+  }
+
+  /**
+   * Resolving the caller's directory rights costs two reads, and every autosave
+   * of a note, a skill or a slider comes through these routes. Only pay for it
+   * when the body carries the one field that needs it; without it the service
+   * never looks at the actor.
+   */
+  private profileActorFor(body: any, req: any): Promise<ContributorProfileActor> | undefined {
+    if (!body || !Object.prototype.hasOwnProperty.call(body, 'job_title')) return undefined;
+    return this.profileActor(req);
+  }
 
   /** `:id` routes accept the row UUID or the CTR-N business reference. */
   private resolveId(idOrRef: string, req: any): Promise<string> {
@@ -97,10 +166,13 @@ export class TeamMemberConfigController {
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_settings', 'member')
   @Post()
-  create(@Body() body: any, @Req() req: any) {
+  async create(@Body() body: any, @Req() req: any) {
     const tenantId = req?.tenant?.id ?? '';
-    const userId = req?.user?.id ?? null;
-    return this.svc.create(body, tenantId, userId, { manager: req?.queryRunner?.manager });
+    const userId = actorId(req);
+    return this.svc.create(body, tenantId, userId, {
+      manager: req?.queryRunner?.manager,
+      profileActor: await this.profileActorFor(body, req),
+    });
   }
 
   @UseGuards(PermissionGuard)
@@ -119,10 +191,14 @@ export class TeamMemberConfigController {
       default_category_id: body?.default_category_id,
       default_stream_id: body?.default_stream_id,
       default_company_id: body?.default_company_id,
+      job_title: body?.job_title,
     };
 
     return this.svc.upsertMe(userId, safeBody, tenantId, userId, {
       manager: req?.queryRunner?.manager,
+      // Self-service: `users:admin` is irrelevant here and the service's own
+      // rule (own profile) is what lets the job title through.
+      profileActor: { actorUserId: userId, canManageUsers: false },
     });
   }
 
@@ -131,18 +207,22 @@ export class TeamMemberConfigController {
   @Patch(':id')
   async update(@Param('id') idOrRef: string, @Body() body: any, @Req() req: any) {
     const id = await this.resolveId(idOrRef, req);
-    const userId = req?.user?.id ?? null;
-    return this.svc.update(id, body, userId, { manager: req?.queryRunner?.manager });
+    const userId = actorId(req);
+    return this.svc.update(id, body, userId, {
+      manager: req?.queryRunner?.manager,
+      profileActor: await this.profileActorFor(body, req),
+    });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_settings', 'member')
   @Post('by-user/:userId')
-  upsertByUser(@Param('userId') targetUserId: string, @Body() body: any, @Req() req: any) {
+  async upsertByUser(@Param('userId') targetUserId: string, @Body() body: any, @Req() req: any) {
     const tenantId = req?.tenant?.id ?? '';
-    const userId = req?.user?.id ?? null;
+    const userId = actorId(req);
     return this.svc.upsertByUser(targetUserId, body, tenantId, userId, {
       manager: req?.queryRunner?.manager,
+      profileActor: await this.profileActorFor(body, req),
     });
   }
 
@@ -151,7 +231,7 @@ export class TeamMemberConfigController {
   @Delete(':id')
   async delete(@Param('id') idOrRef: string, @Req() req: any) {
     const id = await this.resolveId(idOrRef, req);
-    const userId = req?.user?.id ?? null;
+    const userId = actorId(req);
     return this.svc.delete(id, userId, { manager: req?.queryRunner?.manager });
   }
 }

@@ -116,11 +116,18 @@ The org chart draws the reporting line of your contributors, built from the **Ma
 
 Click a contributor row to open their workspace. The header shows the contributor's reference (`CTR-1`, `CTR-2`…, click it to copy), their name, team, availability, and skill count. The reference is also what the page address uses. Use the arrows next to the back link (or the left and right arrow keys) to move to the previous or next contributor in list order. Press **Escape** to return to the list.
 
-The workspace has three tabs, **General**, **Skills**, and **Time Logged**, plus a **Properties** panel on the right that holds the team, availability, and classification defaults. Open or close the panel with the tab on its edge, or press **P**.
+The workspace has three tabs, **General**, **Skills**, and **Time Logged**, plus a **Properties** panel on the right that holds the job title, team, availability, and classification defaults. Open or close the panel with the tab on its edge, or press **P**.
 
 Every change saves automatically. A short "Saving… / Saved" note appears next to the header metadata while a change is written.
 
 ### Properties panel
+
+**Job title**
+The person's job title, the same one that appears wherever they show up in KANAP -- the org chart, their user record, their profile. It is not a label local to the portfolio, so changing it here changes it everywhere. Type it and click away to save.
+
+You can always set your own. Setting someone else's needs the **Administrator** level on users; without it you still see the value, but the field is read-only.
+
+When the account comes from Microsoft Entra, the field is read-only and shows **From Microsoft Entra** underneath. Change it in your directory, not here: the nightly sync and the next sign-in both bring the directory value back, so anything typed here would be overwritten.
 
 **Team**
 Assign this contributor to a team. Teams are organizational groups configured in Portfolio Settings. This assignment determines how contributors are grouped on the Contributors page. The team can also be changed from the **Team** item in the header. This field is only visible when editing another contributor's profile (not your own).
