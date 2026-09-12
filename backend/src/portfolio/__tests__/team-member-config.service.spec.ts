@@ -51,6 +51,7 @@ function createService(existing: Record<string, unknown>, rows: FakeRows = {}) {
     { manager: { getRepository: () => repoImpl, query: fakeQuery(rows) } } as any,
     { log: async () => undefined } as any,
     { nextItemNumber: async () => 1 } as any,
+    { updateUser: async () => ({}) } as any,
   );
   return { service, saved };
 }
@@ -241,12 +242,15 @@ async function testCreateDefaultsToTheTenantsFirstType() {
 // manager source: those are decided by whoever manages the team.
 async function testSelfServiceRouteDropsManagedFields() {
   let forwarded: any = null;
-  const controller = new TeamMemberConfigController({
-    upsertMe: async (_userId: string, body: any) => {
-      forwarded = body;
-      return {};
-    },
-  } as any);
+  const controller = new TeamMemberConfigController(
+    {
+      upsertMe: async (_userId: string, body: any) => {
+        forwarded = body;
+        return {};
+      },
+    } as any,
+    { listForRoles: async () => new Map() } as any,
+  );
 
   await controller.updateMe(
     {
@@ -264,6 +268,34 @@ async function testSelfServiceRouteDropsManagedFields() {
   assert.equal('employment_type_id' in forwarded, false);
   assert.equal('manager_source' in forwarded, false);
   assert.equal('team_id' in forwarded, false);
+}
+
+// The job title is a `users` column a person may always change on themselves,
+// so unlike the managed fields above it must reach the service. It travels
+// through an explicit allow-list, where an omission is silent.
+async function testSelfServiceRouteCarriesTheJobTitle() {
+  let forwarded: any = null;
+  let forwardedOpts: any = null;
+  const controller = new TeamMemberConfigController(
+    {
+      upsertMe: async (_userId: string, body: any, _tenantId: string, _actor: any, opts: any) => {
+        forwarded = body;
+        forwardedOpts = opts;
+        return {};
+      },
+    } as any,
+    { listForRoles: async () => new Map() } as any,
+  );
+
+  await controller.updateMe(
+    { job_title: 'Cheese buyer' },
+    { tenant: { id: 'tenant-1' }, user: { sub: 'user-1' } },
+  );
+
+  assert.equal(forwarded.job_title, 'Cheese buyer');
+  // Never a null actor: that is read as an internal update and opens every
+  // admin field of `users` with no access check at all.
+  assert.deepEqual(forwardedOpts.profileActor, { actorUserId: 'user-1', canManageUsers: false });
 }
 
 async function run() {
@@ -284,6 +316,7 @@ async function run() {
   await testEmploymentTypeWriteAndClear();
   await testCreateDefaultsToTheTenantsFirstType();
   await testSelfServiceRouteDropsManagedFields();
+  await testSelfServiceRouteCarriesTheJobTitle();
 }
 
 void run();

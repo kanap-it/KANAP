@@ -4,17 +4,34 @@ import { randomUUID } from 'node:crypto';
 import { QueryRunner } from 'typeorm';
 import dataSource from '../../data-source';
 import { TeamMemberConfigService } from '../team-member-config.service';
+import { UsersService } from '../../users/users.service';
+import { User } from '../../users/user.entity';
 import { PortfolioEmploymentTypesService } from '../portfolio-employment-types.service';
 
 // Contract of the manager and employment-type references against a real
 // database: tenant isolation, the Entra lock, the usage guard on delete, the
 // ON DELETE SET NULL foreign key, and the cycle guard under concurrent writes.
 
-function contributorService(runner: QueryRunner) {
+function contributorService(runner: QueryRunner, users?: Partial<UsersService>) {
   return new TeamMemberConfigService(
     { manager: runner.manager } as any,
     { log: async () => undefined } as any,
     { nextItemNumber: async () => Math.floor(Math.random() * 1_000_000) + 1 } as any,
+    (users ?? { updateUser: async () => ({}) }) as any,
+  );
+}
+
+/** The real service, minus the audit writer, against the same transaction. */
+function realUsersService(runner: QueryRunner) {
+  return new UsersService(
+    runner.manager.getRepository(User) as any,
+    undefined as any,
+    undefined as any,
+    undefined as any,
+    undefined as any,
+    undefined as any,
+    undefined as any,
+    undefined as any,
   );
 }
 
@@ -338,6 +355,122 @@ async function testContributorReadsCarryTheAccountStatus() {
   }
 }
 
+// -------------------------------------------------------------- job title ----
+
+/**
+ * `job_title` is a column of `users`, so the contributor panel writes it through
+ * `UsersService.updateUser`. Three things must hold: the directory-managed
+ * account is refused, a caller without `users:admin` is refused on someone
+ * else, and the person themselves may always write their own.
+ */
+async function testJobTitleWritesThroughTheUsersService() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+  try {
+    const tenantId = randomUUID();
+    const roleId = await seedTenant(runner, tenantId, 'jobtitle');
+    await setCurrentTenant(runner, tenantId);
+
+    const localUser = await seedUser(runner, tenantId, roleId, 'Paul');
+    const entraUser = await seedUser(runner, tenantId, roleId, 'Quentin');
+    const adminUser = await seedUser(runner, tenantId, roleId, 'Rita');
+    await runner.query(
+      `UPDATE users SET external_auth_provider = 'entra', external_subject = $2 WHERE id = $1`,
+      [entraUser, randomUUID()],
+    );
+    const localConfig = await seedContributor(runner, tenantId, localUser);
+    const entraConfig = await seedContributor(runner, tenantId, entraUser);
+
+    const contributors = contributorService(runner, realUsersService(runner));
+    const asAdmin = { actorUserId: adminUser, canManageUsers: true };
+
+    // Both twin reads must carry the signal the drawer locks on.
+    const { items } = await contributors.list(tenantId);
+    const byUser = new Map<string, any>(items.map((row: any) => [row.user_id, row]));
+    assert.equal(byUser.get(entraUser).external_auth_provider, 'entra');
+    assert.equal(byUser.get(localUser).external_auth_provider, null);
+    assert.equal((await contributors.get(entraConfig)).external_auth_provider, 'entra');
+
+    // A `users:admin` writes it on someone else.
+    await contributors.update(localConfig, { job_title: 'Cheese buyer' }, adminUser, {
+      manager: runner.manager,
+      profileActor: asAdmin,
+    });
+    assert.equal(
+      (await contributors.get(localConfig)).job_title,
+      'Cheese buyer',
+      'the joined read must show the new title',
+    );
+
+    // A portfolio maintainer without `users:admin` may not touch the directory.
+    const outsider = { actorUserId: adminUser, canManageUsers: false };
+    await assert.rejects(
+      () => contributors.update(localConfig, { job_title: 'Hijacked' }, adminUser, {
+        manager: runner.manager,
+        profileActor: outsider,
+      }),
+      (e: any) => e?.response?.code === 'FORBIDDEN_PROFILE_UPDATE',
+    );
+
+    // No actor at all is the dangerous case: `updateUser` would read it as an
+    // internal update and open every admin field without a check.
+    await assert.rejects(
+      () => contributors.update(localConfig, { job_title: 'Hijacked' }, null, {
+        manager: runner.manager,
+      }),
+      (e: any) => e?.response?.code === 'FORBIDDEN_PROFILE_UPDATE',
+    );
+
+    // The contributor writes their own, with no directory permission.
+    await contributors.update(localConfig, { job_title: 'Head of cheese' }, localUser, {
+      manager: runner.manager,
+      profileActor: { actorUserId: localUser, canManageUsers: false },
+    });
+    assert.equal((await contributors.get(localConfig)).job_title, 'Head of cheese');
+
+    // An Entra account on an Entra tenant is read-only: the nightly sync
+    // overwrites the column, so a hand-typed value would vanish.
+    await runner.query(
+      `UPDATE tenants SET sso_provider = 'entra', sso_enabled = true WHERE id = $1`,
+      [tenantId],
+    );
+    await assert.rejects(
+      () => contributors.update(entraConfig, { job_title: 'Typed by hand' }, adminUser, {
+        manager: runner.manager,
+        profileActor: asAdmin,
+      }),
+      (e: any) => e?.response?.code === 'PROFILE_FIELD_FROM_ENTRA',
+    );
+    // Even on themselves.
+    await assert.rejects(
+      () => contributors.update(entraConfig, { job_title: 'Typed by hand' }, entraUser, {
+        manager: runner.manager,
+        profileActor: { actorUserId: entraUser, canManageUsers: false },
+      }),
+      (e: any) => e?.response?.code === 'PROFILE_FIELD_FROM_ENTRA',
+    );
+
+    // Turning SSO off hands the field back: nothing syncs it any more.
+    await runner.query(`UPDATE tenants SET sso_enabled = false WHERE id = $1`, [tenantId]);
+    await contributors.update(entraConfig, { job_title: 'Now editable' }, adminUser, {
+      manager: runner.manager,
+      profileActor: asAdmin,
+    });
+    assert.equal((await contributors.get(entraConfig)).job_title, 'Now editable');
+
+    // The self route reads through the same SELECT as `:id`, which is what
+    // carries `job_title` and `external_auth_provider` to the drawer.
+    const mine = await contributors.getMe(localUser, tenantId, { manager: runner.manager });
+    assert.equal(mine.job_title, 'Head of cheese');
+    assert.equal(mine.external_auth_provider, null);
+    assert.equal(mine.id, localConfig);
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 // ----------------------------------------------------------- concurrency ----
 
 /**
@@ -440,6 +573,7 @@ async function run() {
     await testEntraManagerLockAndOrphanException();
     await testEmploymentTypeLifecycle();
     await testContributorReadsCarryTheAccountStatus();
+    await testJobTitleWritesThroughTheUsersService();
     await testConcurrentManagerWritesCannotCloseACycle();
   } finally {
     await dataSource.destroy();

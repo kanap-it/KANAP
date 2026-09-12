@@ -144,7 +144,8 @@
         "team": "Équipe",
         "projectAvailability": "Disponibilité projet",
         "manager": "Responsable",
-        "employmentType": "Type de contrat"
+        "employmentType": "Type de contrat",
+        "jobTitle": "Intitulé de poste"
       },
       "messages": {
         "deleteFailed": "Échec de la suppression",
@@ -152,7 +153,8 @@
       },
       "placeholders": {
         "notes": "ex. : disponible uniquement les lundis et mardis",
-        "searchSkills": "ex. : administration réseau"
+        "searchSkills": "ex. : administration réseau",
+        "jobTitle": "ex. Responsable du centre de services"
       },
       "proficiency": {
         "1": "Basique / Théorique",
@@ -183,7 +185,7 @@
         "skillCount_other": "{{count}} compétences",
         "daysPerMonthShort": "{{count}} j/mois",
         "noManager": "Sans responsable",
-        "managerFromEntra": "Depuis Microsoft Entra"
+        "fromEntra": "Depuis Microsoft Entra"
       },
       "metadata": {
         "team": "Équipe",

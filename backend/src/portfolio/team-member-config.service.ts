@@ -1,12 +1,35 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { TeamMemberConfig, SkillProficiency } from './team-member-config.entity';
 import { AuditService } from '../audit/audit.service';
 import { ItemNumberService } from '../common/item-number.service';
+import { UsersService } from '../users/users.service';
+
+/**
+ * Who is editing the person behind the contributor. `job_title` lives on
+ * `users`, not on the contributor row, so it is written through
+ * `UsersService.updateUser`, which enforces its own field allow-list. That
+ * method treats a null actor as an internal update and opens every admin
+ * field, so this type is deliberately required rather than optional: a caller
+ * that cannot name its actor cannot touch the directory.
+ */
+export type ContributorProfileActor = {
+  actorUserId: string | null;
+  canManageUsers: boolean;
+};
 
 type TeamMemberConfigCreateInput = {
   user_id: string;
+  /** On `users`, not on the contributor row. See `applyJobTitle`. */
+  job_title?: string | null;
   areas_of_expertise?: string[];
   skills?: SkillProficiency[];
   project_availability?: number;
@@ -23,6 +46,8 @@ type TeamMemberConfigCreateInput = {
 // `manager_source` is deliberately absent: it is derived by the service, never
 // accepted from a request body. The Entra sync passes it through `opts` instead.
 type TeamMemberConfigUpdateInput = {
+  /** On `users`, not on the contributor row. See `applyJobTitle`. */
+  job_title?: string | null;
   areas_of_expertise?: string[];
   skills?: SkillProficiency[];
   project_availability?: number;
@@ -37,6 +62,7 @@ type TeamMemberConfigUpdateInput = {
 };
 
 type TeamMemberConfigSelfServiceInput = {
+  job_title?: string | null;
   areas_of_expertise?: string[];
   skills?: SkillProficiency[];
   project_availability?: number;
@@ -54,6 +80,8 @@ export class TeamMemberConfigService {
     private readonly repo: Repository<TeamMemberConfig>,
     private readonly audit: AuditService,
     private readonly itemNumbers: ItemNumberService,
+    @Inject(forwardRef(() => UsersService))
+    private readonly users: UsersService,
   ) {}
 
   private getCurrentMonthStartUtc(): Date {
@@ -153,6 +181,73 @@ export class TeamMemberConfigService {
     }
   }
 
+  // ==================== JOB TITLE (users column) ====================
+
+  /**
+   * `job_title` is a column of `users`, shared by the whole application, not a
+   * label local to the portfolio. It is written through `UsersService`, which
+   * owns the field allow-list, the access rule and the audit row: a raw UPDATE
+   * from here would bypass all three.
+   *
+   * Two refusals of our own sit in front of it:
+   * - a directory-managed account, because `mergeScalarFields` overwrites
+   *   `job_title` from Entra at every nightly sync and every JIT sign-in, so a
+   *   hand-typed value would silently disappear overnight;
+   * - a caller with no actor, because `UsersService.updateUser` reads a null
+   *   actor as an internal update and opens every admin field without a check.
+   *
+   * The drawer renders the field read-only in both cases, so reaching here is a
+   * client bug and deserves a clear 403 rather than a silent no-op.
+   */
+  private async applyJobTitle(
+    mg: EntityManager,
+    tenantId: string,
+    targetUserId: string,
+    jobTitle: string | null,
+    actor: ContributorProfileActor | undefined,
+  ) {
+    if (!actor) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN_PROFILE_UPDATE',
+        message: 'The job title can only be changed by an identified user.',
+      });
+    }
+
+    const rows: Array<{
+      job_title: string | null;
+      external_auth_provider: string | null;
+      sso_provider: string | null;
+      sso_enabled: boolean | null;
+    }> = await mg.query(
+      `SELECT u.job_title, u.external_auth_provider, t.sso_provider, t.sso_enabled
+       FROM users u
+       JOIN tenants t ON t.id = u.tenant_id
+       WHERE u.id = $1 AND u.tenant_id = $2`,
+      [targetUserId, tenantId],
+    );
+    const row = rows[0];
+    if (!row) throw new NotFoundException('User not found');
+
+    // Same three-part condition as the drawer: the account comes from the
+    // directory AND the tenant still signs in through it. An Entra account on a
+    // tenant whose SSO was turned off is no longer synced, so it stays editable.
+    const managedByEntra = row.external_auth_provider === 'entra'
+      && row.sso_provider === 'entra'
+      && row.sso_enabled === true;
+    if (managedByEntra) {
+      throw new ForbiddenException({
+        code: 'PROFILE_FIELD_FROM_ENTRA',
+        message: 'The job title comes from Microsoft Entra and cannot be changed here.',
+      });
+    }
+
+    const next = jobTitle?.trim() || null;
+    // A blur with no edit must not write an audit row per visit.
+    if ((row.job_title || null) === next) return;
+
+    await this.users.updateUser(targetUserId, { job_title: next }, actor, { manager: mg });
+  }
+
   // ==================== LIST ====================
   async list(tenantId: string, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
@@ -165,6 +260,7 @@ export class TeamMemberConfigService {
         u.email as user_email,
         u.job_title as job_title,
         u.status as user_status,
+        u.external_auth_provider as external_auth_provider,
         pt.name as team_name,
         TRIM(COALESCE(mgr.first_name, '') || ' ' || COALESCE(mgr.last_name, '')) as manager_name,
         et.name as employment_type_name
@@ -191,6 +287,7 @@ export class TeamMemberConfigService {
         u.email as user_email,
         u.job_title as job_title,
         u.status as user_status,
+        u.external_auth_provider as external_auth_provider,
         pt.name as team_name,
         TRIM(COALESCE(mgr.first_name, '') || ' ' || COALESCE(mgr.last_name, '')) as manager_name,
         et.name as employment_type_name
@@ -219,8 +316,17 @@ export class TeamMemberConfigService {
     });
   }
 
+  /**
+   * The self route reads through `get()` so it carries the same joined columns
+   * as `:id` -- notably `job_title` and `external_auth_provider`, which the
+   * properties drawer needs to decide whether the field is editable. A missing
+   * config is still `null` here, not a 404: the page renders an empty profile
+   * and the first save creates the row.
+   */
   async getMe(userId: string, tenantId: string, opts?: { manager?: EntityManager }) {
-    return this.getByUserId(userId, tenantId, opts);
+    const config = await this.getByUserId(userId, tenantId, opts);
+    if (!config) return null;
+    return this.get(config.id, opts);
   }
 
   async upsertMe(
@@ -228,7 +334,7 @@ export class TeamMemberConfigService {
     body: TeamMemberConfigSelfServiceInput,
     tenantId: string,
     actorUserId: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; profileActor?: ContributorProfileActor },
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(TeamMemberConfig);
@@ -257,7 +363,11 @@ export class TeamMemberConfigService {
     body: TeamMemberConfigCreateInput,
     tenantId: string,
     userId: string | null,
-    opts?: { manager?: EntityManager; managerSource?: 'entra' | 'manual' },
+    opts?: {
+      manager?: EntityManager;
+      managerSource?: 'entra' | 'manual';
+      profileActor?: ContributorProfileActor;
+    },
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(TeamMemberConfig);
@@ -267,6 +377,9 @@ export class TeamMemberConfigService {
     }
     if (body.employment_type_id) {
       await this.assertEmploymentTypeUsable(mg, tenantId, body.employment_type_id);
+    }
+    if (body.job_title !== undefined) {
+      await this.applyJobTitle(mg, tenantId, body.user_id, body.job_title, opts?.profileActor);
     }
     // A contributor is never without a contract type: Internal unless said otherwise.
     const employmentTypeId = body.employment_type_id || await this.defaultEmploymentTypeId(mg, tenantId);
@@ -308,7 +421,11 @@ export class TeamMemberConfigService {
     id: string,
     body: TeamMemberConfigUpdateInput,
     userId: string | null,
-    opts?: { manager?: EntityManager; managerSource?: 'entra' | 'manual' },
+    opts?: {
+      manager?: EntityManager;
+      managerSource?: 'entra' | 'manual';
+      profileActor?: ContributorProfileActor;
+    },
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(TeamMemberConfig);
@@ -317,6 +434,19 @@ export class TeamMemberConfigService {
     if (!existing) throw new NotFoundException('Team member config not found');
 
     const before = { ...existing };
+
+    // Before any contributor field is touched: a refusal here must not leave a
+    // half-applied patch behind, even though the request transaction would roll
+    // the whole thing back anyway.
+    if (body.job_title !== undefined) {
+      await this.applyJobTitle(
+        mg,
+        existing.tenant_id,
+        existing.user_id,
+        body.job_title,
+        opts?.profileActor,
+      );
+    }
 
     if (body.areas_of_expertise !== undefined) {
       existing.areas_of_expertise = body.areas_of_expertise;
@@ -583,7 +713,7 @@ export class TeamMemberConfigService {
     body: TeamMemberConfigUpdateInput,
     tenantId: string,
     userId: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: { manager?: EntityManager; profileActor?: ContributorProfileActor },
   ) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(TeamMemberConfig);

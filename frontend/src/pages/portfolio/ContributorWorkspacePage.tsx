@@ -35,6 +35,9 @@ interface ContributorConfig {
   user_id: string;
   user_display_name: string;
   user_email: string;
+  /** Columns of `users`, joined by the API; not contributor attributes. */
+  job_title: string | null;
+  external_auth_provider: string | null;
   areas_of_expertise: string[];
   skills: SkillProficiency[];
   project_availability: number;
@@ -55,6 +58,7 @@ interface ContributorConfig {
 /** Fields the workspace can PATCH; the contributor cache is the source of truth for all of them. */
 type ContributorPatch = Partial<Pick<ContributorConfig,
   'skills' | 'project_availability' | 'notes' | 'team_id' | 'manager_user_id' | 'employment_type_id'
+  | 'job_title'
   | 'default_source_id' | 'default_category_id' | 'default_stream_id' | 'default_company_id'
 >>;
 
@@ -85,6 +89,8 @@ function normalizeConfig(raw: any): ContributorConfig {
     user_id: raw?.user_id ?? '',
     user_display_name: raw?.user_display_name ?? '',
     user_email: raw?.user_email ?? '',
+    job_title: raw?.job_title ?? null,
+    external_auth_provider: raw?.external_auth_provider ?? null,
     areas_of_expertise: raw?.areas_of_expertise ?? [],
     skills: raw?.skills ?? [],
     project_availability: normalizeAvailability(raw?.project_availability),
@@ -155,7 +161,7 @@ export default function ContributorWorkspacePage() {
   const { id: idParam, tab } = useParams<{ id?: string; tab?: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { hasLevel, profile } = useAuth();
+  const { hasLevel, profile, refreshMe, tenantAuth } = useAuth();
 
   // Both `/contributors/me` and `/contributors/:id` render this page; on the
   // self route there is no `:id` param.
@@ -180,6 +186,16 @@ export default function ContributorWorkspacePage() {
   const canManageTeams = !isSelfRoute && hasLevel('portfolio_settings', 'member');
   const canViewTime = hasLevel('portfolio_settings', 'reader');
   const canListContributors = !isSelfRoute && hasLevel('portfolio_settings', 'reader');
+
+  // The self route renders before any contributor row exists. The signed-in
+  // profile is the authority on one's own `users` columns, so the placeholder
+  // carries them: otherwise an Entra user without a contributor row would see
+  // the job title as editable and be refused by the server on the first save.
+  const selfPlaceholder = useCallback(() => normalizeConfig({
+    user_id: profile?.id,
+    job_title: profile?.job_title,
+    external_auth_provider: profile?.external_auth_provider,
+  }), [profile?.external_auth_provider, profile?.id, profile?.job_title]);
 
   const [error, setError] = useState<string | null>(null);
   const [teamAnchor, setTeamAnchor] = useState<HTMLElement | null>(null);
@@ -283,7 +299,12 @@ export default function ContributorWorkspacePage() {
   // by one debounced controller so PATCHes never overlap.
 
   const pendingPatchRef = useRef<ContributorPatch>({});
-  const saveTargetRef = useRef<{ endpoint: string; queryKey: readonly unknown[]; isSelf: boolean } | null>(null);
+  const saveTargetRef = useRef<{
+    endpoint: string;
+    queryKey: readonly unknown[];
+    isSelf: boolean;
+    userId: string | null;
+  } | null>(null);
   const deletedRef = useRef(false);
 
   const handleAutosaveError = useCallback((e: unknown) => {
@@ -306,6 +327,11 @@ export default function ContributorWorkspacePage() {
     if (deletedRef.current || !target || Object.keys(patch).length === 0) return;
     const res = await api.patch(target.endpoint, patch);
     const savedId: string | undefined = res.data?.id;
+    // The job title is a `users` column the signed-in profile carries too, so
+    // a change to one's own must reach the header and Settings > Profile.
+    if ('job_title' in patch && target.userId === profile?.id) {
+      void refreshMe();
+    }
     // Keep the optimistic values (an edit made during the request must win);
     // only the id is taken from the response, which matters for the first
     // self-service save that creates the config.
@@ -322,18 +348,23 @@ export default function ContributorWorkspacePage() {
     if (profile?.id) {
       void queryClient.invalidateQueries({ queryKey: ['classification-defaults', profile.id] });
     }
-  }, [profile?.id, queryClient]);
+  }, [profile?.id, queryClient, refreshMe]);
 
   const patch = useCallback((partial: ContributorPatch) => {
     if (!canEdit) return;
     queryClient.setQueryData<ContributorConfig | null>(queryKey, (previous) => ({
-      ...(previous ?? normalizeConfig({ user_id: profile?.id })),
+      ...(previous ?? selfPlaceholder()),
       ...partial,
     }));
     pendingPatchRef.current = { ...pendingPatchRef.current, ...partial };
-    saveTargetRef.current = { endpoint, queryKey, isSelf: isSelfRoute };
+    saveTargetRef.current = {
+      endpoint,
+      queryKey,
+      isSelf: isSelfRoute,
+      userId: member?.user_id || profile?.id || null,
+    };
     scheduleSave(flushPending);
-  }, [canEdit, endpoint, flushPending, isSelfRoute, profile?.id, queryClient, queryKey, scheduleSave]);
+  }, [canEdit, endpoint, flushPending, isSelfRoute, member?.user_id, profile?.id, queryClient, queryKey, scheduleSave, selfPlaceholder]);
 
   // ---- Navigation (all controlled transitions drain the autosave first) -----
 
@@ -424,7 +455,7 @@ export default function ContributorWorkspacePage() {
     || ''
   );
   const notFound = !isLoading && !isError && !member && !isSelfRoute;
-  const view = member ?? normalizeConfig({ user_id: profile?.id });
+  const view = member ?? selfPlaceholder();
   const teamName = view.team_id
     ? (teams.find((team) => team.id === view.team_id)?.name || view.team_name || '')
     : '';
@@ -447,7 +478,22 @@ export default function ContributorWorkspacePage() {
     ? formatItemRef('contributor', managerContributor.item_number)
     : null;
 
+  // The job title lives on `users`, so a portfolio right does not grant it:
+  // one's own profile is self-service, anyone else's needs `users:admin`
+  // (fried, 2026-09-12). The server refuses the rest.
+  const isOwnProfile = !!view.user_id && view.user_id === profile?.id;
+  const canEditJobTitle = canEdit && (isOwnProfile || hasLevel('users', 'admin'));
+  // Same three-part condition as the users grid: the directory rewrites
+  // `job_title` at every sync, so a value typed here would not survive the
+  // night. Read-only, exactly like an Entra manager.
+  const jobTitleFromEntra = (
+    tenantAuth?.sso_provider === 'entra'
+    && !!tenantAuth?.sso_enabled
+    && view.external_auth_provider === 'entra'
+  );
+
   const drawerValues: ContributorDrawerValues = {
+    job_title: view.job_title,
     team_id: view.team_id,
     manager_user_id: view.manager_user_id,
     manager_source: view.manager_source,
@@ -565,6 +611,8 @@ export default function ContributorWorkspacePage() {
             showTeam={!isSelfRoute}
             canEdit={canEdit}
             canManageTeams={canManageTeams}
+            canEditJobTitle={canEditJobTitle}
+            jobTitleFromEntra={jobTitleFromEntra}
             onChange={(partial) => patch(partial)}
             onManagerPicked={(id, name) => setPickedManager(id && name ? { id, name } : null)}
           />
