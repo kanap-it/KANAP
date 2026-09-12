@@ -9,6 +9,11 @@ import {
   buildDefaultMethodLookup,
   defaultMethodKey,
 } from './allocation-rule-resolver';
+import {
+  AllocationDriver,
+  computeCompanyShares,
+  normalizeWeights,
+} from './allocation-distribution';
 import { Company } from '../companies/company.entity';
 import { CompanyMetric } from '../companies/company-metric.entity';
 import { Department } from '../departments/department.entity';
@@ -165,12 +170,12 @@ export class AllocationCalculatorService {
               continue;
             }
 
-            const distribution = await this.computeManualCompanyShares({
+            const distribution = await computeCompanyShares({
               manager,
               tenantId: version.tenant_id,
               fiscalYear: version.budget_year,
               companyIds,
-              driver: ((version as any).allocation_driver ?? 'headcount') as 'headcount' | 'it_users' | 'turnover',
+              driver: ((version as any).allocation_driver ?? 'headcount') as AllocationDriver,
             });
 
             const shares = rows.map((row) => ({
@@ -412,57 +417,6 @@ export class AllocationCalculatorService {
     return shares;
   }
 
-  private async computeManualCompanyShares(args: {
-    manager: EntityManager;
-    tenantId: string;
-    fiscalYear: number;
-    companyIds: string[];
-    driver: 'headcount' | 'it_users' | 'turnover';
-  }): Promise<Map<string, number>> {
-    const { manager, tenantId, fiscalYear, companyIds, driver } = args;
-    const companyRepo = manager.getRepository(Company);
-    // Year-aware disabled filter: companies are considered enabled for a given fiscalYear
-    // if disabled_at is NULL or disabled_at >= Jan 1 of that fiscal year.
-    const periodStart = new Date(`${String(fiscalYear).padStart(4, '0')}-01-01T00:00:00.000Z`);
-    const companies = await companyRepo.find({
-      where: {
-        tenant_id: tenantId,
-        id: In(companyIds) as any,
-        disabled_at: Raw((alias) => `${alias} IS NULL OR ${alias} >= :period_start`, { period_start: periodStart }),
-      } as any,
-    });
-    if (companies.length !== companyIds.length) {
-      throw new BadRequestException('Some companies are not available for manual allocation.');
-    }
-
-    const metricRepo = manager.getRepository(CompanyMetric);
-    const metrics = await metricRepo.find({
-      where: {
-        tenant_id: tenantId,
-        fiscal_year: fiscalYear,
-        company_id: In(companyIds) as any,
-      } as any,
-    });
-
-    const weights = companyIds.map((companyId) => {
-      const metric = metrics.find((m) => m.company_id === companyId);
-      let weight = 0;
-      if (driver === 'headcount') weight = Number(metric?.headcount ?? 0);
-      else if (driver === 'it_users') weight = Number(metric?.it_users ?? 0);
-      else weight = Number(metric?.turnover ?? 0);
-      return { id: companyId, weight };
-    });
-
-    if (weights.some((entry) => !Number.isFinite(entry.weight) || entry.weight <= 0)) {
-      throw new BadRequestException(`Provide ${driver.replace('_', ' ')} values for the selected companies.`);
-    }
-
-    const distribution = this.normalizeWeights(weights);
-    const map = new Map<string, number>();
-    distribution.forEach(({ id, pct }) => map.set(id, pct));
-    return map;
-  }
-
   private async computeManualDepartmentShares(args: {
     manager: EntityManager;
     tenantId: string;
@@ -501,30 +455,12 @@ export class AllocationCalculatorService {
       throw new BadRequestException('Provide headcount values for the selected departments.');
     }
 
-    const distribution = this.normalizeWeights(weights);
+    const distribution = normalizeWeights(weights);
     const map = new Map<string, { company_id: string; allocation_pct: number }>();
     distribution.forEach(({ id, pct }) => {
       const department = departments.find((d) => d.id === id)!;
       map.set(id, { company_id: department.company_id, allocation_pct: pct });
     });
     return map;
-  }
-
-  private normalizeWeights(weights: Array<{ id: string; weight: number }>): Array<{ id: string; pct: number }> {
-    const total = weights.reduce((acc, entry) => acc + entry.weight, 0);
-    if (!Number.isFinite(total) || total <= 0) {
-      throw new BadRequestException('Allocation source values must sum to a positive amount.');
-    }
-
-    let running = 0;
-    return weights.map((entry, idx) => {
-      let pct = Number(((entry.weight * 100) / total).toFixed(4));
-      if (idx === weights.length - 1) {
-        const diff = Number((100 - (running + pct)).toFixed(4));
-        pct = Number((pct + diff).toFixed(4));
-      }
-      running += pct;
-      return { id: entry.id, pct };
-    });
   }
 }
