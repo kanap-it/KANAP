@@ -22,6 +22,7 @@ import {
   GlpiTicketUserAssociation,
   GlpiTicketGroupAssociation,
   GlpiAssignableGroup,
+  GlpiCategory,
 } from './glpi.types';
 
 const GLPI_TIMEOUT_MS = 10_000;
@@ -300,6 +301,7 @@ export class GlpiService {
   // is account-scoped) + itemtype. Refreshed lazily every GLPI_TREE_CACHE_TTL_MS.
   private readonly treeParentCache = new Map<string, { expiresAt: number; parents: Map<number, number | null> }>();
   private readonly assignableGroupsCache = new Map<string, { expiresAt: number; groups: GlpiAssignableGroup[] }>();
+  private readonly categoriesCache = new Map<string, { expiresAt: number; categories: GlpiCategory[] }>();
 
   constructor(
     private readonly settingsService: AiSettingsService,
@@ -450,6 +452,27 @@ export class GlpiService {
     }
     this.assignableGroupsCache.set(cacheKey, { expiresAt: now + GLPI_ASSIGNABLE_GROUPS_CACHE_TTL_MS, groups });
     return groups;
+  }
+
+  // Keep the complete tree here: prompt limits apply after narrowing to the agent scope.
+  async listCategories(session: GlpiSession): Promise<GlpiCategory[]> {
+    const cacheKey = `${session.baseUrl}|${session.agentUserId ?? 'anon'}`;
+    const cached = this.categoriesCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.categories;
+    const rows = await this.listItemTypeRows(session, 'ITILCategory', GLPI_TREE_MAX_ROWS);
+    const categories = rows.flatMap((record): GlpiCategory[] => {
+      const id = parsePositiveInteger(record.id);
+      if (!id) return [];
+      const name = decodeGlpiPlainTextField(stringifyGlpiValue(record.name));
+      return [{
+        id, name,
+        completename: decodeGlpiPlainTextField(stringifyGlpiValue(record.completename)) ?? name,
+        parentId: parsePositiveInteger(record.itilcategories_id) ?? null,
+      }];
+    });
+    categories.sort((left, right) => (left.completename ?? '').localeCompare(right.completename ?? '', undefined, { sensitivity: 'base' }) || left.id - right.id);
+    this.categoriesCache.set(cacheKey, { expiresAt: Date.now() + GLPI_ASSIGNABLE_GROUPS_CACHE_TTL_MS, categories });
+    return categories;
   }
 
   async getTicketGroups(
@@ -1039,7 +1062,7 @@ export class GlpiService {
       throw new BadRequestException('GLPI ticket id must be a positive integer.');
     }
     const input: Record<string, number> = {};
-    const allowedFields: Array<keyof GlpiTicketUpdateFields> = ['type', 'priority', 'urgency', 'status'];
+    const allowedFields: Array<keyof GlpiTicketUpdateFields> = ['type', 'priority', 'urgency', 'status', 'itilcategories_id'];
     for (const field of allowedFields) {
       const value = fields[field];
       if (value == null) {

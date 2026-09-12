@@ -1,3 +1,4 @@
+import { resolvePlannerClassificationProposal } from '../providers/ticket-classification';
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { FindOptionsWhere, In, SelectQueryBuilder } from 'typeorm';
@@ -622,7 +623,8 @@ const PHASE_1_PLANNER_OWNED_ACTION_TYPES = [
 // Instruction-driven group routing: owned only when the agent holds the assignment
 // capability pair and the provider exposes a routing catalogue for the ticket.
 const PLANNER_ASSIGNMENT_ACTION_TYPE = 'assignment_update' as const satisfies PlannerActionType;
-const PLANNER_OWNED_ACTION_TYPES = new Set<PlannerActionType>([...PHASE_1_PLANNER_OWNED_ACTION_TYPES, PLANNER_ASSIGNMENT_ACTION_TYPE]);
+const PLANNER_CLASSIFICATION_ACTION_TYPE = 'classification_update' as const satisfies PlannerActionType;
+const PLANNER_OWNED_ACTION_TYPES = new Set<PlannerActionType>([...PHASE_1_PLANNER_OWNED_ACTION_TYPES, PLANNER_ASSIGNMENT_ACTION_TYPE, PLANNER_CLASSIFICATION_ACTION_TYPE]);
 const PLANNER_TERMINAL_TRANSITIONS = new Set(['solved', 'closed', 'resolved']);
 const MIN_KNOWLEDGE_RELEVANCE_SCORE = 0.00001;
 const MIN_KNOWLEDGE_LEXICAL_OVERLAP = 1;
@@ -2019,6 +2021,7 @@ function resolvePlannerStatusTransition(
 }
 
 function plannerActionKindKey(action: PlannerAction): string {
+  if (action.action_type === PLANNER_CLASSIFICATION_ACTION_TYPE) return `${action.action_type}:${proposalHash(action.proposed ?? {})}`;
   if (action.action_type === 'requester_reply') {
     return `${action.action_type}:${action.reply_kind ?? 'unspecified'}:${action.administrative_intent ?? 'none'}:${action.verbatim_ref ?? 'draft'}`;
   }
@@ -2736,37 +2739,6 @@ function buildRequesterReply(
     '',
     ...locale.closing,
   ], MAX_PUBLIC_REPLY_CHARS);
-}
-
-function normalizedContextString(record: Record<string, unknown> | null, key: string): string | null {
-  const value = record?.[key];
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim().toLowerCase() : null;
-}
-
-function buildClassificationUpdateProposal(
-  ticket: TicketLike,
-  classification: Record<string, unknown> | null,
-): { proposed: Record<string, string>; reason: string } | null {
-  const proposed: Record<string, string> = {};
-  const type = normalizedContextString(classification, 'type');
-  const priority = normalizedContextString(classification, 'priority');
-  const urgency = normalizedContextString(classification, 'urgency');
-  if (type !== 'incident' && type !== 'request') {
-    proposed.type = 'request';
-  }
-  if (!['very_low', 'low', 'medium', 'high', 'very_high', 'major'].includes(priority ?? '')) {
-    proposed.priority = 'medium';
-  }
-  if (!['very_low', 'low', 'medium', 'high', 'very_high', 'major'].includes(urgency ?? '')) {
-    proposed.urgency = 'medium';
-  }
-  if (Object.keys(proposed).length === 0) {
-    return null;
-  }
-  return {
-    proposed,
-    reason: `Normalize ticket ${ticket.id} classification fields that are missing or not mapped before helpdesk processing.`,
-  };
 }
 
 function buildStatusUpdateProposal(
@@ -7905,6 +7877,9 @@ export class AiAgentControlService {
       input: {
         provider_key: target.provider_key,
         ticket_id: target.external_ref,
+        category_scope_keys: agentDefinition ? normalizeServiceDeskTargeting(agentDefinition.scope_policy_json).predicates
+          .filter((predicate) => predicate.field === 'category' && (predicate.operator === 'eq' || predicate.operator === 'in'))
+          .flatMap((predicate) => (Array.isArray(predicate.value) ? predicate.value : [predicate.value]).map(String)) : [],
       },
       execution: {
         surface: 'internal',
@@ -8663,9 +8638,15 @@ export class AiAgentControlService {
       && definitionAllowsCapability(agentDefinition, TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY)
       && definitionAllowsCapability(agentDefinition, TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY);
     const assignmentRoutingAvailable = assignmentWriteCapable && routingContext?.assignmentSupported === true;
-    const plannerOwnedActionTypes: PlannerActionType[] = assignmentRoutingAvailable
-      ? [...PHASE_1_PLANNER_OWNED_ACTION_TYPES, PLANNER_ASSIGNMENT_ACTION_TYPE]
-      : [...PHASE_1_PLANNER_OWNED_ACTION_TYPES];
+    const classificationWriteCapable = !!agentDefinition
+      && definitionAllowsCapability(agentDefinition, TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY)
+      && definitionAllowsCapability(agentDefinition, TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY);
+    const classificationAvailable = classificationWriteCapable && classificationContext?.classificationSupported === true;
+    const plannerOwnedActionTypes: PlannerActionType[] = [
+      ...PHASE_1_PLANNER_OWNED_ACTION_TYPES,
+      ...(assignmentRoutingAvailable ? [PLANNER_ASSIGNMENT_ACTION_TYPE] : []),
+      ...(classificationAvailable ? [PLANNER_CLASSIFICATION_ACTION_TYPE] : []),
+    ];
     const closeWriteCapable = !!agentDefinition
       && definitionAllowsCapability(agentDefinition, TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY)
       && definitionAllowsCapability(agentDefinition, TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY)
@@ -8775,7 +8756,11 @@ export class AiAgentControlService {
           markPlannerSkipped(actionType, assignmentWriteCapable ? 'assignment_not_supported_by_provider' : 'prepare_capability_not_granted');
           continue;
         }
-        if (seenPlannerActions.has(actionKey)) {
+        if (actionType === PLANNER_CLASSIFICATION_ACTION_TYPE && !classificationAvailable) {
+          markPlannerSkipped(actionType, classificationWriteCapable ? 'classification_not_supported_by_provider' : 'prepare_capability_not_granted');
+          continue;
+        }
+        if (actionType !== PLANNER_CLASSIFICATION_ACTION_TYPE && seenPlannerActions.has(actionKey)) {
           markPlannerSkipped(actionType, 'duplicate_planner_action');
           continue;
         }
@@ -8869,6 +8854,17 @@ export class AiAgentControlService {
             transition_key: resolvedTransition.key,
             ...(resolvedTransition.resolution ? { transition_resolution: resolvedTransition.resolution } : {}),
           } as PlannerAction;
+        } else if (actionType === PLANNER_CLASSIFICATION_ACTION_TYPE) {
+          if (plannerAuthorizedActions.some((entry) => entry.action.action_type === PLANNER_CLASSIFICATION_ACTION_TYPE)) {
+            markPlannerSkipped(actionType, 'one_classification_per_plan');
+            continue;
+          }
+          const resolved = resolvePlannerClassificationProposal(classificationContext, action);
+          if (!resolved.proposed) {
+            markPlannerSkipped(actionType, resolved.reason ?? 'classification_field_not_in_catalogue');
+            continue;
+          }
+          authorizedAction = { ...action, proposed: resolved.proposed };
         } else if (actionType === PLANNER_ASSIGNMENT_ACTION_TYPE) {
           if (plannerAuthorizedActions.some((entry) => entry.action.action_type === PLANNER_ASSIGNMENT_ACTION_TYPE)) {
             markPlannerSkipped(actionType, 'one_assignment_per_plan');
@@ -8908,6 +8904,7 @@ export class AiAgentControlService {
         ? entry.action.transition_resolution
         : null,
       target: entry.action.target ?? null,
+      proposed: entry.action.proposed ?? null,
       terminal: entry.terminal,
       reason: entry.action.reason,
     }));
@@ -8917,6 +8914,7 @@ export class AiAgentControlService {
       administrative_intent: action.administrative_intent ?? null,
       transition_key: action.transition_key ?? null,
       target: action.target ?? null,
+      proposed: action.proposed ?? null,
       verbatim_ref: action.verbatim_ref ?? null,
       body_present: typeof action.body === 'string' && action.body.trim().length > 0,
       reason: action.reason,
@@ -8946,7 +8944,6 @@ export class AiAgentControlService {
     const fallbackStatusUpdateProposal = plannerFallbackActive
       ? buildStatusUpdateProposal(lifecycleContext, conversationGate.can_prepare_public_reply)
       : null;
-    const classificationUpdateInput = buildClassificationUpdateProposal(ticket, classificationContext);
 
     const plannerNeedsSourcedSynthesis = plannerAuthorizedActions.some((entry) =>
       entry.action.action_type === 'requester_reply' && entry.action.reply_kind === 'sourced_answer',
@@ -9052,6 +9049,11 @@ export class AiAgentControlService {
           ? buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, { kind: 'administrative_reply', reason: administrativeReason })
           : buildTriageNote(ticket, knowledgeItems, ticketTimeline, webSearchResults, null)));
 
+    const plannerClassificationUpdate = effectivePlannerActions.find((entry) => entry.action.action_type === PLANNER_CLASSIFICATION_ACTION_TYPE) ?? null;
+    const classificationUpdateInput = plannerClassificationUpdate?.action.proposed
+      ? { proposed: plannerClassificationUpdate.action.proposed, reason: plannerClassificationUpdate.action.reason }
+      : null;
+
     const effectivePlannerActionSummaries = effectivePlannerActions.map((entry) => ({
       action_type: entry.action.action_type,
       key: entry.plannerActionKey,
@@ -9062,6 +9064,7 @@ export class AiAgentControlService {
         ? entry.action.transition_resolution
         : null,
       target: entry.action.target ?? null,
+      proposed: entry.action.proposed ?? null,
       terminal: entry.terminal,
       reason: entry.action.reason,
     }));
@@ -9291,6 +9294,7 @@ export class AiAgentControlService {
     const plannerProposalHashFor = (entry: { action: PlannerAction; plannerActionKey: string; replyBody: string | null; terminal: boolean }): string => proposalHash({
       action_type: entry.action.action_type,
       planner_action_key: entry.plannerActionKey,
+      ...(entry.action.action_type === PLANNER_CLASSIFICATION_ACTION_TYPE ? { proposed: entry.action.proposed ?? null } : {}),
       guidance_hash: actionPlannerGuidanceHash,
       reply_kind: entry.action.reply_kind ?? null,
       administrative_intent: entry.action.administrative_intent ?? null,
@@ -9455,18 +9459,10 @@ export class AiAgentControlService {
         excludeRunId: ticketResult.run_id,
       });
     }
-    const classificationProposalHash = classificationUpdateInput
-      ? proposalHash({
-        action: 'classification_update',
-        proposed: classificationUpdateInput.proposed,
-      })
-      : null;
-    const classificationContextHash = classificationUpdateInput
-      ? proposalHash({
-        current: classificationContext,
-        proposed: classificationUpdateInput.proposed,
-      })
-      : null;
+    const classificationProposalHash = plannerClassificationUpdate
+      ? plannerProposalHashFor({ ...plannerClassificationUpdate, replyBody: null }) : null;
+    const classificationContextHash = plannerClassificationUpdate
+      ? plannerProposalContextHash(plannerClassificationUpdate) : null;
     const classificationSuppressionReason = classificationUpdateInput && classificationProposalHash && classificationContextHash
       ? await this.unchangedProposalSuppressionReason(context, {
         capabilityName: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
@@ -9475,6 +9471,7 @@ export class AiAgentControlService {
         contextHash: classificationContextHash,
       })
       : null;
+    if (classificationSuppressionReason) plannerSuppressionReasons.classification_update = classificationSuppressionReason;
     const classificationUpdateProposal = classificationUpdateInput && !classificationSuppressionReason
       ? await this.dispatcher.execute(context, {
         capabilityName: TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
@@ -9494,12 +9491,7 @@ export class AiAgentControlService {
           trigger_kind: 'internal',
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
-          metadata: {
-            ...baseMetadata,
-            triage_action: 'prepare_classification_update',
-            proposal_hash: classificationProposalHash,
-            proposal_context_hash: classificationContextHash,
-          },
+          metadata: plannerMetadata(plannerClassificationUpdate!, classificationProposalHash, classificationContextHash, 'planner_prepare_classification_update'),
         },
       })
       : null;
@@ -9837,7 +9829,7 @@ export class AiAgentControlService {
               ?? (conversationGate.can_prepare_internal_note ? null : conversationGate.internal_note_reason),
             public_reply: plannerSkippedActionsWithSuppression.requester_reply
               ?? (conversationGate.can_prepare_public_reply ? null : conversationGate.public_reply_reason),
-            classification: classificationSuppressionReason ?? (classificationUpdateInput ? null : 'no_safe_classification_change'),
+            classification: plannerSkippedActionsWithSuppression.classification_update ?? (classificationUpdateInput ? null : classificationAvailable ? 'not_selected_by_action_planner' : classificationWriteCapable ? 'classification_not_supported_by_provider' : 'classification_capability_not_granted'),
             status: plannerSkippedActionsWithSuppression.status_update
               ?? statusSuppressionReason
               ?? (statusUpdateInput ? null : 'no_safe_status_transition'),
@@ -9910,7 +9902,7 @@ export class AiAgentControlService {
             ?? (conversationGate.can_prepare_internal_note ? null : conversationGate.internal_note_reason),
           public_reply: plannerSkippedActionsWithSuppression.requester_reply
             ?? (conversationGate.can_prepare_public_reply ? null : conversationGate.public_reply_reason),
-          classification: classificationSuppressionReason ?? (classificationUpdateInput ? null : 'no_safe_classification_change'),
+          classification: plannerSkippedActionsWithSuppression.classification_update ?? (classificationUpdateInput ? null : classificationAvailable ? 'not_selected_by_action_planner' : classificationWriteCapable ? 'classification_not_supported_by_provider' : 'classification_capability_not_granted'),
           status: plannerSkippedActionsWithSuppression.status_update
             ?? statusSuppressionReason
             ?? (statusUpdateInput ? null : 'no_safe_status_transition'),

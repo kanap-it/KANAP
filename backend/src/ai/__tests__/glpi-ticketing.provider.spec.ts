@@ -1,3 +1,4 @@
+import { classificationDriftSnapshot, resolvePlannerClassificationProposal } from '../control-plane/providers/ticket-classification';
 import * as assert from 'node:assert/strict';
 import { GlpiTicketingProvider } from '../control-plane/providers/glpi-ticketing.provider';
 import {
@@ -198,7 +199,76 @@ function testActorRoleParsingFallsBackToDefault() {
   assert.equal(ticketActorRoleFromResponsePolicy({ ticket_actor_role: 'none' }), 'none');
 }
 
+async function testClassificationCataloguePrepareAndDegradedReads() {
+  let failCatalogue = false;
+  const categories = [
+    ...Array.from({ length: 201 }, (_, i) => ({ id: i + 1, name: `A${i}`, completename: `A${i}`, parentId: null })),
+    { id: 300, name: 'Software', completename: 'Software', parentId: null },
+    { id: 301, name: 'SAP', completename: 'Software > SAP', parentId: 300 },
+  ];
+  const writes: any[] = [];
+  const provider = new GlpiTicketingProvider({} as any, {
+    initSession: async () => ({ sessionToken: 's', baseUrl: 'https://glpi.internal', agentUserId: 42 }),
+    killSession: async () => undefined,
+    getTicket: async () => ({ id: 17, type: 1, priority: 5, urgency: '3', category_id: 301 }),
+    listCategories: async () => { if (failCatalogue) throw new Error('Forbidden'); return categories; },
+    updateTicketFields: async (_session: any, id: number, fields: any) => { writes.push(fields); return { ticket_id: id, updated_fields: Object.keys(fields) }; },
+  } as any);
+  const full = await provider.getTicketClassificationContext(context(), { ticketId: '17' });
+  assert.equal(full.ok, true);
+  if (!full.ok) return;
+  assert.equal(full.data.category, 'Software > SAP');
+  assert.equal(full.data.categoryKey, '301');
+  assert.equal(full.data.options?.categories.length, 200);
+  assert.equal(full.data.categoryCatalogTruncated, true);
+  assert.ok(full.warnings?.includes('classification_catalog_truncated'));
+  assert.equal((full.evidence[0].redactedPayload as any).options, undefined);
+  const scoped = await provider.getTicketClassificationContext(context(), { ticketId: '17', categoryScopeKeys: ['300'] });
+  assert.equal(scoped.ok, true);
+  if (!scoped.ok) return;
+  assert.deepEqual(scoped.data.options?.categories.map((item) => item.key), ['300', '301']);
+  assert.equal(scoped.data.categoryCatalogTruncated, false);
+  for (const category of ['301', 'software > sap']) {
+    const prepared = await provider.prepareTicketClassificationUpdate(context(), { ticketId: '17', proposed: { category, priority: 'high' }, reason: 'Instructions.' });
+    assert.equal(prepared.ok, true);
+    if (!prepared.ok) continue;
+    assert.deepEqual(prepared.data.actionPayload.proposed, { category: 'Software > SAP', categoryKey: '301', priority: 'high' });
+    assert.deepEqual(prepared.data.actionPayload.providerFields, { itilcategories_id: 301, priority: 4 });
+    assert.equal(prepared.data.actionPayload.current.options, undefined);
+    await provider.updateTicketClassification(context(), { actionPayload: prepared.data.actionPayload, idempotencyKey: 'test' });
+  }
+  assert.equal(writes.length, 2);
+  assert.equal((await provider.prepareTicketClassificationUpdate(context(), { ticketId: '17', proposed: { category: 'Ghost' }, reason: 'Instructions.' })).ok, false);
+  failCatalogue = true;
+  const degraded = await provider.getTicketClassificationContext(context(), { ticketId: '17' });
+  assert.equal(degraded.ok, true);
+  if (!degraded.ok) return;
+  assert.equal(degraded.data.classificationSupported, true);
+  assert.equal(degraded.data.categoryKey, '301');
+  assert.deepEqual(degraded.data.options?.categories, []);
+  assert.ok(degraded.warnings?.includes('glpi_category_catalogue_unavailable'));
+  assert.equal((await provider.prepareTicketClassificationUpdate(context(), { ticketId: '17', proposed: { priority: 'high' }, reason: 'Instructions.' })).ok, true);
+}
+
+function testClassificationDriftAndUnchangedFields() {
+  const current = { ticketId: '17', categoryKey: '301', category: 'SAP', type: 'Incident', priority: 'Very high', urgency: 'Medium', service: 'ERP', impact: 'global' };
+  assert.deepEqual(classificationDriftSnapshot(current), classificationDriftSnapshot({ ...current, category: 'Renamed SAP', warnings: ['notice'], options: { categories: [] }, updatedAt: 'later', status: 'pending' }));
+  for (const field of ['type', 'priority', 'urgency', 'categoryKey', 'service', 'impact']) {
+    assert.notDeepEqual(classificationDriftSnapshot(current), classificationDriftSnapshot({ ...current, [field]: 'changed' }));
+  }
+  assert.notDeepEqual(classificationDriftSnapshot({ category: 'A' }), classificationDriftSnapshot({ category: 'B' }));
+  const classification = { ...current, options: {
+    types: [{ key: 'incident', label: 'Incident' }],
+    priorities: [{ key: 'very_high', label: 'Very high' }, { key: 'medium', label: 'Medium' }],
+    categories: [{ key: '301', label: 'SAP' }],
+  } };
+  assert.equal(resolvePlannerClassificationProposal(classification, { proposed: { type: 'incident', priority: 'very_high', urgency: 'medium', category: 'sap' } }).reason, 'classification_unchanged');
+  assert.equal(resolvePlannerClassificationProposal(classification, { proposed: { category: 'Ghost', unknown: '1' } }).reason, 'classification_field_not_in_catalogue');
+}
+
 async function run() {
+  await testClassificationCataloguePrepareAndDegradedReads();
+  testClassificationDriftAndUnchangedFields();
   await testPublicReplyDefaultsToAssignee();
   await testPublicReplyObserverRoleFollowsOnly();
   await testPublicReplyNoneRoleNeverTouchesActors();

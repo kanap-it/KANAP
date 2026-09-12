@@ -1,3 +1,4 @@
+import { classificationDriftSnapshot } from '../providers/ticket-classification';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { In } from 'typeorm';
 import { z } from 'zod';
@@ -1366,6 +1367,7 @@ export function providerCapabilityContracts(): CapabilityContract[] {
         type: 'object',
         properties: {
           ticket_id: { type: 'string', minLength: 1 },
+          category_scope_keys: { type: 'array', items: { type: 'string', minLength: 1 }, maxItems: 200 },
           provider_key: { type: 'string', minLength: 1 },
         },
         required: ['ticket_id'],
@@ -2575,7 +2577,10 @@ export class AiCapabilityRegistry {
       }
       case TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY: {
         const provider = await this.providers.ticketing(context, providerKey(rawInput));
-        return provider.getTicketClassificationContext(context, { ticketId: stringField(rawInput, 'ticket_id') });
+        return provider.getTicketClassificationContext(context, {
+          ticketId: stringField(rawInput, 'ticket_id'),
+          categoryScopeKeys: isRecord(rawInput) && Array.isArray(rawInput.category_scope_keys) ? rawInput.category_scope_keys.map(String) : undefined,
+        });
       }
       case TICKETING_LIFECYCLE_CONTEXT_CAPABILITY: {
         const provider = await this.providers.ticketing(context, providerKey(rawInput));
@@ -3022,7 +3027,7 @@ export class AiCapabilityRegistry {
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
     }
-    if (!actionHasApplyAnywayOverride(action) && !sameSnapshot(freshnessRecheckSnapshot(action.action_payload_json.current), freshnessRecheckSnapshot(current.data))) {
+    if (!actionHasApplyAnywayOverride(action) && !sameSnapshot(classificationDriftSnapshot(action.action_payload_json.current), classificationDriftSnapshot(current.data))) {
       const message = 'Ticket classification changed after this action was prepared. Rerun triage before approving this write.';
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
