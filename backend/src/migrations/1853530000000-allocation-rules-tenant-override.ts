@@ -33,6 +33,11 @@ export class AllocationRulesTenantOverride1853530000000 implements MigrationInte
 
     // Mixed global + tenant table: the global standard row stays visible to every tenant,
     // tenant rows are only visible inside their own tenant transaction.
+    //
+    // Note on WITH CHECK: it deliberately accepts `tenant_id IS NULL` as well, so both the
+    // seed migrations and the platform-admin path can maintain the global standard row.
+    // A tenant transaction could therefore insert a global row; the API never does (it
+    // always writes the calling tenant's id), so this is an accepted, bounded opening.
     await queryRunner.query(`ALTER TABLE "allocation_rules" ENABLE ROW LEVEL SECURITY`);
     await queryRunner.query(`ALTER TABLE "allocation_rules" FORCE ROW LEVEL SECURITY`);
     await queryRunner.query(`DO $$ BEGIN

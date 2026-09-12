@@ -9,9 +9,14 @@ import { AllocationRulesService } from './allocation-rules.service';
 export class AllocationRulesController {
   constructor(private readonly svc: AllocationRulesService) {}
 
+  /**
+   * Readable by every authenticated member of the tenant, not just `budget_ops` readers:
+   * the effective default drives the allocation percentages shown on their own OPEX and
+   * CAPEX items, and hiding it made every non-admin see a wrong "Headcount (default)"
+   * label. It exposes no sensitive data (the global standard row plus this tenant's own
+   * setting). Writes below stay restricted to `budget_ops:admin`.
+   */
   @Get('active')
-  @UseGuards(PermissionGuard)
-  @RequireLevel('budget_ops', 'reader')
   async getActive(@Query('year') yearRaw: string, @Req() req: any) {
     return this.svc.resolve(req?.tenant?.id ?? null, Number(yearRaw), {
       manager: req?.queryRunner?.manager,

@@ -24,6 +24,14 @@ function assertYear(year: number): void {
   }
 }
 
+/** PostgreSQL unique violation, unwrapped from TypeORM's QueryFailedError. */
+function isUniqueViolation(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const direct = (err as any).code;
+  const driver = (err as any).driverError?.code;
+  return direct === '23505' || driver === '23505';
+}
+
 @Injectable()
 export class AllocationRulesService {
   constructor(
@@ -91,16 +99,30 @@ export class AllocationRulesService {
     const repo = manager.getRepository(AllocationRule);
     const existing = await repo.findOne({ where: { tenant_id: tenantId, fiscal_year: year } as any });
 
-    const saved = existing
-      ? await repo.save({ ...existing, method, status: 'active' } as AllocationRule)
-      : await repo.save(repo.create({ tenant_id: tenantId, fiscal_year: year, method, status: 'active' }));
+    let previous = existing ? { method: existing.method, status: existing.status } : null;
+    let saved: AllocationRule;
+    if (existing) {
+      saved = await repo.save({ ...existing, method, status: 'active' } as AllocationRule);
+    } else {
+      try {
+        saved = await repo.save(repo.create({ tenant_id: tenantId, fiscal_year: year, method, status: 'active' }));
+      } catch (err) {
+        // Two admins saving the same year concurrently: the loser's INSERT hits
+        // UNIQUE(tenant_id, fiscal_year). Update the row that won instead of surfacing a 500.
+        if (!isUniqueViolation(err)) throw err;
+        const winner = await repo.findOne({ where: { tenant_id: tenantId, fiscal_year: year } as any });
+        if (!winner) throw err;
+        previous = { method: winner.method, status: winner.status };
+        saved = await repo.save({ ...winner, method, status: 'active' } as AllocationRule);
+      }
+    }
 
     await this.audit.log(
       {
         table: 'allocation_rules',
         recordId: saved.id,
-        action: existing ? 'update' : 'create',
-        before: existing ? { fiscal_year: year, method: existing.method, status: existing.status } : null,
+        action: previous ? 'update' : 'create',
+        before: previous ? { fiscal_year: year, ...previous } : null,
         after: { fiscal_year: year, method: saved.method, status: saved.status },
         userId: userId ?? null,
       },
