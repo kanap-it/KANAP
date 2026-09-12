@@ -177,7 +177,7 @@ export type TicketReferenceEnums = {
   types: RefItem[];
 };
 
-export type TicketReferenceCatalogKind = 'category' | 'entity' | 'group';
+export type TicketReferenceCatalogKind = 'category' | 'entity' | 'group' | 'technician';
 
 export type TicketListScope =
   | {
@@ -296,6 +296,10 @@ export type TicketRoutingContext = {
   // Catalogue of targets the agent may route to. Instruction-driven: the persona names
   // the group, the planner picks the matching key from this list.
   supportedAssignmentTargets: TicketRoutingTarget[];
+  // Provider key of the agent's OWN account, when the provider knows it. The agent may
+  // self-register as an assignee on an earlier phase of the same approved batch; the
+  // pre-write drift check excludes this key so that does not look like a human reroute.
+  agentUserKey?: string | null;
   assignmentSupported: boolean;
   supported: boolean;
   warnings?: string[];

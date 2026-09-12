@@ -10,17 +10,41 @@ import {
 
 type ActorCall = { ticketId: number; usersId: number; type: number };
 type GroupCall = { ticketId: number; groupsId: number };
+type TechnicianCall = { ticketId: number; usersId: number };
 
 const ASSIGNABLE_GROUPS = [
   { id: 7, name: 'Tech-desk', completename: 'Tech-desk' },
   { id: 12, name: 'SAP-team', completename: 'Support > SAP-team' },
 ];
 
-function createProvider(): { provider: GlpiTicketingProvider; actorCalls: ActorCall[]; groupCalls: GroupCall[] } {
+const TECHNICIANS = [
+  { id: 303, name: 'atech', label: 'Alice Technician' },
+  { id: 404, name: 'mdupont', label: 'Dupont Marie' },
+];
+
+function createProvider(options?: { technicianCatalogueFails?: boolean; techniciansTruncated?: boolean }): {
+  provider: GlpiTicketingProvider;
+  actorCalls: ActorCall[];
+  groupCalls: GroupCall[];
+  technicianCalls: TechnicianCall[];
+} {
   const actorCalls: ActorCall[] = [];
   const groupCalls: GroupCall[] = [];
+  const technicianCalls: TechnicianCall[] = [];
   const glpi = {
     listAssignableGroups: async () => ASSIGNABLE_GROUPS,
+    listTechnicians: async () => {
+      if (options?.technicianCatalogueFails) {
+        throw new Error('GLPI refused the user listing (ERROR_RIGHT_MISSING).');
+      }
+      return { technicians: TECHNICIANS, truncated: options?.techniciansTruncated === true };
+    },
+    addTicketTechnician: async (_session: unknown, ticketId: number, usersId: number) => {
+      technicianCalls.push({ ticketId, usersId });
+      const technician = TECHNICIANS.find((candidate) => candidate.id === usersId);
+      if (!technician) throw new Error('not a technician');
+      return { added: true, alreadyPresent: false, technician };
+    },
     getTicketUsers: async () => [
       { id: 1, user_id: 202, user_label: 'Bob Requester', role: 'requester' },
       { id: 2, user_id: 303, user_label: 'Alice Technician', role: 'assigned' },
@@ -48,7 +72,7 @@ function createProvider(): { provider: GlpiTicketingProvider; actorCalls: ActorC
     },
   };
   const provider = new GlpiTicketingProvider({} as any, glpi as any);
-  return { provider, actorCalls, groupCalls };
+  return { provider, actorCalls, groupCalls, technicianCalls };
 }
 
 function context(): ProviderContext {
@@ -128,11 +152,80 @@ async function testRoutingContextExposesAssignedGroupsAndCatalogue() {
   assert.equal(result.data.assignee, 'Alice Technician');
   assert.equal(result.data.group, 'Tech-desk');
   assert.deepEqual(result.data.assignedGroups, [{ kind: 'group', key: '7', label: 'Tech-desk' }]);
-  assert.deepEqual(result.data.supportedAssignmentTargets.map((target) => target.label), ['Tech-desk', 'Support > SAP-team']);
+  assert.deepEqual(result.data.assignedUsers, [{ kind: 'user', key: '303', label: 'Alice Technician' }]);
+  // Groups first, then the named technicians: both kinds are routing targets.
+  assert.deepEqual(result.data.supportedAssignmentTargets, [
+    { kind: 'group', key: '7', label: 'Tech-desk' },
+    { kind: 'group', key: '12', label: 'Support > SAP-team' },
+    { kind: 'user', key: '303', label: 'Alice Technician' },
+    { kind: 'user', key: '404', label: 'Dupont Marie' },
+  ]);
+  // The agent's own GLPI account, so the pre-write drift check can ignore its own
+  // self-registration as an assignee.
+  assert.equal(result.data.agentUserKey, '42');
   // The catalogue is prompt input, not ticket evidence.
   const payload = result.evidence[0]?.redactedPayload as Record<string, unknown>;
   assert.equal(payload.supportedAssignmentTargets, undefined);
-  assert.equal(payload.supportedAssignmentTargetCount, 2);
+  assert.equal(payload.supportedAssignmentTargetCount, 4);
+}
+
+// A GLPI API profile without READ on User / Group_User must not take group routing down
+// with it: the technician catalogue is a partial result, flagged in the warnings.
+async function testRoutingContextSurvivesTechnicianCatalogueFailure() {
+  const { provider } = createProvider({ technicianCatalogueFails: true });
+  const result = await provider.getTicketRoutingContext(context(), { ticketId: '17' });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.data.assignmentSupported, true);
+  assert.deepEqual(result.data.supportedAssignmentTargets.map((target) => target.kind), ['group', 'group']);
+  assert.equal((result.data.warnings ?? []).includes('glpi_technician_catalogue_unavailable'), true);
+
+  const truncated = await createProvider({ techniciansTruncated: true }).provider
+    .getTicketRoutingContext(context(), { ticketId: '17' });
+  assert.equal(truncated.ok ? (truncated.data.warnings ?? []).includes('routing_catalog_truncated') : false, true);
+}
+
+// Named technicians go through the same catalogue discipline as groups: pick only, label
+// from the catalogue, no re-assignment of someone already on the ticket.
+async function testPrepareAssignmentAcceptsCatalogueTechnicians() {
+  const { provider } = createProvider();
+  const prepared = await provider.prepareTicketAssignmentUpdate(context(), {
+    ticketId: '17',
+    target: { kind: 'user', key: '404', label: 'marie dupont' },
+    reason: 'The instructions send badge tickets to Dupont Marie.',
+  });
+  assert.equal(prepared.ok, true);
+  if (!prepared.ok) return;
+  assert.deepEqual(prepared.data.actionPayload.target, { kind: 'user', key: '404', label: 'Dupont Marie' });
+  assert.deepEqual(prepared.data.actionPayload.providerFields, { users_id: 404, type: 2, operation: 'add' });
+
+  const unknown = await provider.prepareTicketAssignmentUpdate(context(), {
+    ticketId: '17',
+    target: { kind: 'user', key: '999', label: 'Ghost Technician' },
+    reason: 'Invented.',
+  });
+  assert.equal(unknown.ok, false);
+  assert.match(unknown.ok ? '' : unknown.message, /not in the routing catalogue/);
+}
+
+async function testUpdateAssignmentWritesTicketUserForTechnician() {
+  const { provider, technicianCalls, groupCalls } = createProvider();
+  const result = await provider.updateTicketAssignment(context(), {
+    actionPayload: {
+      ticketId: '17',
+      action: 'assignment_update',
+      current: { ticketId: '17', supportedAssignmentTargets: [], assignmentSupported: true, supported: true },
+      target: { kind: 'user', key: '404', label: 'Dupont Marie' },
+      reason: 'Badge tickets go to Dupont Marie.',
+    },
+    idempotencyKey: 'idem-5',
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(technicianCalls, [{ ticketId: 17, usersId: 404 }]);
+  assert.deepEqual(groupCalls, []);
+  assert.deepEqual(result.data.updatedFields, ['assignment']);
+  assert.match(result.data.summary, /assigned to Dupont Marie/);
 }
 
 async function testPrepareAssignmentAcceptsCatalogueGroupsOnly() {
@@ -163,12 +256,14 @@ async function testPrepareAssignmentAcceptsCatalogueGroupsOnly() {
   });
   assert.equal(unknown.ok, false);
 
+  // A technician already assigned on the ticket is refused, exactly like a present group.
   const user = await provider.prepareTicketAssignmentUpdate(context(), {
     ticketId: '17',
     target: { kind: 'user', key: '303', label: 'Alice Technician' },
-    reason: 'Users are out of scope.',
+    reason: 'Already there.',
   });
   assert.equal(user.ok, false);
+  assert.match(user.ok ? '' : user.message, /already assigned/);
 }
 
 async function testUpdateAssignmentWritesGroupTicket() {
@@ -275,8 +370,11 @@ async function run() {
   await testPublicReplyNoneRoleReportsSkipReasonInEvidence();
   await testInternalNoteIsObserverUnlessNone();
   await testRoutingContextExposesAssignedGroupsAndCatalogue();
+  await testRoutingContextSurvivesTechnicianCatalogueFailure();
   await testPrepareAssignmentAcceptsCatalogueGroupsOnly();
+  await testPrepareAssignmentAcceptsCatalogueTechnicians();
   await testUpdateAssignmentWritesGroupTicket();
+  await testUpdateAssignmentWritesTicketUserForTechnician();
   testActorRoleParsingFallsBackToDefault();
   console.log('glpi-ticketing.provider.spec: ok');
 }

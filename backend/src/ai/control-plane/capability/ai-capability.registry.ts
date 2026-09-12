@@ -2042,13 +2042,34 @@ function sameSnapshot(left: unknown, right: unknown): boolean {
   return stableJson(left) === stableJson(right);
 }
 
-// Pre-write drift check for assignment updates: only the assigned groups matter. An
-// additive group write is unaffected by technicians joining (including the agent's own
-// user registering itself on an earlier reply of the same approved batch), by requester
-// changes, or by the routing catalogue moving. Falls back to the group label for
-// providers that do not expose keyed assignments.
-function routingDriftSnapshot(value: unknown): unknown {
+// Pre-write drift check for assignment updates, scoped to the kind being written.
+//
+// A group write only cares about the assigned groups: it is unaffected by technicians
+// joining, by requester changes, or by the routing catalogue moving.
+//
+// A technician write compares the assigned users, MINUS the agent's own account. The
+// public-reply phase of the same approved batch self-registers the agent as an assignee
+// (addTicketUser, own-user only) before the assignment phase runs; that is the agent's own
+// doing, never a routing decision, and it must not block the write. A human assigning a
+// different technician in the meantime still fails the check, which is the point.
+//
+// Both branches fall back to the flat label for providers that do not expose keyed
+// assignments.
+export function routingDriftSnapshot(value: unknown, kind: 'group' | 'user'): unknown {
   if (!isRecord(value)) return value;
+  if (kind === 'user') {
+    const agentUserKey = typeof value.agentUserKey === 'string' ? value.agentUserKey : null;
+    const assignedUsers = Array.isArray(value.assignedUsers) ? value.assignedUsers.filter(isRecord) : null;
+    return {
+      ticketId: value.ticketId ?? null,
+      users: assignedUsers
+        ? assignedUsers
+          .map((user) => String(user.key ?? ''))
+          .filter((key) => key !== agentUserKey)
+          .sort()
+        : [typeof value.assignee === 'string' ? value.assignee : null],
+    };
+  }
   const assignedGroups = Array.isArray(value.assignedGroups) ? value.assignedGroups.filter(isRecord) : null;
   return {
     ticketId: value.ticketId ?? null,
@@ -3283,9 +3304,13 @@ export class AiCapabilityRegistry {
       await this.actions.markExecuted(context, action, 'failed', message);
       return ticketWriteGuardError<TicketProviderActionWriteResult>(message);
     }
+    const driftKind = action.action_payload_json.target?.kind === 'user' ? 'user' : 'group';
     if (
       !actionHasApplyAnywayOverride(action)
-      && !sameSnapshot(routingDriftSnapshot(action.action_payload_json.current), routingDriftSnapshot(current.data))
+      && !sameSnapshot(
+        routingDriftSnapshot(action.action_payload_json.current, driftKind),
+        routingDriftSnapshot(current.data, driftKind),
+      )
     ) {
       const message = 'Ticket routing changed after this action was prepared. Rerun triage before approving this write.';
       await this.actions.markExecuted(context, action, 'failed', message);
