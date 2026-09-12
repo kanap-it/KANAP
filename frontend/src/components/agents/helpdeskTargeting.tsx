@@ -399,6 +399,15 @@ function defaultFilterForField(
   return buildFilter(field, '');
 }
 
+export function useDebouncedValue<T>(value: T, delay = TARGETING_LOOKUP_DEBOUNCE_MS): T {
+  const [debounced, setDebounced] = React.useState(value);
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
 function ReferenceCatalogAutocomplete({
   agentId,
   field,
@@ -420,11 +429,7 @@ function ReferenceCatalogAutocomplete({
   // Debounced lookup: each keystroke previously fired its own provider round-trip
   // (a full GLPI session per request), which stacked slow catalog searches into
   // timeouts on large instances. Only settled text hits the backend.
-  const [debouncedInput, setDebouncedInput] = React.useState(inputValue);
-  React.useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedInput(inputValue), TARGETING_LOOKUP_DEBOUNCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [inputValue]);
+  const debouncedInput = useDebouncedValue(inputValue);
   const lookupQuery = debouncedInput.trim() || value.trim();
   const optionsQuery = useQuery({
     queryKey: ['ai-agent-targeting-options', agentId, field, lookupQuery],

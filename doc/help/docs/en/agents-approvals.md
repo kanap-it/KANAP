@@ -20,7 +20,7 @@ Each proposal is one concrete action an agent wants to take on one ticket. There
 | --- | --- |
 | **Requester reply** | A message the agent wants to send to the person who opened the ticket. |
 | **Internal note** | A note the agent wants to add for your team, not visible to the requester. |
-| **Classification** | A change to the ticket's category, type, urgency, or similar attributes. |
+| **Classification** | Changes the ticket’s category, type, priority or urgency according to the instructions. One proposal may contain several fields; it shows the current and proposed values, using category names. |
 | **Status** | A move to a different ticket status (for example, from **New** to **Pending**). |
 | **Close ticket** | Closes the ticket — see [Closing and solving tickets](#closing-and-solving-tickets). |
 | **Solve ticket** | Marks the ticket solved — see [Closing and solving tickets](#closing-and-solving-tickets). |

@@ -20,7 +20,7 @@ Jeder Vorschlag ist eine konkrete Aktion, die ein Agent an einem Ticket ausführ
 | --- | --- |
 | **Antwort an Anfragende** | Eine Nachricht, die der Agent an die Person senden möchte, die das Ticket eröffnet hat. |
 | **Interne Notiz** | Eine Notiz, die der Agent für Ihr Team hinzufügen möchte, für den Anfragenden nicht sichtbar. |
-| **Klassifizierung** | Eine Änderung an Kategorie, Typ, Dringlichkeit oder ähnlichen Attributen des Tickets. |
+| **Klassifizierung** | Ändert Kategorie, Typ, Priorität oder Dringlichkeit des Tickets gemäß den Anweisungen. Ein Vorschlag kann mehrere Felder enthalten und zeigt die aktuellen sowie die vorgeschlagenen Werte mit den Kategorienamen. |
 | **Status** | Ein Wechsel zu einem anderen Ticketstatus (zum Beispiel von **Neu** zu **Ausstehend**). |
 | **Ticket schließen** | Schließt das Ticket — siehe [Tickets schließen und lösen](#tickets-schliessen-und-losen). |
 | **Ticket lösen** | Markiert das Ticket als gelöst — siehe [Tickets schließen und lösen](#tickets-schliessen-und-losen). |
