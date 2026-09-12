@@ -45,9 +45,11 @@ function createProvider(options?: { technicianCatalogueFails?: boolean; technici
       if (!technician) throw new Error('not a technician');
       return { added: true, alreadyPresent: false, technician };
     },
+    // GLPI renders the expanded Ticket_User association as the login, not the display name.
     getTicketUsers: async () => [
       { id: 1, user_id: 202, user_label: 'Bob Requester', role: 'requester' },
-      { id: 2, user_id: 303, user_label: 'Alice Technician', role: 'assigned' },
+      { id: 2, user_id: 303, user_label: 'atech', role: 'assigned' },
+      { id: 3, user_id: 909, user_label: 'ext.consultant', role: 'assigned' },
     ],
     getTicketGroups: async (_session: unknown, ticketId: number) => (ticketId === 17
       ? [{ id: 5, group_id: 7, group_label: null, role: 'assigned' }]
@@ -149,10 +151,16 @@ async function testRoutingContextExposesAssignedGroupsAndCatalogue() {
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.data.assignmentSupported, true);
+  // One person, one name: the catalogue label wins over the GLPI login, so the proposal
+  // cannot say "Assign to Alice Technician / currently assigned: atech".
   assert.equal(result.data.assignee, 'Alice Technician');
   assert.equal(result.data.group, 'Tech-desk');
   assert.deepEqual(result.data.assignedGroups, [{ kind: 'group', key: '7', label: 'Tech-desk' }]);
-  assert.deepEqual(result.data.assignedUsers, [{ kind: 'user', key: '303', label: 'Alice Technician' }]);
+  assert.deepEqual(result.data.assignedUsers, [
+    { kind: 'user', key: '303', label: 'Alice Technician' },
+    // Not in the technician catalogue: the association label is all we have.
+    { kind: 'user', key: '909', label: 'ext.consultant' },
+  ]);
   // Groups first, then the named technicians: both kinds are routing targets.
   assert.deepEqual(result.data.supportedAssignmentTargets, [
     { kind: 'group', key: '7', label: 'Tech-desk' },
