@@ -243,6 +243,7 @@ Der Zuordnungen-Tab verteilt die Investitionsausgaben auf Ihre Unternehmen und A
 **Standard- und fixierte Methoden**:
 
 - Der **Standard**-Eintrag -- angezeigt als *Mitarbeiterzahl (Standard)*, bis Ihre Organisation eine andere Methode konfiguriert -- folgt der Einstellung unter **Budgetverwaltung > Administration > Standard-Zuordnungsmethode**. Jede Investition, die auf Standard bleibt, wird neu berechnet, wenn ein Administrator diese Einstellung ändert.
+- Diese Einstellung kann den Standard auch auf eine **Auswahl von Unternehmen** beschränken (zum Beispiel das Unternehmen, das das IT-Budget trägt): Der Treiber gilt dann nur für diese Unternehmen, und die Option lautet *Standard (n Unternehmen)*.
 - **Mitarbeiterzahl**, **IT-Benutzer** und **Umsatz** fixieren diese Methode an der Investition: Eine fixierte Methode funktioniert weiterhin, auch wenn sich der Standard der Organisation später ändert.
 - Investitionen mit einer manuellen Zuordnung sind vom Standard nie betroffen.
 

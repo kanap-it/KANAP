@@ -243,6 +243,7 @@ The Allocations tab distributes the capital expenditure across your companies an
 **Default vs pinned methods**:
 
 - The **default** entry -- shown as *Headcount (default)* until your organisation configures another method -- follows the setting in **Budget Management > Administration > Default Allocation Method**. Every investment left on the default is re-driven when an admin changes that setting.
+- That setting can also restrict the default to a **selection of companies** (for example the entity that carries the IT budget): the driver then applies to those companies only, and the option reads *Default (n companies)*.
 - **Headcount**, **IT Users** and **Turnover** pin that method on the investment: a pinned method keeps working even if the organisation default changes later.
 - Investments with a manual allocation are never affected by the default setting.
 

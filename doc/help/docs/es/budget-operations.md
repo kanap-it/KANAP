@@ -202,6 +202,7 @@ Defina el método que siguen las partidas de OPEX y las inversiones de CAPEX cua
 ### Cuándo usarla
 
 - Su modelo de contracargo no se basa en la plantilla (por ejemplo, se guía por la facturación)
+- El presupuesto de IT lo asume una sola entidad y no debe repartirse entre todas las filiales
 - Desea que las nuevas partidas sigan una base compartida sin editarlas una por una
 - Está preparando un ejercicio cuya base de asignación difiere de la anterior
 
@@ -210,23 +211,38 @@ Defina el método que siguen las partidas de OPEX y las inversiones de CAPEX cua
 | Campo | Descripción |
 |-------|-------------|
 | **Ejercicio** | El año al que se aplica la configuración (rango: año actual menos uno hasta año actual más cinco) |
-| **Método por defecto** | Plantilla, Usuarios IT o Facturación |
+| **Sociedades** | **Todas las sociedades activas** (por defecto): el coste se reparte entre todas las sociedades activas del año. **Sociedades seleccionadas**: el reparto se restringe a las sociedades que elija |
+| **Método por defecto** | El generador que pondera las sociedades: Plantilla, Usuarios IT o Facturación |
 
 ### Cómo funciona
 
 1. **Seleccione un año**
-2. **Elija el método por defecto** -- se guarda inmediatamente, no hay botón Guardar
-3. Para volver al método estándar, haga clic en **Volver al método estándar** (solo se muestra mientras haya un valor por defecto personalizado configurado)
+2. **Elija el ámbito de sociedades** -- *Todas las sociedades activas*, o *Sociedades seleccionadas* y después las sociedades concretas
+3. **Elija el generador** que pondera las sociedades (Plantilla, Usuarios IT o Facturación)
+4. Cada cambio se guarda inmediatamente, no hay botón Guardar
+5. Para volver al método estándar, haga clic en **Volver al método estándar** (solo se muestra mientras haya un valor por defecto personalizado configurado)
+
+### Sociedades seleccionadas
+
+- El generador se aplica únicamente a las sociedades seleccionadas: sus porcentajes se calculan a partir de su propia plantilla, sus usuarios IT o su facturación del año
+- La página muestra el reparto resultante, para que pueda comprobar el efecto antes de confiar en él
+- Una sola sociedad seleccionada siempre asume el **100%**, sin necesidad de un valor del generador
+- A partir de dos sociedades, cada sociedad seleccionada necesita un valor para el generador elegido. Una sociedad sin valor se rechaza al guardar -- corrija primero las métricas de la sociedad en **Datos maestros > Empresas**
+- Una sociedad desactivada para el año no se puede seleccionar: las sociedades desactivadas quedan excluidas de las asignaciones de ese año
 
 ### Qué afecta
 
-- Todas las partidas de OPEX y las inversiones de CAPEX cuyo método de asignación sea **por defecto** -- mostradas como *Plantilla (por defecto)* en la pestaña Asignaciones hasta que se defina un valor por defecto para la organización
+- Todas las partidas de OPEX y las inversiones de CAPEX cuyo método de asignación sea **por defecto** -- mostradas como *Plantilla (por defecto)* (o *Por defecto (n sociedades)*) en la pestaña Asignaciones hasta que se defina un valor por defecto para la organización
 - Las partidas con un método explícito (Plantilla, Usuarios IT o Facturación fijados en la partida) o una asignación manual conservan su propia configuración
 - Los importes asignados se recalculan la próxima vez que se muestren las asignaciones. Los importes presupuestarios en sí nunca se modifican
 
 ### Método estándar
 
-Mientras una organización no configure un valor por defecto, se aplica el método estándar: **Plantilla**. La página siempre indica si el año usa el método estándar o un valor por defecto configurado, y cuál es el método estándar.
+Mientras una organización no configure un valor por defecto, se aplica el método estándar: **Plantilla** sobre todas las sociedades activas del año. La página siempre indica si el año usa el método estándar o un valor por defecto configurado, y cuál es el método estándar.
+
+### Cambiar el valor por defecto a posteriori
+
+El valor por defecto se resuelve cada vez que se muestran las asignaciones, por lo que editarlo recalcula todas las partidas que siguen en el valor por defecto. Si una sociedad incluida en la selección pierde después su valor de generador o se desactiva, las partidas afectadas muestran un error en lugar de un reparto reequilibrado en silencio -- la página le advierte de los problemas con la selección actual.
 
 ### Permisos
 

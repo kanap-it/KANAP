@@ -660,14 +660,18 @@ Tenant-scoped configuration for IT Landscape dropdowns and enums.
   - Permissions: `business_processes:admin`.
 
 ## Allocation Rules (default method per tenant/year)
-- GET `/allocation-rules/active?year=YYYY` → `{ fiscal_year, method, source: 'standard'|'tenant', standard_method, tenant_method }`
-  - `method` is the effective method: the tenant override when configured, the standard method otherwise
-  - `standard_method` is the global row (`tenant_id IS NULL`, seeded as `headcount`); `tenant_method` is `null` when the year is on the standard
-- PATCH `/allocation-rules/active?year=YYYY` with `{ method: 'headcount'|'it_users'|'turnover' }` → upserts the calling tenant's override for that year
+- GET `/allocation-rules/active?year=YYYY` → `{ fiscal_year, mode, method, source: 'standard'|'tenant', standard_mode, standard_method, tenant_mode, tenant_method, company_ids, shares, preview_error }`
+  - `mode` is the effective company set: `auto` spreads over every company enabled for the year, `manual_company` restricts it to `company_ids`
+  - `method` is the effective driver (`headcount` | `it_users` | `turnover`) weighing the companies, in both modes
+  - `standard_*` describes the global row (`tenant_id IS NULL`, seeded as `headcount`/`auto`); `tenant_*` is `null` when the year runs on the standard
+  - `shares` is the computed split of the effective selection (empty in `auto` mode), `preview_error` explains why it cannot be computed
+- PATCH `/allocation-rules/active?year=YYYY` with `{ mode?: 'auto'|'manual_company', method, company_ids?: string[] }` → upserts the calling tenant's override for that year
+  - `mode` defaults to `auto` and `company_ids` is then ignored; `manual_company` requires at least one company
+  - The selection is validated with the same computation the calculators run: a foreign-tenant company, a company disabled for the fiscal year (a company counts as enabled when `disabled_at` is null or on/after January 1st) or a company without a driver value is rejected with 400. A single selected company is accepted without a driver value and takes 100%
 - DELETE `/allocation-rules/active?year=YYYY` → drops the tenant override, the year falls back to the standard method
-  - Permissions: `budget_ops:reader` for GET, `budget_ops:admin` for PATCH and DELETE
-  - Used when a spend version or capex version has `allocation_method='default'`; the tables `allocation_rules`, `spend_versions` and `capex_versions` share this resolution (`resolveMethod` in the allocation calculators)
-  - `allocation_rules` holds global standard rows plus per-tenant rows and is RLS-scoped: a tenant sees the global rows and its own overrides only
+  - Permissions: any authenticated member of the tenant for GET, `budget_ops:admin` for PATCH and DELETE
+  - Used when a spend version or capex version has `allocation_method='default'`; `allocation_rules`, `spend_versions` and `capex_versions` share this resolution (`resolveDefault` in the allocation calculators)
+  - `allocation_rules` holds global standard rows plus per-tenant rows and is RLS-scoped: a tenant sees the global rows and its own overrides only. DB CHECKs enforce that `manual_company` always carries companies and that the global row never does
 
 ## Spend Items & Versions (OPEX)
 - POST `/spend-items` → create item

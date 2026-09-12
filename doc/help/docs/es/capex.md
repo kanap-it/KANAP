@@ -243,6 +243,7 @@ La pestaña Asignaciones distribuye el gasto de capital entre sus empresas y dep
 **Métodos por defecto y fijados**:
 
 - La opción **por defecto** -- mostrada como *Plantilla (por defecto)* hasta que su organización configure otro método -- sigue la configuración de **Gestión presupuestaria > Administración > Método de asignación por defecto**. Cada inversión que se deje en el valor por defecto se recalcula cuando un administrador cambia esa configuración.
+- Esa configuración también puede restringir el valor por defecto a una **selección de sociedades** (por ejemplo, la entidad que asume el presupuesto de IT): el generador se aplica entonces únicamente a esas sociedades, y la opción aparece como *Por defecto (n sociedades)*.
 - **Plantilla**, **Usuarios IT** y **Facturación** fijan ese método en la inversión: un método fijado sigue funcionando aunque el valor por defecto de la organización cambie después.
 - Las inversiones con una asignación manual nunca se ven afectadas por el método por defecto.
 

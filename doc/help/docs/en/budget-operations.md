@@ -202,6 +202,7 @@ Set the method that OPEX items and CAPEX investments follow when they are left o
 ### When to use it
 
 - Your chargeback model is not headcount-based (for example revenue-driven)
+- The IT budget is carried by one entity and must not be spread over every subsidiary
 - You want new items to follow a shared basis without editing them one by one
 - You are preparing a fiscal year whose allocation basis differs from the previous one
 
@@ -210,23 +211,38 @@ Set the method that OPEX items and CAPEX investments follow when they are left o
 | Field | Description |
 |-------|-------------|
 | **Fiscal year** | The year the setting applies to (range: current year minus one through current year plus five) |
-| **Default method** | Headcount, IT Users, or Turnover |
+| **Companies** | **All enabled companies** (default) spreads the cost over every company active for the year. **Selected companies** restricts it to the companies you pick |
+| **Default method** | The driver weighting the companies: Headcount, IT Users, or Turnover |
 
 ### How it works
 
 1. **Select a year**
-2. **Pick the default method** -- it saves immediately, there is no Save button
-3. To return to the standard, click **Use the standard method** (shown only while a custom default is configured)
+2. **Pick the company scope** -- *All enabled companies*, or *Selected companies* and then the companies themselves
+3. **Pick the driver** that weights the companies (Headcount, IT Users, or Turnover)
+4. Every change saves immediately, there is no Save button
+5. To return to the standard, click **Use the standard method** (shown only while a custom default is configured)
+
+### Selected companies
+
+- The driver is applied to the selected companies only: their percentages are computed from their own headcount, IT users or turnover for the year
+- The page shows the resulting split, so you can check the effect before relying on it
+- A single selected company always takes **100%**, with no driver value required
+- With two companies or more, every selected company needs a value for the chosen driver. A company without one is rejected when you save -- fix the company metrics in **Master Data > Companies** first
+- A company disabled for the year cannot be selected: disabled companies are excluded from that year's allocations
 
 ### What it affects
 
-- Every OPEX item and CAPEX investment whose allocation method is **default** -- shown as *Headcount (default)* in the Allocations tab until an organisation default is set
+- Every OPEX item and CAPEX investment whose allocation method is **default** -- shown as *Headcount (default)* (or *Default (n companies)*) in the Allocations tab until an organisation default is set
 - Items with an explicit method (Headcount, IT Users, or Turnover pinned on the item) or a manual allocation keep their own setting
 - Allocated amounts are recomputed the next time allocations are displayed. Budget amounts themselves are never modified
 
 ### Standard method
 
-Until an organisation configures a default, the standard applies: **Headcount**. The page always shows whether the year is on the standard or on a configured default, and what the standard method is.
+Until an organisation configures a default, the standard applies: **Headcount** over every company enabled for the year. The page always shows whether the year is on the standard or on a configured default, and what the standard method is.
+
+### Changing the default after the fact
+
+The default is resolved every time allocations are displayed, so editing it re-drives every item left on the default. If a company included in the selection later loses its driver value or is disabled, the affected items show an error instead of a silently rebalanced split -- the page warns you about the current selection.
 
 ### Permissions
 
