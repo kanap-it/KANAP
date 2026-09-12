@@ -404,6 +404,21 @@ export function actionUpdateSummary(action: AiAgentControlActionRequest): string
         reason ? `${agentText('actions.reason', 'Reason')}: ${reason}` : null,
       ].filter(Boolean).join('\n');
     }
+    if (target?.kind === 'user') {
+      // Technician routing is additive too: show who is on the ticket today and who is being added.
+      const currentUsers = Array.isArray(current?.assignedUsers)
+        ? current.assignedUsers.filter(isRecord).map((user) => String(user.label ?? user.key ?? '')).filter(Boolean)
+        : typeof current?.assignee === 'string' && current.assignee.trim().length > 0 ? [current.assignee] : [];
+      const currentLine = currentUsers.length > 0
+        ? currentUsers.join(', ')
+        : agentText('actions.noTechnicianAssigned', 'No technician assigned');
+      return [
+        agentText('actions.assignmentUpdate', 'Assignment update'),
+        `- ${agentText('actions.assignToTechnician', 'Assign to technician')}: ${targetLabel}`,
+        `- ${agentText('actions.currentTechnicians', 'Currently assigned')}: ${currentLine}`,
+        reason ? `${agentText('actions.reason', 'Reason')}: ${reason}` : null,
+      ].filter(Boolean).join('\n');
+    }
     const currentAssignee = typeof current?.assignee === 'string' && current.assignee.trim().length > 0
       ? current.assignee
       : agentText('actions.unassigned', 'Unassigned');
