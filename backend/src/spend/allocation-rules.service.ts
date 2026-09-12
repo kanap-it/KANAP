@@ -1,21 +1,43 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { AllocationRule } from './allocation-rule.entity';
+import { AllocationRule, AllocationRuleMode } from './allocation-rule.entity';
 import { AuditService } from '../audit/audit.service';
 import {
   AllocationMethod,
+  DefaultResolution,
+  STANDARD_DEFAULT,
   isAllocationMethod,
-  normalizeAllocationMethod,
+  isAllocationRuleMode,
+  toDefaultResolution,
 } from './allocation-rule-resolver';
+import { computeCompanyShares } from './allocation-distribution';
+
+export type AllocationRuleShare = { company_id: string; allocation_pct: number };
 
 export type AllocationRuleResolution = {
   fiscal_year: number;
-  /** Effective method for the year: the tenant override when set, the standard otherwise. */
+  /** Effective company set: every enabled company (`auto`) or the tenant selection. */
+  mode: AllocationRuleMode;
+  /** Effective driver (headcount | it_users | turnover) used to weight the companies. */
   method: AllocationMethod;
   source: 'standard' | 'tenant';
+  standard_mode: AllocationRuleMode;
   standard_method: AllocationMethod;
+  tenant_mode: AllocationRuleMode | null;
   tenant_method: AllocationMethod | null;
+  /** Effective company selection, `manual_company` mode only. */
+  company_ids: string[] | null;
+  /** Computed split of the effective selection; empty in `auto` mode. */
+  shares: AllocationRuleShare[];
+  /** Why the effective selection cannot be computed (missing metric, disabled company…). */
+  preview_error: string | null;
+};
+
+export type AllocationRuleInput = {
+  mode?: unknown;
+  method?: unknown;
+  company_ids?: unknown;
 };
 
 function assertYear(year: number): void {
@@ -57,33 +79,77 @@ export class AllocationRulesService {
     return manager.getRepository(AllocationRule).find({ where } as any);
   }
 
+  /** Splits the manual selection with the same code the calculators run. */
+  private async computeShares(
+    tenantId: string,
+    year: number,
+    resolution: DefaultResolution,
+    manager: EntityManager,
+  ): Promise<{ shares: AllocationRuleShare[]; error: string | null }> {
+    if (resolution.kind !== 'manual_company') return { shares: [], error: null };
+    try {
+      const distribution = await computeCompanyShares({
+        manager,
+        tenantId,
+        fiscalYear: year,
+        companyIds: resolution.companyIds,
+        driver: resolution.method,
+      });
+      const shares = Array.from(distribution.entries())
+        .map(([company_id, allocation_pct]) => ({ company_id, allocation_pct }))
+        .sort((a, b) => b.allocation_pct - a.allocation_pct || a.company_id.localeCompare(b.company_id));
+      return { shares, error: null };
+    } catch (err) {
+      return { shares: [], error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
   async resolve(
     tenantId: string | null,
     year: number,
     opts?: { manager?: EntityManager },
   ): Promise<AllocationRuleResolution> {
     assertYear(year);
+    const manager = opts?.manager ?? this.repo.manager;
     const rows = await this.loadRows(tenantId, year, opts);
     const standardRow = rows.find((row) => row.tenant_id == null) ?? null;
     const tenantRow = tenantId ? rows.find((row) => row.tenant_id === tenantId) ?? null : null;
 
-    const standardMethod = normalizeAllocationMethod(standardRow?.method);
-    const tenantMethod = tenantRow ? normalizeAllocationMethod(tenantRow.method) : null;
+    const standard = toDefaultResolution(standardRow);
+    const tenant = tenantRow ? toDefaultResolution(tenantRow) : null;
+    const effective = tenant ?? standard;
+
+    const { shares, error } =
+      effective.kind === 'manual_company' && tenantId
+        ? await this.computeShares(tenantId, year, effective, manager)
+        : { shares: [], error: null };
 
     return {
       fiscal_year: year,
-      method: tenantMethod ?? standardMethod,
-      source: tenantMethod ? 'tenant' : 'standard',
-      standard_method: standardMethod,
-      tenant_method: tenantMethod,
+      mode: effective.kind,
+      method: effective.method,
+      source: tenant ? 'tenant' : 'standard',
+      standard_mode: standard.kind,
+      standard_method: standard.method,
+      tenant_mode: tenant ? tenant.kind : null,
+      tenant_method: tenant ? tenant.method : null,
+      company_ids: effective.kind === 'manual_company' ? effective.companyIds : null,
+      shares,
+      preview_error: error,
     };
   }
 
-  /** Configures the tenant's default method for a fiscal year. */
+  /**
+   * Configures the tenant's default for a fiscal year.
+   *
+   * A manual company selection is validated with the exact computation the calculators
+   * run, so an unusable selection (foreign tenant, company disabled for the year, missing
+   * driver value) is rejected here instead of surfacing on every item left on the default.
+   */
   async setTenantMethod(
     tenantId: string | null,
     year: number,
-    method: unknown,
+    input: AllocationRuleInput,
     userId?: string | null,
     opts?: { manager?: EntityManager },
   ): Promise<AllocationRuleResolution> {
@@ -91,29 +157,57 @@ export class AllocationRulesService {
       throw new BadRequestException('A tenant is required to configure the default allocation method');
     }
     assertYear(year);
-    if (!isAllocationMethod(method)) {
+
+    const mode = input?.mode ?? 'auto';
+    if (!isAllocationRuleMode(mode)) {
+      throw new BadRequestException('Invalid allocation mode');
+    }
+    if (!isAllocationMethod(input?.method)) {
       throw new BadRequestException('Invalid allocation method');
     }
 
+    let companyIds: string[] | null = null;
+    if (mode === 'manual_company') {
+      const raw = Array.isArray(input?.company_ids) ? input.company_ids : [];
+      companyIds = Array.from(new Set(raw.filter((id): id is string => typeof id === 'string' && !!id)));
+      if (companyIds.length === 0) {
+        throw new BadRequestException('Select at least one company for the default allocation');
+      }
+    }
+
     const manager = opts?.manager ?? this.repo.manager;
+    if (companyIds) {
+      // Preflight only: throws when the selection cannot be computed.
+      await computeCompanyShares({
+        manager,
+        tenantId,
+        fiscalYear: year,
+        companyIds,
+        driver: input.method,
+      });
+    }
+
     const repo = manager.getRepository(AllocationRule);
     const existing = await repo.findOne({ where: { tenant_id: tenantId, fiscal_year: year } as any });
+    const values = { mode, method: input.method, company_ids: companyIds, status: 'active' as const };
 
-    let previous = existing ? { method: existing.method, status: existing.status } : null;
+    let previous = existing
+      ? { mode: existing.mode, method: existing.method, company_ids: existing.company_ids, status: existing.status }
+      : null;
     let saved: AllocationRule;
     if (existing) {
-      saved = await repo.save({ ...existing, method, status: 'active' } as AllocationRule);
+      saved = await repo.save({ ...existing, ...values } as AllocationRule);
     } else {
       try {
-        saved = await repo.save(repo.create({ tenant_id: tenantId, fiscal_year: year, method, status: 'active' }));
+        saved = await repo.save(repo.create({ tenant_id: tenantId, fiscal_year: year, ...values }));
       } catch (err) {
         // Two admins saving the same year concurrently: the loser's INSERT hits
         // UNIQUE(tenant_id, fiscal_year). Update the row that won instead of surfacing a 500.
         if (!isUniqueViolation(err)) throw err;
         const winner = await repo.findOne({ where: { tenant_id: tenantId, fiscal_year: year } as any });
         if (!winner) throw err;
-        previous = { method: winner.method, status: winner.status };
-        saved = await repo.save({ ...winner, method, status: 'active' } as AllocationRule);
+        previous = { mode: winner.mode, method: winner.method, company_ids: winner.company_ids, status: winner.status };
+        saved = await repo.save({ ...winner, ...values } as AllocationRule);
       }
     }
 
@@ -123,7 +217,13 @@ export class AllocationRulesService {
         recordId: saved.id,
         action: previous ? 'update' : 'create',
         before: previous ? { fiscal_year: year, ...previous } : null,
-        after: { fiscal_year: year, method: saved.method, status: saved.status },
+        after: {
+          fiscal_year: year,
+          mode: saved.mode,
+          method: saved.method,
+          company_ids: saved.company_ids,
+          status: saved.status,
+        },
         userId: userId ?? null,
       },
       { manager },
@@ -155,7 +255,13 @@ export class AllocationRulesService {
           table: 'allocation_rules',
           recordId: existing.id,
           action: 'delete',
-          before: { fiscal_year: year, method: existing.method, status: existing.status },
+          before: {
+            fiscal_year: year,
+            mode: existing.mode,
+            method: existing.method,
+            company_ids: existing.company_ids,
+            status: existing.status,
+          },
           after: null,
           userId: userId ?? null,
         },

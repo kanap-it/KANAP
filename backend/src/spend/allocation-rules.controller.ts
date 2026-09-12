@@ -23,6 +23,7 @@ export class AllocationRulesController {
     });
   }
 
+  /** Body: `{ mode?: 'auto' | 'manual_company', method, company_ids? }`. */
   @Patch('active')
   @UseGuards(PermissionGuard)
   @RequireLevel('budget_ops', 'admin')
@@ -30,7 +31,7 @@ export class AllocationRulesController {
     return this.svc.setTenantMethod(
       req?.tenant?.id ?? null,
       Number(yearRaw),
-      body?.method,
+      body ?? {},
       req.user?.sub ?? null,
       { manager: req?.queryRunner?.manager },
     );

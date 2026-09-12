@@ -182,6 +182,33 @@ async function testCompanyWithoutMetricIsRejected() {
   );
 }
 
+function testSingleCompanyTakesEverythingWithoutADriverValue() {
+  assert.deepEqual(buildCompanyWeights(['a'], new Map(), 'headcount'), [{ id: 'a', weight: 1 }]);
+  assert.deepEqual(
+    buildCompanyWeights(['a'], new Map<string, number | string | null>([['a', null]]), 'it_users'),
+    [{ id: 'a', weight: 1 }],
+  );
+}
+
+async function testSingleCompanySharesAreOneHundredWithoutMetrics() {
+  const manager = fakeManager({ companies: [{ id: 'a' }], metrics: [] });
+  const shares = await computeCompanyShares({
+    manager, tenantId: 't1', fiscalYear: 2026, companyIds: ['a'], driver: 'headcount',
+  });
+  assert.deepEqual(Array.from(shares.entries()), [['a', 100]]);
+}
+
+async function testSingleDisabledCompanyIsStillRejected() {
+  const manager = fakeManager({ companies: [], metrics: [] });
+  await assert.rejects(
+    () => computeCompanyShares({
+      manager, tenantId: 't1', fiscalYear: 2026, companyIds: ['a'], driver: 'headcount',
+    }),
+    (err: unknown) =>
+      err instanceof BadRequestException && /not available for manual allocation/.test((err as Error).message),
+  );
+}
+
 function run() {
   testEqualWeightsRoundToExactlyOneHundred();
   testLastEntryAbsorbsTheRoundingRemainder();
@@ -191,12 +218,15 @@ function run() {
   testNonPositiveTotalIsRejected();
   testCompanyWeightsFollowTheDriverValues();
   testCompanyWeightsRejectMissingOrZeroValues();
+  testSingleCompanyTakesEverythingWithoutADriverValue();
   testFiscalYearStart();
   return Promise.resolve()
     .then(testSharesUseDriverValues)
     .then(testTurnoverColumnIsUsedForTheTurnoverDriver)
     .then(testCompanyDisabledForTheYearIsRejected)
     .then(testCompanyWithoutMetricIsRejected)
+    .then(testSingleCompanySharesAreOneHundredWithoutMetrics)
+    .then(testSingleDisabledCompanyIsStillRejected)
     .then(() => console.log('allocation-distribution: ok'));
 }
 

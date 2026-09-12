@@ -51,6 +51,11 @@ export function buildCompanyWeights(
   driverValueByCompany: ReadonlyMap<string, number | string | null | undefined>,
   driver: AllocationDriver,
 ): WeightedEntry[] {
+  // A single selected company takes everything, so it needs no driver value.
+  if (companyIds.length === 1) {
+    return [{ id: companyIds[0], weight: 1 }];
+  }
+
   const weights: WeightedEntry[] = companyIds.map((companyId) => {
     const raw = driverValueByCompany.get(companyId);
     const weight = raw == null ? 0 : Number(raw);

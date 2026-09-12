@@ -5,8 +5,9 @@ import { CapexAllocation } from './capex-allocation.entity';
 import { CapexVersion } from './capex-version.entity';
 import { AllocationRule } from '../spend/allocation-rule.entity';
 import {
-  AllocationMethod,
-  buildDefaultMethodLookup,
+  DefaultResolution,
+  STANDARD_DEFAULT,
+  buildDefaultLookup,
   defaultMethodKey,
 } from '../spend/allocation-rule-resolver';
 import {
@@ -78,7 +79,7 @@ export class CapexAllocationCalculatorService {
     // Consider all versions to build the set of distinct years in scope.
     const years = Array.from(new Set(versions.map((v) => v.budget_year))).sort();
 
-    let defaultMethodLookup = new Map<string, AllocationMethod>();
+    let defaultLookup = new Map<string, DefaultResolution>();
     if (years.length > 0) {
       const tenantIds = Array.from(
         new Set(versions.map((v) => ((v as any).tenant_id ?? null) as string | null)),
@@ -88,7 +89,7 @@ export class CapexAllocationCalculatorService {
         if (tenantId) scope.push({ fiscal_year: In(years) as any, tenant_id: tenantId });
       }
       const rules = await manager.getRepository(AllocationRule).find({ where: scope } as any);
-      defaultMethodLookup = buildDefaultMethodLookup(rules, tenantIds);
+      defaultLookup = buildDefaultLookup(rules, tenantIds);
     }
 
     // Year-aware enabled filters per year in scope.
@@ -245,7 +246,49 @@ export class CapexAllocationCalculatorService {
         }
       }
 
-      const resolved = this.resolveMethod(method, version.budget_year, (version as any).tenant_id ?? null, defaultMethodLookup);
+      const resolvedDefault = this.resolveDefault(method, version.budget_year, (version as any).tenant_id ?? null, defaultLookup);
+
+      // A tenant-wide manual company selection spreads the driver over the selected
+      // companies only. No stored allocation backs it, so an unusable selection surfaces
+      // an error instead of silently renormalising the chargeback over other companies.
+      if (resolvedDefault.kind === 'manual_company') {
+        try {
+          const distribution = await computeCompanyShares({
+            manager,
+            tenantId: version.tenant_id,
+            fiscalYear: version.budget_year,
+            companyIds: resolvedDefault.companyIds,
+            driver: resolvedDefault.method,
+          });
+          const shares = Array.from(distribution.entries())
+            .map(([company_id, allocation_pct]) => ({
+              company_id,
+              department_id: null,
+              allocation_pct,
+              source: 'manual' as CapexAllocationSource,
+            }))
+            .sort((a, b) => b.allocation_pct - a.allocation_pct || a.company_id.localeCompare(b.company_id));
+          result.set(version.id, {
+            versionId: version.id,
+            resolvedMethod: 'manual_company',
+            shares,
+            error: null,
+          });
+        } catch (err) {
+          if (suppressErrors && err instanceof BadRequestException) {
+            this.logger.warn(`Manual default allocation failed for version ${version.id}: ${err.message}`);
+            result.set(version.id, {
+              versionId: version.id,
+              resolvedMethod: 'manual_company',
+              shares: [],
+              error: err.message,
+            });
+          } else {
+            throw err;
+          }
+        }
+        continue;
+      }
       const persistedShares = (persistedRowsByVersion.get(version.id) ?? [])
         .map((row) => ({
           allocation_id: row.id,
@@ -267,14 +310,14 @@ export class CapexAllocationCalculatorService {
         if (fallback) {
           result.set(version.id, {
             versionId: version.id,
-            resolvedMethod: resolved,
+            resolvedMethod: resolvedDefault.method,
             shares: fallback,
             error: 'No enabled companies for allocation distribution. Using last stored allocation.',
           });
         } else {
           result.set(version.id, {
             versionId: version.id,
-            resolvedMethod: resolved,
+            resolvedMethod: resolvedDefault.method,
             shares: [],
             error: 'No enabled companies for allocation distribution',
           });
@@ -287,11 +330,11 @@ export class CapexAllocationCalculatorService {
         const shares = this.computeAutoShares({
           companies: companiesForYear,
           metricsForYear,
-          method: resolved,
+          method: resolvedDefault.method,
         });
         result.set(version.id, {
           versionId: version.id,
-          resolvedMethod: resolved,
+          resolvedMethod: resolvedDefault.method,
           shares,
           error: null,
         });
@@ -302,7 +345,7 @@ export class CapexAllocationCalculatorService {
             this.logger.warn(`Allocation computation warning for version ${version.id}: ${err.message}. Falling back to stored allocations.`);
             result.set(version.id, {
               versionId: version.id,
-              resolvedMethod: resolved,
+              resolvedMethod: resolvedDefault.method,
               shares: fallback,
               error: `${err.message} (used stored allocation)`,
             });
@@ -311,7 +354,7 @@ export class CapexAllocationCalculatorService {
           this.logger.warn(`Allocation computation warning for version ${version.id}: ${err.message}. No stored allocation available.`);
           result.set(version.id, {
             versionId: version.id,
-            resolvedMethod: resolved,
+            resolvedMethod: resolvedDefault.method,
             shares: [],
             error: err.message,
           });
@@ -324,18 +367,16 @@ export class CapexAllocationCalculatorService {
     return result;
   }
 
-  private resolveMethod(
+  private resolveDefault(
     method: string,
     year: number,
     tenantId: string | null,
-    defaultMethodLookup: Map<string, AllocationMethod>,
-  ): 'headcount' | 'it_users' | 'turnover' {
+    defaultLookup: Map<string, DefaultResolution>,
+  ): DefaultResolution {
     if (method === 'headcount' || method === 'it_users' || method === 'turnover') {
-      return method;
+      return { kind: 'auto', method };
     }
-    const ruleMethod = defaultMethodLookup.get(defaultMethodKey(tenantId, year));
-    if (ruleMethod) return ruleMethod;
-    return 'headcount';
+    return defaultLookup.get(defaultMethodKey(tenantId, year)) ?? STANDARD_DEFAULT;
   }
 
   private computeAutoShares(args: {
