@@ -40,7 +40,7 @@ import {
   TICKETING_TICKET_ATTACHMENT_READ_CAPABILITY,
   TICKETING_TICKET_NOTES_LIST_CAPABILITY,
 } from '../control-plane/capability/capability-contract';
-import { AiCapabilityRegistry, providerCapabilityContracts } from '../control-plane/capability/ai-capability.registry';
+import { AiCapabilityRegistry, providerCapabilityContracts, routingDriftSnapshot } from '../control-plane/capability/ai-capability.registry';
 import { AiAutomationJobCatalogService } from '../control-plane/automation/ai-automation-job-catalog.service';
 import { AiAgentControlService, proposalStillBlocksRegeneration } from '../control-plane/agent-control/ai-agent-control.service';
 import { auditActivityType, auditActivityTypeClauseSql } from '../control-plane/agent-control/ai-agent-activity-timeline';
@@ -14218,6 +14218,8 @@ async function testGlpiTriagePlannerGroupRoutingUsesCatalogueAndSkipsInvalidTarg
       { kind: 'group', key: '7', label: 'Tech-desk' },
       { kind: 'group', key: '12', label: 'SAP-team' },
       { kind: 'group', key: '13', label: 'PLM-team' },
+      { kind: 'user', key: '21', label: 'Marie Dupont' },
+      { kind: 'user', key: '22', label: 'Paul Martin' },
     ],
     assignmentSupported: true,
     supported: true,
@@ -14276,7 +14278,10 @@ async function testGlpiTriagePlannerGroupRoutingUsesCatalogueAndSkipsInvalidTarg
         return step('step-internal', { action_request_id: 'routing-internal-action' });
       }
       if (request.capabilityName === TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY) {
-        return step('step-assignment', { action_request_id: 'routing-assignment-action', target: request.input.target });
+        return step('step-assignment', {
+          action_request_id: `routing-assignment-${request.input.target.kind}`,
+          target: request.input.target,
+        });
       }
       throw new Error(`Unexpected capability ${request.capabilityName}`);
     },
@@ -14300,6 +14305,10 @@ async function testGlpiTriagePlannerGroupRoutingUsesCatalogueAndSkipsInvalidTarg
         { action_type: 'assignment_update', target: { kind: 'group', key: '13', label: 'PLM-team' }, reason: 'Also PLM.' },
         // Not in the catalogue: skipped.
         { action_type: 'assignment_update', target: { kind: 'group', key: '99', label: 'Ghost-team' }, reason: 'Invented.' },
+        // A named technician may be proposed alongside a group: one per kind, both additive.
+        { action_type: 'assignment_update', target: { kind: 'user', key: '21', label: 'Marie Dupont' }, reason: 'The instructions name Marie Dupont for badge tickets.' },
+        // Second technician in the same plan: skipped.
+        { action_type: 'assignment_update', target: { kind: 'user', key: '22', label: 'Paul Martin' }, reason: 'Also Paul.' },
       ],
       rationale: 'Route to SAP.',
       confidence: 0.8,
@@ -14331,13 +14340,15 @@ async function testGlpiTriagePlannerGroupRoutingUsesCatalogueAndSkipsInvalidTarg
   // The planner owns assignment_update for this run and sees the catalogue once, as routing_targets.
   assert.equal(plannerPayload.owned_action_types.includes('assignment_update'), true);
   const assignmentCalls = calls.filter((call) => call.capabilityName === TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY);
-  assert.equal(assignmentCalls.length, 1);
+  // The first valid target of each kind is prepared: one group and one technician.
+  assert.equal(assignmentCalls.length, 2);
   assert.deepEqual(assignmentCalls[0].input.target, { kind: 'group', key: '12', label: 'SAP-team' });
   assert.equal(assignmentCalls[0].input.reason, 'The instructions route SAP questions to SAP-team.');
+  assert.deepEqual(assignmentCalls[1].input.target, { kind: 'user', key: '21', label: 'Marie Dupont' });
   const planner = result.diagnostic.action_planner as any;
   assert.deepEqual(
     planner.authorized_actions.map((action: any) => action.action_type),
-    ['internal_note', 'assignment_update'],
+    ['internal_note', 'assignment_update', 'assignment_update'],
   );
   // Skip reasons are recorded per action type, first skip wins (same as status_update).
   assert.equal(planner.skipped_actions.assignment_update, 'assignment_target_already_present');
@@ -15679,6 +15690,345 @@ async function testManualTicketingTriageRequiresAgentDefinitionId() {
   );
 }
 
+// Named-technician routing shares the catalogue discipline of groups, with its own per-kind
+// budget: a plan may name one group AND one technician, and the second candidate of either
+// kind is skipped. A technician already on the ticket is never re-proposed.
+async function testGlpiTriagePlannerTechnicianRoutingIsKindScoped() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const liveTarget = glpiReadSafeTarget();
+  const routingContext = {
+    ticketId: '4',
+    requester: 'Bob Requester',
+    assignee: 'Already There',
+    group: null,
+    assignedUsers: [{ kind: 'user', key: '30', label: 'Already There' }],
+    assignedGroups: [],
+    supportedAssignmentTargets: [
+      { kind: 'group', key: '12', label: 'SAP-team' },
+      { kind: 'user', key: '30', label: 'Already There' },
+      { kind: 'user', key: '21', label: 'Marie Dupont' },
+      { kind: 'user', key: '22', label: 'Paul Martin' },
+    ],
+    agentUserKey: '99',
+    assignmentSupported: true,
+    supported: true,
+  };
+  const calls: Array<{ capabilityName: string; input: any }> = [];
+  let plannerPayload: any = null;
+  let toolIndex = 0;
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      calls.push({ capabilityName: request.capabilityName, input: request.input });
+      toolIndex += 1;
+      const toolExecutionId = `tech-tool-${toolIndex}`;
+      const step = (stepId: string, data: unknown) => ({
+        run_id: 'run-glpi-technician',
+        step_id: stepId,
+        tool_execution_id: toolExecutionId,
+        output: { ok: true, data, evidence: [] },
+      });
+      if (request.capabilityName === 'ticketing.ticket.get') {
+        return step('step-ticket', {
+          id: '4',
+          title: 'Badge reader rejects my card',
+          status: 'new',
+          priority: 'medium',
+          description: 'The badge system does not open the third floor door.',
+        });
+      }
+      if (request.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY) return step('step-notes', { notes: [] });
+      if (request.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY) {
+        return step('step-classification', { type: 'Incident', priority: 'Medium', urgency: 'Medium' });
+      }
+      if (request.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY) {
+        return step('step-lifecycle', { terminal: false, allowedTransitions: [] });
+      }
+      if (request.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY) return step('step-routing', routingContext);
+      if (request.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY) return step('step-participant', {});
+      if (request.capabilityName === 'search_knowledge') {
+        return { run_id: 'run-glpi-technician', step_id: 'step-search', tool_execution_id: toolExecutionId, output: { items: [], total: 0, returned: 0, truncated: false, complete: true } };
+      }
+      if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+        await savePreparedTicketingAction(context, {
+          id: 'technician-internal-action',
+          runId: 'run-glpi-technician',
+          toolExecutionId,
+          capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+          body: request.input.note_body,
+          visibility: 'internal',
+          providerKey: 'glpi',
+        });
+        return step('step-internal', { action_request_id: 'technician-internal-action' });
+      }
+      if (request.capabilityName === TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY) {
+        return step('step-assignment', {
+          action_request_id: `technician-assignment-${request.input.target.kind}-${request.input.target.key}`,
+          target: request.input.target,
+        });
+      }
+      throw new Error(`Unexpected capability ${request.capabilityName}`);
+    },
+  };
+  const actionPlanner = {
+    maxOutputTokens: () => 1600,
+    buildPromptPayload: (plannerInput: any) => {
+      plannerPayload = plannerInput;
+      return plannerInput;
+    },
+    planActions: async () => ({
+      source: 'llm',
+      actions: [
+        { action_type: 'internal_note', reason: 'Summarize the badge reader failure for the technicians.' },
+        // Valid: the instructions name this person. Label deliberately misspelled by the model.
+        { action_type: 'assignment_update', target: { kind: 'user', key: '21', label: 'marie DUPONT' }, reason: 'Badge tickets go to Marie Dupont.' },
+        // Second technician in the same plan: one per kind.
+        { action_type: 'assignment_update', target: { kind: 'user', key: '22', label: 'Paul Martin' }, reason: 'Also Paul.' },
+        // Already a technician on the ticket: never re-added.
+        { action_type: 'assignment_update', target: { kind: 'user', key: '30', label: 'Already There' }, reason: 'Already there.' },
+        // The group slot is still free: a group and a technician may be proposed together.
+        { action_type: 'assignment_update', target: { kind: 'group', key: '12', label: 'SAP-team' }, reason: 'Badge readers are handled by SAP-team.' },
+      ],
+      rationale: 'Route the badge ticket.',
+      confidence: 0.8,
+      model: 'test:planner',
+      usage: null,
+      estimated_tokens: 20,
+      estimated_cost_eur: 0.00004,
+      latency_ms: 1,
+    }),
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    { requireSingleEnabledTarget: async () => liveTarget } as any,
+    { getApplicability: async () => ({ available: true }) } as any,
+    queue,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    actionPlanner as any,
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const result = await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
+
+  assert.equal(plannerPayload.owned_action_types.includes('assignment_update'), true);
+  // The prompt the model actually receives: both kinds in routing_targets, and
+  // current_assignment.users keyed so it can compare a candidate against the ticket.
+  const promptPayload = new AiAgentActionPlannerService({} as any).buildPromptPayload({
+    ticket: { id: '4', title: 'Badge reader rejects my card' },
+    timeline: [],
+    contexts: { classification: null, lifecycle: null, routing: routingContext, participants: null },
+    gates: {},
+    close_eligibility: { matched: false, has_inactivity_age: false, terminal: false },
+    granted_capabilities: [],
+    owned_action_types: ['assignment_update'],
+    provider_profile: null,
+    verbatim_candidates: [],
+    profile: null,
+  }) as any;
+  assert.deepEqual(promptPayload.current_assignment.users, [{ key: '30', label: 'Already There' }]);
+  assert.deepEqual(
+    promptPayload.routing_targets.map((target: any) => `${target.kind}:${target.key}`),
+    ['group:12', 'user:30', 'user:21', 'user:22'],
+  );
+  const assignmentCalls = calls.filter((call) => call.capabilityName === TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY);
+  // One technician and one group prepared; the catalogue label wins over the model's spelling.
+  assert.deepEqual(assignmentCalls.map((call) => call.input.target), [
+    { kind: 'user', key: '21', label: 'Marie Dupont' },
+    { kind: 'group', key: '12', label: 'SAP-team' },
+  ]);
+  const planner = result.diagnostic.action_planner as any;
+  assert.deepEqual(
+    planner.authorized_actions.map((action: any) => action.action_type),
+    ['internal_note', 'assignment_update', 'assignment_update'],
+  );
+  // Per-kind budget, not per-plan: the second technician is what gets skipped, while the
+  // group proposed after it is still prepared. First skip wins per action type.
+  assert.equal(planner.skipped_actions.assignment_update, 'one_assignment_per_kind_per_plan');
+}
+
+// Replace-on-write is scoped to the target kind: proposing a group must not silently
+// withdraw a technician proposal that is still waiting for review (and vice versa).
+async function testGlpiTriageAssignmentExpiryIsScopedToTargetKind() {
+  const { manager } = createMemoryManager();
+  const context = createContext(manager);
+  const queue = new AiAgentWorkQueueService();
+  const liveTarget = glpiReadSafeTarget();
+  const routingContext = {
+    ticketId: '4',
+    requester: 'Bob Requester',
+    assignee: null,
+    group: null,
+    assignedUsers: [],
+    assignedGroups: [],
+    supportedAssignmentTargets: [
+      { kind: 'group', key: '12', label: 'SAP-team' },
+      { kind: 'user', key: '21', label: 'Marie Dupont' },
+    ],
+    agentUserKey: '99',
+    assignmentSupported: true,
+    supported: true,
+  };
+  let toolIndex = 0;
+  const dispatcher = {
+    execute: async (_context: unknown, request: any) => {
+      toolIndex += 1;
+      const toolExecutionId = `expiry-tool-${toolIndex}`;
+      const step = (stepId: string, data: unknown) => ({
+        run_id: 'run-glpi-expiry',
+        step_id: stepId,
+        tool_execution_id: toolExecutionId,
+        output: { ok: true, data, evidence: [] },
+      });
+      if (request.capabilityName === 'ticketing.ticket.get') {
+        return step('step-ticket', { id: '4', title: 'SAP order entry blocked', status: 'new', priority: 'medium', description: 'VA01 fails.' });
+      }
+      if (request.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY) return step('step-notes', { notes: [] });
+      if (request.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY) {
+        return step('step-classification', { type: 'Incident', priority: 'Medium', urgency: 'Medium' });
+      }
+      if (request.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY) {
+        return step('step-lifecycle', { terminal: false, allowedTransitions: [] });
+      }
+      if (request.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY) return step('step-routing', routingContext);
+      if (request.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY) return step('step-participant', {});
+      if (request.capabilityName === 'search_knowledge') {
+        return { run_id: 'run-glpi-expiry', step_id: 'step-search', tool_execution_id: toolExecutionId, output: { items: [], total: 0, returned: 0, truncated: false, complete: true } };
+      }
+      if (request.capabilityName === TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY) {
+        await savePreparedTicketingAction(context, {
+          id: 'expiry-internal-action',
+          runId: 'run-glpi-expiry',
+          toolExecutionId,
+          capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+          body: request.input.note_body,
+          visibility: 'internal',
+          providerKey: 'glpi',
+        });
+        return step('step-internal', { action_request_id: 'expiry-internal-action' });
+      }
+      if (request.capabilityName === TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY) {
+        return step('step-assignment', { action_request_id: 'expiry-new-group-action', target: request.input.target });
+      }
+      throw new Error(`Unexpected capability ${request.capabilityName}`);
+    },
+  };
+  const actionPlanner = {
+    maxOutputTokens: () => 1600,
+    buildPromptPayload: (plannerInput: any) => plannerInput,
+    planActions: async () => ({
+      source: 'llm',
+      actions: [
+        { action_type: 'internal_note', reason: 'Summarize the SAP failure for the technicians.' },
+        { action_type: 'assignment_update', target: { kind: 'group', key: '12', label: 'SAP-team' }, reason: 'SAP questions go to SAP-team.' },
+      ],
+      rationale: 'Route to SAP.',
+      confidence: 0.8,
+      model: 'test:planner',
+      usage: null,
+      estimated_tokens: 20,
+      estimated_cost_eur: 0.00004,
+      latency_ms: 1,
+    }),
+  };
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    { requireSingleEnabledTarget: async () => liveTarget } as any,
+    { getApplicability: async () => ({ available: true }) } as any,
+    queue,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    actionPlanner as any,
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const repo = context.manager.getRepository(AiActionRequest);
+  const seedPendingAssignment = async (id: string, target: Record<string, unknown>) => {
+    const now = new Date();
+    await repo.save(repo.create({
+      id,
+      tenant_id: context.tenantId,
+      run_id: 'run-prior',
+      tool_execution_id: `${id}-tool`,
+      conversation_id: null,
+      user_id: null,
+      preview_id: null,
+      capability_name: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+      capability_version: '1.0.0',
+      effect: 'write',
+      status: 'pending',
+      target_type: 'ticket',
+      target_id: null,
+      target_ref: '4',
+      idempotency_key: `${id}-key`,
+      action_payload_json: { ticketId: '4', action: 'assignment_update', target, reason: 'Prior proposal.' },
+      provider_kind: 'ticketing',
+      provider_key: 'glpi',
+      input_hash: `${id}-hash`,
+      input_summary: null,
+      evidence_ids: null,
+      expires_at: new Date(now.getTime() + 30 * 60 * 1000),
+      approved_at: null,
+      rejected_at: null,
+      executed_at: null,
+      error_message: null,
+      metadata_json: { agent_definition_id: triageBundle.definition.id },
+      created_at: now,
+      updated_at: now,
+    }));
+  };
+  await seedPendingAssignment('prior-user-assignment', { kind: 'user', key: '21', label: 'Marie Dupont' });
+  await seedPendingAssignment('prior-group-assignment', { kind: 'group', key: '7', label: 'Tech-desk' });
+
+  await service.runTicketingTriage(context, { provider_key: 'glpi', target_key: '4', agent_definition_id: triageBundle.definition.id });
+
+  const rows = await repo.find();
+  const userRow = rows.find((row: AiActionRequest) => row.id === 'prior-user-assignment');
+  const groupRow = rows.find((row: AiActionRequest) => row.id === 'prior-group-assignment');
+  // The new group proposal replaces the pending group proposal only.
+  assert.equal(groupRow?.status, 'expired');
+  assert.equal(userRow?.status, 'pending');
+}
+
+// Pre-write drift check, per kind. The agent's own account may register itself as an
+// assignee on an earlier phase of the same approved batch; that must not block the
+// technician write, while a human assigning someone else must.
+function testRoutingDriftSnapshotIsKindScopedAndIgnoresTheAgentAccount() {
+  const prepared = {
+    ticketId: '4',
+    agentUserKey: '99',
+    assignedUsers: [],
+    assignedGroups: [{ kind: 'group', key: '12', label: 'SAP-team' }],
+  };
+  const afterSelfRegistration = {
+    ...prepared,
+    assignedUsers: [{ kind: 'user', key: '99', label: 'KANAP Agent' }],
+  };
+  const afterHumanAssignedSomeoneElse = {
+    ...prepared,
+    assignedUsers: [{ kind: 'user', key: '99', label: 'KANAP Agent' }, { kind: 'user', key: '21', label: 'Marie Dupont' }],
+  };
+  const same = (left: unknown, right: unknown, kind: 'group' | 'user') =>
+    JSON.stringify(routingDriftSnapshot(left, kind)) === JSON.stringify(routingDriftSnapshot(right, kind));
+
+  assert.equal(same(prepared, afterSelfRegistration, 'user'), true);
+  assert.equal(same(prepared, afterSelfRegistration, 'group'), true);
+  assert.equal(same(prepared, afterHumanAssignedSomeoneElse, 'user'), false);
+  // A group write is unaffected by technicians joining, as before.
+  assert.equal(same(prepared, afterHumanAssignedSomeoneElse, 'group'), true);
+}
+
 async function run() {
   testCapabilityContractRejectsMcpWriteExposure();
   testEvidenceRedactionAndHashing();
@@ -15851,6 +16201,9 @@ async function run() {
   testSynthesisPayloadIncludesScreenshotEvidence();
   await testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHonorsLanguage();
   await testGlpiTriagePlannerGroupRoutingUsesCatalogueAndSkipsInvalidTargets();
+  await testGlpiTriagePlannerTechnicianRoutingIsKindScoped();
+  await testGlpiTriageAssignmentExpiryIsScopedToTargetKind();
+  testRoutingDriftSnapshotIsKindScopedAndIgnoresTheAgentAccount();
   await testClassificationProposalValuesHaveDistinctHashes();
   await testGlpiTriagePlannerClassificationNotOfferedWithoutCapability();
   await testGlpiTriagePlannerAssignmentNotOfferedWithoutCapability();

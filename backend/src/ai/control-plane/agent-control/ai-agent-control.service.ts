@@ -386,7 +386,7 @@ function buildMonitoringRetrievalQueryCandidates(
   return Array.from(new Set(candidates)).slice(0, MAX_MONITORING_KNOWLEDGE_QUERIES);
 }
 
-export type AgentControlTargetingOptionField = 'status' | 'priority' | 'type' | 'category' | 'entity' | 'group';
+export type AgentControlTargetingOptionField = 'status' | 'priority' | 'type' | 'category' | 'entity' | 'group' | 'technician';
 // Monitoring flavor served through the same targeting-options endpoint for SRE
 // definitions: enum fields resolve from describeReferenceEnums, catalog fields
 // (group/device/check_type) from searchReferenceCatalog on the bound provider.
@@ -654,8 +654,10 @@ const ACTION_TYPE_CAPABILITY_TABLE: Record<string, { prepare: string; approved: 
     approved: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
   },
 };
-// `group` is the assignable-group catalogue (routing targets), served read-only to the UI.
-const TARGETING_OPTION_FIELDS = new Set(['status', 'priority', 'type', 'category', 'entity', 'group']);
+// `group` is the assignable-group catalogue and `technician` the named-technician
+// catalogue (both routing targets), served read-only to the UI. Neither is an enum field:
+// they go through the provider catalog search, like `category` and `entity`.
+const TARGETING_OPTION_FIELDS = new Set(['status', 'priority', 'type', 'category', 'entity', 'group', 'technician']);
 const MONITORING_TARGETING_OPTION_FIELDS = new Set(['status', 'severity', 'ack_state', 'group', 'device', 'check_type']);
 const TARGETING_ENUM_OPTIONS_TTL_MS = 60 * 60 * 1000;
 const TARGETING_CATALOG_OPTIONS_TTL_MS = 2 * 60 * 1000;
@@ -2055,8 +2057,11 @@ function resolvePlannerAssignmentTarget(
   if (!match || (match.kind !== 'group' && match.kind !== 'user')) {
     return { target: null, reason: 'assignment_target_not_in_routing_catalogue' };
   }
-  const assigned = Array.isArray(routing.assignedGroups) ? routing.assignedGroups.filter(isRecord) : [];
-  if (assigned.some((group) => group.key === match.key)) {
+  // Already-present check is per kind: a group write compares groups, a technician write
+  // compares the technicians already on the ticket.
+  const assignedRaw = match.kind === 'group' ? routing.assignedGroups : routing.assignedUsers;
+  const assigned = Array.isArray(assignedRaw) ? assignedRaw.filter(isRecord) : [];
+  if (assigned.some((entry) => String(entry.key ?? '') === String(match.key))) {
     return { target: null, reason: 'assignment_target_already_present' };
   }
   return { target: { kind: match.kind, key: String(match.key), label: String(match.label) }, reason: null };
@@ -2972,7 +2977,11 @@ function activityActionDetail(action: AiActionRequest): ActivityActionDetail | n
   }
   const assignmentTarget = isRecord(payload.target) ? payload.target : null;
   if (assignmentTarget && assignmentTarget.label != null && assignmentTarget.label !== '') {
-    changes.push({ field: 'assignee', from: null, to: String(assignmentTarget.label) });
+    changes.push({
+      field: assignmentTarget.kind === 'group' ? 'group' : 'assignee',
+      from: null,
+      to: String(assignmentTarget.label),
+    });
   }
   if (!body && !reason && changes.length === 0 && !evidenceCount) return null;
   return {
@@ -3954,6 +3963,10 @@ export class AiAgentControlService {
       targetRef: string;
       capabilityName: string;
       agentDefinitionId: string | null;
+      // Narrows the sweep inside one capability. Assignment proposals carry a kind
+      // (group / technician): a new group proposal must not expire a pending technician
+      // proposal that is still perfectly valid, and vice versa.
+      matchPayload?: (payload: unknown) => boolean;
       // The freshly prepared replacement must survive its own supersede sweep: callers expire
       // AFTER a successful prepare (so a failed prepare never destroys the prior proposal),
       // which means the new pending row already exists when this runs.
@@ -3981,6 +3994,9 @@ export class AiAgentControlService {
       }
       if (input.agentDefinitionId
         && actionMetadataString(action, 'agent_definition_id') !== input.agentDefinitionId) {
+        continue;
+      }
+      if (input.matchPayload && !input.matchPayload(action.action_payload_json)) {
         continue;
       }
       const metadata = isRecord(action.metadata_json) ? action.metadata_json : {};
@@ -8866,13 +8882,18 @@ export class AiAgentControlService {
           }
           authorizedAction = { ...action, proposed: resolved.proposed };
         } else if (actionType === PLANNER_ASSIGNMENT_ACTION_TYPE) {
-          if (plannerAuthorizedActions.some((entry) => entry.action.action_type === PLANNER_ASSIGNMENT_ACTION_TYPE)) {
-            markPlannerSkipped(actionType, 'one_assignment_per_plan');
-            continue;
-          }
+          // Resolve first, so an invalid or already-present target reports its own reason
+          // instead of being masked by the per-kind cap.
           const resolvedTarget = resolvePlannerAssignmentTarget(routingContext, action);
           if (!resolvedTarget.target) {
             markPlannerSkipped(actionType, resolvedTarget.reason ?? 'assignment_target_not_in_routing_catalogue');
+            continue;
+          }
+          // One group AND one technician may be proposed in the same plan, at most one per
+          // kind: the writes are additive, so both can apply in one approved batch.
+          if (plannerAuthorizedActions.some((entry) => entry.action.action_type === PLANNER_ASSIGNMENT_ACTION_TYPE
+            && entry.action.target?.kind === resolvedTarget.target!.kind)) {
+            markPlannerSkipped(actionType, 'one_assignment_per_kind_per_plan');
             continue;
           }
           authorizedAction = { ...action, target: resolvedTarget.target } as PlannerAction;
@@ -9273,9 +9294,13 @@ export class AiAgentControlService {
     const plannerInternalNote = effectivePlannerActions.find((entry) => entry.action.action_type === 'internal_note') ?? null;
     const plannerRequesterReply = effectivePlannerActions.find((entry) => entry.action.action_type === 'requester_reply') ?? null;
     const plannerStatusUpdate = effectivePlannerActions.find((entry) => entry.action.action_type === 'status_update') ?? null;
-    const plannerAssignmentUpdate = effectivePlannerActions.find((entry) => entry.action.action_type === PLANNER_ASSIGNMENT_ACTION_TYPE) ?? null;
-    const assignmentUpdateInput = plannerAssignmentUpdate?.action.target
-      ? { target: plannerAssignmentUpdate.action.target, reason: plannerAssignmentUpdate.action.reason }
+    // At most two: one group and one technician, capped per kind in the authorization loop.
+    const plannerAssignmentUpdates = effectivePlannerActions.filter((entry) => entry.action.action_type === PLANNER_ASSIGNMENT_ACTION_TYPE
+      && !!entry.action.target);
+    // Diagnostics and the skip-reason ternaries keep reporting the first proposal; both
+    // prepared action requests are durable rows in their own right.
+    const assignmentUpdateInput = plannerAssignmentUpdates[0]
+      ? { target: plannerAssignmentUpdates[0].action.target!, reason: plannerAssignmentUpdates[0].action.reason }
       : null;
     const plannerStatusTransitionKey = plannerStatusUpdate && typeof plannerStatusUpdate.action.transition_key === 'string'
       ? plannerStatusUpdate.action.transition_key
@@ -9606,31 +9631,34 @@ export class AiAgentControlService {
         excludeRunId: ticketResult.run_id,
       });
     }
-    const plannerAssignmentProposalHash = plannerAssignmentUpdate
-      ? plannerProposalHashFor({ ...plannerAssignmentUpdate, replyBody: null })
-      : null;
-    const plannerAssignmentContextHash = plannerAssignmentUpdate
-      ? plannerProposalContextHash(plannerAssignmentUpdate)
-      : null;
-    const plannerAssignmentSuppression = plannerAssignmentUpdate && plannerAssignmentProposalHash && plannerAssignmentContextHash
-      ? await this.unchangedProposalSuppressionReason(context, {
-        capabilityName: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
-        ...proposalScope,
-        proposalHash: plannerAssignmentProposalHash,
-        contextHash: plannerAssignmentContextHash,
-      })
-      : null;
-    if (plannerAssignmentSuppression) {
-      plannerSuppressionReasons.assignment_update = plannerAssignmentSuppression;
-    }
-    const assignmentUpdateProposal = assignmentUpdateInput && !plannerAssignmentSuppression
-      ? await this.dispatcher.execute(context, {
+    // One prepare per proposed kind. Each carries its own hashes and suppression check, and
+    // expires only the pending proposals of the SAME kind: a fresh group proposal must not
+    // withdraw a technician proposal that is still waiting for review.
+    const assignmentUpdateProposals: Array<Awaited<ReturnType<typeof this.dispatcher.execute>>> = [];
+    for (const entry of plannerAssignmentUpdates) {
+      const proposalHashValue = plannerProposalHashFor({ ...entry, replyBody: null });
+      const contextHashValue = plannerProposalContextHash(entry);
+      const suppression = proposalHashValue && contextHashValue
+        ? await this.unchangedProposalSuppressionReason(context, {
+          capabilityName: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+          ...proposalScope,
+          proposalHash: proposalHashValue,
+          contextHash: contextHashValue,
+        })
+        : null;
+      if (suppression) {
+        // First suppression wins for the action type, like every other planner action.
+        plannerSuppressionReasons.assignment_update = plannerSuppressionReasons.assignment_update ?? suppression;
+        continue;
+      }
+      const targetKind = entry.action.target?.kind ?? null;
+      const prepared = await this.dispatcher.execute(context, {
         capabilityName: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
         input: {
           provider_key: target.provider_key,
           ticket_id: ticket.id,
-          target: assignmentUpdateInput.target,
-          reason: assignmentUpdateInput.reason,
+          target: entry.action.target,
+          reason: entry.action.reason,
           evidence_ids: allEvidenceIds,
           observation_id: observation.id,
           recommendation_id: recommendation.id,
@@ -9642,21 +9670,24 @@ export class AiAgentControlService {
           trigger_kind: 'internal',
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
-          metadata: plannerAssignmentUpdate
-            ? plannerMetadata(plannerAssignmentUpdate, plannerAssignmentProposalHash, plannerAssignmentContextHash, 'planner_prepare_assignment_update')
-            : { ...baseMetadata, triage_action: 'prepare_assignment_update' },
+          metadata: plannerMetadata(entry, proposalHashValue, contextHashValue, 'planner_prepare_assignment_update'),
         },
-      })
-      : null;
-    if (assignmentUpdateProposal && adapterData(assignmentUpdateProposal.output) != null) {
-      await this.expirePriorPendingSameClass(context, {
-        ...proposalScope,
-        capabilityName: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
-        agentDefinitionId: proposalAgentDefinitionId,
-        excludeActionIds: actionRequestIdsFromCapabilityOutput(assignmentUpdateProposal.output),
-        excludeRunId: ticketResult.run_id,
       });
+      assignmentUpdateProposals.push(prepared);
+      if (adapterData(prepared.output) != null) {
+        await this.expirePriorPendingSameClass(context, {
+          ...proposalScope,
+          capabilityName: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
+          agentDefinitionId: proposalAgentDefinitionId,
+          matchPayload: (payload) => isRecord(payload)
+            && isRecord(payload.target)
+            && payload.target.kind === targetKind,
+          excludeActionIds: actionRequestIdsFromCapabilityOutput(prepared.output),
+          excludeRunId: ticketResult.run_id,
+        });
+      }
     }
+    const assignmentUpdateProposal = assignmentUpdateProposals[0] ?? null;
 
     const plannerSkippedActionsWithSuppression = {
       ...plannerSkippedActions,
@@ -9673,14 +9704,14 @@ export class AiAgentControlService {
       ...(publicReplyProposal ? actionRequestIdsFromCapabilityOutput(publicReplyProposal.output) : []),
       ...(classificationUpdateProposal ? actionRequestIdsFromCapabilityOutput(classificationUpdateProposal.output) : []),
       ...(statusUpdateProposal ? actionRequestIdsFromCapabilityOutput(statusUpdateProposal.output) : []),
-      ...(assignmentUpdateProposal ? actionRequestIdsFromCapabilityOutput(assignmentUpdateProposal.output) : []),
+      ...assignmentUpdateProposals.flatMap((prepared) => actionRequestIdsFromCapabilityOutput(prepared.output)),
     ]));
     const expectedPreparedActionCount = [
       !!proposal && adapterData(proposal.output) != null,
       !!publicReplyProposal && adapterData(publicReplyProposal.output) != null,
       !!classificationUpdateProposal && adapterData(classificationUpdateProposal.output) != null,
       !!statusUpdateProposal && adapterData(statusUpdateProposal.output) != null,
-      !!assignmentUpdateProposal && adapterData(assignmentUpdateProposal.output) != null,
+      ...assignmentUpdateProposals.map((prepared) => adapterData(prepared.output) != null),
     ].filter(Boolean).length;
     const recoveredPreparedActionIds = directPreparedActionIds.length >= expectedPreparedActionCount
       ? []
