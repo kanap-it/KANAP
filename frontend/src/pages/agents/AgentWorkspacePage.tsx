@@ -77,9 +77,11 @@ import {
   modeFromFilters,
   openStatusValues,
   statusFilterValues,
+  TARGETING_CATALOG_OPTIONS_LIMIT,
   TARGETING_OPTIONS_STALE_TIME_MS,
   targetingPredicatesFromFilters,
   targetingPresetFilters,
+  useDebouncedValue,
   type TargetingFilter,
   type TargetingPresetKey,
 } from '../../components/agents/helpdeskTargeting';
@@ -229,10 +231,46 @@ function SettingsField({ label, hint, info, children }: {
   return <PropertyRow label={labelNode} helperText={hint}>{children}</PropertyRow>;
 }
 
+// Category catalogue of the reference panel. The catalogue is too large to list in full,
+// so it is searched server-side (debounced) and capped at one page of results.
+function InstructionsCategoryReference({ agentId, enabled }: { agentId: string; enabled: boolean }) {
+  const { t } = useTranslation(['agents']);
+  const [query, setQuery] = React.useState('');
+  const searchId = React.useId();
+  const settled = useDebouncedValue(query).trim();
+  const catalogue = useQuery({
+    queryKey: ['ai-agent-targeting-options', agentId, 'category', settled],
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, 'category', { query: settled || undefined, limit: TARGETING_CATALOG_OPTIONS_LIMIT }),
+    enabled,
+    staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
+  });
+  const options = catalogue.data?.options ?? [];
+  return (
+    <Box sx={{ mt: 1.5 }}>
+      <Typography component="label" htmlFor={searchId} sx={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>
+        {t('settings.reference.categories')}
+      </Typography>
+      <TextField id={searchId} size="small" variant="standard" fullWidth value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('settings.reference.categoriesSearch')} sx={drawerFieldValueSx} />
+      <Box component="ul" aria-busy={catalogue.isFetching} sx={{ listStyle: 'none', m: 0, p: 0, mt: 0.5, maxHeight: 220, overflowY: 'auto' }}>
+        {options.map((option) => <Box component="li" key={option.value} sx={{ fontSize: 13, color: 'kanap.text.primary', lineHeight: 1.7 }}>{option.label}</Box>)}
+      </Box>
+      {catalogue.isError && <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('settings.reference.catalogueError')}</Typography>}
+      {!catalogue.isFetching && !catalogue.isError && options.length === 0 && <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('settings.reference.empty')}</Typography>}
+      {options.length === TARGETING_CATALOG_OPTIONS_LIMIT && <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.5 }}>{t('settings.reference.categoriesMore')}</Typography>}
+      <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.5 }}>{t('settings.reference.categoriesScope')}</Typography>
+    </Box>
+  );
+}
+
 // Read-only reference next to the instructions: the exact names the admin can use there.
-// Only what the runtime actually lets the instructions drive today (status transitions and,
-// with Assignment on, technician groups). Classification is not instruction-driven yet.
-function InstructionsReferencePanel({ statuses, groups, routingEnabled }: {
+// Only what the runtime actually lets the instructions drive: status transitions, the
+// technician groups when Assignment is on, and the categories, priorities and types when
+// Classification is on.
+function InstructionsReferencePanel({ statuses, groups, routingEnabled, classificationEnabled, priorities, types, agentId }: {
+  agentId: string;
+  classificationEnabled: boolean;
+  priorities: AiAgentControlRefItem[];
+  types: AiAgentControlRefItem[];
   statuses: AiAgentControlRefItem[] | null;
   groups: AiAgentControlRefItem[] | null;
   routingEnabled: boolean;
@@ -284,9 +322,24 @@ function InstructionsReferencePanel({ statuses, groups, routingEnabled }: {
           )}
         </Box>
       )}
-      <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', lineHeight: 1.5, mt: 1.5 }}>
-        {t('settings.reference.classificationNote')}
-      </Typography>
+      {classificationEnabled ? (
+        <>
+          <InstructionsCategoryReference agentId={agentId} enabled={classificationEnabled} />
+          {([{ title: t('settings.reference.priorities'), options: priorities }, { title: t('settings.reference.types'), options: types }]).map((section) => (
+            <Box key={section.title} sx={{ mt: 1.5 }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>{section.title}</Typography>
+              <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+                {section.options.map((option) => (
+                  <Box component="li" key={option.value} sx={{ display: 'flex', alignItems: 'baseline', gap: 1, fontSize: 13, color: 'kanap.text.primary', lineHeight: 1.7 }}>
+                    <span>{option.label}</span>
+                    <Box component="span" sx={{ fontFamily: 'var(--kanap-font-mono, ui-monospace, monospace)', fontSize: 11, color: 'kanap.text.tertiary' }}>{option.value}</Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ))}
+        </>
+      ) : <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', lineHeight: 1.5, mt: 1.5 }}>{t('settings.reference.classificationDisabled')}</Typography>}
     </Box>
   );
 }
@@ -1338,6 +1391,19 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
   // What the instructions can name: statuses and (when Assignment is on) technician groups.
   // Read-only reference for the admin; same cache entries as the targeting filters.
   const routingGroupsEnabled = !isSre && capabilityForm.assignment === true;
+  const classificationEnabled = !isSre && capabilityForm.classification === true;
+  const referencePrioritiesQuery = useQuery({
+    queryKey: ['ai-agent-targeting-options', definition.id, 'priority', ''],
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(definition.id, 'priority', { limit: 50 }),
+    enabled: classificationEnabled,
+    staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
+  });
+  const referenceTypesQuery = useQuery({
+    queryKey: ['ai-agent-targeting-options', definition.id, 'type', ''],
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(definition.id, 'type', { limit: 50 }),
+    enabled: classificationEnabled,
+    staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
+  });
   const referenceStatusesQuery = useQuery({
     queryKey: ['ai-agent-targeting-options', definition.id, 'status', ''],
     queryFn: () => aiAgentControlApi.getAgentTargetingOptions(definition.id, 'status', { limit: 50 }),
@@ -1919,6 +1985,10 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
               statuses={referenceStatusesQuery.data?.options ?? null}
               groups={routingGroupsEnabled ? (routingGroupsQuery.data?.options ?? null) : null}
               routingEnabled={routingGroupsEnabled}
+              classificationEnabled={classificationEnabled}
+              priorities={referencePrioritiesQuery.data?.options ?? []}
+              types={referenceTypesQuery.data?.options ?? []}
+              agentId={definition.id}
             />
           )}
           </Box>
