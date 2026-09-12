@@ -37,6 +37,7 @@ Après avoir enregistré ici une connexion fonctionnelle, un administrateur conf
 - Une instance GLPI joignable depuis KANAP en HTTPS.
 - Un **Jeton utilisateur** pour un compte utilisateur GLPI disposant d'un accès en lecture aux tickets que vous souhaitez exposer.
 - Un **Jeton d'application** facultatif si votre instance GLPI exige une authentification au niveau applicatif.
+- **Droits du profil pour les fonctions d'agent** — le profil GLPI de ce compte a besoin d'un accès en lecture aux catégories ITIL et aux entités, que les agents utilisent pour leurs filtres de ciblage et pour la classification, ainsi que d'un accès en lecture aux groupes et aux utilisateurs pour qu'un agent puisse acheminer un ticket vers un groupe de techniciens ou vers un technicien nommé. L'acheminement exige également le droit d'attribuer les tickets. Enfin, accordez les droits de mise à jour sur les tickets pour les actions que vous laissez l'agent effectuer : suivis, classification, statut et attribution.
 
 L'intégration se configure tenant par tenant ; les identifiants ci-dessous sont limités à votre tenant et n'en sortent jamais.
 

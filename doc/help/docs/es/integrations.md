@@ -37,6 +37,7 @@ Después de guardar aquí una conexión que funcione, un administrador configura
 - Una instancia de GLPI accesible desde KANAP por HTTPS.
 - Un **Token de usuario** para una cuenta de usuario de GLPI que tenga acceso de lectura a los tickets que desea exponer.
 - Un **Token de aplicación** opcional si su instancia de GLPI requiere autenticación a nivel de aplicación.
+- **Derechos del perfil para las funciones de agente** — el perfil de GLPI de esa cuenta necesita acceso de lectura a las categorías ITIL y a las entidades, que los agentes usan para sus filtros de segmentación y para la clasificación, además de acceso de lectura a los grupos y a los usuarios para que un agente pueda encaminar un ticket a un grupo de técnicos o a un técnico concreto. El encaminamiento también exige el derecho de asignar tickets. Por último, conceda derechos de actualización sobre los tickets para las acciones que permita realizar al agente: seguimientos, clasificación, estado y asignación.
 
 La integración se configura espacio de trabajo por espacio de trabajo; las credenciales a continuación están limitadas a su espacio de trabajo y nunca salen de él.
 
