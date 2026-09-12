@@ -459,16 +459,76 @@ async function testGetTicketFollowupsDecodeGlpi10SanitizedContentAndImages() {
 async function testGetTicketUsersNormalizesRoles() {
   const service = createService('https://glpi.internal/helpdesk');
   const originalFetch = global.fetch;
-  let requestedUrl = '';
+  const requestedUrls: string[] = [];
+
+  try {
+    // Real GLPI: expand_dropdowns=false gives the numeric users_id, expand_dropdowns=true
+    // replaces it by the login string. Only the first read carries the user ids.
+    global.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      const expanded = url.includes('expand_dropdowns=true');
+      const body = expanded
+        ? [
+            { id: 1, users_id: 'bob.requester', type: 1 },
+            { id: 2, users_id: 'alice.technician', type: 2 },
+            { id: 3, users_id: 'duty.manager', type: 3 },
+            { id: 4, users_id: 'duty.manager', type: 3 },
+          ]
+        : [
+            { id: 1, users_id: 202, type: 1 },
+            { id: 2, users_id: 303, type: 2 },
+            { id: 3, users_id: 404, type: 3 },
+            { id: 4, users_id: 404, type: 3 },
+          ];
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    const users = await service.getTicketUsers(
+      {
+        baseUrl: 'https://glpi.internal/helpdesk/',
+        sessionToken: 'session-token',
+        appToken: 'app-token',
+      },
+      4523,
+    );
+
+    assert.ok(requestedUrls.every((url) => /Ticket\/4523\/Ticket_User/.test(url)));
+    assert.ok(requestedUrls.some((url) => url.includes('expand_dropdowns=false')));
+    assert.ok(requestedUrls.some((url) => url.includes('expand_dropdowns=true')));
+    assert.equal(users.length, 3);
+    assert.deepEqual(users.map((item) => item.role), ['requester', 'assigned', 'observer']);
+    assert.deepEqual(users.map((item) => item.user_id), [202, 303, 404]);
+    assert.deepEqual(
+      users.map((item) => item.user_label),
+      ['bob.requester', 'alice.technician', 'duty.manager'],
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+// The expanded read is decoration only: if the GLPI profile cannot serve it, the
+// associations must still come back with their ids so drift and idempotency work.
+async function testGetTicketUsersKeepsIdsWhenExpandedReadFails() {
+  const service = createService('https://glpi.internal/helpdesk');
+  const originalFetch = global.fetch;
 
   try {
     global.fetch = (async (input: RequestInfo | URL) => {
-      requestedUrl = String(input);
+      const url = String(input);
+      if (url.includes('expand_dropdowns=true')) {
+        return new Response(JSON.stringify({ ERROR: 'forbidden' }), {
+          status: 403,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
       return new Response(JSON.stringify([
-        { id: 1, users_id: { id: 202, name: 'Bob Requester' }, type: 1 },
-        { id: 2, users_id: { id: 303, name: 'Alice Technician' }, type: 2 },
-        { id: 3, users_id: { id: 404, name: 'Duty Manager' }, type: 3 },
-        { id: 4, users_id: { id: 404, name: 'Duty Manager' }, type: 3 },
+        { id: 1, users_id: 202, type: 1 },
+        { id: 2, users_id: 303, type: 2 },
       ]), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -484,11 +544,10 @@ async function testGetTicketUsersNormalizesRoles() {
       4523,
     );
 
-    assert.match(requestedUrl, /Ticket\/4523\/Ticket_User/);
-    assert.equal(users.length, 3);
-    assert.deepEqual(users.map((item) => item.role), ['requester', 'assigned', 'observer']);
-    assert.equal(users[0].user_id, 202);
-    assert.equal(users[0].user_label, 'Bob Requester');
+    assert.equal(users.length, 2);
+    assert.deepEqual(users.map((item) => item.user_id), [202, 303]);
+    assert.deepEqual(users.map((item) => item.user_label), [null, null]);
+    assert.deepEqual(users.map((item) => item.role), ['requester', 'assigned']);
   } finally {
     global.fetch = originalFetch;
   }
@@ -1457,6 +1516,7 @@ async function run() {
   await testGetTicketFollowupsPaginatesAndNormalizesNewestFirst();
   await testGetTicketFollowupsDecodeGlpi10SanitizedContentAndImages();
   await testGetTicketUsersNormalizesRoles();
+  await testGetTicketUsersKeepsIdsWhenExpandedReadFails();
   await testGetTicketFollowupsStopsOnDuplicatePageWhenRangeIsIgnored();
   await testAddTicketFollowupUsesFixedPrivatePostEndpoint();
   await testAddTicketFollowupRejectsPublicWrites();
