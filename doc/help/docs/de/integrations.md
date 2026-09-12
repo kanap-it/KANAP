@@ -37,6 +37,7 @@ Nachdem Sie hier eine funktionierende Verbindung gespeichert haben, richtet ein 
 - Eine GLPI-Instanz, die von KANAP über HTTPS erreichbar ist.
 - Ein **Benutzer-Token** für ein GLPI-Benutzerkonto, das Lesezugriff auf die Tickets hat, die Sie offenlegen möchten.
 - Ein optionales **App-Token**, falls Ihre GLPI-Instanz eine Authentifizierung auf Anwendungsebene erfordert.
+- **Profilrechte für die Agentenfunktionen** – das GLPI-Profil dieses Kontos benötigt Lesezugriff auf ITIL-Kategorien und Entitäten, die Agenten für ihre Zielfilter und für die Klassifizierung verwenden, sowie Lesezugriff auf Gruppen und Benutzer, damit ein Agent ein Ticket an eine Technikergruppe oder an einen namentlich genannten Techniker weiterleiten kann. Die Weiterleitung erfordert zusätzlich das Recht, Tickets zuzuweisen. Erteilen Sie schließlich Aktualisierungsrechte auf Tickets für die Aktionen, die Sie den Agenten ausführen lassen: Folgeeinträge, Klassifizierung, Status und Zuweisung.
 
 Die Integration wird mandantenweise konfiguriert; die unten stehenden Anmeldedaten sind auf Ihren Mandanten beschränkt und verlassen ihn niemals.
 

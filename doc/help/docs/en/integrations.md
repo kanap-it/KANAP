@@ -37,6 +37,7 @@ After you save a working connection here, an administrator sets agents up in the
 - A GLPI instance reachable from KANAP over HTTPS.
 - A **User Token** for a GLPI user account that has read access to the tickets you want to expose.
 - An optional **App Token** if your GLPI instance requires application-level authentication.
+- **Profile rights for the agent features** — the GLPI profile of that account needs read access to ITIL categories and entities, which agents use for their targeting filters and for classification, plus read access to groups and users so an agent can route a ticket to a technician group or to a named technician. Routing also requires the right to assign tickets. Finally, grant update rights on tickets for the actions you let the agent perform: followups, classification, status, and assignment.
 
 The integration is configured tenant-by-tenant; the credentials below are scoped to your tenant and never leave it.
 
