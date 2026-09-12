@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { AiSettingsService } from '../../ai-settings.service';
 import { GlpiService } from '../../glpi/glpi.service';
-import { GlpiAssignableGroup, GlpiCategory, GlpiConnectionOverrides, GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
+import { GlpiAssignableGroup, GlpiCategory, GlpiConnectionOverrides, GlpiTechnician, GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
 import { classificationContextWithoutCatalogue } from './ticket-classification';
 import { decodeNumericHtmlEntities } from '../../../common/html-entities';
 import { GLPI_TICKETING_IMPLEMENTATION, LEGACY_GLPI_TICKETING_PROVIDER_KEY } from './provider-constants';
@@ -84,9 +84,9 @@ const GLPI_ACTION_PLANNER_PROFILE: ProviderActionPlannerProfile = {
     'If an exact public message is configured, use verbatim_ref from verbatim_candidates; do not copy ticket text as verbatim.',
     'For status_update, transition_key must exactly match one key in allowed_status_transitions.',
     'Only propose terminal status transitions when close_eligibility.matched is true, has_inactivity_age is true, terminal is false, and terminal_status_transition_keys is non-empty.',
-    'For assignment_update, target must be one entry of routing_targets copied exactly (kind, key, label); propose at most one assignment_update per plan.',
-    'Only propose assignment_update when the agent configuration says which group handles this kind of ticket; never invent a routing rule.',
-    'Do not propose assignment_update for a group already listed in current_assignment.groups. Assignment is additive: it never removes existing technicians or groups.',
+    'For assignment_update, target must be one entry of routing_targets copied exactly (kind, key, label); propose at most one group and one user per plan.',
+    'Prefer a group unless the instructions name a person. Only propose assignment_update when the agent configuration says who handles this kind of ticket; never invent a routing rule.',
+    'Do not propose assignment_update for a group already listed in current_assignment.groups, nor for a user already listed in current_assignment.users. Assignment is additive: it never removes existing technicians or groups.',
     'For classification_update, copy proposed type/priority/urgency keys from classification_options; category must be a category key or exact label. Propose at most one classification_update per plan, with several fields allowed. Only propose when the instructions give a rule; do not repeat current_classification values. Urgency uses the priority scale.',
     'Do not propose assignment or participant updates unless they are in owned_action_types.',
   ],
@@ -616,6 +616,10 @@ function groupRoutingTarget(group: GlpiAssignableGroup): TicketRoutingTarget {
   return { kind: 'group', key: String(group.id), label: group.completename || group.name || `GLPI group ${group.id}` };
 }
 
+function userRoutingTarget(technician: GlpiTechnician): TicketRoutingTarget {
+  return { kind: 'user', key: String(technician.id), label: technician.label };
+}
+
 @Injectable()
 export class GlpiTicketingProvider implements TicketingProvider {
   readonly kind = 'ticketing' as const;
@@ -1068,7 +1072,10 @@ export class GlpiTicketingProvider implements TicketingProvider {
         limit,
       });
       const data = { items: items.map((item) => referenceCatalogItem(input.kind, item)) };
-      const label = input.kind === 'category' ? 'categories' : input.kind === 'group' ? 'assignable groups' : 'entities';
+      const label = input.kind === 'category' ? 'categories'
+        : input.kind === 'group' ? 'assignable groups'
+        : input.kind === 'technician' ? 'technicians'
+        : 'entities';
       return ok(data, [
         evidenceSeed(`${input.kind}_list`, input.query?.trim() || input.kind, `Listed ${data.items.length} GLPI ${label}.`, {
           kind: input.kind,
@@ -1224,11 +1231,31 @@ export class GlpiTicketingProvider implements TicketingProvider {
             ? groupRoutingTarget(known)
             : { kind: 'group' as const, key: String(group.group_id), label: group.group_label ?? `GLPI group ${group.group_id}` };
         });
-      const supportedAssignmentTargets = catalogue.map(groupRoutingTarget);
       const warnings: string[] = [];
-      if (supportedAssignmentTargets.length === 0) {
+      if (catalogue.length === 0) {
         warnings.push('glpi_no_assignable_groups');
       }
+      // Partial result on purpose: a GLPI API profile without READ on User / Group_User
+      // must still get group routing. The failure is surfaced as a warning, never fatal.
+      // No assignable group means no technician catalogue either, by definition.
+      let technicians: GlpiTechnician[] = [];
+      let techniciansTruncated = false;
+      if (catalogue.length > 0) {
+        try {
+          const technicianCatalogue = await this.glpi.listTechnicians(session);
+          technicians = technicianCatalogue.technicians;
+          techniciansTruncated = technicianCatalogue.truncated;
+        } catch {
+          warnings.push('glpi_technician_catalogue_unavailable');
+        }
+      }
+      if (techniciansTruncated) {
+        warnings.push('routing_catalog_truncated');
+      }
+      const supportedAssignmentTargets = [
+        ...catalogue.map(groupRoutingTarget),
+        ...technicians.map(userRoutingTarget),
+      ];
       const data: TicketRoutingContext = {
         ticketId: String(ticketId),
         requester: requesters[0] ?? null,
@@ -1237,6 +1264,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
         assignedUsers,
         assignedGroups,
         supportedAssignmentTargets,
+        agentUserKey: session.agentUserId ? String(session.agentUserId) : null,
         assignmentSupported: supportedAssignmentTargets.length > 0,
         supported: true,
         ...(warnings.length > 0 ? { warnings } : {}),
@@ -1481,9 +1509,10 @@ export class GlpiTicketingProvider implements TicketingProvider {
     });
   }
 
-  // Group routing only: the target must be one of the assignable groups GLPI exposes, and
-  // the label is taken from that catalogue, never from the caller. Additive (Group_Ticket
-  // type 2), never removes an existing technician or group.
+  // Catalogue-bound routing: the target must be one of the assignable groups or one of the
+  // named technicians GLPI exposes, and the label is taken from that catalogue, never from
+  // the caller. Additive (Group_Ticket / Ticket_User type 2), never removes an existing
+  // technician or group.
   async prepareTicketAssignmentUpdate(
     context: ProviderContext,
     input: { ticketId: string; target: TicketRoutingTarget; reason: string },
@@ -1496,18 +1525,22 @@ export class GlpiTicketingProvider implements TicketingProvider {
     if (!reason) {
       return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', 'GLPI assignment updates require a reason.', false);
     }
-    if (input.target?.kind !== 'group') {
-      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', 'GLPI assignment updates support technician groups only.', false);
+    const targetKind = input.target?.kind;
+    if (targetKind !== 'group' && targetKind !== 'user') {
+      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', 'GLPI assignment updates support technician groups and named technicians only.', false);
     }
     const routing = await this.getTicketRoutingContext(context, { ticketId: String(ticketId) });
     if (routing.ok === false) {
       return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>(routing.errorCode, routing.message, routing.retryable);
     }
-    const target = routing.data.supportedAssignmentTargets.find((candidate) => candidate.kind === 'group' && candidate.key === String(input.target.key).trim());
+    const target = routing.data.supportedAssignmentTargets.find((candidate) => candidate.kind === targetKind && candidate.key === String(input.target.key).trim());
     if (!routing.data.assignmentSupported || !target) {
-      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', 'GLPI assignment target is not an assignable group.', false);
+      return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', 'GLPI assignment target is not in the routing catalogue.', false);
     }
-    if ((routing.data.assignedGroups ?? []).some((group) => group.key === target.key)) {
+    const alreadyAssigned = targetKind === 'group'
+      ? (routing.data.assignedGroups ?? [])
+      : (routing.data.assignedUsers ?? []);
+    if (alreadyAssigned.some((entry) => entry.key === target.key)) {
       return providerError<TicketProviderActionPrepared<TicketAssignmentUpdateActionPayload>>('unsafe_operation', `GLPI ticket ${ticketId} is already assigned to ${target.label}.`, false);
     }
     const actionPayload: TicketAssignmentUpdateActionPayload = {
@@ -1515,7 +1548,9 @@ export class GlpiTicketingProvider implements TicketingProvider {
       action: 'assignment_update',
       current: routing.data,
       target,
-      providerFields: { groups_id: Number(target.key), type: 2, operation: 'add' },
+      providerFields: targetKind === 'group'
+        ? { groups_id: Number(target.key), type: 2, operation: 'add' }
+        : { users_id: Number(target.key), type: 2, operation: 'add' },
       reason,
     };
     const data = {
@@ -1527,6 +1562,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
         ticketId,
         target,
         currentGroups: routing.data.assignedGroups ?? [],
+        currentUsers: routing.data.assignedUsers ?? [],
       }),
     ]);
   }
@@ -1536,21 +1572,26 @@ export class GlpiTicketingProvider implements TicketingProvider {
     input: { actionPayload: TicketAssignmentUpdateActionPayload; idempotencyKey: string },
   ): Promise<AdapterResult<TicketProviderActionWriteResult>> {
     const ticketId = normalizeTicketId(input.actionPayload.ticketId);
-    const groupsId = Number.parseInt(String(input.actionPayload.target?.key ?? ''), 10);
+    const targetKind = input.actionPayload.target?.kind;
+    const targetId = Number.parseInt(String(input.actionPayload.target?.key ?? ''), 10);
     if (!ticketId) {
       return providerError<TicketProviderActionWriteResult>('malformed_config', 'GLPI ticket id must be a positive integer.', false);
     }
     if (
       input.actionPayload.action !== 'assignment_update'
-      || input.actionPayload.target?.kind !== 'group'
-      || !Number.isInteger(groupsId)
-      || groupsId <= 0
+      || (targetKind !== 'group' && targetKind !== 'user')
+      || !Number.isInteger(targetId)
+      || targetId <= 0
     ) {
       return providerError<TicketProviderActionWriteResult>('unsafe_operation', 'GLPI provider refused an invalid assignment update.', false);
     }
     return this.withSession(context, async (session) => {
-      const result = await this.glpi.addTicketGroup(session, ticketId, groupsId);
-      const label = groupRoutingTarget(result.group).label;
+      const result = targetKind === 'group'
+        ? await this.glpi.addTicketGroup(session, ticketId, targetId)
+        : await this.glpi.addTicketTechnician(session, ticketId, targetId);
+      const label = 'group' in result
+        ? groupRoutingTarget(result.group).label
+        : userRoutingTarget(result.technician).label;
       const data: TicketProviderActionWriteResult = {
         ticketId: String(ticketId),
         summary: result.alreadyPresent
@@ -1563,7 +1604,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
       return ok(data, [
         evidenceSeed('ticket_assignment_updated', String(ticketId), data.summary, {
           ticketId,
-          groupsId,
+          ...(targetKind === 'group' ? { groupsId: targetId } : { usersId: targetId }),
           label,
           added: result.added,
           alreadyPresent: result.alreadyPresent,

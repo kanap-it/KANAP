@@ -1188,6 +1188,262 @@ async function testCategoriesCatalogueAndWrite() {
   } finally { global.fetch = originalFetch; }
 }
 
+// Technician catalogue: the active members of the assignable groups, nothing else. It is
+// the only user list the desk agent ever sees, so the filters are the safety boundary.
+async function testTechnicianCatalogueFiltersSortsAndCaches() {
+  const service = createService();
+  const originalFetch = global.fetch;
+  const requestedUrls: string[] = [];
+  const session = {
+    baseUrl: 'https://glpi.internal/',
+    sessionToken: 'session-token',
+    appToken: 'app-token',
+    agentUserId: 42,
+  };
+  const jsonResponse = (payload: unknown[]) => new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'content-range': `0-${payload.length - 1}/${payload.length}` },
+  });
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (/apirest\.php\/Group\?/.test(url)) {
+        return jsonResponse([
+          { id: 7, name: 'Tech-desk', completename: 'Tech-desk', is_assign: 1 },
+          { id: 12, name: 'SAP-team', completename: 'SAP-team', is_assign: 1 },
+          { id: 9, name: 'Requesters only', completename: 'Requesters only', is_assign: 0 },
+        ]);
+      }
+      if (/apirest\.php\/Group_User\?/.test(url)) {
+        return jsonResponse([
+          { id: 1, groups_id: 7, users_id: 21 },
+          { id: 2, groups_id: 12, users_id: 22 },
+          { id: 3, groups_id: 7, users_id: 23 },
+          { id: 4, groups_id: 12, users_id: 24 },
+          // Member of a non-assignable group only: not a routing target.
+          { id: 5, groups_id: 9, users_id: 25 },
+          // The agent's own account, a member of an assignable group: not a routing target
+          // either. It registers itself through the ticket_actor_role feature.
+          { id: 6, groups_id: 7, users_id: 42 },
+        ]);
+      }
+      if (/apirest\.php\/User\?/.test(url)) {
+        return jsonResponse([
+          { id: 21, name: 'mdupont', realname: 'Dupont', firstname: 'Marie', is_active: 1, is_deleted: 0 },
+          // No realname/firstname: the login name is the fallback label.
+          { id: 22, name: 'pmartin', realname: '', firstname: '', is_active: 1, is_deleted: 0 },
+          { id: 23, name: 'oldtech', realname: 'Ancien', firstname: 'Tech', is_active: 0, is_deleted: 0 },
+          { id: 24, name: 'gonetech', realname: 'Parti', firstname: 'Tech', is_active: 1, is_deleted: 1 },
+          { id: 25, name: 'requester', realname: 'Client', firstname: 'Demandeur', is_active: 1, is_deleted: 0 },
+          { id: 26, name: 'stranger', realname: 'Hors', firstname: 'Groupe', is_active: 1, is_deleted: 0 },
+          { id: 42, name: 'kanap-agent', realname: 'Agent', firstname: 'KANAP', is_active: 1, is_deleted: 0 },
+        ]);
+      }
+      throw new Error(`Unexpected GLPI call ${url}`);
+    }) as typeof fetch;
+
+    const first = await service.listTechnicians(session);
+    assert.deepEqual(first.technicians.map((technician) => [technician.id, technician.label]), [
+      [21, 'Dupont Marie'],
+      [22, 'pmartin'],
+    ]);
+    assert.equal(first.truncated, false);
+    assert.equal(first.technicians.some((technician) => technician.id === 42), false);
+    assert.equal(requestedUrls.length, 3);
+
+    // One request per itemtype, whatever the number of reads: the catalogue is cached and
+    // the reference search is served from it, like the group catalogue.
+    const again = await service.listTechnicians(session);
+    assert.equal(again.technicians.length, 2);
+    const searched = await service.searchReferenceCatalog(session, { kind: 'technician', query: 'dupont', limit: 10 });
+    assert.deepEqual(searched.map((item) => [item.id, item.completename]), [[21, 'Dupont Marie']]);
+    assert.equal(requestedUrls.length, 3);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+// A huge technician list must not blow up the planner prompt: cap it and say so, the same
+// way the group catalogue does.
+async function testTechnicianCatalogueCapsAndFlagsTruncation() {
+  const service = createService();
+  const originalFetch = global.fetch;
+  const session = {
+    baseUrl: 'https://glpi.internal/',
+    sessionToken: 'session-token',
+    appToken: 'app-token',
+  };
+  const memberships = Array.from({ length: 250 }, (_value, index) => ({
+    id: index + 1,
+    groups_id: 7,
+    users_id: 1000 + index,
+  }));
+  const users = Array.from({ length: 250 }, (_value, index) => ({
+    id: 1000 + index,
+    name: `tech${String(index).padStart(3, '0')}`,
+    realname: 'Tech',
+    firstname: String(index).padStart(3, '0'),
+    is_active: 1,
+    is_deleted: 0,
+  }));
+  const jsonResponse = (payload: unknown[]) => new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'content-range': `0-${payload.length - 1}/${payload.length}` },
+  });
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (/apirest\.php\/Group\?/.test(url)) {
+        return jsonResponse([{ id: 7, name: 'Tech-desk', completename: 'Tech-desk', is_assign: 1 }]);
+      }
+      if (/apirest\.php\/Group_User\?/.test(url)) return jsonResponse(memberships);
+      if (/apirest\.php\/User\?/.test(url)) return jsonResponse(users);
+      throw new Error(`Unexpected GLPI call ${url}`);
+    }) as typeof fetch;
+
+    const catalogue = await service.listTechnicians(session);
+    assert.equal(catalogue.technicians.length, 200);
+    assert.equal(catalogue.truncated, true);
+    assert.equal(catalogue.technicians[0].label, 'Tech 000');
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+// A restricted GLPI API profile often refuses the bare Group_User collection. Membership
+// then comes from the per-group sub-item endpoint, and the catalogue is identical.
+async function testTechnicianCatalogueFallsBackToPerGroupMembership() {
+  const service = createService();
+  const originalFetch = global.fetch;
+  const requestedUrls: string[] = [];
+  const session = {
+    baseUrl: 'https://glpi.internal/',
+    sessionToken: 'session-token',
+    appToken: 'app-token',
+  };
+  const jsonResponse = (payload: unknown[]) => new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'content-range': `0-${payload.length - 1}/${payload.length}` },
+  });
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (/apirest\.php\/Group\?/.test(url)) {
+        return jsonResponse([
+          { id: 7, name: 'Tech-desk', completename: 'Tech-desk', is_assign: 1 },
+          { id: 12, name: 'SAP-team', completename: 'SAP-team', is_assign: 1 },
+        ]);
+      }
+      if (/apirest\.php\/Group_User\?/.test(url)) {
+        return new Response(JSON.stringify(['ERROR_RIGHT_MISSING', 'You do not have permission.']), {
+          status: 403,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (/apirest\.php\/Group\/7\/Group_User/.test(url)) {
+        return jsonResponse([{ id: 1, groups_id: 7, users_id: 21 }]);
+      }
+      if (/apirest\.php\/Group\/12\/Group_User/.test(url)) {
+        return jsonResponse([{ id: 2, groups_id: 12, users_id: 22 }]);
+      }
+      if (/apirest\.php\/User\?/.test(url)) {
+        return jsonResponse([
+          { id: 21, name: 'mdupont', realname: 'Dupont', firstname: 'Marie', is_active: 1, is_deleted: 0 },
+          { id: 22, name: 'pmartin', realname: 'Martin', firstname: 'Paul', is_active: 1, is_deleted: 0 },
+        ]);
+      }
+      throw new Error(`Unexpected GLPI call ${url}`);
+    }) as typeof fetch;
+
+    const catalogue = await service.listTechnicians(session);
+    assert.deepEqual(catalogue.technicians.map((technician) => technician.label), ['Dupont Marie', 'Martin Paul']);
+    assert.equal(requestedUrls.some((url) => /apirest\.php\/Group\/7\/Group_User/.test(url)), true);
+    assert.equal(requestedUrls.some((url) => /apirest\.php\/Group\/12\/Group_User/.test(url)), true);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+// The named-technician write: additive Ticket_User type 2, idempotent, and never outside
+// the catalogue. addTicketUser keeps its own-user-only guard for the ticket-actor feature.
+async function testAddTicketTechnicianIsAdditiveIdempotentAndRestricted() {
+  const service = createService();
+  const originalFetch = global.fetch;
+  const requests: Array<{ url: string; method: string; body: string | null }> = [];
+  const session = {
+    baseUrl: 'https://glpi.internal/',
+    sessionToken: 'session-token',
+    appToken: 'app-token',
+  };
+  const jsonResponse = (payload: unknown) => new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json',
+      'content-range': Array.isArray(payload) ? `0-${Math.max(payload.length - 1, 0)}/${payload.length}` : '0-0/1',
+    },
+  });
+
+  try {
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      requests.push({ url, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : null });
+      if (/apirest\.php\/Group\?/.test(url)) {
+        return jsonResponse([{ id: 7, name: 'Tech-desk', completename: 'Tech-desk', is_assign: 1 }]);
+      }
+      if (/apirest\.php\/Group_User\?/.test(url)) {
+        return jsonResponse([
+          { id: 1, groups_id: 7, users_id: 21 },
+          { id: 2, groups_id: 7, users_id: 22 },
+        ]);
+      }
+      if (/apirest\.php\/User\?/.test(url)) {
+        return jsonResponse([
+          { id: 21, name: 'mdupont', realname: 'Dupont', firstname: 'Marie', is_active: 1, is_deleted: 0 },
+          { id: 22, name: 'pmartin', realname: 'Martin', firstname: 'Paul', is_active: 1, is_deleted: 0 },
+        ]);
+      }
+      if (/Ticket\/4523\/Ticket_User/.test(url)) {
+        return jsonResponse([{ id: 1, tickets_id: 4523, users_id: 21, type: 2 }]);
+      }
+      if (/apirest\.php\/Ticket_User$/.test(url)) {
+        return jsonResponse({ id: 9 });
+      }
+      throw new Error(`Unexpected GLPI call ${url}`);
+    }) as typeof fetch;
+
+    // Already assigned: no write.
+    const present = await service.addTicketTechnician(session, 4523, 21);
+    assert.deepEqual(
+      { added: present.added, alreadyPresent: present.alreadyPresent, label: present.technician.label },
+      { added: false, alreadyPresent: true, label: 'Dupont Marie' },
+    );
+    assert.equal(requests.some((request) => request.method === 'POST'), false);
+
+    const added = await service.addTicketTechnician(session, 4523, 22);
+    assert.deepEqual({ added: added.added, alreadyPresent: added.alreadyPresent }, { added: true, alreadyPresent: false });
+    assert.equal(added.technician.label, 'Martin Paul');
+    const post = requests.find((request) => request.method === 'POST');
+    assert.ok(post);
+    assert.match(post!.url, /apirest\.php\/Ticket_User$/);
+    assert.deepEqual(JSON.parse(post!.body ?? '{}'), { input: { tickets_id: 4523, users_id: 22, type: 2 } });
+
+    // Outside the catalogue (not a member of an assignable group): refused before any write.
+    await assert.rejects(
+      () => service.addTicketTechnician(session, 4523, 99),
+      (error: unknown) => error instanceof BadRequestException
+        && /technicians of an assignable group/.test(String((error as Error).message)),
+    );
+    assert.equal(requests.filter((request) => request.method === 'POST').length, 1);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 async function run() {
   await testInitSessionSendsJsonHeaders();
   await testInitSessionExplainsHtmlResponse();
@@ -1217,6 +1473,10 @@ async function run() {
   await testCategoriesCatalogueAndWrite();
   await testAssignableGroupsCatalogueFiltersSortsAndCaches();
   await testAddTicketGroupIsAdditiveIdempotentAndRestrictedToAssignableGroups();
+  await testTechnicianCatalogueFiltersSortsAndCaches();
+  await testTechnicianCatalogueCapsAndFlagsTruncation();
+  await testTechnicianCatalogueFallsBackToPerGroupMembership();
+  await testAddTicketTechnicianIsAdditiveIdempotentAndRestricted();
 }
 
 void run();
