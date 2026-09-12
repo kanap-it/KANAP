@@ -23,6 +23,7 @@ import {
   GlpiTicketGroupAssociation,
   GlpiAssignableGroup,
   GlpiCategory,
+  GlpiTechnician,
 } from './glpi.types';
 
 const GLPI_TIMEOUT_MS = 10_000;
@@ -37,10 +38,13 @@ const GLPI_TREE_MAX_ROWS = 20_000;
 // planner prompt stays small, refreshed lazily.
 const GLPI_ASSIGNABLE_GROUPS_MAX = 200;
 const GLPI_ASSIGNABLE_GROUPS_CACHE_TTL_MS = 5 * 60 * 1000;
+// Technician catalogue handed to the desk agent as named routing targets: the active
+// members of the assignable groups, bounded the same way as the group catalogue.
+const GLPI_TECHNICIANS_MAX = 200;
 const GLPI_MAX_INTERNAL_NOTE_CHARS = 4000;
 const GLPI_MAX_PUBLIC_REPLY_CHARS = 12000;
 
-type GlpiReferenceCatalogKind = 'category' | 'entity' | 'group';
+type GlpiReferenceCatalogKind = 'category' | 'entity' | 'group' | 'technician';
 
 type ResolvedGlpiSettings = {
   baseUrl: string;
@@ -302,6 +306,7 @@ export class GlpiService {
   private readonly treeParentCache = new Map<string, { expiresAt: number; parents: Map<number, number | null> }>();
   private readonly assignableGroupsCache = new Map<string, { expiresAt: number; groups: GlpiAssignableGroup[] }>();
   private readonly categoriesCache = new Map<string, { expiresAt: number; categories: GlpiCategory[] }>();
+  private readonly techniciansCache = new Map<string, { expiresAt: number; technicians: GlpiTechnician[]; truncated: boolean }>();
 
   constructor(
     private readonly settingsService: AiSettingsService,
@@ -473,6 +478,144 @@ export class GlpiService {
     categories.sort((left, right) => (left.completename ?? '').localeCompare(right.completename ?? '', undefined, { sensitivity: 'base' }) || left.id - right.id);
     this.categoriesCache.set(cacheKey, { expiresAt: Date.now() + GLPI_ASSIGNABLE_GROUPS_CACHE_TTL_MS, categories });
     return categories;
+  }
+
+  // Adds a named technician as ASSIGNED on a ticket (Ticket_User type 2). Additive:
+  // existing technicians and groups are never removed. Restricted to the technician
+  // catalogue (active members of an assignable group), idempotent on the
+  // (ticket, user, assigned) triple. Distinct from addTicketUser, which stays restricted
+  // to the agent's own account for the ticket-actor feature.
+  async addTicketTechnician(
+    session: GlpiSession,
+    ticketId: number,
+    usersId: number,
+  ): Promise<{ added: boolean; alreadyPresent: boolean; technician: GlpiTechnician }> {
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      throw new BadRequestException('GLPI ticket id must be a positive integer.');
+    }
+    if (!Number.isInteger(usersId) || usersId <= 0) {
+      throw new BadRequestException('GLPI ticket technician id must be a positive integer.');
+    }
+    const catalogue = await this.listTechnicians(session);
+    const technician = catalogue.technicians.find((candidate) => candidate.id === usersId);
+    if (!technician) {
+      throw new BadRequestException('GLPI ticket technician writes are restricted to technicians of an assignable group.');
+    }
+    const existing = await this.getTicketUsers(session, ticketId);
+    if (existing.some((association) => association.user_id === usersId && association.role === 'assigned')) {
+      return { added: false, alreadyPresent: true, technician };
+    }
+    await this.requestJson(
+      this.buildUrl(session.baseUrl, 'apirest.php/Ticket_User'),
+      {
+        method: 'POST',
+        headers: this.buildSessionHeaders(session),
+        body: JSON.stringify({ input: { tickets_id: ticketId, users_id: usersId, type: 2 } }),
+      },
+    );
+    return { added: true, alreadyPresent: false, technician };
+  }
+
+  // Users a ticket can be assigned to by name: the active, non-deleted members of the
+  // assignable groups, excluding the agent's own account. Bounding the catalogue to real
+  // technicians this way avoids depending on GLPI profile rights, and keeps the planner
+  // prompt small. Cached per GLPI instance + acting account, like the group catalogue.
+  async listTechnicians(session: GlpiSession): Promise<{ technicians: GlpiTechnician[]; truncated: boolean }> {
+    const cacheKey = `${session.baseUrl}|${session.agentUserId ?? 'anon'}`;
+    const now = Date.now();
+    const cached = this.techniciansCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return { technicians: cached.technicians, truncated: cached.truncated };
+    }
+    const groupIds = new Set((await this.listAssignableGroups(session)).map((group) => group.id));
+    if (groupIds.size === 0) {
+      this.techniciansCache.set(cacheKey, { expiresAt: now + GLPI_ASSIGNABLE_GROUPS_CACHE_TTL_MS, technicians: [], truncated: false });
+      return { technicians: [], truncated: false };
+    }
+    const memberIds = await this.listGroupMemberUserIds(session, groupIds);
+    const technicians: GlpiTechnician[] = [];
+    if (memberIds.size > 0) {
+      for (const record of await this.listItemTypeRows(session, 'User', GLPI_TREE_MAX_ROWS)) {
+        const id = parsePositiveInteger(record.id);
+        if (!id || !memberIds.has(id)) {
+          continue;
+        }
+        // The agent's own account is never a routing target: it registers itself as a
+        // ticket actor through the ticket_actor_role feature, which is a different thing.
+        if (session.agentUserId != null && id === session.agentUserId) {
+          continue;
+        }
+        // Absent flags mean "active" / "not deleted": only an explicit value excludes.
+        if (record.is_active != null && !parseBooleanGlpiValue(record.is_active)) {
+          continue;
+        }
+        if (record.is_deleted != null && parseBooleanGlpiValue(record.is_deleted)) {
+          continue;
+        }
+        const name = decodeGlpiPlainTextField(stringifyGlpiValue(record.name));
+        const realname = decodeGlpiPlainTextField(stringifyGlpiValue(record.realname));
+        const firstname = decodeGlpiPlainTextField(stringifyGlpiValue(record.firstname));
+        const label = [realname, firstname].filter((part) => !!part && part.trim()).join(' ').trim() || (name ?? '').trim();
+        if (!label) {
+          continue;
+        }
+        technicians.push({ id, name, label });
+      }
+    }
+    technicians.sort((left, right) => left.label.localeCompare(right.label, undefined, { sensitivity: 'base' }) || left.id - right.id);
+    let truncated = false;
+    if (technicians.length > GLPI_TECHNICIANS_MAX) {
+      this.logger.warn(`GLPI exposes ${technicians.length} technicians in assignable groups; the agent routing catalogue keeps the first ${GLPI_TECHNICIANS_MAX}.`);
+      technicians.length = GLPI_TECHNICIANS_MAX;
+      truncated = true;
+    }
+    this.techniciansCache.set(cacheKey, { expiresAt: now + GLPI_ASSIGNABLE_GROUPS_CACHE_TTL_MS, technicians, truncated });
+    return { technicians, truncated };
+  }
+
+  // Members of the given groups. The bare Group_User collection is the cheap path but a
+  // restricted GLPI API profile often refuses it; the per-group sub-item endpoint (same
+  // shape as Ticket/<id>/Group_Ticket) is the fallback. A failure of the fallback
+  // propagates: the provider degrades to groups-only routing with an explicit warning.
+  private async listGroupMemberUserIds(
+    session: GlpiSession,
+    groupIds: Set<number>,
+  ): Promise<Set<number>> {
+    const memberIds = new Set<number>();
+    try {
+      for (const record of await this.listItemTypeRows(session, 'Group_User', GLPI_TREE_MAX_ROWS)) {
+        const groupId = parsePositiveInteger(record.groups_id);
+        const userId = parsePositiveInteger(record.users_id);
+        if (groupId && userId && groupIds.has(groupId)) {
+          memberIds.add(userId);
+        }
+      }
+      return memberIds;
+    } catch (error: any) {
+      this.logger.warn(`GLPI refused the Group_User listing (${String(error?.message ?? error)}); falling back to per-group membership reads.`);
+    }
+    for (const groupId of groupIds) {
+      const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/Group/${groupId}/Group_User`));
+      pageUrl.searchParams.set('expand_dropdowns', 'false');
+      pageUrl.searchParams.set('get_hateoas', 'false');
+      const payload = await this.requestJson(
+        pageUrl.toString(),
+        { headers: this.buildSessionHeaders(session) },
+      );
+      if (!Array.isArray(payload)) {
+        throw new BadRequestException(`GLPI group ${groupId} membership response was malformed.`);
+      }
+      for (const row of payload) {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) {
+          continue;
+        }
+        const userId = parsePositiveInteger((row as Record<string, unknown>).users_id);
+        if (userId) {
+          memberIds.add(userId);
+        }
+      }
+    }
+    return memberIds;
   }
 
   async getTicketGroups(
@@ -724,6 +867,17 @@ export class GlpiService {
         .slice(0, limit)
         .map((group) => ({ id: group.id, name: group.name, completename: group.completename }));
     }
+    if (input.kind === 'technician') {
+      // Named technicians: served from the same bounded cached catalogue the agent sees,
+      // so the picker and the planner never disagree. No GLPI user search is issued.
+      const needle = query?.toLowerCase() ?? null;
+      return (await this.listTechnicians(session)).technicians
+        .filter((technician) => !needle
+          || String(technician.id) === needle
+          || technician.label.toLowerCase().includes(needle))
+        .slice(0, limit)
+        .map((technician) => ({ id: technician.id, name: technician.name, completename: technician.label }));
+    }
     const itemType = referenceSearchItemType(input.kind);
     const searchUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/search/${itemType}`));
     searchUrl.searchParams.set('range', `0-${limit - 1}`);
@@ -780,6 +934,10 @@ export class GlpiService {
     const roots = Array.from(new Set(rootIds.filter((id) => Number.isFinite(id) && id > 0)));
     if (roots.length === 0) {
       return [];
+    }
+    // Technicians are a flat catalogue: there is no subtree to expand.
+    if (kind === 'technician') {
+      return roots;
     }
     const parents = await this.treeParentMap(session, kind);
     const childrenByParent = new Map<number, number[]>();
@@ -976,22 +1134,17 @@ export class GlpiService {
     if (!Number.isInteger(ticketId) || ticketId <= 0) {
       throw new BadRequestException('GLPI ticket id must be a positive integer.');
     }
-    const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/Ticket/${ticketId}/Ticket_User`));
-    pageUrl.searchParams.set('expand_dropdowns', 'true');
-    pageUrl.searchParams.set('get_hateoas', 'false');
-
-    const payload = await this.requestJson(
-      pageUrl.toString(),
-      {
-        headers: this.buildSessionHeaders(session),
-      },
-      { notFoundMessage: `GLPI ticket #${ticketId} users were not found.` },
-    );
+    // Raw ids first: with expand_dropdowns=true GLPI replaces users_id by the login
+    // string, so the numeric user id is simply not in that response and every row
+    // would be dropped. The expanded read is a second, best-effort pass used only to
+    // put a human label on each association row (joined on the association id).
+    const payload = await this.requestTicketUserRows(session, ticketId, false);
     if (!Array.isArray(payload)) {
       throw new BadRequestException('GLPI ticket users response was malformed.');
     }
+    const labelsByAssociationId = await this.readTicketUserLabels(session, ticketId);
     const associations = payload
-      .map((item) => this.normalizeTicketUserAssociation(item))
+      .map((item) => this.normalizeTicketUserAssociation(item, labelsByAssociationId))
       .filter((item): item is GlpiTicketUserAssociation => !!item);
     const seen = new Set<string>();
     return associations.filter((association) => {
@@ -1002,6 +1155,57 @@ export class GlpiService {
       seen.add(key);
       return true;
     });
+  }
+
+  private async requestTicketUserRows(
+    session: GlpiSession,
+    ticketId: number,
+    expandDropdowns: boolean,
+  ): Promise<unknown> {
+    const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/Ticket/${ticketId}/Ticket_User`));
+    pageUrl.searchParams.set('expand_dropdowns', expandDropdowns ? 'true' : 'false');
+    pageUrl.searchParams.set('get_hateoas', 'false');
+    return this.requestJson(
+      pageUrl.toString(),
+      { headers: this.buildSessionHeaders(session) },
+      { notFoundMessage: `GLPI ticket #${ticketId} users were not found.` },
+    );
+  }
+
+  // Best effort: a missing or unreadable expanded response just means null labels, and
+  // the callers already fall back to "GLPI user <id>". Never fails the association read.
+  private async readTicketUserLabels(
+    session: GlpiSession,
+    ticketId: number,
+  ): Promise<Map<number, string>> {
+    const labels = new Map<number, string>();
+    let expanded: unknown;
+    try {
+      expanded = await this.requestTicketUserRows(session, ticketId, true);
+    } catch {
+      return labels;
+    }
+    if (!Array.isArray(expanded)) {
+      return labels;
+    }
+    for (const item of expanded) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        continue;
+      }
+      const record = item as Record<string, unknown>;
+      const associationId = parseNumericGlpiValue(record.id);
+      if (!associationId) {
+        continue;
+      }
+      const label = decodeGlpiPlainTextField(stringifyGlpiValue(record.users_id));
+      // A GLPI version that did not expand the dropdown gives back the bare id: that is
+      // not a label, so leave the row unlabelled rather than showing a number twice.
+      if (!label || /^\d+$/.test(label)) {
+        continue;
+      }
+      labels.set(associationId, label);
+    }
+    return labels;
   }
 
   async addTicketFollowup(
@@ -1330,7 +1534,10 @@ export class GlpiService {
     };
   }
 
-  private normalizeTicketUserAssociation(payload: unknown): GlpiTicketUserAssociation | null {
+  private normalizeTicketUserAssociation(
+    payload: unknown,
+    labelsByAssociationId?: Map<number, string>,
+  ): GlpiTicketUserAssociation | null {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return null;
     }
@@ -1340,10 +1547,12 @@ export class GlpiService {
     if (!id || !userId) {
       return null;
     }
+    const inlineLabel = decodeGlpiPlainTextField(stringifyGlpiValue(record.users_id));
     return {
       id,
       user_id: userId,
-      user_label: decodeGlpiPlainTextField(stringifyGlpiValue(record.users_id)),
+      user_label: labelsByAssociationId?.get(id)
+        ?? (inlineLabel && !/^\d+$/.test(inlineLabel) ? inlineLabel : null),
       role: glpiTicketUserRole(record.type),
     };
   }

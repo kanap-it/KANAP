@@ -99,6 +99,14 @@ export type GlpiAssignableGroup = {
 
 export type GlpiCategory = GlpiAssignableGroup & { parentId: number | null };
 
+// A GLPI user a ticket can be assigned to: an active member of at least one assignable
+// group. `label` is the display name GLPI would render (realname firstname, else name).
+export type GlpiTechnician = {
+  id: number;
+  name: string | null;
+  label: string;
+};
+
 export type GlpiTicketFollowupWriteResult = {
   id: number;
   ticket_id: number;
