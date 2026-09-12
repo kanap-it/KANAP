@@ -16001,6 +16001,167 @@ async function testGlpiTriageAssignmentExpiryIsScopedToTargetKind() {
   assert.equal(userRow?.status, 'pending');
 }
 
+// Re-triage must never abort the run. The planner re-proposes the same routing target with
+// freshly worded `reason` while the previous proposal is still pending, and the ticket moved
+// in between (the first run's own internal note), so the proposal CONTEXT hash moves and the
+// unchanged-proposal suppression correctly declines to short-circuit. The prepare then has to
+// go through: with an idempotency key narrower than the input hash it collided with the
+// pending row and createOrEnsureProviderAction threw. Expected outcome: supersede.
+async function testReTriageWithPendingIdenticalTargetSupersedesInsteadOfThrowing() {
+  const queue = new AiAgentWorkQueueService();
+  const baseProvider = new MockTicketingProvider();
+  const liveTarget = glpiReadSafeTarget();
+  const routingContext = {
+    ticketId: '4',
+    requester: 'Bob Requester',
+    assignee: null,
+    group: null,
+    assignedUsers: [],
+    assignedGroups: [],
+    supportedAssignmentTargets: [
+      { kind: 'group', key: 'helpdesk_l1', label: 'Helpdesk L1' },
+      { kind: 'group', key: 'sap_operations', label: 'SAP Operations' },
+      { kind: 'user', key: 'tech_jane', label: 'Jane Doe' },
+    ],
+    agentUserKey: '99',
+    assignmentSupported: true,
+    supported: true,
+  };
+  // The ticket is touched between the two runs, exactly as the first run's internal note does.
+  let ticketUpdatedAt = '2026-06-10T10:00:00.000Z';
+  const currentTicket = () => ({
+    id: '4',
+    status: 'new',
+    title: 'SAP order entry blocked',
+    description: 'VA01 fails.',
+    priority: 'medium',
+    createdAt: '2026-06-10T09:00:00.000Z',
+    updatedAt: ticketUpdatedAt,
+  });
+  const provider = {
+    health: baseProvider.health.bind(baseProvider),
+    applicability: baseProvider.applicability.bind(baseProvider),
+    prepareTicketAssignmentUpdate: baseProvider.prepareTicketAssignmentUpdate.bind(baseProvider),
+    getTicketRoutingContext: baseProvider.getTicketRoutingContext.bind(baseProvider),
+    getTicket: async () => ({ ok: true, data: currentTicket(), evidence: [] }),
+  };
+  const harness = createRealProviderDispatcher({ ticketingProvider: provider as any, agentQueue: queue });
+  const { context } = harness;
+
+  let toolIndex = 0;
+  const dispatcher = {
+    execute: async (executeContext: unknown, request: any) => {
+      toolIndex += 1;
+      const toolExecutionId = `retriage-tool-${toolIndex}`;
+      const step = (stepId: string, data: unknown) => ({
+        run_id: 'run-retriage',
+        step_id: stepId,
+        tool_execution_id: toolExecutionId,
+        output: { ok: true, data, evidence: [] },
+      });
+      // The one capability under test goes through the real registry, the rest stays canned.
+      if (request.capabilityName === TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY) {
+        // The canned run id above is not a real row in this harness; the registry path
+        // under test does not depend on it.
+        const { runId: _runId, ...execution } = request.execution ?? {};
+        return harness.dispatcher.execute(executeContext as any, { ...request, execution });
+      }
+      if (request.capabilityName === 'ticketing.ticket.get') return step('step-ticket', currentTicket());
+      if (request.capabilityName === TICKETING_TICKET_NOTES_LIST_CAPABILITY) return step('step-notes', { notes: [] });
+      if (request.capabilityName === TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY) {
+        return step('step-classification', { type: 'Incident', priority: 'Medium', urgency: 'Medium' });
+      }
+      if (request.capabilityName === TICKETING_LIFECYCLE_CONTEXT_CAPABILITY) {
+        return step('step-lifecycle', { terminal: false, allowedTransitions: [] });
+      }
+      if (request.capabilityName === TICKETING_ROUTING_CONTEXT_CAPABILITY) return step('step-routing', routingContext);
+      if (request.capabilityName === TICKETING_PARTICIPANT_CONTEXT_CAPABILITY) return step('step-participant', {});
+      if (request.capabilityName === 'search_knowledge') {
+        return { run_id: 'run-retriage', step_id: 'step-search', tool_execution_id: toolExecutionId, output: { items: [], total: 0, returned: 0, truncated: false, complete: true } };
+      }
+      throw new Error(`Unexpected capability ${request.capabilityName}`);
+    },
+  };
+
+  // Same target every run, reworded reason every run: the wording is what used to break it.
+  let plannerRun = 0;
+  const actionPlanner = {
+    maxOutputTokens: () => 1600,
+    buildPromptPayload: (plannerInput: any) => plannerInput,
+    planActions: async () => {
+      plannerRun += 1;
+      return {
+        source: 'llm',
+        actions: [
+          {
+            action_type: 'assignment_update',
+            target: { kind: 'group', key: 'sap_operations', label: 'SAP Operations' },
+            reason: plannerRun === 1 ? 'SAP questions go to SAP Operations.' : 'This is an SAP incident, SAP Operations owns it.',
+          },
+        ],
+        rationale: 'Route to SAP.',
+        confidence: 0.8,
+        model: 'test:planner',
+        usage: null,
+        estimated_tokens: 20,
+        estimated_cost_eur: 0.00004,
+        latency_ms: 1,
+      };
+    },
+  };
+
+  const service = new AiAgentControlService(
+    {} as any,
+    {} as any,
+    dispatcher as any,
+    { requireSingleEnabledTarget: async () => liveTarget } as any,
+    { getApplicability: async () => ({ available: true }) } as any,
+    queue,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    actionPlanner as any,
+  ) as any;
+  service.getRunDetail = async () => ({ action_requests: [] });
+
+  const triageBundle = await seedTestHelpdeskDefinition(context);
+  const runTriage = () => service.runTicketingTriage(context, {
+    provider_key: 'glpi',
+    target_key: '4',
+    agent_definition_id: triageBundle.definition.id,
+  });
+
+  await runTriage();
+  // The ticket moved, so the agent gets a fresh look at it: requeue the deduped work item
+  // the way a new ingestion cycle would, and move the ticket's updated_at with it.
+  const workItems = context.manager.getRepository(AiAgentWorkItem);
+  for (const item of await workItems.find()) {
+    item.status = 'queued';
+    item.lease_owner = null;
+    item.leased_until = null;
+    await workItems.save(item);
+  }
+  ticketUpdatedAt = '2026-06-10T11:00:00.000Z';
+  // Used to throw BadRequestException('Existing provider action request failed input-hash verification.')
+  await runTriage();
+
+  const repo = context.manager.getRepository(AiActionRequest);
+  const assignmentRows = (await repo.find())
+    .filter((row: AiActionRequest) => row.capability_name === TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY);
+  assert.equal(assignmentRows.length, 2);
+  const pending = assignmentRows.filter((row: AiActionRequest) => row.status === 'pending');
+  const expired = assignmentRows.filter((row: AiActionRequest) => row.status === 'expired');
+  // Exactly one live proposal: the second one, the first withdrawn by the supersede sweep.
+  assert.equal(pending.length, 1);
+  assert.equal(expired.length, 1);
+  assert.equal((pending[0].action_payload_json as any).reason, 'This is an SAP incident, SAP Operations owns it.');
+  assert.equal((expired[0].metadata_json as any)?.withdrawn_reason, 'superseded_by_new_proposal');
+  // The two proposals differ, so their keys must differ: a key narrower than the input hash
+  // is what made createOrEnsureProviderAction reject the reworded proposal.
+  assert.notEqual(pending[0].idempotency_key, expired[0].idempotency_key);
+}
+
 // Pre-write drift check, per kind. The agent's own account may register itself as an
 // assignee on an earlier phase of the same approved batch; that must not block the
 // technician write, while a human assigning someone else must.
@@ -16203,6 +16364,7 @@ async function run() {
   await testGlpiTriagePlannerGroupRoutingUsesCatalogueAndSkipsInvalidTargets();
   await testGlpiTriagePlannerTechnicianRoutingIsKindScoped();
   await testGlpiTriageAssignmentExpiryIsScopedToTargetKind();
+  await testReTriageWithPendingIdenticalTargetSupersedesInsteadOfThrowing();
   testRoutingDriftSnapshotIsKindScopedAndIgnoresTheAgentAccount();
   await testClassificationProposalValuesHaveDistinctHashes();
   await testGlpiTriagePlannerClassificationNotOfferedWithoutCapability();
