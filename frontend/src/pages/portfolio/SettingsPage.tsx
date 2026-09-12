@@ -72,6 +72,15 @@ interface PortfolioTeam {
   member_count: number;
 }
 
+interface EmploymentType {
+  id: string;
+  name: string;
+  is_active: boolean;
+  display_order: number;
+  is_system: boolean;
+  usage_count: number;
+}
+
 interface PortfolioSource {
   id: string;
   name: string;
@@ -154,16 +163,22 @@ export default function SettingsPage() {
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<PortfolioTeam | null>(null);
 
+  // Employment types state
+  const [employmentTypes, setEmploymentTypes] = useState<EmploymentType[]>([]);
+  const [employmentTypeDialogOpen, setEmploymentTypeDialogOpen] = useState(false);
+  const [editingEmploymentType, setEditingEmploymentType] = useState<EmploymentType | null>(null);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [criteriaRes, settingsRes, skillsRes, templatesRes, classificationRes, teamsRes] = await Promise.all([
+      const [criteriaRes, settingsRes, skillsRes, templatesRes, classificationRes, teamsRes, employmentTypesRes] = await Promise.all([
         api.get('/portfolio/criteria'),
         api.get('/portfolio/settings'),
         api.get('/portfolio/skills'),
         api.get('/portfolio/phase-templates'),
         api.get('/portfolio/classification/all'),
         api.get('/portfolio/teams'),
+        api.get('/portfolio/employment-types'),
       ]);
       setCriteria(criteriaRes.data || []);
       setSettings(settingsRes.data || { mandatory_bypass_enabled: false });
@@ -174,6 +189,7 @@ export default function SettingsPage() {
       setCategories(classificationRes.data?.categories || []);
       setTaskTypes(classificationRes.data?.taskTypes || []);
       setTeams(teamsRes.data || []);
+      setEmploymentTypes(employmentTypesRes.data || []);
     } catch (e: any) {
       setError(getApiErrorMessage(e, t, t('settings.messages.loadFailed')));
     } finally {
@@ -469,6 +485,51 @@ export default function SettingsPage() {
     }
   }, [canEdit, loadData, t]);
 
+  // Employment types handlers
+  const handleEditEmploymentType = useCallback((type: EmploymentType) => {
+    setEditingEmploymentType(type);
+    setEmploymentTypeDialogOpen(true);
+  }, []);
+
+  const handleCreateEmploymentType = useCallback(() => {
+    setEditingEmploymentType(null);
+    setEmploymentTypeDialogOpen(true);
+  }, []);
+
+  // Delete is only offered when nothing references the type, so there is
+  // nothing to warn about and no confirmation to show.
+  const handleDeleteEmploymentType = useCallback(async (id: string) => {
+    if (!canEdit) return;
+    try {
+      await api.delete(`/portfolio/employment-types/${id}`);
+      loadData();
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('settings.employmentTypes.messages.deleteFailed')));
+    }
+  }, [canEdit, loadData, t]);
+
+  const handleToggleEmploymentType = useCallback(async (type: EmploymentType) => {
+    if (!canEdit) return;
+    try {
+      await api.patch(`/portfolio/employment-types/${type.id}`, { is_active: !type.is_active });
+      loadData();
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('settings.employmentTypes.messages.updateFailed')));
+    }
+  }, [canEdit, loadData, t]);
+
+  const handleSeedEmploymentTypes = useCallback(async () => {
+    if (!canEdit) return;
+    try {
+      const res = await api.post('/portfolio/employment-types/seed-defaults');
+      if (res.data?.created > 0) {
+        loadData();
+      }
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('settings.employmentTypes.messages.seedDefaultsFailed')));
+    }
+  }, [canEdit, loadData, t]);
+
   const actions = canEdit ? (
     activeTab === 0 ? (
       <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateClick}>
@@ -500,6 +561,17 @@ export default function SettingsPage() {
           {t('settings.actions.addTeam')}
         </Button>
       </Stack>
+    ) : activeTab === 5 ? (
+      <Stack direction="row" spacing={1}>
+        {employmentTypes.length === 0 && (
+          <Button variant="outlined" startIcon={<PlaylistAddIcon />} onClick={handleSeedEmploymentTypes}>
+            {t('settings.actions.seedDefaults')}
+          </Button>
+        )}
+        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateEmploymentType}>
+          {t('settings.actions.addEmploymentType')}
+        </Button>
+      </Stack>
     ) : null
   ) : null;
 
@@ -520,6 +592,7 @@ export default function SettingsPage() {
           <Tab label={t('settings.tabs.phaseTemplates')} />
           <Tab label={t('settings.tabs.classification')} />
           <Tab label={t('settings.tabs.teams')} />
+          <Tab label={t('settings.tabs.employmentTypes')} />
         </Tabs>
 
         {/* Tab 0: Scoring Criteria */}
@@ -687,6 +760,17 @@ export default function SettingsPage() {
           />
         )}
 
+        {/* Tab 5: Employment types */}
+        {activeTab === 5 && (
+          <EmploymentTypesSection
+            employmentTypes={employmentTypes}
+            canEdit={canEdit}
+            onEdit={handleEditEmploymentType}
+            onDelete={handleDeleteEmploymentType}
+            onToggle={handleToggleEmploymentType}
+          />
+        )}
+
         {/* Edit/Create Criterion Dialog */}
         <CriterionEditDialog
           open={editDialogOpen}
@@ -773,6 +857,17 @@ export default function SettingsPage() {
           onClose={() => setTeamDialogOpen(false)}
           onSave={() => {
             setTeamDialogOpen(false);
+            loadData();
+          }}
+        />
+
+        {/* Edit/Create Employment Type Dialog */}
+        <EmploymentTypeEditDialog
+          open={employmentTypeDialogOpen}
+          employmentType={editingEmploymentType}
+          onClose={() => setEmploymentTypeDialogOpen(false)}
+          onSave={() => {
+            setEmploymentTypeDialogOpen(false);
             loadData();
           }}
         />
@@ -2266,6 +2361,158 @@ function TeamEditDialog({
             fullWidth
             multiline
             rows={2}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>{t('common:buttons.cancel')}</Button>
+        <Button variant="contained" onClick={handleSave} disabled={saving || !name.trim()}>
+          {saving ? t('common:status.saving') : t('common:buttons.save')}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// Employment Types Section Component
+function EmploymentTypesSection({
+  employmentTypes,
+  canEdit,
+  onEdit,
+  onDelete,
+  onToggle,
+}: {
+  employmentTypes: EmploymentType[];
+  canEdit: boolean;
+  onEdit: (type: EmploymentType) => void;
+  onDelete: (id: string) => void;
+  onToggle: (type: EmploymentType) => void;
+}) {
+  const { t } = useTranslation(['portfolio', 'common']);
+  if (employmentTypes.length === 0) {
+    return (
+      <Alert severity="info">
+        {t('settings.employmentTypes.empty')}
+      </Alert>
+    );
+  }
+
+  return (
+    <Stack spacing={2}>
+      <Typography variant="body2" color="text.secondary">
+        {t('settings.employmentTypes.description')}
+      </Typography>
+
+      <Card>
+        <CardContent sx={{ p: 2 }}>
+          <Stack spacing={1}>
+            {employmentTypes.map((type) => (
+              <Stack
+                key={type.id}
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{
+                  p: 1,
+                  bgcolor: 'action.hover',
+                  borderRadius: 1,
+                  opacity: type.is_active ? 1 : 0.6,
+                }}
+              >
+                <Switch
+                  checked={type.is_active}
+                  onChange={() => onToggle(type)}
+                  size="small"
+                  disabled={!canEdit}
+                />
+                <Box sx={{ flex: 1 }}>
+                  <Typography>{type.name}</Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                  {t('settings.employmentTypes.usageCount', { count: type.usage_count })}
+                </Typography>
+                {type.is_system && (
+                  <Typography variant="body2" color="info.main" sx={{ fontSize: '0.8125rem' }}>
+                    {t('settings.labels.system')}
+                  </Typography>
+                )}
+                {canEdit && (
+                  <>
+                    <IconButton size="small" onClick={() => onEdit(type)}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => onDelete(type.id)}
+                      disabled={type.is_system || type.usage_count > 0}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </>
+                )}
+              </Stack>
+            ))}
+          </Stack>
+        </CardContent>
+      </Card>
+    </Stack>
+  );
+}
+
+// Employment Type Edit Dialog
+function EmploymentTypeEditDialog({
+  open,
+  employmentType,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  employmentType: EmploymentType | null;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  const { t } = useTranslation(['portfolio', 'common']);
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setName(employmentType ? employmentType.name : '');
+    setError(null);
+  }, [employmentType, open]);
+
+  const handleSave = async () => {
+    setError(null);
+    setSaving(true);
+    try {
+      if (employmentType) {
+        await api.patch(`/portfolio/employment-types/${employmentType.id}`, { name });
+      } else {
+        await api.post('/portfolio/employment-types', { name });
+      }
+      onSave();
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('settings.messages.saveFailed')));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        {employmentType ? t('settings.employmentTypes.dialog.editTitle') : t('settings.employmentTypes.dialog.createTitle')}
+      </DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          {error && <Alert severity="error">{error}</Alert>}
+          <TextField
+            label={t('settings.fields.name')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            fullWidth
+            required
           />
         </Stack>
       </DialogContent>

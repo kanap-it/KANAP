@@ -45,6 +45,7 @@ Les contributeurs sont affichés sous forme de cartes regroupées par équipe.
 - Utilisez le menu déroulant **Filtrer par équipe** pour n'afficher que les contributeurs d'une équipe spécifique
 - Sélectionnez **Non assigné** pour voir les contributeurs qui n'ont pas encore été assignés à une équipe
 - Sélectionnez **Toutes les équipes** pour voir tout le monde
+- Utilisez le menu déroulant **Filtrer par type de contrat** à côté pour n'afficher que les internes, que les externes, etc. Les deux filtres se combinent et s'appliquent aussi bien à la liste qu'à la matrice de compétences.
 
 **Groupes d'équipes** :
 - Chaque équipe est affichée comme une carte repliable avec un badge de nombre de membres
@@ -96,6 +97,16 @@ Chaque modification est enregistrée automatiquement. Une courte mention « Enre
 
 **Équipe**
 Assignez ce contributeur à une équipe. Les équipes sont des groupes organisationnels configurés dans les Paramètres du portefeuille. Cette affectation détermine comment les contributeurs sont regroupés sur la page Contributeurs. L'équipe peut aussi être changée depuis l'élément **Équipe** de l'en-tête. Ce champ n'est visible que lors de la modification du profil d'un autre contributeur (pas le vôtre).
+
+**Responsable**
+La personne dont dépend ce contributeur. Cliquez sur le champ, cherchez par nom et choisissez n'importe qui dans votre organisation : le responsable n'a pas besoin d'être lui-même contributeur. Utilisez **Effacer** pour retirer le lien. Un contributeur ne peut pas être son propre responsable, et vous ne pouvez pas désigner une personne qui dépend déjà de lui, directement ou via une chaîne de responsables.
+
+Lorsque le responsable vient de Microsoft Entra, le champ est en lecture seule et affiche **Depuis Microsoft Entra** en dessous. Modifiez-le dans votre annuaire, pas ici.
+
+Une fois défini, le nom du responsable apparaît aussi dans l'en-tête de l'espace de travail, et un clic ouvre sa fiche contributeur lorsqu'il en a une. Ce champ n'est visible que lors de la modification du profil d'un autre contributeur (pas le vôtre).
+
+**Type de contrat**
+La façon dont cette personne travaille avec vous. Chaque contributeur démarre en **Interne** ; passez en **Externe**, **Apprenti** ou **Autre** lorsque ce n'est pas le cas. La liste vous appartient et s'adapte dans **Portefeuille > Paramètres > Types de contrat**. Le type de contrat n'est jamais importé depuis Microsoft Entra. Ce champ n'est visible que lors de la modification du profil d'un autre contributeur (pas le vôtre).
 
 **Disponibilité projet**
 Utilisez le curseur pour définir combien de jours par mois cette personne peut travailler sur des projets du portefeuille. La plage va de 0 à 20 jours, par incréments de 0,5 jour. La valeur par défaut est de 5 jours. La valeur est enregistrée lorsque vous relâchez le curseur.
@@ -229,6 +240,24 @@ Les contributeurs peuvent être assignés à des équipes organisationnelles pou
 - Ajoutez, modifiez ou désactivez des équipes
 - Utilisez **Initialiser les valeurs par défaut** pour remplir avec les équipes standard
 - Les équipes avec des membres assignés ne peuvent pas être supprimées
+
+---
+
+## Types de contrat
+
+Les types de contrat indiquent comment chaque personne travaille avec vous : salarié, intervenant d'un prestataire, apprenti, et tout ce dont votre organisation a besoin. Ils se configurent dans **Portefeuille > Paramètres > Types de contrat**. Chaque contributeur démarre en Interne.
+
+**Types par défaut** (renommables) :
+- Interne
+- Externe
+- Apprenti
+- Autre
+
+**Gérer les types de contrat** :
+- Allez dans **Portefeuille > Paramètres** et ouvrez l'onglet **Types de contrat**
+- Ajoutez vos propres types, renommez-les, ou désactivez-en un pour l'écarter des nouvelles affectations sans perdre les contributeurs qui le portent déjà
+- Les quatre types intégrés peuvent être renommés mais pas supprimés
+- Un type affecté à au moins un contributeur ne peut pas être supprimé ; l'onglet indique combien de contributeurs utilisent chacun
 
 ---
 

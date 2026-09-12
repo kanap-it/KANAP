@@ -142,7 +142,9 @@
         "source": "Quelle",
         "stream": "Stream",
         "team": "Team",
-        "projectAvailability": "Projektverfügbarkeit"
+        "projectAvailability": "Projektverfügbarkeit",
+        "manager": "Vorgesetzter",
+        "employmentType": "Vertragsart"
       },
       "messages": {
         "deleteFailed": "Löschen fehlgeschlagen",
@@ -179,13 +181,18 @@
         "unassigned": "Nicht zugeordnet",
         "skillCount_one": "{{count}} Kompetenz",
         "skillCount_other": "{{count}} Kompetenzen",
-        "daysPerMonthShort": "{{count}} T/Monat"
+        "daysPerMonthShort": "{{count}} T/Monat",
+        "noManager": "Kein Vorgesetzter",
+        "managerFromEntra": "Aus Microsoft Entra"
       },
       "metadata": {
         "team": "Team",
         "noTeam": "Kein Team",
         "editTeam": "Team ändern",
-        "availability": "Verfügbarkeit"
+        "availability": "Verfügbarkeit",
+        "manager": "Vorgesetzter",
+        "noManager": "Kein Vorgesetzter",
+        "openManager": "Profil des Vorgesetzten öffnen"
       },
       "aria": {
         "skillLevel": "Niveau {{skill}}",
@@ -1218,7 +1225,9 @@
     "filters": {
       "team": "Nach Team filtern",
       "allTeams": "Alle Teams",
-      "unassigned": "Nicht zugeordnet"
+      "unassigned": "Nicht zugeordnet",
+      "employmentType": "Nach Vertragsart filtern",
+      "allEmploymentTypes": "Alle Vertragsarten"
     },
     "matrix": {
       "filtersLabel": "Filter der Kompetenzmatrix",
@@ -1252,7 +1261,8 @@
       }
     },
     "states": {
-      "empty": "Noch keine Mitwirkenden konfiguriert. Fügen Sie Mitwirkende hinzu, um deren Kompetenzen und Verfügbarkeit zu definieren."
+      "empty": "Noch keine Mitwirkenden konfiguriert. Fügen Sie Mitwirkende hinzu, um deren Kompetenzen und Verfügbarkeit zu definieren.",
+      "noneMatchFilter": "Kein Mitwirkender entspricht den aktuellen Filtern."
     },
     "teams": {
       "unknown": "Unbekanntes Team"
@@ -1822,7 +1832,8 @@
       "skills": "Kompetenzen",
       "phaseTemplates": "Phasenvorlagen",
       "classification": "Klassifizierung",
-      "teams": "Teams"
+      "teams": "Teams",
+      "employmentTypes": "Vertragsarten"
     },
     "actions": {
       "addCriterion": "Kriterium hinzufügen",
@@ -1835,7 +1846,8 @@
       "addTaskType": "Aufgabentyp hinzufügen",
       "addValue": "Wert hinzufügen",
       "addPhase": "Phase hinzufügen",
-      "seedDefaults": "Standardwerte laden"
+      "seedDefaults": "Standardwerte laden",
+      "addEmploymentType": "Vertragsart hinzufügen"
     },
     "fields": {
       "name": "Name",
@@ -1984,6 +1996,21 @@
         "seedDefaultsFailed": "Standardwerte konnten nicht geladen werden",
         "deleteFailed": "Team konnte nicht gelöscht werden",
         "updateFailed": "Team konnte nicht aktualisiert werden"
+      }
+    },
+    "employmentTypes": {
+      "empty": "Noch keine Vertragsarten vorhanden. Verwenden Sie «Standardwerte laden» für Intern, Extern, Auszubildender und Sonstige, oder legen Sie eigene an.",
+      "description": "Vertragsarten beschreiben, wie ein Mitwirkender mit Ihnen zusammenarbeitet, zum Beispiel als Angestellter, Dienstleister oder Auszubildender. Jeder Mitwirkende beginnt als Intern; ändern Sie es in seinem Profil.",
+      "usageCount_one": "{{count}} Mitwirkender",
+      "usageCount_other": "{{count}} Mitwirkende",
+      "dialog": {
+        "editTitle": "Vertragsart bearbeiten",
+        "createTitle": "Vertragsart erstellen"
+      },
+      "messages": {
+        "seedDefaultsFailed": "Standardwerte konnten nicht geladen werden",
+        "deleteFailed": "Vertragsart konnte nicht gelöscht werden",
+        "updateFailed": "Vertragsart konnte nicht aktualisiert werden"
       }
     }
   }

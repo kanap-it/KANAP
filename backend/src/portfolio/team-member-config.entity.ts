@@ -1,14 +1,13 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 // Proficiency levels:
-// 0 = No knowledge
 // 1 = Basic / Theoretical
 // 2 = Can execute with support
 // 3 = Autonomous
 // 4 = Expert
 export interface SkillProficiency {
   skill_id: string;
-  proficiency: number; // 0-4
+  proficiency: number; // 1-4
 }
 
 @Entity('portfolio_team_member_configs')
@@ -38,6 +37,18 @@ export class TeamMemberConfig {
   @Column('uuid', { nullable: true })
   team_id?: string | null;
 
+  // Reporting line. A *user* reference, not a contributor one: an Entra manager
+  // resolves to a user even before that person becomes a contributor.
+  @Column('uuid', { nullable: true })
+  manager_user_id?: string | null;
+
+  // 'entra' | 'manual'. Derived by the service, never taken from a request body.
+  @Column('text', { nullable: true })
+  manager_source?: string | null;
+
+  @Column('uuid', { nullable: true })
+  employment_type_id?: string | null;
+
   @Column('uuid', { nullable: true })
   default_source_id?: string | null;
 
@@ -62,7 +73,6 @@ export class TeamMemberConfig {
 }
 
 export const PROFICIENCY_LABELS: Record<number, string> = {
-  0: 'No knowledge',
   1: 'Basic / Theoretical',
   2: 'Can execute with support',
   3: 'Autonomous',

@@ -49,6 +49,9 @@ import { PortfolioTaskType } from './portfolio-task-type.entity';
 // Teams
 import { PortfolioTeam } from './portfolio-team.entity';
 
+// Employment types
+import { PortfolioEmploymentType } from './portfolio-employment-type.entity';
+
 // Services (non-decomposed)
 import { PortfolioRequestsService } from './portfolio-requests.service';
 import { PortfolioCriteriaService } from './portfolio-criteria.service';
@@ -58,6 +61,7 @@ import { TeamMemberConfigService } from './team-member-config.service';
 import { PortfolioPhaseTemplatesService } from './portfolio-phase-templates.service';
 import { PortfolioClassificationService } from './portfolio-classification.service';
 import { PortfolioTeamsService } from './portfolio-teams.service';
+import { PortfolioEmploymentTypesService } from './portfolio-employment-types.service';
 import { PortfolioCapacityReportService } from './services/portfolio-capacity-report.service';
 import { PortfolioStatusChangeReportService } from './services/portfolio-status-change-report.service';
 import { PortfolioWeeklyReportService } from './services/portfolio-weekly-report.service';
@@ -88,6 +92,7 @@ import { PortfolioPhaseTemplatesController } from './portfolio-phase-templates.c
 import { PortfolioClassificationController } from './portfolio-classification.controller';
 import { PortfolioProjectTasksController } from './portfolio-project-tasks.controller';
 import { PortfolioTeamsController } from './portfolio-teams.controller';
+import { PortfolioEmploymentTypesController } from './portfolio-employment-types.controller';
 import { PortfolioCapacityReportController } from './portfolio-capacity-report.controller';
 import { PortfolioRoadmapController } from './portfolio-roadmap.controller';
 import { PortfolioStatusChangeReportController } from './portfolio-status-change-report.controller';
@@ -145,6 +150,7 @@ const entities = [
   PortfolioStream,
   PortfolioTaskType,
   PortfolioTeam,
+  PortfolioEmploymentType,
 ];
 
 @Module({
@@ -170,6 +176,7 @@ const entities = [
     PortfolioPhaseTemplatesService,
     PortfolioClassificationService,
     PortfolioTeamsService,
+    PortfolioEmploymentTypesService,
     PortfolioCapacityReportService,
     PortfolioStatusChangeReportService,
     PortfolioWeeklyReportService,
@@ -201,6 +208,7 @@ const entities = [
     PortfolioClassificationController,
     PortfolioProjectTasksController,
     PortfolioTeamsController,
+    PortfolioEmploymentTypesController,
     PortfolioCapacityReportController,
     PortfolioStatusChangeReportController,
     PortfolioWeeklyReportController,

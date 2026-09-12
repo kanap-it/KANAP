@@ -35,6 +35,7 @@ interface Contributor {
   notes?: string;
   team_id?: string | null;
   team_name?: string;
+  employment_type_id?: string | null;
 }
 
 interface Team {
@@ -43,6 +44,12 @@ interface Team {
   description: string | null;
   is_active: boolean;
   member_count: number;
+}
+
+interface EmploymentType {
+  id: string;
+  name: string;
+  is_active: boolean;
 }
 
 interface User {
@@ -96,6 +103,7 @@ export default function ContributorsPage() {
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filterTeamId, setFilterTeamId] = useState<string>('all');
+  const [filterEmploymentTypeId, setFilterEmploymentTypeId] = useState<string>('all');
   const [collapsedTeams, setCollapsedTeams] = useState<Record<string, boolean>>({});
 
   // The URL owns the view so a matrix link can be shared; localStorage only
@@ -136,6 +144,14 @@ export default function ContributorsPage() {
     },
   });
 
+  const { data: employmentTypesData } = useQuery({
+    queryKey: ['portfolio-employment-types'],
+    queryFn: async () => {
+      const res = await api.get('/portfolio/employment-types');
+      return (res.data || []) as EmploymentType[];
+    },
+  });
+
   const { data: timeStatsData } = useQuery({
     queryKey: ['portfolio-contributors-time-stats'],
     queryFn: async () => {
@@ -159,9 +175,17 @@ export default function ContributorsPage() {
     enabled: addDialogOpen,
   });
 
-  const contributors = data || [];
   const teams = teamsData || [];
+  const employmentTypes = employmentTypesData || [];
   const skills = skillsData?.items || [];
+
+  // Filtering upstream of the views keeps the list and the matrix coherent
+  // through one code path; the matrix only knows about the team filter.
+  const contributors = useMemo(() => {
+    const all = data || [];
+    if (filterEmploymentTypeId === 'all') return all;
+    return all.filter((contributor) => contributor.employment_type_id === filterEmploymentTypeId);
+  }, [data, filterEmploymentTypeId]);
 
   const getTeamName = useCallback((groupId: string) => {
     if (groupId === UNASSIGNED_GROUP) return t('contributors.filters.unassigned');
@@ -263,11 +287,32 @@ export default function ContributorsPage() {
               ))}
             <MenuItem value={UNASSIGNED_GROUP} sx={drawerMenuItemSx}>{t('contributors.filters.unassigned')}</MenuItem>
           </TextField>
+          <TextField
+            select
+            value={filterEmploymentTypeId}
+            onChange={(e) => setFilterEmploymentTypeId(e.target.value)}
+            variant="standard"
+            size="small"
+            aria-label={t('contributors.filters.employmentType')}
+            sx={{ ...pageSelectSx, width: 260 }}
+            SelectProps={{ MenuProps: compactSelectMenuProps }}
+          >
+            <MenuItem value="all" sx={drawerMenuItemSx}>{t('contributors.filters.allEmploymentTypes')}</MenuItem>
+            {employmentTypes
+              .filter((type) => type.is_active)
+              .map((type) => (
+                <MenuItem key={type.id} value={type.id} sx={drawerMenuItemSx}>
+                  {type.name}
+                </MenuItem>
+              ))}
+          </TextField>
         </Box>
 
         {!isLoading && contributors.length === 0 && (
           <Box sx={(theme) => ({ fontSize: 13, color: theme.palette.kanap.text.tertiary })}>
-            {t('contributors.states.empty')}
+            {(data || []).length === 0
+              ? t('contributors.states.empty')
+              : t('contributors.states.noneMatchFilter')}
           </Box>
         )}
 

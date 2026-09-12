@@ -1,6 +1,6 @@
 # Configuración del portafolio
 
-La Configuración del portafolio le permite configurar el sistema de evaluación, las competencias del equipo, las plantillas de fases de proyecto y la estructura de clasificación utilizados en todas las solicitudes y proyectos del portafolio. Estas configuraciones determinan cómo se evalúan las solicitudes, cómo se estructuran los proyectos y cómo se categorizan los elementos.
+La Configuración del portafolio le permite configurar el sistema de evaluación, las competencias del equipo, las plantillas de fases de proyecto, la estructura de clasificación y los tipos de contrato utilizados en todas las solicitudes y proyectos del portafolio. Estas configuraciones determinan cómo se evalúan las solicitudes, cómo se estructuran los proyectos y cómo se categorizan los elementos.
 
 ## Dónde encontrarlo
 
@@ -194,9 +194,41 @@ Categoría (p. ej., "Transformación digital")
 
 ---
 
+## Tipos de contrato
+
+Los tipos de contrato registran cómo trabaja cada colaborador con usted. Aparecen como un desplegable en el panel Propiedades de cada colaborador, y como filtro en la página de Colaboradores. Cada colaborador empieza como Interno.
+
+Cuatro tipos se crean con cada espacio de trabajo:
+
+- **Interno**: el valor predeterminado de todo colaborador nuevo
+- **Externo**
+- **Aprendiz**
+- **Otro**
+
+### Gestionar los tipos de contrato
+
+**Para agregar un tipo**:
+1. Abra la pestaña **Tipos de contrato**
+2. Haga clic en **Agregar tipo de contrato**
+3. Escriba un nombre y haga clic en **Guardar**
+
+**Para renombrar un tipo**: haga clic en el icono de edición, cambie el nombre y guarde. Los colaboradores que ya tienen ese tipo lo conservan.
+
+**Para desactivar un tipo**: use el interruptor. Un tipo inactivo desaparece del desplegable para las nuevas asignaciones, pero los colaboradores que ya lo tienen lo conservan y lo siguen mostrando.
+
+**Para eliminar un tipo**: haga clic en el icono de eliminación. Solo está disponible para los tipos que usted mismo creó y que ningún colaborador usa; el contador junto a cada tipo indica cuántos lo tienen. Los cuatro tipos integrados pueden renombrarse pero nunca eliminarse.
+
+**Cargar valores predeterminados**: si la lista llegara a quedar vacía, **Cargar valores predeterminados** vuelve a crear Interno, Externo, Aprendiz y Otro.
+
+Los tipos de contrato nunca se importan desde Microsoft Entra: son suyos.
+
+---
+
 ## Consejos
 
   - **Comience con la evaluación**: Defina sus criterios de evaluación primero para que las solicitudes puedan priorizarse adecuadamente
   - **Use plantillas**: Cree plantillas que coincidan con la metodología de entrega de su organización
   - **Mantenga la clasificación simple**: Demasiadas opciones crean confusión; empiece con pocas y amplíe según necesite
   - **Revise regularmente**: A medida que su organización evoluciona, revise estas configuraciones para asegurar que siguen siendo relevantes
+  - **Mantenga pocos tipos de contrato**: cuatro o cinco tipos suelen bastar para responder «quién es interno y quién no»
+

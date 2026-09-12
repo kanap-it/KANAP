@@ -142,7 +142,9 @@
         "source": "Source",
         "stream": "Stream",
         "team": "Team",
-        "projectAvailability": "Project availability"
+        "projectAvailability": "Project availability",
+        "manager": "Manager",
+        "employmentType": "Contract type"
       },
       "messages": {
         "deleteFailed": "Failed to delete",
@@ -179,13 +181,18 @@
         "unassigned": "Unassigned",
         "skillCount_one": "{{count}} skill",
         "skillCount_other": "{{count}} skills",
-        "daysPerMonthShort": "{{count}} d/mo"
+        "daysPerMonthShort": "{{count}} d/mo",
+        "noManager": "No manager",
+        "managerFromEntra": "From Microsoft Entra"
       },
       "metadata": {
         "team": "Team",
         "noTeam": "No team",
         "editTeam": "Change team",
-        "availability": "Availability"
+        "availability": "Availability",
+        "manager": "Manager",
+        "noManager": "No manager",
+        "openManager": "Open this manager"
       },
       "aria": {
         "skillLevel": "{{skill}} level",
@@ -1218,7 +1225,9 @@
     "filters": {
       "team": "Filter by team",
       "allTeams": "All teams",
-      "unassigned": "Unassigned"
+      "unassigned": "Unassigned",
+      "employmentType": "Filter by contract type",
+      "allEmploymentTypes": "All contract types"
     },
     "matrix": {
       "filtersLabel": "Skills matrix filters",
@@ -1252,7 +1261,8 @@
       }
     },
     "states": {
-      "empty": "No contributors configured yet. Add contributors to define their skills and availability."
+      "empty": "No contributors configured yet. Add contributors to define their skills and availability.",
+      "noneMatchFilter": "No contributor matches the current filters."
     },
     "teams": {
       "unknown": "Unknown team"
@@ -1822,7 +1832,8 @@
       "skills": "Skills",
       "phaseTemplates": "Phase templates",
       "classification": "Classification",
-      "teams": "Teams"
+      "teams": "Teams",
+      "employmentTypes": "Contract types"
     },
     "actions": {
       "addCriterion": "Add criterion",
@@ -1835,7 +1846,8 @@
       "addTaskType": "Add task type",
       "addValue": "Add value",
       "addPhase": "Add phase",
-      "seedDefaults": "Seed defaults"
+      "seedDefaults": "Seed defaults",
+      "addEmploymentType": "Add contract type"
     },
     "fields": {
       "name": "Name",
@@ -1984,6 +1996,21 @@
         "seedDefaultsFailed": "Failed to seed defaults",
         "deleteFailed": "Failed to delete team",
         "updateFailed": "Failed to update team"
+      }
+    },
+    "employmentTypes": {
+      "empty": "No contract types yet. Use Seed defaults for Internal, External, Apprentice and Other, or add your own.",
+      "description": "Contract types describe how a contributor works with you, for example as an employee, a contractor or an apprentice. Every contributor starts as Internal; change it on their profile.",
+      "usageCount_one": "{{count}} contributor",
+      "usageCount_other": "{{count}} contributors",
+      "dialog": {
+        "editTitle": "Edit contract type",
+        "createTitle": "Create contract type"
+      },
+      "messages": {
+        "seedDefaultsFailed": "Failed to seed defaults",
+        "deleteFailed": "Failed to delete contract type",
+        "updateFailed": "Failed to update contract type"
       }
     }
   }

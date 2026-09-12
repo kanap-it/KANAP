@@ -8,6 +8,7 @@ import { Role } from '../roles/role.entity';
 import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
 import { isReservedTenantSlug, normalizeTenantSlug } from './tenant-slug-policy';
 import { DEFAULT_TASK_TYPES } from '../portfolio/portfolio-task-type.entity';
+import { DEFAULT_EMPLOYMENT_TYPES } from '../portfolio/portfolio-employment-type.entity';
 import { seedManagedDocsKnowledgeAssets } from '../knowledge/integrated-document-seed';
 
 // Built-in roles configuration for newly created tenants.
@@ -299,6 +300,7 @@ export class TenantsService {
     if (existing) {
       await this.ensureSystemRoles(manager, existing.id);
       await this.seedDefaultTaskTypes(manager, existing.id);
+      await this.seedDefaultEmploymentTypes(manager, existing.id);
       await this.seedDefaultDocumentLibraries(manager, existing.id);
       return existing;
     }
@@ -306,6 +308,7 @@ export class TenantsService {
     const saved = await repo.save(tenant);
     await this.ensureSystemRoles(manager, saved.id);
     await this.seedDefaultTaskTypes(manager, saved.id);
+    await this.seedDefaultEmploymentTypes(manager, saved.id);
     await this.seedDefaultDocumentLibraries(manager, saved.id);
     return saved;
   }
@@ -317,6 +320,19 @@ export class TenantsService {
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (tenant_id, name) DO NOTHING`,
         [tenantId, def.name, def.description ?? null, def.display_order, def.is_system ?? false],
+      );
+    }
+  }
+
+  // Unlike teams, employment types are seeded here as well as by migration: the
+  // list is three universal values, and an empty select reads as a broken field.
+  private async seedDefaultEmploymentTypes(manager: EntityManager, tenantId: string) {
+    for (const def of DEFAULT_EMPLOYMENT_TYPES) {
+      await manager.query(
+        `INSERT INTO portfolio_employment_types (tenant_id, name, display_order, is_system)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (tenant_id, name) DO NOTHING`,
+        [tenantId, def.name, def.display_order, def.is_system ?? false],
       );
     }
   }

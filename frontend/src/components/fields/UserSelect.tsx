@@ -19,7 +19,10 @@ type User = {
 type UserSelectProps = {
   label?: string;
   value: string | null | undefined;
-  onChange: (v: string | null) => void;
+  /** The picked record travels with the id so callers can show its name at once. */
+  onChange: (v: string | null, user: User | null) => void;
+  /** Hide one person from the list, e.g. a contributor cannot manage themselves. */
+  excludeUserId?: string | null;
   disabled?: boolean;
   error?: boolean;
   helperText?: React.ReactNode;
@@ -44,6 +47,7 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
     label: labelProp,
     value,
     onChange,
+    excludeUserId = null,
     disabled,
     error,
     helperText,
@@ -99,10 +103,10 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
   });
 
   const mergedOptions = React.useMemo(() => {
-    const base = [...sortedUsers];
+    const base = sortedUsers.filter((u) => u.id !== excludeUserId);
     if (selectedById && !base.some((u) => u.id === selectedById.id)) base.unshift(selectedById);
     return base;
-  }, [sortedUsers, selectedById]);
+  }, [excludeUserId, sortedUsers, selectedById]);
 
   const selected = mergedOptions.find((u) => u.id === value) || null;
 
@@ -117,7 +121,7 @@ const UserSelect = React.forwardRef<HTMLInputElement, UserSelectProps>(function 
     <Autocomplete
       options={mergedOptions}
       value={selected}
-      onChange={(_, newValue) => onChange(newValue?.id || null)}
+      onChange={(_, newValue) => onChange(newValue?.id || null, newValue ?? null)}
       getOptionLabel={(option) => formatName(option)}
       size={size}
       renderOption={(props, option) => (
