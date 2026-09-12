@@ -1219,10 +1219,6 @@ export class GlpiTicketingProvider implements TicketingProvider {
         this.glpi.listAssignableGroups(session),
       ]);
       const catalogueById = new Map(catalogue.map((group) => [group.id, group]));
-      const requesters = users.filter((user) => user.role === 'requester').map(associationLabel);
-      const assignedUsers: TicketRoutingTarget[] = users
-        .filter((user) => user.role === 'assigned')
-        .map((user) => ({ kind: 'user', key: String(user.user_id), label: associationLabel(user) }));
       const assignedGroups: TicketRoutingTarget[] = groups
         .filter((group) => group.role === 'assigned')
         .map((group) => {
@@ -1256,6 +1252,18 @@ export class GlpiTicketingProvider implements TicketingProvider {
         ...catalogue.map(groupRoutingTarget),
         ...technicians.map(userRoutingTarget),
       ];
+      // Same rule as groups above: one person must read the same everywhere in a proposal,
+      // so the technician catalogue label ("Dupont Marie") wins over the GLPI association
+      // label (the login). Unknown users keep the association label.
+      const technicianById = new Map(technicians.map((technician) => [technician.id, technician]));
+      const userLabel = (user: GlpiTicketUserAssociation): string => {
+        const known = technicianById.get(user.user_id);
+        return known ? known.label : associationLabel(user);
+      };
+      const requesters = users.filter((user) => user.role === 'requester').map(userLabel);
+      const assignedUsers: TicketRoutingTarget[] = users
+        .filter((user) => user.role === 'assigned')
+        .map((user) => ({ kind: 'user', key: String(user.user_id), label: userLabel(user) }));
       const data: TicketRoutingContext = {
         ticketId: String(ticketId),
         requester: requesters[0] ?? null,
