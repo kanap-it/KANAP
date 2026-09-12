@@ -498,3 +498,35 @@ describe('classification approval summary', () => {
     expect(summary).not.toContain('301');
   });
 });
+
+describe('technician assignment approval summary', () => {
+  it('names the technician being added and the technicians already on the ticket', () => {
+    const summary = actionUpdateSummary(action({
+      capability_name: 'ticketing.ticket.assignment_update.approved',
+      action_payload_json: {
+        target: { kind: 'user', key: '42', label: 'Marie Dupont' },
+        current: {
+          assignedUsers: [
+            { kind: 'user', key: '7', label: 'Paul Martin' },
+            { kind: 'user', key: '9', label: 'Sophie Bernard' },
+          ],
+        },
+      },
+    }));
+    expect(summary).toContain('Assign to technician: Marie Dupont');
+    expect(summary).toContain('Currently assigned: Paul Martin, Sophie Bernard');
+    expect(summary).not.toContain('Assignee:');
+  });
+
+  it('says so when no technician is on the ticket yet', () => {
+    const summary = actionUpdateSummary(action({
+      capability_name: 'ticketing.ticket.assignment_update.approved',
+      action_payload_json: {
+        target: { kind: 'user', key: '42', label: 'Marie Dupont' },
+        current: { assignedUsers: [] },
+      },
+    }));
+    expect(summary).toContain('Assign to technician: Marie Dupont');
+    expect(summary).toContain('Currently assigned: No technician assigned');
+  });
+});

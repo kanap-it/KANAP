@@ -1484,7 +1484,7 @@ export const aiAgentControlApi = {
     id: string,
     field:
       | 'status' | 'priority' | 'type' | 'category' | 'entity'
-      | 'severity' | 'ack_state' | 'group' | 'device' | 'check_type',
+      | 'severity' | 'ack_state' | 'group' | 'technician' | 'device' | 'check_type',
     params: { query?: string; limit?: number } = {},
   ): Promise<{ options: AiAgentControlRefItem[] }> {
     const res = await api.get(`/ai/admin/control-plane/agents/${id}/targeting-options/${field}`, { params });

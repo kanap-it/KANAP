@@ -24,7 +24,7 @@ Jeder Vorschlag ist eine konkrete Aktion, die ein Agent an einem Ticket ausführ
 | **Status** | Ein Wechsel zu einem anderen Ticketstatus (zum Beispiel von **Neu** zu **Ausstehend**). |
 | **Ticket schließen** | Schließt das Ticket — siehe [Tickets schließen und lösen](#tickets-schliessen-und-losen). |
 | **Ticket lösen** | Markiert das Ticket als gelöst — siehe [Tickets schließen und lösen](#tickets-schliessen-und-losen). |
-| **Zuweisung** | Fügt dem Ticket eine Technikergruppe hinzu, gemäß der in den Anweisungen des Agenten hinterlegten Weiterleitungsregel. Niemand, der bereits auf dem Ticket steht, wird entfernt. Der Vorschlag zeigt die hinzugefügte Gruppe und die aktuell zugewiesenen Gruppen. |
+| **Zuweisung** | Fügt dem Ticket eine Technikergruppe **oder** einen namentlich genannten Techniker hinzu, gemäß der in den Anweisungen des Agenten hinterlegten Weiterleitungsregel. Niemand, der bereits auf dem Ticket steht, wird entfernt. Der Vorschlag zeigt, wer hinzugefügt wird und wer aktuell zugewiesen ist. |
 | **Beteiligte** | Eine Änderung an den Beobachtern oder Anfragenden des Tickets. |
 
 Bei einer **Antwort an Anfragende** oder einer **Interne Notiz** ist der angezeigte Textkörper die vollständige entworfene Nachricht, genau so, wie sie veröffentlicht würde. Lesen Sie sie so, wie der Anfragende (oder Ihr Team) sie lesen würde. Bei den anderen fünf Typen ist der Textkörper eine kurze Änderungszusammenfassung statt Freitext — zum Beispiel `Status: New -> Pending`, `Assignee: Unassigned -> Jane` oder ein feldweiser Klassifizierungs-Diff — oft gefolgt von einer **Grund**-Zeile, die erläutert, warum der Agent sie vorschlägt.
