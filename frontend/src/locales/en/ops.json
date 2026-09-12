@@ -127,6 +127,7 @@
       "title": "Allocations",
       "method": "Method",
       "headcountDefault": "Headcount (default)",
+      "defaultWithMethod": "{{method}} (default)",
       "itUsers": "IT users",
       "turnover": "Turnover",
       "manualByCompany": "Manual by company",
@@ -307,6 +308,7 @@
       "title": "Allocations",
       "method": "Method",
       "headcountDefault": "Headcount (default)",
+      "defaultWithMethod": "{{method}} (default)",
       "itUsers": "IT users",
       "turnover": "Turnover",
       "manualByCompany": "Manual by company",
@@ -503,7 +505,28 @@
       "copyAllocTitle": "Copy allocations",
       "copyAllocDesc": "Copy allocation methods and percentages from one year to another",
       "resetColumnTitle": "Reset budget column",
-      "resetColumnDesc": "Clear all data from a budget column for a specific year"
+      "resetColumnDesc": "Clear all data from a budget column for a specific year",
+      "allocationDefaultTitle": "Default allocation method",
+      "allocationDefaultDesc": "Choose the method applied to OPEX and CAPEX items left on the default allocation"
+    },
+    "allocationDefault": {
+      "title": "Default allocation method",
+      "subtitle": "Choose how costs are shared across companies by default, for each fiscal year.",
+      "year": "Fiscal year",
+      "method": "Default method",
+      "methodHelp": "Applies to every OPEX and CAPEX item that uses the default method. Items with an explicit method or a manual allocation are not affected.",
+      "standardNote": "Standard method — no override configured for this year.",
+      "overriddenNote": "Configured for your organisation. Standard method: {{method}}.",
+      "resetToStandard": "Use the standard method",
+      "scopeNote": "The method is resolved when allocations are computed, from the headcount, IT users or turnover of each active company for the selected year. Changing it re-drives every item left on the default method; manual allocations keep their percentages.",
+      "loadError": "Could not load the default allocation method.",
+      "saveError": "Could not save the default allocation method.",
+      "noPermission": "You need budget administration rights to change the default. The current setting stays visible.",
+      "methods": {
+        "headcount": "Headcount",
+        "itUsers": "IT users",
+        "turnover": "Turnover"
+      }
     },
     "freeze": {
       "title": "Freeze / unfreeze data",

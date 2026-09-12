@@ -180,11 +180,16 @@ The Allocations tab distributes the spend across your companies and departments.
 
 | Method | How it works |
 |---|---|
-| **Headcount (Default)** | Splits spend proportionally by each company's headcount for the selected year. This is the default method. No manual selection required -- percentages are computed automatically from company metrics. |
+| **Headcount (Default)** | Splits spend proportionally by each company's headcount for the selected year. No manual selection required -- percentages are computed automatically from company metrics. This is the standard default. |
 | **IT Users** | Splits spend proportionally by each company's IT user count for the selected year. |
 | **Turnover** | Splits spend proportionally by each company's turnover (revenue) for the selected year. |
 | **Manual by Company** | You select which companies receive this spend and choose a driver (Headcount, IT Users, or Turnover) to calculate percentages among the selected companies only. |
 | **Manual by Department** | You select specific company/department pairs. Percentages are calculated from each department's headcount. Useful when a spend item benefits only certain departments (e.g., a CRM used by Sales). |
+
+**Default vs pinned methods**:
+  - The **default** entry -- shown as *Headcount (default)* until your organisation configures another method -- follows the setting in **Budget Management > Administration > Default Allocation Method**. Every item left on the default is re-driven when an admin changes that setting
+  - **Headcount**, **IT Users** and **Turnover** pin that method on the item: a pinned method keeps working even if the organisation default changes later
+  - Items with a manual allocation are never affected by the default setting
 
 **How percentages work**:
   - For **automatic methods** (Headcount, IT Users, Turnover): percentages are computed from the latest company metrics on every page load. You do not edit them directly

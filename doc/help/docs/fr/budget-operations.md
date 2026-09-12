@@ -7,7 +7,7 @@ L'administration budgétaire met à votre disposition un ensemble d'outils pour 
 - Chemin : **Gestion budgétaire > Administration**
 - Autorisations : La plupart des opérations nécessitent `budget_ops:admin`
 
-La page d'accueil affiche quatre cartes, chacune renvoyant à un outil dédié :
+La page d'accueil affiche cinq cartes, chacune renvoyant à un outil dédié :
 
 | Outil | Objectif |
 |-------|----------|
@@ -15,6 +15,7 @@ La page d'accueil affiche quatre cartes, chacune renvoyant à un outil dédié :
 | **Copier les colonnes budgétaires** | Copier des données entre années et colonnes avec des ajustements |
 | **Copier les ventilations** | Copier les méthodes de ventilation d'une année à l'autre |
 | **Réinitialiser une colonne budgétaire** | Effacer toutes les données d'une colonne spécifique |
+| **Méthode de ventilation par défaut** | Définir la méthode que les postes OPEX et CAPEX suivent par défaut |
 
 ---
 
@@ -194,6 +195,45 @@ Vous devez cliquer sur **Effacer la colonne** dans la boîte de dialogue pour co
 
 ---
 
+## Méthode de ventilation par défaut
+
+Définissez la méthode que les postes OPEX et les investissements CAPEX suivent lorsqu'ils restent sur la ventilation par défaut. Le réglage s'applique par exercice : chaque année résout sa propre valeur par défaut, ce qui vous permet de modifier la base d'une année sans toucher aux autres.
+
+### Quand l'utiliser
+
+- Votre modèle de refacturation n'est pas basé sur l'effectif (par exemple piloté par le chiffre d'affaires)
+- Vous souhaitez que les nouveaux postes suivent une base partagée sans les modifier un par un
+- Vous préparez un exercice dont la base de ventilation diffère de la précédente
+
+### Champs
+
+| Champ | Description |
+|-------|-------------|
+| **Exercice** | L'année à laquelle le réglage s'applique (plage : année en cours moins un à année en cours plus cinq) |
+| **Méthode par défaut** | Effectif, Utilisateurs IT ou Chiffre d'affaires |
+
+### Comment ça fonctionne
+
+1. **Sélectionnez une année**
+2. **Choisissez la méthode par défaut** -- elle est enregistrée immédiatement, il n'y a pas de bouton Enregistrer
+3. Pour revenir au standard, cliquez sur **Revenir à la méthode standard** (affiché uniquement tant qu'une valeur par défaut personnalisée est configurée)
+
+### Ce que cela affecte
+
+- Chaque poste OPEX et investissement CAPEX dont la méthode de ventilation est **par défaut** -- affiché comme *Effectif (par défaut)* dans l'onglet Ventilations jusqu'à ce qu'une valeur par défaut soit définie pour l'organisation
+- Les postes qui utilisent une méthode explicite (Effectif, Utilisateurs IT ou Chiffre d'affaires épinglés sur le poste) ou une ventilation manuelle conservent leur propre réglage
+- Les montants ventilés sont recalculés lors du prochain affichage des ventilations. Les montants budgétaires eux-mêmes ne sont jamais modifiés
+
+### Méthode standard
+
+Tant qu'une organisation n'a pas configuré de valeur par défaut, le standard s'applique : **Effectif**. La page indique toujours si l'année utilise la méthode standard ou une valeur par défaut configurée, ainsi que la méthode standard en vigueur.
+
+### Autorisations
+
+Sans `budget_ops:admin`, vous pouvez consulter le réglage actuel mais pas le modifier.
+
+---
+
 ## Exemple de flux : Cycle budgétaire annuel
 
 Voici une séquence typique utilisant ces outils :
@@ -227,4 +267,5 @@ Voici une séquence typique utilisant ces outils :
 - **Geler après approbation** : Verrouiller les colonnes après approbation maintient votre piste d'audit et prévient les modifications accidentelles.
 - **Utilisez les ajustements en pourcentage** : Lors de la copie entre années, appliquez un facteur d'inflation ou de croissance pour ne pas avoir à ajuster chaque ligne manuellement.
 - **Vérifiez le statut de gel avant les opérations en masse** : Les colonnes gelées bloquent les opérations de copie et de réinitialisation. Si un bouton est grisé, vérifiez d'abord la page de gel.
+- **Définissez la valeur par défaut de l'année avant de saisir les budgets** : Si votre base de ventilation n'est pas l'effectif, configurez-la d'abord dans Méthode de ventilation par défaut, afin que les postes soient créés sur la bonne base plutôt que d'être recalculés après coup.
 - **Réinitialisez avec prudence** : La réinitialisation de colonne est irréversible. Vérifiez bien l'année et la colonne avant de confirmer.

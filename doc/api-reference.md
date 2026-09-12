@@ -660,9 +660,14 @@ Tenant-scoped configuration for IT Landscape dropdowns and enums.
   - Permissions: `business_processes:admin`.
 
 ## Allocation Rules (default method per tenant/year)
-- GET `/allocation-rules/active?year=YYYY` → `{ id, tenant_id: null, fiscal_year, method: 'headcount'|'it_users'|'turnover', status } | null`
-- PATCH `/allocation-rules/active?year=YYYY` with `{ method }` → upsert as active
-  - Used when a spend version has `allocation_method='default'`
+- GET `/allocation-rules/active?year=YYYY` → `{ fiscal_year, method, source: 'standard'|'tenant', standard_method, tenant_method }`
+  - `method` is the effective method: the tenant override when configured, the standard method otherwise
+  - `standard_method` is the global row (`tenant_id IS NULL`, seeded as `headcount`); `tenant_method` is `null` when the year is on the standard
+- PATCH `/allocation-rules/active?year=YYYY` with `{ method: 'headcount'|'it_users'|'turnover' }` → upserts the calling tenant's override for that year
+- DELETE `/allocation-rules/active?year=YYYY` → drops the tenant override, the year falls back to the standard method
+  - Permissions: `budget_ops:reader` for GET, `budget_ops:admin` for PATCH and DELETE
+  - Used when a spend version or capex version has `allocation_method='default'`; the tables `allocation_rules`, `spend_versions` and `capex_versions` share this resolution (`resolveMethod` in the allocation calculators)
+  - `allocation_rules` holds global standard rows plus per-tenant rows and is RLS-scoped: a tenant sees the global rows and its own overrides only
 
 ## Spend Items & Versions (OPEX)
 - POST `/spend-items` → create item

@@ -7,7 +7,7 @@ Budget Administration gives you a set of tools for managing and transforming bud
 - Path: **Budget Management > Administration**
 - Permissions: Most operations require `budget_ops:admin`
 
-The landing page shows four cards, each linking to a dedicated tool:
+The landing page shows five cards, each linking to a dedicated tool:
 
 | Tool | Purpose |
 |------|---------|
@@ -15,6 +15,7 @@ The landing page shows four cards, each linking to a dedicated tool:
 | **Copy Budget Columns** | Copy data between years and columns with adjustments |
 | **Copy Allocations** | Copy allocation methods from one year to another |
 | **Reset Budget Column** | Clear all data from a specific column |
+| **Default Allocation Method** | Set the method OPEX and CAPEX items follow by default |
 
 ---
 
@@ -194,6 +195,45 @@ You must click **Clear Column** in the dialog to proceed, or **Cancel** to abort
 
 ---
 
+## Default Allocation Method
+
+Set the method that OPEX items and CAPEX investments follow when they are left on the default allocation. The setting is per fiscal year: each year resolves its own default, so you can change the basis for one year without touching the others.
+
+### When to use it
+
+- Your chargeback model is not headcount-based (for example revenue-driven)
+- You want new items to follow a shared basis without editing them one by one
+- You are preparing a fiscal year whose allocation basis differs from the previous one
+
+### Fields
+
+| Field | Description |
+|-------|-------------|
+| **Fiscal year** | The year the setting applies to (range: current year minus one through current year plus five) |
+| **Default method** | Headcount, IT Users, or Turnover |
+
+### How it works
+
+1. **Select a year**
+2. **Pick the default method** -- it saves immediately, there is no Save button
+3. To return to the standard, click **Use the standard method** (shown only while a custom default is configured)
+
+### What it affects
+
+- Every OPEX item and CAPEX investment whose allocation method is **default** -- shown as *Headcount (default)* in the Allocations tab until an organisation default is set
+- Items with an explicit method (Headcount, IT Users, or Turnover pinned on the item) or a manual allocation keep their own setting
+- Allocated amounts are recomputed the next time allocations are displayed. Budget amounts themselves are never modified
+
+### Standard method
+
+Until an organisation configures a default, the standard applies: **Headcount**. The page always shows whether the year is on the standard or on a configured default, and what the standard method is.
+
+### Permissions
+
+Without `budget_ops:admin` you can view the current setting but not change it.
+
+---
+
 ## Workflow Example: Annual Budget Cycle
 
 Here is a typical sequence using these tools:
@@ -227,4 +267,5 @@ Here is a typical sequence using these tools:
 - **Freeze after approval**: Locking columns after approval maintains your audit trail and prevents accidental edits.
 - **Use percentage adjustments**: When copying between years, apply an inflation or growth factor so you do not have to adjust every line manually.
 - **Check freeze status before bulk operations**: Frozen columns block copy and reset operations. If a button is greyed out, check the Freeze page first.
+- **Set the year's default before entering budgets**: If your allocation basis is not headcount, configure it in Default Allocation Method first, so items are created on the right basis instead of being re-driven later.
 - **Reset with caution**: Column reset is irreversible. Double-check the year and column before confirming.

@@ -98,6 +98,7 @@
       "title": "Ventilations",
       "method": "Méthode",
       "headcountDefault": "Effectif (par défaut)",
+      "defaultWithMethod": "{{method}} (par défaut)",
       "itUsers": "Utilisateurs IT",
       "turnover": "Chiffre d'affaires",
       "manualByCompany": "Manuel par société",
@@ -307,6 +308,7 @@
       "title": "Ventilations",
       "method": "Méthode",
       "headcountDefault": "Effectif (par défaut)",
+      "defaultWithMethod": "{{method}} (par défaut)",
       "itUsers": "Utilisateurs IT",
       "turnover": "Chiffre d'affaires",
       "manualByCompany": "Manuel par société",
@@ -503,7 +505,28 @@
       "copyAllocTitle": "Copier les ventilations",
       "copyAllocDesc": "Copier les méthodes et pourcentages de ventilation d'une année à une autre",
       "resetColumnTitle": "Réinitialiser une colonne budgétaire",
-      "resetColumnDesc": "Effacer toutes les données d'une colonne budgétaire pour une année spécifique"
+      "resetColumnDesc": "Effacer toutes les données d'une colonne budgétaire pour une année spécifique",
+      "allocationDefaultTitle": "Méthode de ventilation par défaut",
+      "allocationDefaultDesc": "Choisir la méthode appliquée aux postes OPEX et CAPEX laissés en ventilation par défaut"
+    },
+    "allocationDefault": {
+      "title": "Méthode de ventilation par défaut",
+      "subtitle": "Choisissez comment les coûts sont répartis entre sociétés par défaut, pour chaque exercice.",
+      "year": "Exercice",
+      "method": "Méthode par défaut",
+      "methodHelp": "S'applique à tous les postes OPEX et CAPEX qui utilisent la méthode par défaut. Les postes dotés d'une méthode explicite ou d'une ventilation manuelle ne sont pas affectés.",
+      "standardNote": "Méthode standard — aucune personnalisation pour cette année.",
+      "overriddenNote": "Configurée pour votre organisation. Méthode standard : {{method}}.",
+      "resetToStandard": "Revenir à la méthode standard",
+      "scopeNote": "La méthode est résolue au moment du calcul des ventilations, à partir de l'effectif, des utilisateurs IT ou du chiffre d'affaires de chaque société active pour l'année sélectionnée. La modifier recalcule tous les postes restés en méthode par défaut ; les ventilations manuelles conservent leurs pourcentages.",
+      "loadError": "Impossible de charger la méthode de ventilation par défaut.",
+      "saveError": "Impossible d'enregistrer la méthode de ventilation par défaut.",
+      "noPermission": "Vous devez disposer des droits d'administration budgétaire pour modifier la méthode par défaut. Le réglage actuel reste visible.",
+      "methods": {
+        "headcount": "Effectif",
+        "itUsers": "Utilisateurs IT",
+        "turnover": "Chiffre d'affaires"
+      }
     },
     "freeze": {
       "title": "Geler / Dégeler les données",

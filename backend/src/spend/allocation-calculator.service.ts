@@ -4,6 +4,11 @@ import { EntityManager, In, Raw, Repository } from 'typeorm';
 import { SpendAllocation } from './spend-allocation.entity';
 import { SpendVersion } from './spend-version.entity';
 import { AllocationRule } from './allocation-rule.entity';
+import {
+  AllocationMethod,
+  buildDefaultMethodLookup,
+  defaultMethodKey,
+} from './allocation-rule-resolver';
 import { Company } from '../companies/company.entity';
 import { CompanyMetric } from '../companies/company-metric.entity';
 import { Department } from '../departments/department.entity';
@@ -68,15 +73,17 @@ export class AllocationCalculatorService {
     // Consider all versions to build the set of distinct years in scope.
     const years = Array.from(new Set(versions.map((v) => v.budget_year))).sort();
 
-    const defaultMethodByYear = new Map<number, 'headcount' | 'it_users' | 'turnover'>();
+    let defaultMethodLookup = new Map<string, AllocationMethod>();
     if (years.length > 0) {
-      const rules = await manager.getRepository(AllocationRule).find({ where: { fiscal_year: In(years) as any, tenant_id: null } as any });
-      for (const rule of rules) {
-        const method = (rule.method as any) ?? 'headcount';
-        if (method === 'headcount' || method === 'it_users' || method === 'turnover') {
-          defaultMethodByYear.set(rule.fiscal_year, method);
-        }
+      const tenantIds = Array.from(
+        new Set(versions.map((v) => ((v as any).tenant_id ?? null) as string | null)),
+      );
+      const scope: any[] = [{ fiscal_year: In(years) as any, tenant_id: null }];
+      for (const tenantId of tenantIds) {
+        if (tenantId) scope.push({ fiscal_year: In(years) as any, tenant_id: tenantId });
       }
+      const rules = await manager.getRepository(AllocationRule).find({ where: scope } as any);
+      defaultMethodLookup = buildDefaultMethodLookup(rules, tenantIds);
     }
 
     // Year-aware enabled filters: include companies through their disabled_at year.
@@ -236,7 +243,7 @@ export class AllocationCalculatorService {
         }
       }
 
-      const resolved = this.resolveMethod(method, version.budget_year, defaultMethodByYear);
+      const resolved = this.resolveMethod(method, version.budget_year, (version as any).tenant_id ?? null, defaultMethodLookup);
       const persistedShares = (persistedRowsByVersion.get(version.id) ?? [])
         .map((row) => ({
           allocation_id: row.id,
@@ -319,12 +326,13 @@ export class AllocationCalculatorService {
   private resolveMethod(
     method: string,
     year: number,
-    defaultMethodByYear: Map<number, 'headcount' | 'it_users' | 'turnover'>,
+    tenantId: string | null,
+    defaultMethodLookup: Map<string, AllocationMethod>,
   ): 'headcount' | 'it_users' | 'turnover' {
     if (method === 'headcount' || method === 'it_users' || method === 'turnover') {
       return method;
     }
-    const ruleMethod = defaultMethodByYear.get(year);
+    const ruleMethod = defaultMethodLookup.get(defaultMethodKey(tenantId, year));
     if (ruleMethod) return ruleMethod;
     return 'headcount';
   }

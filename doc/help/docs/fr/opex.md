@@ -180,11 +180,16 @@ L'onglet Ventilations répartit la dépense entre vos sociétés et département
 
 | Méthode | Comment ça fonctionne |
 |---------|----------------------|
-| **Effectif (Par défaut)** | Répartit la dépense proportionnellement par effectif de chaque société pour l'année sélectionnée. C'est la méthode par défaut. Aucune sélection manuelle requise -- les pourcentages sont calculés automatiquement depuis les métriques des sociétés. |
+| **Effectif (Par défaut)** | Répartit la dépense proportionnellement par effectif de chaque société pour l'année sélectionnée. Aucune sélection manuelle requise -- les pourcentages sont calculés automatiquement depuis les métriques des sociétés. C'est la méthode standard. |
 | **Utilisateurs IT** | Répartit la dépense proportionnellement par nombre d'utilisateurs IT de chaque société pour l'année sélectionnée. |
 | **Chiffre d'affaires** | Répartit la dépense proportionnellement par chiffre d'affaires de chaque société pour l'année sélectionnée. |
 | **Manuel par société** | Vous sélectionnez quelles sociétés reçoivent cette dépense et choisissez un driver (Effectif, Utilisateurs IT ou Chiffre d'affaires) pour calculer les pourcentages parmi les sociétés sélectionnées uniquement. |
 | **Manuel par département** | Vous sélectionnez des paires société/département spécifiques. Les pourcentages sont calculés à partir de l'effectif de chaque département. Utile lorsqu'un poste ne bénéficie qu'à certains départements (ex. : un CRM utilisé par les ventes). |
+
+**Méthodes par défaut et méthodes épinglées** :
+  - L'option **par défaut** -- affichée comme *Effectif (par défaut)* tant que votre organisation n'a pas configuré une autre méthode -- suit le réglage défini dans **Gestion budgétaire > Administration > Méthode de ventilation par défaut**. Chaque poste laissé sur la valeur par défaut est recalculé lorsqu'un administrateur modifie ce réglage
+  - **Effectif**, **Utilisateurs IT** et **Chiffre d'affaires** épinglent cette méthode sur le poste : une méthode épinglée continue de fonctionner même si la valeur par défaut de l'organisation change par la suite
+  - Les postes dotés d'une ventilation manuelle ne sont jamais affectés par le réglage par défaut
 
 **Comment fonctionnent les pourcentages** :
   - Pour les **méthodes automatiques** (Effectif, Utilisateurs IT, Chiffre d'affaires) : les pourcentages sont calculés depuis les dernières métriques des sociétés à chaque chargement de page. Vous ne les modifiez pas directement

@@ -180,11 +180,16 @@ Der Zuordnungen-Tab verteilt die Ausgaben auf Ihre Unternehmen und Abteilungen. 
 
 | Methode | Funktionsweise |
 |---------|----------------|
-| **Mitarbeiterzahl (Standard)** | Teilt Ausgaben proportional nach der Mitarbeiterzahl jedes Unternehmens für das ausgewählte Jahr. Dies ist die Standardmethode. Keine manuelle Auswahl erforderlich -- Prozentsätze werden automatisch aus Unternehmenskennzahlen berechnet. |
+| **Mitarbeiterzahl (Standard)** | Teilt Ausgaben proportional nach der Mitarbeiterzahl jedes Unternehmens für das ausgewählte Jahr. Keine manuelle Auswahl erforderlich -- Prozentsätze werden automatisch aus Unternehmenskennzahlen berechnet. Dies ist die Standardmethode. |
 | **IT-Benutzer** | Teilt Ausgaben proportional nach der IT-Benutzerzahl jedes Unternehmens für das ausgewählte Jahr. |
 | **Umsatz** | Teilt Ausgaben proportional nach dem Umsatz jedes Unternehmens für das ausgewählte Jahr. |
 | **Manuell nach Unternehmen** | Sie wählen aus, welche Unternehmen diese Ausgabe erhalten, und wählen einen Treiber (Mitarbeiterzahl, IT-Benutzer oder Umsatz), um Prozentsätze nur unter den ausgewählten Unternehmen zu berechnen. |
 | **Manuell nach Abteilung** | Sie wählen bestimmte Unternehmen/Abteilungs-Paare aus. Prozentsätze werden aus der Mitarbeiterzahl jeder Abteilung berechnet. Nützlich, wenn eine Ausgabenposition nur bestimmten Abteilungen zugutekommt (z. B. ein CRM, das vom Vertrieb genutzt wird). |
+
+**Standard- und fixierte Methoden**:
+  - Der **Standard**-Eintrag -- angezeigt als *Mitarbeiterzahl (Standard)*, bis Ihre Organisation eine andere Methode konfiguriert -- folgt der Einstellung unter **Budgetverwaltung > Administration > Standard-Zuordnungsmethode**. Jede Position, die auf Standard bleibt, wird neu berechnet, wenn ein Administrator diese Einstellung ändert
+  - **Mitarbeiterzahl**, **IT-Benutzer** und **Umsatz** fixieren diese Methode an der Position: Eine fixierte Methode funktioniert weiterhin, auch wenn sich der Standard der Organisation später ändert
+  - Positionen mit einer manuellen Zuordnung sind vom Standard nie betroffen
 
 **Wie Prozentsätze funktionieren**:
   - Für **automatische Methoden** (Mitarbeiterzahl, IT-Benutzer, Umsatz): Prozentsätze werden bei jedem Laden der Seite aus den aktuellen Unternehmenskennzahlen berechnet. Sie bearbeiten sie nicht direkt

@@ -35,6 +35,7 @@ export const TENANT_SCOPED_TABLES = [
   'ai_settings',
   'ai_shared_context_profiles',
   'ai_tool_executions',
+  'allocation_rules',
   'analytics_categories',
   'app_asset_assignments',
   'app_instances',
@@ -210,9 +211,15 @@ export const TENANT_SCOPED_TABLES = [
   'users',
 ] as const;
 
-export const EXEMPT_TABLES = {
-  allocation_rules: 'Mixed/global table: tenant_id remains nullable, the public allocation-rules API still reads and writes null-tenant rows, spend and CAPEX allocation calculators resolve defaults from null-tenant rows, and local data currently contains only a global null-tenant row.',
-} as const;
+/**
+ * Tables carrying a `tenant_id` column that are intentionally not RLS-scoped, mapped to
+ * the reason they are exempt.
+ *
+ * Currently empty. `allocation_rules` used to be listed here because it only held a
+ * global standard row; it now also stores per-tenant overrides and is RLS-scoped with a
+ * policy that keeps the global standard rows visible to every tenant.
+ */
+export const EXEMPT_TABLES: Readonly<Record<string, string>> = {};
 
 export type TenantScopedTableName = typeof TENANT_SCOPED_TABLES[number];
 export type ExemptTableName = keyof typeof EXEMPT_TABLES;

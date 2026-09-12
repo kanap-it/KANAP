@@ -173,7 +173,7 @@ L'onglet Ventilations répartit la dépense d'investissement entre vos société
 
 **Méthodes de ventilation** :
 
-1. **Effectif (Par défaut)** : Répartit la dépense d'investissement proportionnellement par effectif de chaque société. Nécessite que toutes les sociétés actives aient un effectif > 0. Les pourcentages se mettent à jour automatiquement.
+1. **Effectif (Par défaut)** : Répartit la dépense d'investissement proportionnellement par effectif de chaque société. Les pourcentages se mettent à jour automatiquement lorsque vous modifiez les métriques des sociétés. C'est la méthode standard.
 
 2. **Utilisateurs IT** : Répartit proportionnellement par nombre d'utilisateurs IT. Utile pour les investissements d'infrastructure IT qui évoluent avec le personnel IT.
 
@@ -182,6 +182,12 @@ L'onglet Ventilations répartit la dépense d'investissement entre vos société
 4. **Manuel par société** : Vous sélectionnez quelles sociétés bénéficient de cet investissement. Choisissez un driver pour calculer les pourcentages parmi les sociétés sélectionnées.
 
 5. **Manuel par département** : Vous sélectionnez des paires société/département spécifiques. Utile lorsqu'un investissement ne bénéficie qu'à certains départements (ex. : équipement de fabrication).
+
+**Méthodes par défaut et méthodes épinglées** :
+
+- L'option **par défaut** -- affichée comme *Effectif (par défaut)* tant que votre organisation n'a pas configuré une autre méthode -- suit le réglage défini dans **Gestion budgétaire > Administration > Méthode de ventilation par défaut**. Chaque investissement laissé sur la valeur par défaut est recalculé lorsqu'un administrateur modifie ce réglage.
+- **Effectif**, **Utilisateurs IT** et **Chiffre d'affaires** épinglent cette méthode sur l'investissement : une méthode épinglée continue de fonctionner même si la valeur par défaut de l'organisation change par la suite.
+- Les investissements dotés d'une ventilation manuelle ne sont jamais affectés par le réglage par défaut.
 
 **Conseil** : Utilisez Effectif pour la plupart des postes (c'est le plus simple et se met à jour automatiquement). Réservez Manuel par société pour les investissements ne bénéficiant qu'à des entités spécifiques. Utilisez Manuel par département pour les investissements très ciblés.
 

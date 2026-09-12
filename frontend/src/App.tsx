@@ -41,6 +41,7 @@ import CopyBudgetColumnsPage from './pages/operations/CopyBudgetColumnsPage';
 import BudgetColumnResetPage from './pages/operations/BudgetColumnResetPage';
 import BudgetFreezePage from './pages/operations/BudgetFreezePage';
 import CopyAllocationsPage from './pages/operations/CopyAllocationsPage';
+import AllocationDefaultPage from './pages/operations/AllocationDefaultPage';
 import CurrencySettingsPage from './pages/operations/CurrencySettingsPage';
 import TasksPage from './pages/TasksPage';
 import TaskWorkspacePage from './pages/tasks/TaskWorkspacePage';
@@ -257,6 +258,7 @@ function AppRoutes() {
           <Route path="/ops/operations/copy-allocations" element={<CopyAllocationsPage />} />
           <Route path="/ops/operations/column-reset" element={<BudgetColumnResetPage />} />
           <Route path="/ops/operations/freeze" element={<BudgetFreezePage />} />
+          <Route path="/ops/operations/allocation-default" element={<AllocationDefaultPage />} />
           {/* Currency Settings moved under Master Data */}
           <Route path="/master-data" element={<MasterDataHomePage />} />
           <Route path="/master-data/coa" element={<CoaPage />} />

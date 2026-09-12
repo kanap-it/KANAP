@@ -98,6 +98,7 @@
       "title": "Zuordnungen",
       "method": "Methode",
       "headcountDefault": "Mitarbeiterzahl (Standard)",
+      "defaultWithMethod": "{{method}} (Standard)",
       "itUsers": "IT-Benutzer",
       "turnover": "Umsatz",
       "manualByCompany": "Manuell nach Unternehmen",
@@ -307,6 +308,7 @@
       "title": "Zuordnungen",
       "method": "Methode",
       "headcountDefault": "Mitarbeiterzahl (Standard)",
+      "defaultWithMethod": "{{method}} (Standard)",
       "itUsers": "IT-Benutzer",
       "turnover": "Umsatz",
       "manualByCompany": "Manuell nach Unternehmen",
@@ -503,7 +505,28 @@
       "copyAllocTitle": "Zuordnungen kopieren",
       "copyAllocDesc": "Zuordnungsmethoden und -prozentsätze von einem Jahr in ein anderes kopieren",
       "resetColumnTitle": "Budgetspalte zurücksetzen",
-      "resetColumnDesc": "Alle Daten einer Budgetspalte für ein bestimmtes Jahr löschen"
+      "resetColumnDesc": "Alle Daten einer Budgetspalte für ein bestimmtes Jahr löschen",
+      "allocationDefaultTitle": "Standard-Zuordnungsmethode",
+      "allocationDefaultDesc": "Methode wählen, die für OPEX- und CAPEX-Positionen mit Standard-Zuordnung gilt"
+    },
+    "allocationDefault": {
+      "title": "Standard-Zuordnungsmethode",
+      "subtitle": "Legen Sie fest, wie Kosten standardmäßig je Geschäftsjahr zwischen Unternehmen zugeordnet werden.",
+      "year": "Geschäftsjahr",
+      "method": "Standardmethode",
+      "methodHelp": "Gilt für alle OPEX- und CAPEX-Positionen, die die Standardmethode verwenden. Positionen mit einer expliziten Methode oder einer manuellen Zuordnung sind nicht betroffen.",
+      "standardNote": "Standardmethode — für dieses Jahr ist keine Abweichung konfiguriert.",
+      "overriddenNote": "Für Ihre Organisation konfiguriert. Standardmethode: {{method}}.",
+      "resetToStandard": "Standardmethode verwenden",
+      "scopeNote": "Die Methode wird bei der Berechnung der Zuordnungen aufgelöst, aus Mitarbeiterzahl, IT-Benutzern oder Umsatz jedes aktiven Unternehmens für das gewählte Jahr. Eine Änderung berechnet alle Positionen neu, die auf der Standardmethode stehen; manuelle Zuordnungen behalten ihre Prozentsätze.",
+      "loadError": "Die Standard-Zuordnungsmethode konnte nicht geladen werden.",
+      "saveError": "Die Standard-Zuordnungsmethode konnte nicht gespeichert werden.",
+      "noPermission": "Zum Ändern der Standardmethode sind Budget-Administrationsrechte erforderlich. Die aktuelle Einstellung bleibt sichtbar.",
+      "methods": {
+        "headcount": "Mitarbeiterzahl",
+        "itUsers": "IT-Benutzer",
+        "turnover": "Umsatz"
+      }
     },
     "freeze": {
       "title": "Daten einfrieren / auftauen",
