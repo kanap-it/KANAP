@@ -180,11 +180,17 @@ La pestaña Asignaciones distribuye el gasto entre sus empresas y departamentos.
 
 | Método | Cómo funciona |
 |--------|---------------|
-| **Plantilla (Predeterminado)** | Divide el gasto proporcionalmente según la plantilla de cada empresa para el año seleccionado. Este es el método predeterminado. No requiere selección manual -- los porcentajes se calculan automáticamente desde las métricas de la empresa. |
+| **Plantilla (Predeterminado)** | Divide el gasto proporcionalmente según la plantilla de cada empresa para el año seleccionado. No requiere selección manual -- los porcentajes se calculan automáticamente desde las métricas de la empresa. Este es el método estándar. |
 | **Usuarios IT** | Divide el gasto proporcionalmente según el conteo de usuarios IT de cada empresa para el año seleccionado. |
 | **Facturación** | Divide el gasto proporcionalmente según la facturación (ingresos) de cada empresa para el año seleccionado. |
 | **Manual por empresa** | Usted selecciona qué empresas reciben este gasto y elige un factor (Plantilla, Usuarios IT o Facturación) para calcular porcentajes solo entre las empresas seleccionadas. |
 | **Manual por departamento** | Usted selecciona pares específicos de empresa/departamento. Los porcentajes se calculan según la plantilla de cada departamento. Útil cuando una partida de gasto beneficia solo a ciertos departamentos (p. ej., un CRM usado por Ventas). |
+
+**Métodos por defecto y fijados**:
+  - La opción **por defecto** -- mostrada como *Plantilla (por defecto)* hasta que su organización configure otro método -- sigue la configuración de **Gestión presupuestaria > Administración > Método de asignación por defecto**. Cada partida que se deje en el valor por defecto se recalcula cuando un administrador cambia esa configuración
+  - Esa configuración también puede restringir el valor por defecto a una **selección de sociedades** (por ejemplo, la entidad que asume el presupuesto de IT): el generador se aplica entonces únicamente a esas sociedades, y la opción aparece como *Por defecto (n sociedades)*
+  - **Plantilla**, **Usuarios IT** y **Facturación** fijan ese método en la partida: un método fijado sigue funcionando aunque el valor por defecto de la organización cambie después
+  - Las partidas con una asignación manual nunca se ven afectadas por el método por defecto
 
 **Cómo funcionan los porcentajes**:
   - Para **métodos automáticos** (Plantilla, Usuarios IT, Facturación): los porcentajes se calculan desde las métricas más recientes de la empresa en cada carga de página. No los edita directamente

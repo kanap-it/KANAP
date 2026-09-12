@@ -14,11 +14,12 @@ import {
 } from '@mui/material';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ReportLayout from '../../components/reports/ReportLayout';
 import { useTranslation } from 'react-i18next';
 import AgGridBox from '../../components/AgGridBox';
 import { useLocale } from '../../i18n/useLocale';
+import { AllocationRuleResolution, fetchAllocationRule } from '../../services/allocationRules';
 import {
   AllocationCopyOperation,
   AllocationCopyResult,
@@ -56,6 +57,36 @@ export default function CopyAllocationsPage() {
 
   const isSameYear = sourceYear === destinationYear;
 
+  // Items left on the default allocation follow the default configured for their own year,
+  // and the copy does not carry that setting over: surface the difference in the dry run.
+  const { data: sourceRule } = useQuery({
+    queryKey: ['allocation-rule', sourceYear],
+    queryFn: () => fetchAllocationRule(sourceYear),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const { data: destinationRule } = useQuery({
+    queryKey: ['allocation-rule', destinationYear],
+    queryFn: () => fetchAllocationRule(destinationYear),
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const resolutionLabel = React.useCallback(
+    (rule: AllocationRuleResolution | undefined): string => {
+      if (!rule) return '';
+      if (rule.mode === 'manual_company') {
+        return t('operations.copyAllocations.defaultManualLabel', { count: rule.company_ids?.length ?? 0 });
+      }
+      return t(`opex.allocations.${rule.method === 'it_users' ? 'itUsers' : rule.method}`);
+    },
+    [t],
+  );
+
+  const defaultBasisChanged =
+    !!sourceRule && !!destinationRule
+    && (sourceRule.mode !== destinationRule.mode || sourceRule.method !== destinationRule.method);
+
   const stats = useMemo(() => {
     if (previewData.length === 0) {
       return {
@@ -64,12 +95,14 @@ export default function CopyAllocationsPage() {
         skipped: 0,
         errors: 0,
         skippedDueToDestination: 0,
+        onDefault: 0,
       };
     }
     let toCopy = 0;
     let skipped = 0;
     let errors = 0;
     let skippedDestination = 0;
+    let onDefault = 0;
     for (const row of previewData) {
       if (row.action === 'copy') toCopy += 1;
       else if (row.action === 'error') errors += 1;
@@ -77,6 +110,7 @@ export default function CopyAllocationsPage() {
         skipped += 1;
         if (row.action === 'skip_destination_has_data') skippedDestination += 1;
       }
+      if (row.sourceMethod === 'default') onDefault += 1;
     }
     return {
       total: previewData.length,
@@ -84,6 +118,7 @@ export default function CopyAllocationsPage() {
       skipped,
       errors,
       skippedDueToDestination: skippedDestination,
+      onDefault,
     };
   }, [previewData]);
 
@@ -262,6 +297,18 @@ export default function CopyAllocationsPage() {
         {stats.skippedDueToDestination > 0 && !overwrite && (
           <Alert severity="warning">
             {t("operations.copyAllocations.skippedDueToDestination", { count: stats.skippedDueToDestination, year: destinationYear })}
+          </Alert>
+        )}
+
+        {stats.onDefault > 0 && defaultBasisChanged && (
+          <Alert severity="warning">
+            {t("operations.copyAllocations.defaultBasisWarning", {
+              count: stats.onDefault,
+              sourceYear,
+              destinationYear,
+              sourceLabel: resolutionLabel(sourceRule),
+              destinationLabel: resolutionLabel(destinationRule),
+            })}
           </Alert>
         )}
 

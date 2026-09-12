@@ -7,7 +7,7 @@ La Administración presupuestaria le ofrece un conjunto de herramientas para ges
 - Ruta: **Gestión presupuestaria > Administración**
 - Permisos: La mayoría de operaciones requieren `budget_ops:admin`
 
-La página principal muestra cuatro tarjetas, cada una enlazando a una herramienta dedicada:
+La página principal muestra cinco tarjetas, cada una enlazando a una herramienta dedicada:
 
 | Herramienta | Propósito |
 |-------------|-----------|
@@ -15,6 +15,7 @@ La página principal muestra cuatro tarjetas, cada una enlazando a una herramien
 | **Copiar columnas presupuestarias** | Copiar datos entre años y columnas con ajustes |
 | **Copiar asignaciones** | Copiar métodos de asignación de un año a otro |
 | **Restablecer columna presupuestaria** | Borrar todos los datos de una columna específica |
+| **Método de asignación por defecto** | Definir el método que las partidas de OPEX y CAPEX siguen por defecto |
 
 ---
 
@@ -194,6 +195,61 @@ Debe hacer clic en **Borrar columna** en el diálogo para proceder, o **Cancelar
 
 ---
 
+## Método de asignación por defecto
+
+Defina el método que siguen las partidas de OPEX y las inversiones de CAPEX cuando se dejan en la asignación por defecto. La configuración es por ejercicio: cada año resuelve su propio valor por defecto, por lo que puede cambiar la base de un año sin tocar los demás.
+
+### Cuándo usarla
+
+- Su modelo de contracargo no se basa en la plantilla (por ejemplo, se guía por la facturación)
+- El presupuesto de IT lo asume una sola entidad y no debe repartirse entre todas las filiales
+- Desea que las nuevas partidas sigan una base compartida sin editarlas una por una
+- Está preparando un ejercicio cuya base de asignación difiere de la anterior
+
+### Campos
+
+| Campo | Descripción |
+|-------|-------------|
+| **Ejercicio** | El año al que se aplica la configuración (rango: año actual menos uno hasta año actual más cinco) |
+| **Sociedades** | **Todas las sociedades activas** (por defecto): el coste se reparte entre todas las sociedades activas del año. **Sociedades seleccionadas**: el reparto se restringe a las sociedades que elija |
+| **Método por defecto** | El generador que pondera las sociedades: Plantilla, Usuarios IT o Facturación |
+
+### Cómo funciona
+
+1. **Seleccione un año**
+2. **Elija el ámbito de sociedades** -- *Todas las sociedades activas*, o *Sociedades seleccionadas* y después las sociedades concretas
+3. **Elija el generador** que pondera las sociedades (Plantilla, Usuarios IT o Facturación)
+4. Cada cambio se guarda inmediatamente, no hay botón Guardar
+5. Para volver al método estándar, haga clic en **Volver al método estándar** (solo se muestra mientras haya un valor por defecto personalizado configurado)
+
+### Sociedades seleccionadas
+
+- El generador se aplica únicamente a las sociedades seleccionadas: sus porcentajes se calculan a partir de su propia plantilla, sus usuarios IT o su facturación del año
+- La página muestra el reparto resultante, para que pueda comprobar el efecto antes de confiar en él
+- Una sola sociedad seleccionada siempre asume el **100%**, sin necesidad de un valor del generador
+- A partir de dos sociedades, cada sociedad seleccionada necesita un valor para el generador elegido. Una sociedad sin valor se rechaza al guardar -- corrija primero las métricas de la sociedad en **Datos maestros > Empresas**
+- Una sociedad desactivada para el año no se puede seleccionar: las sociedades desactivadas quedan excluidas de las asignaciones de ese año
+
+### Qué afecta
+
+- Todas las partidas de OPEX y las inversiones de CAPEX cuyo método de asignación sea **por defecto** -- mostradas como *Plantilla (por defecto)* (o *Por defecto (n sociedades)*) en la pestaña Asignaciones hasta que se defina un valor por defecto para la organización
+- Las partidas con un método explícito (Plantilla, Usuarios IT o Facturación fijados en la partida) o una asignación manual conservan su propia configuración
+- Los importes asignados se recalculan la próxima vez que se muestren las asignaciones. Los importes presupuestarios en sí nunca se modifican
+
+### Método estándar
+
+Mientras una organización no configure un valor por defecto, se aplica el método estándar: **Plantilla** sobre todas las sociedades activas del año. La página siempre indica si el año usa el método estándar o un valor por defecto configurado, y cuál es el método estándar.
+
+### Cambiar el valor por defecto a posteriori
+
+El valor por defecto se resuelve cada vez que se muestran las asignaciones, por lo que editarlo recalcula todas las partidas que siguen en el valor por defecto. Si una sociedad incluida en la selección pierde después su valor de generador o se desactiva, las partidas afectadas muestran un error en lugar de un reparto reequilibrado en silencio -- la página le advierte de los problemas con la selección actual.
+
+### Permisos
+
+Sin `budget_ops:admin`, puede consultar la configuración actual pero no cambiarla.
+
+---
+
 ## Ejemplo de flujo de trabajo: Ciclo presupuestario anual
 
 A continuación se muestra una secuencia típica usando estas herramientas:
@@ -227,4 +283,5 @@ A continuación se muestra una secuencia típica usando estas herramientas:
 - **Congele después de la aprobación**: Bloquear columnas después de la aprobación mantiene su registro de auditoría y previene ediciones accidentales.
 - **Use ajustes porcentuales**: Al copiar entre años, aplique un factor de inflación o crecimiento para no tener que ajustar cada línea manualmente.
 - **Verifique el estado de congelación antes de operaciones masivas**: Las columnas congeladas bloquean las operaciones de copia y restablecimiento. Si un botón está en gris, verifique la página de Congelación primero.
+- **Defina el valor por defecto del año antes de introducir presupuestos**: Si su base de asignación no es la plantilla, configúrela primero en Método de asignación por defecto, para que las partidas se creen sobre la base correcta en lugar de recalcularse después.
 - **Restablezca con precaución**: El restablecimiento de columna es irreversible. Compruebe el año y la columna antes de confirmar.

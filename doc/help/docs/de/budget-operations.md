@@ -7,7 +7,7 @@ Die Budget-Administration bietet Ihnen eine Reihe von Werkzeugen zur Verwaltung 
 - Pfad: **Budgetverwaltung > Administration**
 - Berechtigungen: Die meisten Operationen erfordern `budget_ops:admin`
 
-Die Startseite zeigt vier Karten, die jeweils zu einem dedizierten Werkzeug führen:
+Die Startseite zeigt fünf Karten, die jeweils zu einem dedizierten Werkzeug führen:
 
 | Werkzeug | Zweck |
 |----------|-------|
@@ -15,6 +15,7 @@ Die Startseite zeigt vier Karten, die jeweils zu einem dedizierten Werkzeug füh
 | **Budgetspalten kopieren** | Daten zwischen Jahren und Spalten mit Anpassungen kopieren |
 | **Zuordnungen kopieren** | Zuordnungsmethoden von einem Jahr in ein anderes kopieren |
 | **Budgetspalte zurücksetzen** | Alle Daten einer bestimmten Spalte löschen |
+| **Standard-Zuordnungsmethode** | Die Methode festlegen, der OPEX- und CAPEX-Positionen standardmäßig folgen |
 
 ---
 
@@ -194,6 +195,61 @@ Sie müssen im Dialog auf **Spalte löschen** klicken, um fortzufahren, oder **A
 
 ---
 
+## Standard-Zuordnungsmethode
+
+Legen Sie die Methode fest, der OPEX-Positionen und CAPEX-Investitionen folgen, wenn sie auf der Standardzuordnung belassen werden. Die Einstellung gilt pro Geschäftsjahr: Jedes Jahr löst seinen eigenen Standard auf, sodass Sie die Basis für ein Jahr ändern können, ohne die anderen zu berühren.
+
+### Wann verwenden
+
+- Ihr Leistungsverrechnungsmodell basiert nicht auf der Mitarbeiterzahl (zum Beispiel umsatzgetrieben)
+- Das IT-Budget wird von einem einzigen Unternehmen getragen und darf nicht auf alle Tochtergesellschaften verteilt werden
+- Sie möchten, dass neue Positionen einer gemeinsamen Basis folgen, ohne sie einzeln zu bearbeiten
+- Sie bereiten ein Geschäftsjahr vor, dessen Zuordnungsbasis sich vom vorherigen unterscheidet
+
+### Felder
+
+| Feld | Beschreibung |
+|------|--------------|
+| **Geschäftsjahr** | Das Jahr, für das die Einstellung gilt (Bereich: aktuelles Jahr minus eins bis aktuelles Jahr plus fünf) |
+| **Unternehmen** | **Alle aktiven Unternehmen** (Standard): Die Kosten werden auf alle für das Jahr aktiven Unternehmen verteilt. **Ausgewählte Unternehmen**: Die Zuordnung wird auf die von Ihnen ausgewählten Unternehmen beschränkt |
+| **Standardmethode** | Der Treiber, der die Unternehmen gewichtet: Mitarbeiterzahl, IT-Benutzer oder Umsatz |
+
+### Funktionsweise
+
+1. **Wählen Sie ein Jahr**
+2. **Wählen Sie den Unternehmensumfang** -- *Alle aktiven Unternehmen* oder *Ausgewählte Unternehmen* und dann die Unternehmen selbst
+3. **Wählen Sie den Treiber**, der die Unternehmen gewichtet (Mitarbeiterzahl, IT-Benutzer oder Umsatz)
+4. Jede Änderung wird sofort gespeichert, es gibt keine Schaltfläche zum Speichern
+5. Um zur Standardmethode zurückzukehren, klicken Sie auf **Standardmethode verwenden** (wird nur angezeigt, solange ein eigener Standard konfiguriert ist)
+
+### Ausgewählte Unternehmen
+
+- Der Treiber wird nur auf die ausgewählten Unternehmen angewendet: ihre Prozentsätze werden aus ihrer eigenen Mitarbeiterzahl, ihren IT-Benutzern oder ihrem Umsatz für das Jahr berechnet
+- Die Seite zeigt die daraus resultierende Aufteilung, sodass Sie die Wirkung prüfen können, bevor Sie sich darauf verlassen
+- Ein einzelnes ausgewähltes Unternehmen erhält immer **100 %**, ohne dass ein Treiberwert erforderlich ist
+- Ab zwei Unternehmen benötigt jedes ausgewählte Unternehmen einen Wert für den gewählten Treiber. Ein Unternehmen ohne Wert wird beim Speichern abgelehnt -- korrigieren Sie zuerst die Unternehmenskennzahlen unter **Stammdaten > Unternehmen**
+- Ein für das Jahr deaktiviertes Unternehmen kann nicht ausgewählt werden: Deaktivierte Unternehmen sind von den Zuordnungen dieses Jahres ausgeschlossen
+
+### Was es beeinflusst
+
+- Jede OPEX-Position und CAPEX-Investition, deren Zuordnungsmethode **Standard** ist -- im Zuordnungen-Tab als *Mitarbeiterzahl (Standard)* (oder *Standard (n Unternehmen)*) angezeigt, bis ein organisationsweiter Standard festgelegt ist
+- Positionen mit einer expliziten Methode (Mitarbeiterzahl, IT-Benutzer oder Umsatz, fest an der Position gewählt) oder einer manuellen Zuordnung behalten ihre eigene Einstellung
+- Zugeordnete Beträge werden neu berechnet, sobald die Zuordnungen das nächste Mal angezeigt werden. Die Budgetbeträge selbst werden nie geändert
+
+### Standardmethode
+
+Solange eine Organisation keinen Standard konfiguriert, gilt die Standardmethode: **Mitarbeiterzahl** über alle für das Jahr aktiven Unternehmen. Die Seite zeigt immer an, ob das Jahr auf der Standardmethode oder auf einem konfigurierten Standard läuft, und welche Methode als Standard gilt.
+
+### Den Standard nachträglich ändern
+
+Der Standard wird bei jeder Anzeige der Zuordnungen neu aufgelöst: Eine Änderung berechnet alle Positionen neu, die auf Standard stehen. Verliert ein Unternehmen der Auswahl später seinen Treiberwert oder wird es deaktiviert, zeigen die betroffenen Positionen einen Fehler statt einer stillschweigend neu verteilten Aufteilung -- die Seite weist Sie auf Probleme mit der aktuellen Auswahl hin.
+
+### Berechtigungen
+
+Ohne `budget_ops:admin` können Sie die aktuelle Einstellung einsehen, aber nicht ändern.
+
+---
+
 ## Workflow-Beispiel: Jährlicher Budgetzyklus
 
 Hier ist eine typische Abfolge mit diesen Werkzeugen:
@@ -227,4 +283,5 @@ Hier ist eine typische Abfolge mit diesen Werkzeugen:
 - **Nach Genehmigung einfrieren**: Das Sperren von Spalten nach der Genehmigung bewahrt Ihren Audit-Trail und verhindert versehentliche Bearbeitungen.
 - **Prozentuale Anpassungen verwenden**: Beim Kopieren zwischen Jahren wenden Sie einen Inflations- oder Wachstumsfaktor an, damit Sie nicht jede Zeile manuell anpassen müssen.
 - **Einfrierstatus vor Massenoperationen prüfen**: Eingefrorene Spalten blockieren Kopier- und Zurücksetzungsoperationen. Wenn eine Schaltfläche ausgegraut ist, prüfen Sie zuerst die Einfrierseite.
+- **Legen Sie den Standard des Jahres vor der Budgeterfassung fest**: Wenn Ihre Zuordnungsbasis nicht die Mitarbeiterzahl ist, konfigurieren Sie sie zuerst unter Standard-Zuordnungsmethode, damit Positionen gleich auf der richtigen Basis angelegt werden und nicht später neu berechnet werden müssen.
 - **Mit Vorsicht zurücksetzen**: Das Zurücksetzen von Spalten ist irreversibel. Überprüfen Sie Jahr und Spalte doppelt, bevor Sie bestätigen.

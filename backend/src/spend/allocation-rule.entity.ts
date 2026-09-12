@@ -1,5 +1,14 @@
 import { Entity, PrimaryGeneratedColumn, Column, Unique, Index } from 'typeorm';
 
+/**
+ * Company set the default allocation applies to:
+ * - `auto` spreads over every company enabled for the fiscal year;
+ * - `manual_company` only spreads over `company_ids`.
+ *
+ * `method` is the driver (headcount | it_users | turnover) in both modes.
+ */
+export type AllocationRuleMode = 'auto' | 'manual_company';
+
 // Default allocation method per tenant per year
 // Methods: headcount | it_users | turnover
 @Entity('allocation_rules')
@@ -18,6 +27,13 @@ export class AllocationRule {
 
   @Column('text')
   method!: 'headcount' | 'it_users' | 'turnover';
+
+  @Column('text', { default: 'auto' })
+  mode!: AllocationRuleMode;
+
+  /** Selected companies, `manual_company` mode only. Never set on the global standard row. */
+  @Column('uuid', { array: true, nullable: true })
+  company_ids!: string[] | null;
 
   @Column('text', { default: 'active' })
   status!: 'active' | 'inactive';

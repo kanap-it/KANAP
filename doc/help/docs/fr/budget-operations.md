@@ -7,7 +7,7 @@ L'administration budgétaire met à votre disposition un ensemble d'outils pour 
 - Chemin : **Gestion budgétaire > Administration**
 - Autorisations : La plupart des opérations nécessitent `budget_ops:admin`
 
-La page d'accueil affiche quatre cartes, chacune renvoyant à un outil dédié :
+La page d'accueil affiche cinq cartes, chacune renvoyant à un outil dédié :
 
 | Outil | Objectif |
 |-------|----------|
@@ -15,6 +15,7 @@ La page d'accueil affiche quatre cartes, chacune renvoyant à un outil dédié :
 | **Copier les colonnes budgétaires** | Copier des données entre années et colonnes avec des ajustements |
 | **Copier les ventilations** | Copier les méthodes de ventilation d'une année à l'autre |
 | **Réinitialiser une colonne budgétaire** | Effacer toutes les données d'une colonne spécifique |
+| **Méthode de ventilation par défaut** | Définir la méthode que les postes OPEX et CAPEX suivent par défaut |
 
 ---
 
@@ -194,6 +195,61 @@ Vous devez cliquer sur **Effacer la colonne** dans la boîte de dialogue pour co
 
 ---
 
+## Méthode de ventilation par défaut
+
+Définissez la méthode que les postes OPEX et les investissements CAPEX suivent lorsqu'ils restent sur la ventilation par défaut. Le réglage s'applique par exercice : chaque année résout sa propre valeur par défaut, ce qui vous permet de modifier la base d'une année sans toucher aux autres.
+
+### Quand l'utiliser
+
+- Votre modèle de refacturation n'est pas basé sur l'effectif (par exemple piloté par le chiffre d'affaires)
+- Le budget IT est porté par une seule entité et ne doit pas être réparti entre toutes les filiales
+- Vous souhaitez que les nouveaux postes suivent une base partagée sans les modifier un par un
+- Vous préparez un exercice dont la base de ventilation diffère de la précédente
+
+### Champs
+
+| Champ | Description |
+|-------|-------------|
+| **Exercice** | L'année à laquelle le réglage s'applique (plage : année en cours moins un à année en cours plus cinq) |
+| **Sociétés** | **Toutes les sociétés actives** (par défaut) : le coût est réparti sur toutes les sociétés actives pour l'année. **Sociétés sélectionnées** : la ventilation est restreinte aux sociétés que vous choisissez |
+| **Méthode par défaut** | L'inducteur qui pondère les sociétés : Effectif, Utilisateurs IT ou Chiffre d'affaires |
+
+### Comment ça fonctionne
+
+1. **Sélectionnez une année**
+2. **Choisissez le périmètre de sociétés** -- *Toutes les sociétés actives*, ou *Sociétés sélectionnées* puis les sociétés elles-mêmes
+3. **Choisissez l'inducteur** qui pondère les sociétés (Effectif, Utilisateurs IT ou Chiffre d'affaires)
+4. Chaque modification est enregistrée immédiatement, il n'y a pas de bouton Enregistrer
+5. Pour revenir au standard, cliquez sur **Revenir à la méthode standard** (affiché uniquement tant qu'une valeur par défaut personnalisée est configurée)
+
+### Sociétés sélectionnées
+
+- L'inducteur s'applique uniquement aux sociétés sélectionnées : leurs pourcentages sont calculés à partir de leur propre effectif, de leurs utilisateurs IT ou de leur chiffre d'affaires pour l'année
+- La page affiche la répartition obtenue, ce qui vous permet de vérifier l'effet avant de vous y appuyer
+- Une seule société sélectionnée prend toujours **100 %**, sans valeur d'inducteur requise
+- À partir de deux sociétés, chaque société sélectionnée doit disposer d'une valeur pour l'inducteur choisi. Une société sans valeur est rejetée à l'enregistrement -- corrigez d'abord les métriques de la société dans **Données de référence > Sociétés**
+- Une société désactivée pour l'année ne peut pas être sélectionnée : les sociétés désactivées sont exclues des ventilations de cette année
+
+### Ce que cela affecte
+
+- Chaque poste OPEX et investissement CAPEX dont la méthode de ventilation est **par défaut** -- affiché comme *Effectif (par défaut)* (ou *Par défaut (n sociétés)*) dans l'onglet Ventilations jusqu'à ce qu'une valeur par défaut soit définie pour l'organisation
+- Les postes qui utilisent une méthode explicite (Effectif, Utilisateurs IT ou Chiffre d'affaires épinglés sur le poste) ou une ventilation manuelle conservent leur propre réglage
+- Les montants ventilés sont recalculés lors du prochain affichage des ventilations. Les montants budgétaires eux-mêmes ne sont jamais modifiés
+
+### Méthode standard
+
+Tant qu'une organisation n'a pas configuré de valeur par défaut, le standard s'applique : **Effectif** sur toutes les sociétés actives pour l'année. La page indique toujours si l'année utilise la méthode standard ou une valeur par défaut configurée, ainsi que la méthode standard en vigueur.
+
+### Modifier la valeur par défaut après coup
+
+La valeur par défaut est résolue à chaque affichage des ventilations : la modifier recalcule tous les postes restés sur la valeur par défaut. Si une société incluse dans la sélection perd ensuite sa valeur d'inducteur ou est désactivée, les postes concernés affichent une erreur au lieu d'une répartition rééquilibrée en silence -- la page vous signale les problèmes liés à la sélection en cours.
+
+### Autorisations
+
+Sans `budget_ops:admin`, vous pouvez consulter le réglage actuel mais pas le modifier.
+
+---
+
 ## Exemple de flux : Cycle budgétaire annuel
 
 Voici une séquence typique utilisant ces outils :
@@ -227,4 +283,5 @@ Voici une séquence typique utilisant ces outils :
 - **Geler après approbation** : Verrouiller les colonnes après approbation maintient votre piste d'audit et prévient les modifications accidentelles.
 - **Utilisez les ajustements en pourcentage** : Lors de la copie entre années, appliquez un facteur d'inflation ou de croissance pour ne pas avoir à ajuster chaque ligne manuellement.
 - **Vérifiez le statut de gel avant les opérations en masse** : Les colonnes gelées bloquent les opérations de copie et de réinitialisation. Si un bouton est grisé, vérifiez d'abord la page de gel.
+- **Définissez la valeur par défaut de l'année avant de saisir les budgets** : Si votre base de ventilation n'est pas l'effectif, configurez-la d'abord dans Méthode de ventilation par défaut, afin que les postes soient créés sur la bonne base plutôt que d'être recalculés après coup.
 - **Réinitialisez avec prudence** : La réinitialisation de colonne est irréversible. Vérifiez bien l'année et la colonne avant de confirmer.

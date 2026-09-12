@@ -127,6 +127,7 @@
       "title": "Allocations",
       "method": "Method",
       "headcountDefault": "Headcount (default)",
+      "defaultWithMethod": "{{method}} (default)",
       "itUsers": "IT users",
       "turnover": "Turnover",
       "manualByCompany": "Manual by company",
@@ -165,7 +166,9 @@
       "selectCompany": "Select company",
       "selectDepartment": "Select department",
       "noCompanies": "No companies",
-      "noDepartments": "No departments"
+      "noDepartments": "No departments",
+      "defaultManual": "Default ({{count}} companies)",
+      "defaultManual_one": "Default ({{count}} company)"
     },
     "relations": {
       "projects": "Projects",
@@ -307,6 +310,7 @@
       "title": "Allocations",
       "method": "Method",
       "headcountDefault": "Headcount (default)",
+      "defaultWithMethod": "{{method}} (default)",
       "itUsers": "IT users",
       "turnover": "Turnover",
       "manualByCompany": "Manual by company",
@@ -345,7 +349,9 @@
       "selectCompany": "Select company",
       "selectDepartment": "Select department",
       "noCompanies": "No companies",
-      "noDepartments": "No departments"
+      "noDepartments": "No departments",
+      "defaultManual": "Default ({{count}} companies)",
+      "defaultManual_one": "Default ({{count}} company)"
     },
     "relations": {
       "projects": "Projects",
@@ -503,7 +509,42 @@
       "copyAllocTitle": "Copy allocations",
       "copyAllocDesc": "Copy allocation methods and percentages from one year to another",
       "resetColumnTitle": "Reset budget column",
-      "resetColumnDesc": "Clear all data from a budget column for a specific year"
+      "resetColumnDesc": "Clear all data from a budget column for a specific year",
+      "allocationDefaultTitle": "Default allocation method",
+      "allocationDefaultDesc": "Choose the method applied to OPEX and CAPEX items left on the default allocation"
+    },
+    "allocationDefault": {
+      "title": "Default allocation method",
+      "subtitle": "Choose how costs are shared across companies by default, for each fiscal year.",
+      "year": "Fiscal year",
+      "mode": "Companies",
+      "modeAuto": "All enabled companies",
+      "modeManual": "Selected companies",
+      "modeManualHelp": "The driver is applied to the selected companies only.",
+      "companies": "Companies",
+      "companiesSelected": "{{count}} companies selected",
+      "companiesSelected_one": "{{count}} company selected",
+      "companiesHint": "Select at least one company: the selection is saved when the list closes.",
+      "companiesPlaceholder": "Select companies",
+      "method": "Default method",
+      "methodHelp": "Applies to every OPEX and CAPEX item that uses the default method. Items with an explicit method or a manual allocation are not affected.",
+      "sharesTitle": "Computed split",
+      "sharesEmpty": "No split yet. Select at least one company to see the percentages.",
+      "companyColumn": "Company",
+      "driverValue": "Driver value",
+      "previewError": "The current selection cannot be computed: {{reason}}",
+      "standardNote": "Standard method — no override configured for this year.",
+      "overriddenNote": "Configured for your organisation. Standard method: {{method}}.",
+      "resetToStandard": "Use the standard method",
+      "scopeNote": "The method is resolved when allocations are computed: either from the headcount, IT users or turnover of every company enabled for the year, or from the driver value of the companies selected for the default. Changing it re-drives every item left on the default method; manual allocations keep their percentages.",
+      "loadError": "Could not load the default allocation method.",
+      "saveError": "Could not save the default allocation method.",
+      "noPermission": "You need budget administration rights to change the default. The current setting stays visible.",
+      "methods": {
+        "headcount": "Headcount",
+        "itUsers": "IT users",
+        "turnover": "Turnover"
+      }
     },
     "freeze": {
       "title": "Freeze / unfreeze data",
@@ -577,7 +618,10 @@
         "skip_no_source_allocations": "Skip – no allocations in source",
         "skip_destination_has_data": "Skip – destination has data",
         "error": "Error"
-      }
+      },
+      "defaultManualLabel": "selected companies ({{count}})",
+      "defaultManualLabel_one": "selected company ({{count}})",
+      "defaultBasisWarning": "{{count}} items are left on the default allocation: {{destinationYear}} uses {{destinationLabel}} while {{sourceYear}} uses {{sourceLabel}}. Copied items keep following the default of their own year — configure {{destinationYear}} in Budget administration if the basis should stay the same."
     },
     "copyBudgetColumns": {
       "title": "Copy budget columns",

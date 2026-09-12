@@ -5,9 +5,13 @@ import { CapexAllocation } from './capex-allocation.entity';
 import { CapexVersion } from './capex-version.entity';
 import { AuditService } from '../audit/audit.service';
 import { CapexAllocationCalculatorService } from './capex-allocation-calculator.service';
-import { CompanyMetric } from '../companies/company-metric.entity';
 import { Department } from '../departments/department.entity';
 import { DepartmentMetric } from '../departments/department-metric.entity';
+import {
+  AllocationDriver,
+  computeCompanyShares,
+  normalizeWeights,
+} from '../spend/allocation-distribution';
 
 type AllocationInput = {
   company_id: string;
@@ -112,21 +116,21 @@ export class CapexAllocationsService {
         throw new BadRequestException('Select at least one company for manual allocation.');
       }
 
-      const computed = await this.computeManualCompanyDistribution({
+      const distribution = await computeCompanyShares({
         manager,
         tenantId,
         fiscalYear: (version as any).budget_year,
         companyIds: uniqueCompanyIds,
-        driver: driver as 'headcount' | 'it_users' | 'turnover',
+        driver: driver as AllocationDriver,
       });
 
       after = await repo.save(
-        computed.map((row) =>
+        uniqueCompanyIds.map((companyId) =>
           repo.create({
             version_id: versionId,
-            company_id: row.company_id,
+            company_id: companyId,
             department_id: null,
-            allocation_pct: row.allocation_pct,
+            allocation_pct: distribution.get(companyId) ?? 0,
             is_system_generated: false,
             rule_id: null,
             materialized_from: null,
@@ -195,41 +199,6 @@ export class CapexAllocationsService {
     };
   }
 
-  private async computeManualCompanyDistribution(args: {
-    manager: EntityManager;
-    tenantId: string;
-    fiscalYear: number;
-    companyIds: string[];
-    driver: 'headcount' | 'it_users' | 'turnover';
-  }): Promise<Array<{ company_id: string; allocation_pct: number }>> {
-    const { manager, tenantId, fiscalYear, companyIds, driver } = args;
-    const metricRepo = manager.getRepository(CompanyMetric);
-
-    const metrics = await metricRepo.find({
-      where: {
-        tenant_id: tenantId,
-        fiscal_year: fiscalYear,
-        company_id: In(companyIds) as any,
-      } as any,
-    });
-
-    const weights = companyIds.map((companyId) => {
-      const metric = metrics.find((m) => m.company_id === companyId);
-      let weight = 0;
-      if (driver === 'headcount') weight = Number(metric?.headcount ?? 0);
-      else if (driver === 'it_users') weight = Number(metric?.it_users ?? 0);
-      else weight = Number(metric?.turnover ?? 0);
-      return { id: companyId, weight };
-    });
-
-    if (weights.some((entry) => !Number.isFinite(entry.weight) || entry.weight <= 0)) {
-      throw new BadRequestException(`Provide ${driver.replace('_', ' ')} values for the selected companies.`);
-    }
-
-    const distribution = this.normalizeWeights(weights);
-    return distribution.map(({ id, pct }) => ({ company_id: id, allocation_pct: pct }));
-  }
-
   private async computeManualDepartmentDistribution(args: {
     manager: EntityManager;
     tenantId: string;
@@ -266,7 +235,7 @@ export class CapexAllocationsService {
       throw new BadRequestException('Provide headcount values for the selected departments.');
     }
 
-    const distribution = this.normalizeWeights(weights);
+    const distribution = normalizeWeights(weights);
     return distribution.map(({ id, pct }) => {
       const department = departments.find((d) => d.id === id)!;
       const provided = selections.find((s) => s.department_id === id);
@@ -278,24 +247,6 @@ export class CapexAllocationsService {
         department_id: id,
         allocation_pct: pct,
       };
-    });
-  }
-
-  private normalizeWeights(weights: Array<{ id: string; weight: number }>): Array<{ id: string; pct: number }> {
-    const total = weights.reduce((acc, entry) => acc + entry.weight, 0);
-    if (!Number.isFinite(total) || total <= 0) {
-      throw new BadRequestException('Allocation source values must sum to a positive amount.');
-    }
-
-    let running = 0;
-    return weights.map((entry, idx) => {
-      let pct = Number(((entry.weight * 100) / total).toFixed(4));
-      if (idx === weights.length - 1) {
-        const diff = Number((100 - (running + pct)).toFixed(4));
-        pct = Number((pct + diff).toFixed(4));
-      }
-      running += pct;
-      return { id: entry.id, pct };
     });
   }
 }

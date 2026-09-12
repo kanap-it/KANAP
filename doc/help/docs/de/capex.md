@@ -230,7 +230,7 @@ Der Zuordnungen-Tab verteilt die Investitionsausgaben auf Ihre Unternehmen und A
 
 **Zuordnungsmethoden**:
 
-1. **Mitarbeiterzahl (Standard)**: Teilt Investitionsausgaben proportional nach der Mitarbeiterzahl jedes Unternehmens für das ausgewählte Jahr. Erfordert, dass alle aktiven Unternehmen eine Mitarbeiterzahl > 0 haben. Prozentsätze aktualisieren sich automatisch, wenn Sie Unternehmenskennzahlen bearbeiten.
+1. **Mitarbeiterzahl (Standard)**: Teilt Investitionsausgaben proportional nach der Mitarbeiterzahl jedes Unternehmens für das ausgewählte Jahr. Prozentsätze aktualisieren sich automatisch, wenn Sie Unternehmenskennzahlen bearbeiten. Dies ist die Standardmethode.
 
 2. **IT-Benutzer**: Teilt Ausgaben proportional nach der IT-Benutzerzahl jedes Unternehmens für das ausgewählte Jahr. Nützlich für IT-Infrastrukturinvestitionen, die mit dem IT-Personal skalieren.
 
@@ -239,6 +239,13 @@ Der Zuordnungen-Tab verteilt die Investitionsausgaben auf Ihre Unternehmen und A
 4. **Manuell nach Unternehmen**: Sie wählen aus, welche Unternehmen diese Investition erhalten. Wählen Sie einen Treiber (Mitarbeiterzahl, IT-Benutzer oder Umsatz), um die Prozentsätze unter den ausgewählten Unternehmen zu berechnen. Nur die ausgewählten Unternehmen sind in der Aufteilung enthalten. Das System füllt bei der ersten Verwendung automatisch alle aktivierten Unternehmen vor; entfernen Sie Unternehmen, die nicht von dieser Investition profitieren.
 
 5. **Manuell nach Abteilung**: Sie wählen bestimmte Unternehmen/Abteilungs-Paare aus. Prozentsätze werden aus der Mitarbeiterzahl jeder Abteilung berechnet. Nützlich, wenn eine Investition nur bestimmten Abteilungen zugutekommt (z. B. Fertigungsausrüstung).
+
+**Standard- und fixierte Methoden**:
+
+- Der **Standard**-Eintrag -- angezeigt als *Mitarbeiterzahl (Standard)*, bis Ihre Organisation eine andere Methode konfiguriert -- folgt der Einstellung unter **Budgetverwaltung > Administration > Standard-Zuordnungsmethode**. Jede Investition, die auf Standard bleibt, wird neu berechnet, wenn ein Administrator diese Einstellung ändert.
+- Diese Einstellung kann den Standard auch auf eine **Auswahl von Unternehmen** beschränken (zum Beispiel das Unternehmen, das das IT-Budget trägt): Der Treiber gilt dann nur für diese Unternehmen, und die Option lautet *Standard (n Unternehmen)*.
+- **Mitarbeiterzahl**, **IT-Benutzer** und **Umsatz** fixieren diese Methode an der Investition: Eine fixierte Methode funktioniert weiterhin, auch wenn sich der Standard der Organisation später ändert.
+- Investitionen mit einer manuellen Zuordnung sind vom Standard nie betroffen.
 
 **Wie Prozentsätze funktionieren**:
 

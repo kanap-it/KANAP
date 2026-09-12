@@ -4,6 +4,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { formatAmount } from '../../i18n/formatters';
@@ -12,6 +13,7 @@ import YearTabs from '../navigation/YearTabs';
 import { drawerMenuItemSx, drawerSelectSx, tableCellFieldSx } from '../../theme/formSx';
 import { FinanceModuleConfig } from './config';
 import { PropertyRow } from '../design';
+import { fetchAllocationRule } from '../../services/allocationRules';
 
 type PickerOption = { id: string; label: string };
 
@@ -93,8 +95,9 @@ type Props = {
   config: FinanceModuleConfig;
 };
 
-type Method = 'default' | 'it_users' | 'turnover' | 'manual_company' | 'manual_department' | 'manual_pct';
+type Method = 'default' | 'headcount' | 'it_users' | 'turnover' | 'manual_company' | 'manual_department' | 'manual_pct';
 type Driver = 'headcount' | 'it_users' | 'turnover';
+const METHODS: Method[] = ['default', 'headcount', 'it_users', 'turnover', 'manual_company', 'manual_department', 'manual_pct'];
 type Version = { id: string; budget_year?: number; allocation_method?: Method; allocation_driver?: Driver };
 type Row = { company_id: string | null; department_id: string | null; allocation_pct: number; pinned?: boolean };
 type Company = { id: string; name: string; headcount_year?: number; it_users_year?: number; turnover_year?: number };
@@ -125,6 +128,16 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
   const isAuto = !isManualPct && !isManualCompany && !isManualDept;
 
   const autosave = useAutosave({ onError: (e) => setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.allocations.failedToSave`))) });
+
+  // Effective default method for this fiscal year (tenant override, else the standard
+  // method). Used to label the "default" option; falls back to the static label if the
+  // permission or the request is unavailable.
+  const { data: allocationRule } = useQuery({
+    queryKey: ['allocation-rule', year],
+    queryFn: () => fetchAllocationRule(year),
+    staleTime: 60_000,
+    retry: false,
+  });
 
   // Latest-value refs for the debounced persist.
   const methodRef = React.useRef(method); methodRef.current = method;
@@ -182,8 +195,8 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
         setMethod('default'); setDriver('headcount'); setRows([]); setComputedPct(new Map()); setBudgetTotal(0);
         return;
       }
-      const rawMethod = (v.allocation_method ?? 'default') as string;
-      const m: Method = rawMethod === 'headcount' ? 'default' : (rawMethod as Method);
+      const rawMethod = String(v.allocation_method ?? 'default');
+      const m: Method = (METHODS as string[]).includes(rawMethod) ? (rawMethod as Method) : 'default';
       setMethod(m);
       setDriver((v.allocation_driver ?? 'headcount') as Driver);
       const [items] = await Promise.all([
@@ -315,10 +328,29 @@ export default forwardRef<AllocationsTabHandle, Props>(function AllocationsTab({
     ? t('common:status.saving', 'Saving…')
     : autosave.status === 'saved' ? t('common:status.saved', 'Saved') : null;
 
+  // "Default" follows the setting configured for the tenant (Administration > Default
+  // allocation method); the explicit entries pin a method on this item regardless of
+  // later changes to that setting.
+  const methodOptionLabels: Record<'headcount' | 'it_users' | 'turnover', string> = {
+    headcount: t(`${config.i18nPrefix}.allocations.headcount`),
+    it_users: t(`${config.i18nPrefix}.allocations.itUsers`),
+    turnover: t(`${config.i18nPrefix}.allocations.turnover`),
+  };
+  const defaultMethodOptionLabel = allocationRule?.mode === 'manual_company'
+    ? t(`${config.i18nPrefix}.allocations.defaultManual`, {
+        count: allocationRule.company_ids?.length ?? 0,
+        defaultValue: t(`${config.i18nPrefix}.allocations.headcountDefault`),
+      })
+    : t(`${config.i18nPrefix}.allocations.defaultWithMethod`, {
+        method: methodOptionLabels[allocationRule?.method ?? 'headcount'],
+        defaultValue: t(`${config.i18nPrefix}.allocations.headcountDefault`),
+      });
+
   const methodOptions: Array<{ value: Method; label: string }> = [
-    { value: 'default', label: t(`${config.i18nPrefix}.allocations.headcountDefault`) },
-    { value: 'it_users', label: t(`${config.i18nPrefix}.allocations.itUsers`) },
-    { value: 'turnover', label: t(`${config.i18nPrefix}.allocations.turnover`) },
+    { value: 'default', label: defaultMethodOptionLabel },
+    { value: 'headcount', label: methodOptionLabels.headcount },
+    { value: 'it_users', label: methodOptionLabels.it_users },
+    { value: 'turnover', label: methodOptionLabels.turnover },
     { value: 'manual_company', label: t(`${config.i18nPrefix}.allocations.manualByCompany`) },
     { value: 'manual_department', label: t(`${config.i18nPrefix}.allocations.manualByDepartment`) },
     { value: 'manual_pct', label: t(`${config.i18nPrefix}.allocations.manualByPct`) },

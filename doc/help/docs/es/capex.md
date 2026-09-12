@@ -230,7 +230,7 @@ La pestaña Asignaciones distribuye el gasto de capital entre sus empresas y dep
 
 **Métodos de asignación**:
 
-1. **Plantilla (Predeterminado)**: Divide el gasto de capital proporcionalmente según la plantilla de cada empresa para el año seleccionado. Requiere que todas las empresas activas tengan plantilla > 0. Los porcentajes se actualizan automáticamente al editar las métricas de la empresa.
+1. **Plantilla (Predeterminado)**: Divide el gasto de capital proporcionalmente según la plantilla de cada empresa para el año seleccionado. Los porcentajes se actualizan automáticamente al editar las métricas de la empresa. Este es el método estándar.
 
 2. **Usuarios IT**: Divide el gasto proporcionalmente según el conteo de usuarios IT de cada empresa para el año seleccionado. Útil para inversiones en infraestructura IT que escalan con el personal IT.
 
@@ -239,6 +239,13 @@ La pestaña Asignaciones distribuye el gasto de capital entre sus empresas y dep
 4. **Manual por empresa**: Usted selecciona qué empresas reciben esta inversión de capital. Elija un factor (Plantilla, Usuarios IT o Facturación) para calcular porcentajes entre las empresas seleccionadas. Solo las empresas seleccionadas se incluyen en la distribución. El sistema prerellena automáticamente todas las empresas habilitadas en el primer uso; elimine las empresas que no se benefician de esta inversión.
 
 5. **Manual por departamento**: Usted selecciona pares específicos de empresa/departamento. Los porcentajes se calculan según la plantilla de cada departamento. Útil cuando una inversión de capital beneficia solo a ciertos departamentos (p. ej., equipamiento de fabricación).
+
+**Métodos por defecto y fijados**:
+
+- La opción **por defecto** -- mostrada como *Plantilla (por defecto)* hasta que su organización configure otro método -- sigue la configuración de **Gestión presupuestaria > Administración > Método de asignación por defecto**. Cada inversión que se deje en el valor por defecto se recalcula cuando un administrador cambia esa configuración.
+- Esa configuración también puede restringir el valor por defecto a una **selección de sociedades** (por ejemplo, la entidad que asume el presupuesto de IT): el generador se aplica entonces únicamente a esas sociedades, y la opción aparece como *Por defecto (n sociedades)*.
+- **Plantilla**, **Usuarios IT** y **Facturación** fijan ese método en la inversión: un método fijado sigue funcionando aunque el valor por defecto de la organización cambie después.
+- Las inversiones con una asignación manual nunca se ven afectadas por el método por defecto.
 
 **Cómo funcionan los porcentajes**:
 
