@@ -14,8 +14,10 @@ import {
   DirectoryProfile,
   decideDirectoryAction,
   mergeScalarFields,
+  readManagerExternalId,
   resolveDirectoryNames,
 } from './entra-directory-sync.util';
+import { TeamMemberConfigService } from '../portfolio/team-member-config.service';
 
 export const ENTRA_DIRECTORY_SYNC_TASK = 'entra-directory-sync';
 
@@ -30,6 +32,16 @@ export type TenantSyncResult = {
   synced: number;
   disabled: number;
   removed: number;
+  /** Contributor rows whose manager was written from the directory. */
+  managers_updated: number;
+  /** Directory managers left aside: not a KANAP user yet, or refused. */
+  managers_unresolved: number;
+};
+
+/** One synced user and the object id of their manager in the directory. */
+export type DirectoryManagerEntry = {
+  userId: string;
+  managerExternalId: string | null;
 };
 
 /**
@@ -50,6 +62,7 @@ export class EntraDirectorySyncService implements OnModuleInit {
     private readonly users: UsersService,
     private readonly tenants: TenantsService,
     private readonly scheduledTasks: ScheduledTasksService,
+    private readonly contributors: TeamMemberConfigService,
   ) {}
 
   onModuleInit() {
@@ -75,6 +88,8 @@ export class EntraDirectorySyncService implements OnModuleInit {
       synced: 0,
       disabled: 0,
       removed: 0,
+      managers_updated: 0,
+      managers_unresolved: 0,
       consentRequired: 0,
       errors: [] as string[],
     };
@@ -85,6 +100,8 @@ export class EntraDirectorySyncService implements OnModuleInit {
         summary.synced += result.synced;
         summary.disabled += result.disabled;
         summary.removed += result.removed;
+        summary.managers_updated += result.managers_updated;
+        summary.managers_unresolved += result.managers_unresolved;
         if (result.status === 'consent_required') summary.consentRequired++;
         else if (result.status === 'error') summary.errors.push(`${tenant.slug}: ${result.message}`);
       } catch (err: any) {
@@ -98,10 +115,26 @@ export class EntraDirectorySyncService implements OnModuleInit {
   async syncTenant(tenantId: string): Promise<TenantSyncResult> {
     const tenant = await this.tenants.findById(tenantId);
     if (!tenant || tenant.sso_provider !== 'entra' || !tenant.entra_tenant_id) {
-      return { status: 'error', message: 'SSO_NOT_CONFIGURED', synced: 0, disabled: 0, removed: 0 };
+      return {
+        status: 'error',
+        message: 'SSO_NOT_CONFIGURED',
+        synced: 0,
+        disabled: 0,
+        removed: 0,
+        managers_updated: 0,
+        managers_unresolved: 0,
+      };
     }
 
-    const result: TenantSyncResult = { status: 'ok', message: null, synced: 0, disabled: 0, removed: 0 };
+    const result: TenantSyncResult = {
+      status: 'ok',
+      message: null,
+      synced: 0,
+      disabled: 0,
+      removed: 0,
+      managers_updated: 0,
+      managers_unresolved: 0,
+    };
 
     let token: string;
     try {
@@ -117,6 +150,8 @@ export class EntraDirectorySyncService implements OnModuleInit {
       await this.recordStatus(tenant, result);
       return result;
     }
+
+    const managerEntries: DirectoryManagerEntry[] = [];
 
     try {
       await withTenant(this.dataSource, tenantId, async (manager) => {
@@ -148,9 +183,22 @@ export class EntraDirectorySyncService implements OnModuleInit {
             await this.applyDirectoryProfile(user, profile as DirectoryProfile, manager);
             await repo.save(user);
             result.synced++;
+            const managerExternalId = readManagerExternalId(profile);
+            if (managerExternalId) managerEntries.push({ userId: user.id, managerExternalId });
           }
         }
       });
+
+      // The reporting line gets its own short transaction: the pass above spans
+      // Graph calls, and the cycle guard's advisory lock must not be held for
+      // that long against someone editing a manager by hand.
+      if (managerEntries.length > 0) {
+        const managers = await withTenant(this.dataSource, tenantId, (manager) =>
+          this.syncDirectoryManagers(tenantId, managerEntries, manager),
+        );
+        result.managers_updated = managers.updated;
+        result.managers_unresolved = managers.unresolved;
+      }
     } catch (err: any) {
       this.entra.invalidateAppToken(tenant.entra_tenant_id);
       result.status = this.entra.isConsentError(err) ? 'consent_required' : 'error';
@@ -201,6 +249,86 @@ export class EntraDirectorySyncService implements OnModuleInit {
     user.external_synced_at = new Date();
   }
 
+  /**
+   * Reporting line from the directory, for the nightly sync and for the
+   * login-time refresh. Manager object ids are resolved to KANAP users through
+   * `external_subject`; the value is written on the synced person's contributor
+   * row, when they have one -- users who are not contributors carry no
+   * reporting line, and a manager who is not a KANAP user yet is left for a
+   * later run rather than clearing what is stored.
+   *
+   * Writes go through TeamMemberConfigService, so the directory obeys the same
+   * rules as a manual edit (tenant, not self, no cycle) and stamps
+   * `manager_source = 'entra'`, which makes the field read-only in the app.
+   * The caller supplies a transactional manager: the cycle guard takes a
+   * transaction-scoped advisory lock, and the contributor table is under FORCE
+   * row level security.
+   */
+  async syncDirectoryManagers(
+    tenantId: string,
+    entries: DirectoryManagerEntry[],
+    manager: EntityManager,
+  ): Promise<{ updated: number; unresolved: number }> {
+    const wanted = entries.filter((entry) => !!entry.managerExternalId);
+    if (wanted.length === 0) return { updated: 0, unresolved: 0 };
+
+    // Two batched reads for the whole set, never one query per person.
+    const managerRows: Array<{ id: string; external_subject: string }> = await manager.query(
+      `SELECT id, external_subject FROM users
+       WHERE tenant_id = $1 AND external_auth_provider = 'entra' AND external_subject = ANY($2::text[])`,
+      [tenantId, [...new Set(wanted.map((entry) => entry.managerExternalId as string))]],
+    );
+    const userIdByExternalSubject = new Map(managerRows.map((row) => [row.external_subject, row.id]));
+
+    const contributorRows: Array<{
+      id: string;
+      user_id: string;
+      manager_user_id: string | null;
+      manager_source: string | null;
+    }> = await manager.query(
+      `SELECT id, user_id, manager_user_id, manager_source
+       FROM portfolio_team_member_configs
+       WHERE tenant_id = $1 AND user_id = ANY($2::uuid[])`,
+      [tenantId, wanted.map((entry) => entry.userId)],
+    );
+    const contributorByUserId = new Map(contributorRows.map((row) => [row.user_id, row]));
+
+    let updated = 0;
+    let unresolved = 0;
+    for (const entry of wanted) {
+      const contributor = contributorByUserId.get(entry.userId);
+      if (!contributor) continue;
+
+      const managerUserId = userIdByExternalSubject.get(entry.managerExternalId as string);
+      if (!managerUserId) {
+        unresolved += 1;
+        continue;
+      }
+      // Steady state is a no-op: rewriting every night would fill the audit
+      // trail with changes nobody made.
+      if (contributor.manager_user_id === managerUserId && contributor.manager_source === 'entra') continue;
+
+      try {
+        await this.contributors.update(
+          contributor.id,
+          { manager_user_id: managerUserId },
+          null,
+          { manager, managerSource: 'entra' },
+        );
+        updated += 1;
+      } catch (err: any) {
+        // A reporting line only half-represented in KANAP can close a loop the
+        // directory does not have. One refusal must not stop the others.
+        unresolved += 1;
+        this.logger.warn(
+          `[${ENTRA_DIRECTORY_SYNC_TASK}] manager not applied to contributor ${contributor.id}: ${err?.message || err}`,
+        );
+      }
+    }
+
+    return { updated, unresolved };
+  }
+
   private async recordStatus(tenant: Tenant, result: TenantSyncResult): Promise<void> {
     const previous = ((tenant.entra_metadata as any)?.directory_sync ?? {}) as Record<string, any>;
     const now = new Date().toISOString();
@@ -210,7 +338,13 @@ export class EntraDirectorySyncService implements OnModuleInit {
       last_attempt_at: now,
       last_success_at: result.status === 'ok' ? now : previous.last_success_at ?? null,
       ...(result.status === 'ok'
-        ? { synced: result.synced, disabled: result.disabled, removed: result.removed }
+        ? {
+            synced: result.synced,
+            disabled: result.disabled,
+            removed: result.removed,
+            managers_updated: result.managers_updated,
+            managers_unresolved: result.managers_unresolved,
+          }
         : {}),
     };
     try {

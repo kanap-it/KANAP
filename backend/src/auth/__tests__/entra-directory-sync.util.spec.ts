@@ -3,6 +3,7 @@ import {
   decideDirectoryAction,
   mergeScalarFields,
   normalizeDirectoryLocale,
+  readManagerExternalId,
   resolveDirectoryNames,
   DirectoryScalarTarget,
 } from '../entra-directory-sync.util';
@@ -68,5 +69,15 @@ assert.deepEqual(resolveDirectoryNames({}), { firstName: '', lastName: '' });
   const changed = mergeScalarFields(t, { jobTitle: 'CTO' }, { firstName: 'Ada', lastName: 'Lovelace' });
   assert.equal(changed, false, 'identical values report no change');
 }
+
+// --- readManagerExternalId --------------------------------------------------
+assert.equal(readManagerExternalId({ manager: { id: 'entra-manager-1' } }), 'entra-manager-1');
+assert.equal(readManagerExternalId({ id: 'x' }), null, 'Graph omits the property when nobody is set');
+assert.equal(readManagerExternalId({ manager: null }), null);
+assert.equal(readManagerExternalId({ manager: { id: null } }), null);
+assert.equal(readManagerExternalId({ manager: { id: '   ' } }), null, 'blank id is no manager');
+assert.equal(readManagerExternalId({ manager: { id: ' entra-manager-2 ' } }), 'entra-manager-2');
+assert.equal(readManagerExternalId(null), null);
+assert.equal(readManagerExternalId(undefined), null);
 
 console.log('entra-directory-sync.util.spec: all assertions passed');

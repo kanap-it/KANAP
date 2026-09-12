@@ -220,6 +220,8 @@ const entities = [
     PortfolioCriteriaService,
     PortfolioRequestsCsvService,
     PortfolioProjectsCsvService,
+    // The Entra directory sync writes the reporting line through it.
+    TeamMemberConfigService,
     TypeOrmModule,
     UserTimeAggregateService,
   ],

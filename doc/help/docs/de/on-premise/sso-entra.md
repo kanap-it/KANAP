@@ -72,6 +72,8 @@ Die nächtliche Verzeichnissynchronisierung läuft ohne angemeldeten Benutzer un
 2. Wählen Sie **`User.Read.All`**
 3. Klicken Sie auf **Berechtigungen hinzufügen**
 
+`User.Read.All` deckt auch den Vorgesetzten jedes Kontos ab, den KANAP im Profil der Personen einträgt, die Mitwirkende sind. Dafür ist nichts weiter hinzuzufügen.
+
 Die neue Zeile zeigt nun den Status **Nicht gewährt** mit einer orangefarbenen Warnung. Das ist zu erwarten. Die Berechtigung wird nutzbar, sobald ein Microsoft Entra-Administrator die mandantenweite Zustimmung erteilt. Das geschieht aus KANAP heraus in [Schritt 7](#schritt-7-die-tagliche-verzeichnissynchronisierung-autorisieren).
 
 Wer macht was:

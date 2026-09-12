@@ -185,6 +185,8 @@ Konten mit dem Kontotyp **Microsoft Entra** gehören Ihrem Verzeichnis. Ihr Prof
 
 Beide aktualisieren dieselben Felder: Vorname, Nachname, Position, Geschäftstelefon, Mobiltelefon sowie Abteilung und Unternehmen, die nach Namen mit bereits in KANAP vorhandenen Datensätzen abgeglichen werden. Leere Werte im Verzeichnis löschen niemals das, was in KANAP gespeichert ist.
 
+Personen, die zugleich Mitwirkende sind, erhalten mit der nächtlichen Synchronisierung auch ihren **Vorgesetzten** aus dem Verzeichnis. KANAP gleicht den in Entra hinterlegten Vorgesetzten mit dessen KANAP-Konto ab und trägt ihn im Profil des Mitwirkenden ein, wo das Feld schreibgeschützt wird. Ein Vorgesetzter ohne KANAP-Konto wird von einer späteren Synchronisierung nachgetragen. Siehe [Mitwirkende](portfolio-team-members.md).
+
 Beim Bearbeiten eines solchen Benutzers sind die Felder E-Mail, Name, Position und Telefon gesperrt, mit dem Hinweis:
 
 > Dieser Benutzer wird von Microsoft Entra ID verwaltet und kann hier nicht bearbeitet werden. Zuletzt aus Microsoft Entra synchronisiert: {Datum}
@@ -444,7 +446,7 @@ Verbinden Sie KANAP mit Ihrem Microsoft Entra ID-Mandanten für SSO:
 
 ### Tägliche Verzeichnissynchronisierung
 
-Dieser Block erscheint unterhalb der Entra-Karte, sobald Single Sign-On verbunden ist. Jede Nacht um 03:00 Uhr Serverzeit aktualisiert KANAP Namen, Titel, Telefonnummern, Abteilungen und Unternehmen aus Microsoft Entra und deaktiviert Konten, die im Verzeichnis entfernt oder deaktiviert wurden.
+Dieser Block erscheint unterhalb der Entra-Karte, sobald Single Sign-On verbunden ist. Jede Nacht um 03:00 Uhr Serverzeit aktualisiert KANAP Namen, Titel, Telefonnummern, Abteilungen und Unternehmen aus Microsoft Entra, aktualisiert den Vorgesetzten der Personen, die Mitwirkende sind, und deaktiviert Konten, die im Verzeichnis entfernt oder deaktiviert wurden.
 
 Abteilungen und Unternehmen werden nach Namen mit bereits in KANAP vorhandenen Datensätzen abgeglichen. Es wird nichts automatisch angelegt. Leere Werte im Verzeichnis löschen niemals das, was bereits in KANAP gespeichert ist.
 

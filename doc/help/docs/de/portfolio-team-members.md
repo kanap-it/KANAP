@@ -101,7 +101,7 @@ Weisen Sie diesen Mitwirkenden einem Team zu. Teams sind Organisationsgruppen, d
 **Vorgesetzter**
 Die Person, an die dieser Mitwirkende berichtet. Klicken Sie auf das Feld, suchen Sie nach dem Namen und wählen Sie eine beliebige Person Ihrer Organisation aus -- der Vorgesetzte muss selbst kein Mitwirkender sein. Mit **Löschen** entfernen Sie die Verknüpfung. Ein Mitwirkender kann nicht sein eigener Vorgesetzter sein, und Sie können niemanden auswählen, der bereits an ihn berichtet, weder direkt noch über eine Kette von Vorgesetzten.
 
-Stammt der Vorgesetzte aus Microsoft Entra, ist das Feld schreibgeschützt und zeigt darunter **Aus Microsoft Entra**. Ändern Sie ihn in Ihrem Verzeichnis, nicht hier.
+Stammt der Vorgesetzte aus Microsoft Entra, ist das Feld schreibgeschützt und zeigt darunter **Aus Microsoft Entra**. Ändern Sie ihn in Ihrem Verzeichnis, nicht hier; die nächtliche Synchronisierung überträgt die Änderung. Ein Vorgesetzter ohne KANAP-Konto wird übersprungen, bis er eines hat, und das Feld behält so lange seinen aktuellen Wert.
 
 Einmal gesetzt, erscheint der Name des Vorgesetzten auch in der Kopfzeile des Arbeitsbereichs; ein Klick öffnet dessen Mitwirkenden-Profil, sofern vorhanden. Dieses Feld ist nur beim Bearbeiten des Profils eines anderen Mitwirkenden sichtbar (nicht Ihres eigenen).
 

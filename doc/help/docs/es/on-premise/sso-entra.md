@@ -72,6 +72,8 @@ La sincronización nocturna del directorio se ejecuta sin ningún usuario conect
 2. Seleccione **`User.Read.All`**
 3. Haga clic en **Agregar permisos**
 
+`User.Read.All` cubre también el responsable de cada cuenta, que KANAP escribe en la ficha de las personas que son colaboradores. No hay nada más que añadir para eso.
+
 La nueva fila muestra ahora el estado **No concedido** con una advertencia naranja. Es lo esperado. El permiso pasa a ser utilizable cuando un administrador de Microsoft Entra otorga el consentimiento para todo el inquilino, lo que se hace desde KANAP en el [Paso 7](#paso-7-autorizar-la-sincronizacion-diaria-del-directorio).
 
 Quién hace qué:
