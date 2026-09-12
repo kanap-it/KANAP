@@ -2976,7 +2976,11 @@ export class AiCapabilityRegistry {
       tenantId: context.tenantId,
       providerKey: providerKeyValue,
       ticketId: actionPayload.ticketId,
-      noteBody: stableJson({ action: actionPayload.action, proposed: actionPayload.proposed }),
+      // The whole payload, not a projection of it: the action request's input_hash covers
+      // the whole payload, so a key built from a subset can collide with a pending row whose
+      // hash differs (same target, LLM reworded `reason`, or a moved `current` snapshot) and
+      // createOrEnsureProviderAction would then throw and abort the run instead of superseding.
+      noteBody: stableJson(actionPayload),
       capabilityVersion: PROVIDER_CAPABILITY_VERSION,
     });
     const action = await this.actions.createOrEnsureProviderAction(context, {
@@ -3102,7 +3106,11 @@ export class AiCapabilityRegistry {
       tenantId: context.tenantId,
       providerKey: providerKeyValue,
       ticketId: actionPayload.ticketId,
-      noteBody: stableJson({ action: actionPayload.action, transition: actionPayload.transitionKey }),
+      // The whole payload, not a projection of it: the action request's input_hash covers
+      // the whole payload, so a key built from a subset can collide with a pending row whose
+      // hash differs (same target, LLM reworded `reason`, or a moved `current` snapshot) and
+      // createOrEnsureProviderAction would then throw and abort the run instead of superseding.
+      noteBody: stableJson(actionPayload),
       capabilityVersion: PROVIDER_CAPABILITY_VERSION,
     });
     const action = await this.actions.createOrEnsureProviderAction(context, {
@@ -3232,7 +3240,11 @@ export class AiCapabilityRegistry {
       tenantId: context.tenantId,
       providerKey: providerKeyValue,
       ticketId: actionPayload.ticketId,
-      noteBody: stableJson({ action: actionPayload.action, target: actionPayload.target }),
+      // The whole payload, not a projection of it: the action request's input_hash covers
+      // the whole payload, so a key built from a subset can collide with a pending row whose
+      // hash differs (same target, LLM reworded `reason`, or a moved `current` snapshot) and
+      // createOrEnsureProviderAction would then throw and abort the run instead of superseding.
+      noteBody: stableJson(actionPayload),
       capabilityVersion: PROVIDER_CAPABILITY_VERSION,
     });
     const action = await this.actions.createOrEnsureProviderAction(context, {
@@ -3366,7 +3378,11 @@ export class AiCapabilityRegistry {
       tenantId: context.tenantId,
       providerKey: providerKeyValue,
       ticketId: actionPayload.ticketId,
-      noteBody: stableJson({ action: actionPayload.action, operation: actionPayload.operation, participants: actionPayload.participants }),
+      // The whole payload, not a projection of it: the action request's input_hash covers
+      // the whole payload, so a key built from a subset can collide with a pending row whose
+      // hash differs (same target, LLM reworded `reason`, or a moved `current` snapshot) and
+      // createOrEnsureProviderAction would then throw and abort the run instead of superseding.
+      noteBody: stableJson(actionPayload),
       capabilityVersion: PROVIDER_CAPABILITY_VERSION,
     });
     const action = await this.actions.createOrEnsureProviderAction(context, {
