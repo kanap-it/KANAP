@@ -49,6 +49,22 @@ function createMockDataSource(repo: any) {
   };
 }
 
+/** Records what the login path hands to the directory sync. */
+const managerSyncCalls: Array<{ tenantId: string; entries: any[] }> = [];
+
+function fakeDirectorySync(calls: typeof managerSyncCalls) {
+  return {
+    applyDirectoryProfile: async (user: any, profile: any, _manager: any, claims?: any) => {
+      mergeScalarFields(user, profile, resolveDirectoryNames(profile, claims));
+      user.external_synced_at = new Date();
+    },
+    syncDirectoryManagers: async (tenantId: string, entries: any[]) => {
+      calls.push({ tenantId, entries });
+      return { updated: 0, unresolved: 0 };
+    },
+  };
+}
+
 async function testHandleLoginCallbackRedirectsToTenantSessionHandoff() {
   const existingUser = {
     id: 'user-1',
@@ -89,12 +105,7 @@ async function testHandleLoginCallbackRedirectsToTenantSessionHandoff() {
     dataSource as any,
     { log: async () => undefined } as any,
     { notifySsoUserProvisioned: async () => undefined } as any,
-    {
-      applyDirectoryProfile: async (user: any, profile: any, _manager: any, claims?: any) => {
-        mergeScalarFields(user, profile, resolveDirectoryNames(profile, claims));
-        user.external_synced_at = new Date();
-      },
-    } as any,
+    fakeDirectorySync(managerSyncCalls) as any,
   );
 
   await (controller as any).handleLoginCallback(
@@ -105,7 +116,7 @@ async function testHandleLoginCallbackRedirectsToTenantSessionHandoff() {
       oid: 'entra-oid-1',
       email: 'user@example.com',
     },
-    null,
+    { manager: { id: 'entra-manager-1' } },
     {
       headers: {
         host: 'alpha.lvh.me',
@@ -134,6 +145,10 @@ async function testHandleLoginCallbackRedirectsToTenantSessionHandoff() {
   assert.equal(state.tenantQueries[0]?.params?.[0], 'tenant-1');
   assert.equal(cookieCalls.length, 0);
   assert.equal(redirectTarget, 'http://alpha.lvh.me/login/callback#handoff=handoff-token');
+  // The reporting line is refreshed at sign-in, inside the login transaction.
+  assert.deepEqual(managerSyncCalls, [
+    { tenantId: 'tenant-1', entries: [{ userId: 'user-1', managerExternalId: 'entra-manager-1' }] },
+  ]);
 }
 
 async function testCompleteLoginSessionSignsTokensOnTenantHost() {
@@ -187,12 +202,7 @@ async function testCompleteLoginSessionSignsTokensOnTenantHost() {
     dataSource as any,
     { log: async () => undefined } as any,
     { notifySsoUserProvisioned: async () => undefined } as any,
-    {
-      applyDirectoryProfile: async (user: any, profile: any, _manager: any, claims?: any) => {
-        mergeScalarFields(user, profile, resolveDirectoryNames(profile, claims));
-        user.external_synced_at = new Date();
-      },
-    } as any,
+    fakeDirectorySync(managerSyncCalls) as any,
   );
 
   const result = await controller.completeLoginSession(
@@ -260,12 +270,7 @@ async function testStartSetupDoesNotSetNonceCookie() {
     {} as any,
     { log: async () => undefined } as any,
     { notifySsoUserProvisioned: async () => undefined } as any,
-    {
-      applyDirectoryProfile: async (user: any, profile: any, _manager: any, claims?: any) => {
-        mergeScalarFields(user, profile, resolveDirectoryNames(profile, claims));
-        user.external_synced_at = new Date();
-      },
-    } as any,
+    fakeDirectorySync(managerSyncCalls) as any,
   );
 
   const result = await controller.startSetup(
@@ -312,12 +317,7 @@ async function testStartLoginDoesNotSetNonceCookie() {
     {} as any,
     { log: async () => undefined } as any,
     { notifySsoUserProvisioned: async () => undefined } as any,
-    {
-      applyDirectoryProfile: async (user: any, profile: any, _manager: any, claims?: any) => {
-        mergeScalarFields(user, profile, resolveDirectoryNames(profile, claims));
-        user.external_synced_at = new Date();
-      },
-    } as any,
+    fakeDirectorySync(managerSyncCalls) as any,
   );
 
   await controller.startLogin(

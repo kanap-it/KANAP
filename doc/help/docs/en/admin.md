@@ -185,6 +185,8 @@ Accounts with the account type **Microsoft Entra** are owned by your directory. 
 
 Both refresh the same fields: first name, last name, job title, business phone, mobile phone, and the department and company, matched by name against records that already exist in KANAP. Empty values in the directory never clear what is stored in KANAP.
 
+People who are also contributors get their **Manager** from the directory as well, with the nightly sync. KANAP matches the manager in Entra to their KANAP account and writes it on the contributor profile, where the field becomes read-only. A manager who has no KANAP account yet is picked up by a later sync. See [Contributors](portfolio-team-members.md).
+
 When editing one of these users, the email, name, job title and phone fields are locked, with the note:
 
 > This user is managed by Microsoft Entra ID. Directory fields cannot be edited here. Last synced from Microsoft Entra: {date}
@@ -444,7 +446,7 @@ Connect KANAP to your Microsoft Entra ID tenant for SSO:
 
 ### Daily directory sync
 
-This block appears below the Entra card once single sign-on is connected. Every night at 03:00 server time, KANAP refreshes names, titles, phones, departments and companies from Microsoft Entra, and disables accounts that were removed or deactivated in the directory.
+This block appears below the Entra card once single sign-on is connected. Every night at 03:00 server time, KANAP refreshes names, titles, phones, departments and companies from Microsoft Entra, refreshes the manager of the people who are contributors, and disables accounts that were removed or deactivated in the directory.
 
 Departments and companies are matched by name against records that already exist in KANAP. Nothing is created automatically. Empty values in the directory never clear what is already stored in KANAP.
 

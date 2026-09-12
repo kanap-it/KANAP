@@ -45,6 +45,8 @@ type GraphProfile = DirectoryProfile;
 /** Fields KANAP reads from a Graph user. accountEnabled needs application permissions. */
 const GRAPH_ME_SELECT = 'id,givenName,surname,displayName,jobTitle,businessPhones,mobilePhone,department,companyName,preferredLanguage';
 const GRAPH_USERS_SELECT = `${GRAPH_ME_SELECT},accountEnabled`;
+/** Reporting line, id only: the manager is matched to a KANAP user by object id. */
+const GRAPH_MANAGER_EXPAND = encodeURIComponent('manager($select=id)');
 
 /** HTTP failure from Microsoft endpoints, with the status kept for classification. */
 export class GraphAccessError extends Error {
@@ -431,11 +433,35 @@ export class EntraAuthService {
     if (!accessToken) {
       throw new BadRequestException('Missing access token for Graph request');
     }
-    return this.fetchJsonWithAuth<GraphProfile>(
+    // Reading a manager asks for User.Read.All, above the User.Read this
+    // sign-in token carries, so most directories answer without one. Tenants
+    // that consented to more get their reporting line right away; everyone
+    // else gets it from the nightly sync, which runs with that permission.
+    return this.fetchWithManagerExpansion<GraphProfile>(
       `https://graph.microsoft.com/v1.0/me?$select=${GRAPH_ME_SELECT}`,
       'Graph /me',
       accessToken,
+      'debug',
     );
+  }
+
+  /**
+   * Graph read that also expands the manager, retried once without it when the
+   * directory refuses the expansion. The reporting line is a bonus: it must
+   * never cost a tenant its profile refresh or its removed-account detection.
+   */
+  private async fetchWithManagerExpansion<T>(
+    baseUrl: string,
+    label: string,
+    accessToken: string,
+    onRefusal: 'warn' | 'debug' = 'warn',
+  ): Promise<T> {
+    try {
+      return await this.fetchJsonWithAuth<T>(`${baseUrl}&$expand=${GRAPH_MANAGER_EXPAND}`, label, accessToken);
+    } catch (err: any) {
+      this.logger[onRefusal](`${label}: manager expansion refused (${err?.message || err}), retrying without it`);
+      return this.fetchJsonWithAuth<T>(baseUrl, label, accessToken);
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -494,7 +520,11 @@ export class EntraAuthService {
     if (objectIds.length === 0) return [];
     const filter = `id in (${objectIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(',')})`;
     const url = `https://graph.microsoft.com/v1.0/users?$filter=${encodeURIComponent(filter)}&$select=${GRAPH_USERS_SELECT}`;
-    const response = await this.fetchJsonWithAuth<{ value?: DirectoryProfile[] }>(url, 'Graph users lookup', accessToken);
+    const response = await this.fetchWithManagerExpansion<{ value?: DirectoryProfile[] }>(
+      url,
+      'Graph users lookup',
+      accessToken,
+    );
     return Array.isArray(response?.value) ? response.value : [];
   }
 

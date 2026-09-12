@@ -72,6 +72,8 @@ The nightly directory sync runs without a signed-in user, so it needs an applica
 2. Select **`User.Read.All`**
 3. Click **Add permissions**
 
+`User.Read.All` also covers the manager of each account, which KANAP writes on the contributor profile of the people who are contributors. Nothing else to add for that.
+
 The new row now shows the status **Not granted** with an orange warning. That is expected. The permission becomes usable once a Microsoft Entra administrator grants tenant-wide consent, which is done from KANAP in [Step 7](#step-7-authorize-the-daily-directory-sync).
 
 Who does what:

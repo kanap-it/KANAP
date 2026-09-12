@@ -22,6 +22,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { RateLimitGuard } from '../common/rate-limit.guard';
 import { AuditModule } from '../audit/audit.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PortfolioModule } from '../portfolio/portfolio.module';
 
 @Module({
   imports: [
@@ -37,6 +38,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     EntraAuthModule,
     AuditModule,
     NotificationsModule,
+    // The directory sync writes the contributor reporting line.
+    PortfolioModule,
   ],
   providers: [AuthService, JwtAuthGuard, RolesGuard, PermissionGuard, RateLimitGuard, EntraDirectorySyncService],
   controllers: [AuthController, EntraController, AdminAuthController],

@@ -16,9 +16,21 @@ export type DirectoryProfile = {
   companyName?: string | null;
   preferredLanguage?: string | null;
   accountEnabled?: boolean | null;
+  /** From `$expand=manager($select=id)`; absent when the directory has none. */
+  manager?: { id?: string | null } | null;
 };
 
 export const SUPPORTED_DIRECTORY_LOCALES = ['en', 'fr', 'de', 'es'] as const;
+
+/**
+ * Object id of the person's manager in the directory, or null when there is
+ * none. Graph leaves the expanded property out of the payload entirely rather
+ * than returning null, so "nobody set" and "not returned" are the same case.
+ */
+export function readManagerExternalId(profile: DirectoryProfile | null | undefined): string | null {
+  const id = profile?.manager?.id;
+  return typeof id === 'string' && id.trim() ? id.trim() : null;
+}
 
 export type DirectoryAction = 'sync' | 'disable_removed' | 'disable_deactivated';
 

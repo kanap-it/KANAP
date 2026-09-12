@@ -185,6 +185,8 @@ Las cuentas con el tipo de cuenta **Microsoft Entra** pertenecen a su directorio
 
 Ambos actualizan los mismos campos: nombre, apellido, cargo, teléfono de empresa, teléfono móvil, y el departamento y la empresa, comparados por nombre con los registros que ya existen en KANAP. Los valores vacíos del directorio nunca borran lo que está almacenado en KANAP.
 
+Las personas que también son colaboradores reciben además su **Responsable** desde el directorio, con la sincronización nocturna. KANAP relaciona el responsable declarado en Entra con su cuenta de KANAP y lo escribe en la ficha del colaborador, donde el campo pasa a ser de solo lectura. Un responsable que todavía no tiene cuenta de KANAP se recupera en una sincronización posterior. Consulte [Colaboradores](portfolio-team-members.md).
+
 Al editar uno de estos usuarios, los campos de correo, nombre, cargo y teléfono están bloqueados, con la nota:
 
 > Este usuario es gestionado por Microsoft Entra ID y no puede ser editado aquí. Última sincronización desde Microsoft Entra: {fecha}
@@ -444,7 +446,7 @@ Conecte KANAP a su inquilino de Microsoft Entra ID para SSO:
 
 ### Sincronización diaria del directorio
 
-Este bloque aparece debajo de la tarjeta de Entra una vez conectado el inicio de sesión único. Cada noche a las 03:00 hora del servidor, KANAP actualiza nombres, cargos, teléfonos, departamentos y empresas desde Microsoft Entra, y desactiva las cuentas eliminadas o desactivadas en el directorio.
+Este bloque aparece debajo de la tarjeta de Entra una vez conectado el inicio de sesión único. Cada noche a las 03:00 hora del servidor, KANAP actualiza nombres, cargos, teléfonos, departamentos y empresas desde Microsoft Entra, actualiza el responsable de las personas que son colaboradores, y desactiva las cuentas eliminadas o desactivadas en el directorio.
 
 Los departamentos y las empresas se comparan por nombre con los registros que ya existen en KANAP. No se crea nada automáticamente. Los valores vacíos del directorio nunca borran lo que ya está almacenado en KANAP.
 

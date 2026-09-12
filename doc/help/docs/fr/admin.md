@@ -185,6 +185,8 @@ Les comptes dont le type de compte est **Microsoft Entra** appartiennent à votr
 
 Les deux actualisent les mêmes champs : prénom, nom, poste, téléphone professionnel, téléphone mobile, ainsi que le département et la société, rapprochés par leur nom des enregistrements qui existent déjà dans KANAP. Les valeurs vides de l'annuaire n'effacent jamais ce qui est stocké dans KANAP.
 
+Les personnes qui sont aussi contributeurs reçoivent également leur **Responsable** depuis l'annuaire, avec la synchronisation nocturne. KANAP rapproche le responsable déclaré dans Entra de son compte KANAP et l'inscrit sur la fiche du contributeur, où le champ devient en lecture seule. Un responsable qui n'a pas encore de compte KANAP est repris par une synchronisation ultérieure. Voir [Contributeurs](portfolio-team-members.md).
+
 Lors de la modification d'un de ces utilisateurs, les champs e-mail, nom, poste et téléphone sont verrouillés, avec la mention :
 
 > Cet utilisateur est géré par Microsoft Entra ID et ne peut pas être modifié ici. Dernière synchronisation depuis Microsoft Entra : {date}
@@ -444,7 +446,7 @@ Connectez KANAP à votre tenant Microsoft Entra ID pour le SSO :
 
 ### Synchronisation quotidienne de l'annuaire
 
-Ce bloc apparaît sous la carte Entra une fois le single sign-on connecté. Chaque nuit à 03h00 (heure du serveur), KANAP actualise les noms, postes, téléphones, départements et sociétés depuis Microsoft Entra, et désactive les comptes supprimés ou désactivés dans l'annuaire.
+Ce bloc apparaît sous la carte Entra une fois le single sign-on connecté. Chaque nuit à 03h00 (heure du serveur), KANAP actualise les noms, postes, téléphones, départements et sociétés depuis Microsoft Entra, actualise le responsable des personnes qui sont contributeurs, et désactive les comptes supprimés ou désactivés dans l'annuaire.
 
 Les départements et les sociétés sont rapprochés par leur nom des enregistrements qui existent déjà dans KANAP. Rien n'est créé automatiquement. Les valeurs vides de l'annuaire n'effacent jamais ce qui est déjà stocké dans KANAP.
 

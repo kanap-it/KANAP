@@ -72,6 +72,8 @@ La synchronisation nocturne de l'annuaire s'exécute sans utilisateur connecté.
 2. Sélectionnez **`User.Read.All`**
 3. Cliquez sur **Ajouter des autorisations**
 
+`User.Read.All` couvre aussi le responsable de chaque compte, que KANAP inscrit sur la fiche des personnes qui sont contributeurs. Rien d'autre à ajouter pour cela.
+
 La nouvelle ligne affiche alors le statut **Non accordé** avec un avertissement orange. C'est normal. L'autorisation devient utilisable une fois qu'un administrateur Microsoft Entra a accordé le consentement à l'échelle du tenant, ce qui se fait depuis KANAP à l'[Étape 7](#etape-7-autoriser-la-synchronisation-quotidienne-de-lannuaire).
 
 Qui fait quoi :

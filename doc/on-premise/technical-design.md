@@ -241,7 +241,7 @@ Optional in both modes: true when `ENTRA_CLIENT_ID` is configured. Per-tenant ac
 
 | File | Line | What | Behavior |
 |------|------|------|----------|
-| `entra-directory-sync.service.ts` | 57 | `entra-directory-sync` scheduled task (default daily 03:00) | Registered in both modes; handler (line 66) returns `skipped` when `ENTRA_SSO` is false, otherwise iterates active tenants with `sso_provider='entra'` under RLS. Tenants whose Entra admin has not granted application consent are reported `consent_required` and keep login-time enrichment only |
+| `entra-directory-sync.service.ts` | 68 | `entra-directory-sync` scheduled task (default daily 03:00) | Registered in both modes; handler (line 79) returns `skipped` when `ENTRA_SSO` is false, otherwise iterates active tenants with `sso_provider='entra'` under RLS. Tenants whose Entra admin has not granted application consent are reported `consent_required` and keep login-time enrichment only. The contributor reporting line imported from the directory rides on the same gate (`syncDirectoryManagers`, same file) |
 | `admin-auth.controller.ts` | 58 | `POST /admin/auth/directory-sync` | 400 `SSO_NOT_CONFIGURED` when `ENTRA_SSO` is false |
 | `admin-auth.controller.ts` | 42 | `GET /admin/auth/settings` → `directory_sync` | `null` unless the tenant is connected to Entra and `ENTRA_SSO` is true |
 

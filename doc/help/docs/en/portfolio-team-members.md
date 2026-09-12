@@ -101,7 +101,7 @@ Assign this contributor to a team. Teams are organizational groups configured in
 **Manager**
 The person this contributor reports to. Click the field, search by name, and pick anyone in your organization -- the manager does not have to be a contributor themselves. Use **Clear** to remove the link. A contributor cannot be their own manager, and you cannot pick someone who already reports to them, directly or through a chain of managers.
 
-When the manager comes from Microsoft Entra, the field is read-only and shows **From Microsoft Entra** underneath. Change it in your directory, not here.
+When the manager comes from Microsoft Entra, the field is read-only and shows **From Microsoft Entra** underneath. Change it in your directory, not here, and the nightly sync brings the change over. A manager who has no KANAP account yet is skipped until they have one, and the field keeps its current value in the meantime.
 
 Once set, the manager's name also appears in the workspace header, and clicking it opens their contributor profile when they have one. This field is only visible when editing another contributor's profile (not your own).
 

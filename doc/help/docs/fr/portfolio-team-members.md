@@ -101,7 +101,7 @@ Assignez ce contributeur à une équipe. Les équipes sont des groupes organisat
 **Responsable**
 La personne dont dépend ce contributeur. Cliquez sur le champ, cherchez par nom et choisissez n'importe qui dans votre organisation : le responsable n'a pas besoin d'être lui-même contributeur. Utilisez **Effacer** pour retirer le lien. Un contributeur ne peut pas être son propre responsable, et vous ne pouvez pas désigner une personne qui dépend déjà de lui, directement ou via une chaîne de responsables.
 
-Lorsque le responsable vient de Microsoft Entra, le champ est en lecture seule et affiche **Depuis Microsoft Entra** en dessous. Modifiez-le dans votre annuaire, pas ici.
+Lorsque le responsable vient de Microsoft Entra, le champ est en lecture seule et affiche **Depuis Microsoft Entra** en dessous. Modifiez-le dans votre annuaire, pas ici : la synchronisation nocturne reporte le changement. Un responsable qui n'a pas encore de compte KANAP est ignoré jusqu'à ce qu'il en ait un, et le champ conserve sa valeur actuelle en attendant.
 
 Une fois défini, le nom du responsable apparaît aussi dans l'en-tête de l'espace de travail, et un clic ouvre sa fiche contributeur lorsqu'il en a une. Ce champ n'est visible que lors de la modification du profil d'un autre contributeur (pas le vôtre).
 

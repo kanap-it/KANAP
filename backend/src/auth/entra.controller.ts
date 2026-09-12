@@ -15,6 +15,7 @@ import { isSecureRequest, setRefreshTokenCookie } from './auth-cookie.util';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EntraDirectorySyncService } from './entra-directory-sync.service';
+import { readManagerExternalId } from './entra-directory-sync.util';
 
 @Controller('auth/entra')
 export class EntraController {
@@ -478,6 +479,14 @@ export class EntraController {
         manager,
       );
       found = await repo.save(found);
+
+      // Reporting line, when this person is a contributor and their directory
+      // manager already has a KANAP account. Nothing to do otherwise.
+      await this.directorySync.syncDirectoryManagers(
+        tenantId,
+        [{ userId: found.id, managerExternalId: readManagerExternalId(graphProfile) }],
+        manager,
+      );
 
       return found.id;
     });
