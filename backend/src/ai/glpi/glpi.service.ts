@@ -1134,22 +1134,17 @@ export class GlpiService {
     if (!Number.isInteger(ticketId) || ticketId <= 0) {
       throw new BadRequestException('GLPI ticket id must be a positive integer.');
     }
-    const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/Ticket/${ticketId}/Ticket_User`));
-    pageUrl.searchParams.set('expand_dropdowns', 'true');
-    pageUrl.searchParams.set('get_hateoas', 'false');
-
-    const payload = await this.requestJson(
-      pageUrl.toString(),
-      {
-        headers: this.buildSessionHeaders(session),
-      },
-      { notFoundMessage: `GLPI ticket #${ticketId} users were not found.` },
-    );
+    // Raw ids first: with expand_dropdowns=true GLPI replaces users_id by the login
+    // string, so the numeric user id is simply not in that response and every row
+    // would be dropped. The expanded read is a second, best-effort pass used only to
+    // put a human label on each association row (joined on the association id).
+    const payload = await this.requestTicketUserRows(session, ticketId, false);
     if (!Array.isArray(payload)) {
       throw new BadRequestException('GLPI ticket users response was malformed.');
     }
+    const labelsByAssociationId = await this.readTicketUserLabels(session, ticketId);
     const associations = payload
-      .map((item) => this.normalizeTicketUserAssociation(item))
+      .map((item) => this.normalizeTicketUserAssociation(item, labelsByAssociationId))
       .filter((item): item is GlpiTicketUserAssociation => !!item);
     const seen = new Set<string>();
     return associations.filter((association) => {
@@ -1160,6 +1155,57 @@ export class GlpiService {
       seen.add(key);
       return true;
     });
+  }
+
+  private async requestTicketUserRows(
+    session: GlpiSession,
+    ticketId: number,
+    expandDropdowns: boolean,
+  ): Promise<unknown> {
+    const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/Ticket/${ticketId}/Ticket_User`));
+    pageUrl.searchParams.set('expand_dropdowns', expandDropdowns ? 'true' : 'false');
+    pageUrl.searchParams.set('get_hateoas', 'false');
+    return this.requestJson(
+      pageUrl.toString(),
+      { headers: this.buildSessionHeaders(session) },
+      { notFoundMessage: `GLPI ticket #${ticketId} users were not found.` },
+    );
+  }
+
+  // Best effort: a missing or unreadable expanded response just means null labels, and
+  // the callers already fall back to "GLPI user <id>". Never fails the association read.
+  private async readTicketUserLabels(
+    session: GlpiSession,
+    ticketId: number,
+  ): Promise<Map<number, string>> {
+    const labels = new Map<number, string>();
+    let expanded: unknown;
+    try {
+      expanded = await this.requestTicketUserRows(session, ticketId, true);
+    } catch {
+      return labels;
+    }
+    if (!Array.isArray(expanded)) {
+      return labels;
+    }
+    for (const item of expanded) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        continue;
+      }
+      const record = item as Record<string, unknown>;
+      const associationId = parseNumericGlpiValue(record.id);
+      if (!associationId) {
+        continue;
+      }
+      const label = decodeGlpiPlainTextField(stringifyGlpiValue(record.users_id));
+      // A GLPI version that did not expand the dropdown gives back the bare id: that is
+      // not a label, so leave the row unlabelled rather than showing a number twice.
+      if (!label || /^\d+$/.test(label)) {
+        continue;
+      }
+      labels.set(associationId, label);
+    }
+    return labels;
   }
 
   async addTicketFollowup(
@@ -1488,7 +1534,10 @@ export class GlpiService {
     };
   }
 
-  private normalizeTicketUserAssociation(payload: unknown): GlpiTicketUserAssociation | null {
+  private normalizeTicketUserAssociation(
+    payload: unknown,
+    labelsByAssociationId?: Map<number, string>,
+  ): GlpiTicketUserAssociation | null {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return null;
     }
@@ -1498,10 +1547,12 @@ export class GlpiService {
     if (!id || !userId) {
       return null;
     }
+    const inlineLabel = decodeGlpiPlainTextField(stringifyGlpiValue(record.users_id));
     return {
       id,
       user_id: userId,
-      user_label: decodeGlpiPlainTextField(stringifyGlpiValue(record.users_id)),
+      user_label: labelsByAssociationId?.get(id)
+        ?? (inlineLabel && !/^\d+$/.test(inlineLabel) ? inlineLabel : null),
       role: glpiTicketUserRole(record.type),
     };
   }
