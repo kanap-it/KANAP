@@ -231,16 +231,25 @@ function SettingsField({ label, hint, info, children }: {
   return <PropertyRow label={labelNode} helperText={hint}>{children}</PropertyRow>;
 }
 
-// Category catalogue of the reference panel. The catalogue is too large to list in full,
-// so it is searched server-side (debounced) and capped at one page of results.
-function InstructionsCategoryReference({ agentId, enabled }: { agentId: string; enabled: boolean }) {
+// Searchable catalogue section of the reference panel (categories, technicians). These
+// catalogues are too large to list in full, so they are searched server-side (debounced)
+// and capped at one page of results. Names only — never an email address.
+function InstructionsCatalogReference({ agentId, field, title, placeholder, enabled, emptyText, scopeNote }: {
+  agentId: string;
+  field: 'category' | 'technician';
+  title: string;
+  placeholder: string;
+  enabled: boolean;
+  emptyText: string;
+  scopeNote?: string;
+}) {
   const { t } = useTranslation(['agents']);
   const [query, setQuery] = React.useState('');
   const searchId = React.useId();
   const settled = useDebouncedValue(query).trim();
   const catalogue = useQuery({
-    queryKey: ['ai-agent-targeting-options', agentId, 'category', settled],
-    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, 'category', { query: settled || undefined, limit: TARGETING_CATALOG_OPTIONS_LIMIT }),
+    queryKey: ['ai-agent-targeting-options', agentId, field, settled],
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, field, { query: settled || undefined, limit: TARGETING_CATALOG_OPTIONS_LIMIT }),
     enabled,
     staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
   });
@@ -248,24 +257,24 @@ function InstructionsCategoryReference({ agentId, enabled }: { agentId: string; 
   return (
     <Box sx={{ mt: 1.5 }}>
       <Typography component="label" htmlFor={searchId} sx={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>
-        {t('settings.reference.categories')}
+        {title}
       </Typography>
-      <TextField id={searchId} size="small" variant="standard" fullWidth value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('settings.reference.categoriesSearch')} sx={drawerFieldValueSx} />
+      <TextField id={searchId} size="small" variant="standard" fullWidth value={query} onChange={(event) => setQuery(event.target.value)} placeholder={placeholder} sx={drawerFieldValueSx} />
       <Box component="ul" aria-busy={catalogue.isFetching} sx={{ listStyle: 'none', m: 0, p: 0, mt: 0.5, maxHeight: 220, overflowY: 'auto' }}>
         {options.map((option) => <Box component="li" key={option.value} sx={{ fontSize: 13, color: 'kanap.text.primary', lineHeight: 1.7 }}>{option.label}</Box>)}
       </Box>
       {catalogue.isError && <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('settings.reference.catalogueError')}</Typography>}
-      {!catalogue.isFetching && !catalogue.isError && options.length === 0 && <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('settings.reference.empty')}</Typography>}
+      {!catalogue.isFetching && !catalogue.isError && options.length === 0 && <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{emptyText}</Typography>}
       {options.length === TARGETING_CATALOG_OPTIONS_LIMIT && <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.5 }}>{t('settings.reference.categoriesMore')}</Typography>}
-      <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.5 }}>{t('settings.reference.categoriesScope')}</Typography>
+      {scopeNote && <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.5 }}>{scopeNote}</Typography>}
     </Box>
   );
 }
 
 // Read-only reference next to the instructions: the exact names the admin can use there.
 // Only what the runtime actually lets the instructions drive: status transitions, the
-// technician groups when Assignment is on, and the categories, priorities and types when
-// Classification is on.
+// technician groups and the individual technicians when Assignment is on, and the
+// categories, priorities and types when Classification is on.
 function InstructionsReferencePanel({ statuses, groups, routingEnabled, classificationEnabled, priorities, types, agentId }: {
   agentId: string;
   classificationEnabled: boolean;
@@ -322,9 +331,27 @@ function InstructionsReferencePanel({ statuses, groups, routingEnabled, classifi
           )}
         </Box>
       )}
+      {routingEnabled && (
+        <InstructionsCatalogReference
+          agentId={agentId}
+          field="technician"
+          title={t('settings.reference.technicians')}
+          placeholder={t('settings.reference.techniciansSearch')}
+          enabled={routingEnabled}
+          emptyText={t('settings.reference.techniciansEmpty')}
+        />
+      )}
       {classificationEnabled ? (
         <>
-          <InstructionsCategoryReference agentId={agentId} enabled={classificationEnabled} />
+          <InstructionsCatalogReference
+            agentId={agentId}
+            field="category"
+            title={t('settings.reference.categories')}
+            placeholder={t('settings.reference.categoriesSearch')}
+            enabled={classificationEnabled}
+            emptyText={t('settings.reference.empty')}
+            scopeNote={t('settings.reference.categoriesScope')}
+          />
           {([{ title: t('settings.reference.priorities'), options: priorities }, { title: t('settings.reference.types'), options: types }]).map((section) => (
             <Box key={section.title} sx={{ mt: 1.5 }}>
               <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>{section.title}</Typography>
@@ -1388,7 +1415,8 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
   } | null>(null);
   const [knowledgeForm, setKnowledgeForm] = React.useState(() => knowledgeFormFromDefinition(definition));
   const [capabilityForm, setCapabilityForm] = React.useState<Record<string, boolean>>(() => capabilityEnabledState(definition));
-  // What the instructions can name: statuses and (when Assignment is on) technician groups.
+  // What the instructions can name: statuses and (when Assignment is on) technician groups
+  // and technicians.
   // Read-only reference for the admin; same cache entries as the targeting filters.
   const routingGroupsEnabled = !isSre && capabilityForm.assignment === true;
   const classificationEnabled = !isSre && capabilityForm.classification === true;
