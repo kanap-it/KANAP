@@ -1926,6 +1926,55 @@ function ticketFreshnessChanged(action: AiActionRequest, ticket: TicketRecord): 
   return dateMoved || hashMoved;
 }
 
+// Ticketing providers do not agree on a timestamp frame: GLPI hands back `date_mod` as a
+// naive local-time string in the GLPI server timezone ("2026-09-12 16:07:23") while the api
+// runs in UTC, so parsing it yields a wall-clock value that is offset from our own UTC
+// timestamps by the GLPI server offset. Only a timestamp carrying an explicit zone can be
+// compared to one of our own.
+const ABSOLUTE_TIMESTAMP_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+function absoluteTimestampMs(value: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+  const text = value.trim();
+  if (!ABSOLUTE_TIMESTAMP_PATTERN.test(text)) {
+    return null;
+  }
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+type PostWriteTicketBaseline = {
+  updatedAt: string | null;
+  hash: string | null;
+};
+
+// Baseline recorded on the action right after one of our own ticket writes succeeded
+// (see recordPostWriteTargetBaseline). It identifies the ticket state we left behind by
+// value, so a later sibling can tell "only KANAP touched this ticket" without any clock.
+function actionPostWriteTicketBaseline(action: AiActionRequest): PostWriteTicketBaseline | null {
+  const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
+  const baseline = isRecord(metadata?.post_write_ticket_baseline) ? metadata.post_write_ticket_baseline : null;
+  if (!baseline) {
+    return null;
+  }
+  const hash = typeof baseline.ticket_hash === 'string' ? baseline.ticket_hash : null;
+  const updatedAt = typeof baseline.ticket_updated_at === 'string' ? baseline.ticket_updated_at : null;
+  if (!hash && !updatedAt) {
+    return null;
+  }
+  return { hash, updatedAt };
+}
+
+function ticketMatchesPostWriteBaseline(baseline: PostWriteTicketBaseline, ticket: TicketRecord): boolean {
+  if (baseline.hash != null) {
+    // The hash already embeds updated_at, so hash equality is the strongest identity check.
+    return baseline.hash === ticketFreshnessHash(ticket);
+  }
+  return baseline.updatedAt != null && baseline.updatedAt === ticketFreshnessUpdatedAt(ticket);
+}
+
 function actionHasApplyAnywayOverride(action: AiActionRequest): boolean {
   const metadata = isRecord(action.metadata_json) ? action.metadata_json : null;
   const override = isRecord(metadata?.stale_policy_override) ? metadata.stale_policy_override : null;
@@ -2749,19 +2798,19 @@ export class AiCapabilityRegistry {
       return null;
     }
 
-    const sameRunSiblings = await this.ticketFreshnessChangeIsOnlySameRunKanapWrites(
+    const ownWrites = await this.ticketFreshnessChangeIsOnlyKanapWrites(
       context,
       action,
       current.data,
     );
-    if (sameRunSiblings) {
+    if (ownWrites) {
       action.metadata_json = {
         ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
         same_run_freshness_override: {
-          mode: 'allow_after_same_run_sibling_writes',
+          mode: ownWrites.mode,
           checked_at: new Date().toISOString(),
           current_ticket_updated_at: ticketFreshnessUpdatedAt(current.data),
-          sibling_action_request_ids: sameRunSiblings.map((sibling) => sibling.id),
+          sibling_action_request_ids: ownWrites.actions.map((sibling) => sibling.id),
         },
       };
       action.updated_at = new Date();
@@ -2835,31 +2884,76 @@ export class AiCapabilityRegistry {
     });
   }
 
-  private async ticketFreshnessChangeIsOnlySameRunKanapWrites(
+  // The most recent KANAP write on this ticket, when the ticket is still exactly in the
+  // state that write left behind. Identity by value: no clock, no timezone, and a human
+  // edit landing after our write changes the hash, so the match simply fails.
+  private async latestKanapWriteMatchingTicketState(
     context: AiExecutionContextWithManager,
     action: AiActionRequest,
     ticket: TicketRecord,
-  ): Promise<AiActionRequest[] | null> {
+  ): Promise<AiActionRequest | null> {
+    if (!action.target_ref || !action.target_type || !action.provider_kind || !action.provider_key) {
+      return null;
+    }
+    const executed = await context.manager.getRepository(AiActionRequest).find({
+      where: {
+        tenant_id: context.tenantId,
+        target_type: action.target_type,
+        target_ref: action.target_ref,
+        provider_kind: action.provider_kind,
+        provider_key: action.provider_key,
+        status: 'executed',
+      },
+      order: { executed_at: 'DESC' },
+      take: 25,
+    });
+    const latest = executed.find((candidate) => candidate.id !== action.id
+      && actionPostWriteTicketBaseline(candidate) != null);
+    if (!latest) {
+      return null;
+    }
+    const baseline = actionPostWriteTicketBaseline(latest);
+    return baseline && ticketMatchesPostWriteBaseline(baseline, ticket) ? latest : null;
+  }
+
+  private async ticketFreshnessChangeIsOnlyKanapWrites(
+    context: AiExecutionContextWithManager,
+    action: AiActionRequest,
+    ticket: TicketRecord,
+  ): Promise<{ mode: string; actions: AiActionRequest[] } | null> {
+    const ownWrite = await this.latestKanapWriteMatchingTicketState(context, action, ticket);
     const siblings = await this.sameRunExecutedSiblingActions(context, action);
+    if (ownWrite) {
+      const actions = siblings.some((sibling) => sibling.id === ownWrite.id)
+        ? siblings
+        : [ownWrite, ...siblings];
+      return { mode: 'allow_after_kanap_write_baseline_match', actions };
+    }
+
     if (siblings.length === 0) {
       return null;
     }
 
-    const currentUpdatedAt = ticketFreshnessUpdatedAt(ticket);
-    const currentUpdatedAtMs = currentUpdatedAt ? Date.parse(currentUpdatedAt) : Number.NaN;
-    const latestSiblingMs = Math.max(...siblings.map((sibling) => {
+    // Secondary path for actions with no recorded post-write baseline (older rows, or a
+    // ticket re-read that failed right after the write). It is clock-based, so it only
+    // applies when the provider reports an unambiguous, zone-carrying timestamp.
+    const currentUpdatedAtMs = absoluteTimestampMs(ticketFreshnessUpdatedAt(ticket));
+    if (currentUpdatedAtMs == null) {
+      return null;
+    }
+    const siblingTimestamps = siblings.map((sibling) => {
       const value = sibling.executed_at ?? sibling.updated_at ?? sibling.approved_at ?? sibling.created_at;
       return value instanceof Date ? value.getTime() : Date.parse(String(value));
-    }).filter((value) => Number.isFinite(value)));
-    if (
-      Number.isFinite(currentUpdatedAtMs)
-      && Number.isFinite(latestSiblingMs)
-      && currentUpdatedAtMs > latestSiblingMs + 5 * 60 * 1000
-    ) {
+    }).filter((value) => Number.isFinite(value));
+    if (siblingTimestamps.length === 0) {
+      return null;
+    }
+    const latestSiblingMs = Math.max(...siblingTimestamps);
+    if (currentUpdatedAtMs > latestSiblingMs + 5 * 60 * 1000) {
       return null;
     }
 
-    return siblings;
+    return { mode: 'allow_after_same_run_sibling_writes', actions: siblings };
   }
 
   private async refreshApprovedBatchSiblingBaselines(
@@ -2914,6 +3008,21 @@ export class AiCapabilityRegistry {
     if (ticket.ok === false) {
       return;
     }
+    // Record the state this write left behind on the action itself. Sibling actions on the
+    // same ticket compare the live ticket to this baseline by value, which is what makes the
+    // "only our own writes changed it" tolerance independent of the ticketing server clock.
+    const recordedAt = new Date();
+    action.metadata_json = {
+      ...(isRecord(action.metadata_json) ? action.metadata_json : {}),
+      post_write_ticket_baseline: {
+        ticket_updated_at: ticketFreshnessUpdatedAt(ticket.data),
+        ticket_hash: ticketFreshnessHash(ticket.data),
+        recorded_at: recordedAt.toISOString(),
+      },
+    };
+    action.updated_at = recordedAt;
+    await context.manager.getRepository(AiActionRequest).save(action);
+
     await this.refreshApprovedBatchSiblingBaselines(context, action, ticket.data);
     if (!this.agentQueue) {
       return;

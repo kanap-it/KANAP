@@ -9180,6 +9180,161 @@ async function testBulkApprovePreservesExternalFreshnessReReview() {
   );
 }
 
+// GLPI returns date_mod as a naive local-time string in the GLPI server timezone while the
+// api runs in UTC, so the ticket timestamp reads ahead of our own executed_at by the server
+// offset. The same-run tolerance must not depend on that clock.
+async function testSameRunFreshnessToleranceSurvivesProviderClockSkew() {
+  // A naive local-time stamp two hours ahead of the given instant, as a GLPI server running
+  // in Europe/Paris reports date_mod to an api that keeps its own timestamps in UTC. Built
+  // from local calendar fields so the two-hour skew holds whatever timezone the test runs in.
+  const naiveProviderStamp = (date: Date) => {
+    const shifted = new Date(date.getTime() + 2 * 60 * 60 * 1000);
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${shifted.getFullYear()}-${pad(shifted.getMonth() + 1)}-${pad(shifted.getDate())} `
+      + `${pad(shifted.getHours())}:${pad(shifted.getMinutes())}:${pad(shifted.getSeconds())}`;
+  };
+  const queue = new AiAgentWorkQueueService();
+  const ticketId = 'clock-skew-ticket';
+  const preparedUpdatedAt = naiveProviderStamp(new Date(Date.now() - 10 * 60 * 1000));
+  let currentTicket: any = {
+    id: ticketId,
+    status: 'new',
+    priority: 'medium',
+    title: 'Clock skew ticket',
+    createdAt: '2026-06-10 09:00:00',
+    updatedAt: preparedUpdatedAt,
+    scope: { entityId: 'lohr-helpdesk', categoryId: 'access' },
+  };
+  let internalWrites = 0;
+  const provider = {
+    getTicket: async () => ({ ok: true, data: currentTicket, evidence: [] }),
+    listTicketNotes: async () => ({ ok: true, data: { notes: [] }, evidence: [] }),
+    addInternalNote: async (_context: unknown, input: any) => {
+      internalWrites += 1;
+      // Our own write moves date_mod, expressed in the GLPI server's local time.
+      currentTicket = { ...currentTicket, updatedAt: naiveProviderStamp(new Date()) };
+      return {
+        ok: true,
+        data: {
+          noteId: `clock-skew-note-${internalWrites}`,
+          ticketId: input.actionPayload.ticketId,
+          summary: 'Internal note added.',
+          idempotencyKey: input.idempotencyKey,
+          alreadyApplied: false,
+        },
+        evidence: [],
+      };
+    },
+  };
+  const { dispatcher, context, stores, actions, approvals } = createRealProviderDispatcher({ ticketingProvider: provider, agentQueue: queue });
+  const service = new AiAgentControlService({} as any, approvals, dispatcher, {} as any, {} as any, queue);
+  const definition = await enableHelpdeskNewTicketsOnly(context, queue, { providerKey: 'mock' });
+  const seedNote = (suffix: string, overrides?: Record<string, any>) => providerActionSeed({
+    targetRef: ticketId,
+    runId: 'clock-skew-run',
+    idempotencyKey: `clock-skew-note-${suffix}`,
+    actionPayload: {
+      ticketId,
+      visibility: 'internal',
+      body: `Prepared note ${suffix}.`,
+      bodyFormat: 'plain_text',
+    },
+    metadata: {
+      agent_definition_id: definition.id,
+      agent_work_item_id: 'clock-skew-work',
+      action_class: 'internal_note',
+      on_stale_by_action_class: { internal_note: 're_review' },
+      proposal_ticket_updated_at: preparedUpdatedAt,
+    },
+    ...(overrides ?? {}),
+  });
+  const executeNote = (actionRequestId: string) => dispatcher.execute(context, {
+    capabilityName: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
+    input: { action_request_id: actionRequestId },
+    execution: { surface: 'internal' },
+  });
+
+  // (1) Two siblings of the same run, approved one after the other. The first write is the
+  // only thing that touched the ticket, so the second must still execute.
+  const first = await actions.createOrEnsureProviderAction(context, seedNote('first'));
+  const second = await actions.createOrEnsureProviderAction(context, seedNote('second'));
+  await approvals.approveActionRequest(context, first.id, { source: 'human_ui', reason: 'unit test approval' });
+  await approvals.approveActionRequest(context, second.id, { source: 'human_ui', reason: 'unit test approval' });
+  const firstExecuted = await executeNote(first.id);
+  assert.equal((firstExecuted.output as any).ok, true);
+  assert.equal(internalWrites, 1);
+  const savedFirst = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === first.id);
+  assert.equal(typeof savedFirst.metadata_json?.post_write_ticket_baseline?.ticket_hash, 'string');
+  assert.equal(savedFirst.metadata_json?.post_write_ticket_baseline?.ticket_updated_at, currentTicket.updatedAt);
+
+  const secondExecuted = await executeNote(second.id);
+  assert.equal((secondExecuted.output as any).ok, true);
+  assert.equal(internalWrites, 2);
+  const savedSecond = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === second.id);
+  assert.equal(savedSecond.status, 'executed');
+  assert.equal(savedSecond.metadata_json?.same_run_freshness_override?.mode, 'allow_after_kanap_write_baseline_match');
+
+  // (2) A human edit landing after our write is a real external change: still expired.
+  const third = await actions.createOrEnsureProviderAction(context, seedNote('third'));
+  await approvals.approveActionRequest(context, third.id, { source: 'human_ui', reason: 'unit test approval' });
+  currentTicket = {
+    ...currentTicket,
+    title: 'Clock skew ticket edited by the requester',
+    updatedAt: naiveProviderStamp(new Date(Date.now() + 60 * 1000)),
+  };
+  const thirdExecuted = await executeNote(third.id);
+  assert.equal((thirdExecuted.output as any).ok, false);
+  assert.match((thirdExecuted.output as any).message, /fresh review was queued/);
+  assert.equal(internalWrites, 2);
+  const savedThird = (stores.get(AiActionRequest.name) ?? []).find((row: AiActionRequest) => row.id === third.id);
+  assert.equal(savedThird.status, 'expired');
+  assert.equal(
+    (stores.get(AiAgentWorkItem.name) ?? []).some((row: AiAgentWorkItem) =>
+      row.source_object_ref === ticketId
+      && row.metadata_json?.source === 'execute_time_stale_re_review'
+      && row.metadata_json?.stale_action_request_id === third.id),
+    true,
+  );
+
+  // (3) Approving the whole batch at once still rebaselines the siblings and executes them.
+  const batchUpdatedAt = currentTicket.updatedAt;
+  const fourth = await actions.createOrEnsureProviderAction(context, seedNote('fourth', {
+    runId: null,
+    metadata: {
+      agent_definition_id: definition.id,
+      agent_work_item_id: 'clock-skew-work',
+      action_class: 'internal_note',
+      on_stale_by_action_class: { internal_note: 're_review' },
+      proposal_ticket_updated_at: batchUpdatedAt,
+    },
+  }));
+  const fifth = await actions.createOrEnsureProviderAction(context, seedNote('fifth', {
+    runId: null,
+    metadata: {
+      agent_definition_id: definition.id,
+      agent_work_item_id: 'clock-skew-work',
+      action_class: 'internal_note',
+      on_stale_by_action_class: { internal_note: 're_review' },
+      proposal_ticket_updated_at: batchUpdatedAt,
+    },
+  }));
+  const approvedBatch = await service.approveActionRequestsBulk(context, {
+    action_request_ids: [fourth.id, fifth.id],
+    execute: false,
+  }, { queueExecution: true });
+  assert.equal(approvedBatch.summary.queued, 2);
+  const batchExecuted = await service.executeApprovedActionRequestsBulk(context, {
+    action_request_ids: [fourth.id, fifth.id],
+  });
+  assert.equal(batchExecuted.summary.executed, 2);
+  assert.equal(batchExecuted.summary.needs_review, 0);
+  assert.equal(internalWrites, 4);
+  const savedBatch = (stores.get(AiActionRequest.name) ?? [])
+    .filter((row: AiActionRequest) => row.id === fourth.id || row.id === fifth.id);
+  assert.equal(savedBatch.length, 2);
+  assert.equal(savedBatch.every((row: AiActionRequest) => row.status === 'executed'), true);
+}
+
 async function testQueuedApprovedExecutionClaimIsAtomic() {
   const queue = new AiAgentWorkQueueService();
   const ticket = {
@@ -16317,6 +16472,7 @@ async function run() {
   await testPhase135StaleExecuteReReviewAndTerminalFreshnessInvariant();
   await testSameRunApproveAllSiblingWritesDoNotBlockEachOther();
   await testBulkApprovePreservesExternalFreshnessReReview();
+  await testSameRunFreshnessToleranceSurvivesProviderClockSkew();
   await testQueuedApprovedExecutionClaimIsAtomic();
   await testQueuedApprovedExecutionFailureBackoffAndDeadLetter();
   await testQueuedApprovedExecutionReclaimsStaleExecutingAction();
