@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  actionUpdateSummary,
   buildTicketGroups,
   capabilityLabelFromName,
   executableActions,
@@ -483,5 +484,17 @@ describe('agent persona purpose + instructions helpers', () => {
       prompt_profile: { bounds_applied: ['instructions_clamped:20->16'] },
       tasks: { synthesis: { bounds_applied: ['shared_context_lines_clamped:45->30'] } },
     })).toEqual(['instructions_clamped:20->16', 'shared_context_lines_clamped:45->30']);
+  });
+});
+
+describe('classification approval summary', () => {
+  it('shows category names verbatim and hides the technical category key', () => {
+    const summary = actionUpdateSummary(action({
+      capability_name: 'ticketing.ticket.classification_update.approved',
+      action_payload_json: { current: { category: null }, proposed: { category: 'Software > SAP_HR', categoryKey: '301' } },
+    }));
+    expect(summary).toContain('Category: Not set -> Software > SAP_HR');
+    expect(summary).not.toContain('categoryKey');
+    expect(summary).not.toContain('301');
   });
 });

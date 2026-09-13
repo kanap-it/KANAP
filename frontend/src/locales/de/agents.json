@@ -776,7 +776,14 @@
       "empty": "Nichts verfügbar.",
       "groupsEmpty": "Das Ticketsystem stellt keine zuweisbare Gruppe bereit.",
       "groupsDisabled": "Aktivieren Sie „Zuweisung“ unter Fähigkeiten, damit der Agent Tickets an eine Gruppe weiterleiten kann.",
-      "classificationNote": "Kategorie, Priorität und Typ werden nicht über die Anweisungen gesteuert."
+      "categories": "Kategorien",
+      "priorities": "Prioritäten",
+      "types": "Typen",
+      "classificationDisabled": "Aktivieren Sie „Klassifizierung“ unter Fähigkeiten, um Kategorie, Priorität und Typ über die Anweisungen zu steuern.",
+      "categoriesSearch": "z. B. SAP",
+      "categoriesMore": "Geben Sie einen Namen ein, um die Liste einzugrenzen.",
+      "categoriesScope": "Die Suche umfasst alle Kategorien. Bei einem sehr großen Katalog geht der Agent zuerst von den Kategorien Ihrer Zielauswahl aus.",
+      "catalogueError": "Der Katalog konnte nicht geladen werden."
     },
     "modelInfo": "Auf welchem KI-Modell dieser Agent läuft. Modelle werden in der Administration unter KI-Modelle verwaltet.",
     "maxTicketsInfo": "Höchstzahl der Tickets, die der Agent pro Prüfung aufnimmt. Der Rest wartet auf die nächste.",
@@ -830,6 +837,14 @@
     "assignToGroup": "Gruppe zuweisen",
     "currentGroups": "Aktuell zugewiesen",
     "noGroupAssigned": "Keine Gruppe zugewiesen",
-    "participantUpdate": "Teilnehmer aktualisieren"
+    "participantUpdate": "Teilnehmer aktualisieren",
+    "classificationFields": {
+      "category": "Kategorie",
+      "type": "Typ",
+      "priority": "Priorität",
+      "urgency": "Dringlichkeit",
+      "impact": "Auswirkung",
+      "service": "Service"
+    }
   }
 }

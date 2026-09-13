@@ -370,8 +370,13 @@ export function actionUpdateSummary(action: AiAgentControlActionRequest): string
   if (action.capability_name === CLASSIFICATION_UPDATE_CAPABILITY) {
     const proposed = isRecord(payload.proposed) ? payload.proposed : null;
     const lines = Object.entries(proposed ?? {})
-      .filter(([, value]) => typeof value === 'string' && value.trim().length > 0)
-      .map(([key, value]) => `- ${humanize(key)}: ${humanize(String(current?.[key] ?? agentText('common.notSet', 'Not set')))} -> ${humanize(String(value))}`);
+      .filter(([key, value]) => key !== 'categoryKey' && typeof value === 'string' && value.trim().length > 0)
+      .map(([key, value]) => {
+        const label = agentText(`actions.classificationFields.${key}`, humanize(key));
+        const before = String(current?.[key] ?? agentText('common.notSet', 'Not set'));
+        const after = String(value);
+        return `- ${label}: ${key === 'category' ? before : humanize(before)} -> ${key === 'category' ? after : humanize(after)}`;
+      });
     return lines.length > 0
       ? [agentText('actions.classificationUpdate', 'Classification update'), ...lines, reason ? `${agentText('actions.reason', 'Reason')}: ${reason}` : null].filter(Boolean).join('\n')
       : null;

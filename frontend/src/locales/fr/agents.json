@@ -776,7 +776,14 @@
       "empty": "Rien de disponible.",
       "groupsEmpty": "L’outil de ticketing n’expose aucun groupe attribuable.",
       "groupsDisabled": "Activez « Attribution » dans les capacités pour que l’agent puisse router un ticket vers un groupe.",
-      "classificationNote": "La catégorie, la priorité et le type ne sont pas pilotés par les instructions."
+      "categories": "Catégories",
+      "priorities": "Priorités",
+      "types": "Types",
+      "classificationDisabled": "Activez « Classification » dans les capacités pour piloter la catégorie, la priorité et le type par les instructions.",
+      "categoriesSearch": "Ex. : SAP",
+      "categoriesMore": "Saisissez un nom pour affiner la liste.",
+      "categoriesScope": "La recherche couvre toutes les catégories. Si le catalogue est très volumineux, l’agent part d’abord des catégories de votre ciblage.",
+      "catalogueError": "Le catalogue n’a pas pu être chargé."
     },
     "modelInfo": "Le modèle IA sur lequel cet agent s’exécute. Les modèles se gèrent dans Administration, page Modèles IA.",
     "maxTicketsInfo": "Le nombre maximum de tickets pris par l’agent à chaque contrôle. Les autres attendent le suivant.",
@@ -830,6 +837,14 @@
     "assignToGroup": "Attribuer au groupe",
     "currentGroups": "Actuellement attribué à",
     "noGroupAssigned": "Aucun groupe attribué",
-    "participantUpdate": "Mise à jour des participants"
+    "participantUpdate": "Mise à jour des participants",
+    "classificationFields": {
+      "category": "Catégorie",
+      "type": "Type",
+      "priority": "Priorité",
+      "urgency": "Urgence",
+      "impact": "Impact",
+      "service": "Service"
+    }
   }
 }
