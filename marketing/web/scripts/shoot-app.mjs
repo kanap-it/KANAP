@@ -43,6 +43,7 @@ const PASSWORD = process.env.APP_PASSWORD;
 
 // Sample data used by the shot definitions (Fromage demo tenant).
 const ALLOC_ITEM_ID = '97ed5331-5cf0-4ba1-bfa7-8e13fa3b3cb4'; // SAP S/4HANA, Headcount
+const ANALYTICS_ITEM_ID = '9f2f0c3f-fc65-441b-b22b-cfeefdd27086'; // OPX-8 AWS Cloud Hosting, Infrastructure
 const COMPANY_NAME = 'Fromage & Co SA';
 
 if (!EMAIL || !PASSWORD) {
@@ -90,6 +91,35 @@ const PAGES = {
   'budget-operations': { path: '/ops/operations', waitFor: 'main' },
   'reports-landing': { path: '/ops/reports', waitFor: 'main' },
   'opex-list': { path: '/ops/opex', waitFor: 'main' },
+  'analytics-dimensions': { path: '/master-data/analytics', waitFor: 'main' },
+  'analytics-opex-item': { path: `/ops/opex/${ANALYTICS_ITEM_ID}`, waitFor: 'main' },
+  'analytics-report': { path: '/ops/reports/analytics', waitFor: 'main' },
+  'analytics-report-range': {
+    path: '/ops/reports/analytics',
+    waitFor: 'main',
+    async prepare(page) {
+      // Widen the range to previous year -> next year so the chart switches to lines.
+      const year = new Date().getFullYear();
+      const pickYear = async (selectIndex, label) => {
+        const selects = await page.$$('.MuiSelect-select');
+        await selects[selectIndex].click();
+        await page.waitForSelector('li[role="option"]', { timeout: 10000 });
+        const options = await page.$$('li[role="option"]');
+        for (const option of options) {
+          const text = await option.evaluate((el) => el.textContent?.trim() || '');
+          if (text === String(label)) {
+            await option.click();
+            break;
+          }
+        }
+        await sleep(800);
+      };
+      await page.waitForSelector('.MuiSelect-select', { timeout: 20000 });
+      await pickYear(0, year - 1);
+      await pickYear(1, year + 1);
+      await sleep(1500); // let the chart redraw
+    },
+  },
 };
 
 const positional = args.filter((a) => !a.startsWith('--'));
