@@ -52,10 +52,7 @@ The report lives under **Reports > Analytics dimensions**.
 
 ![The report for 2026: 3.2 M EUR of OPEX budget spread across fifteen analytics dimensions](/screenshots/blog/analytics-report.png)
 
-<figure class="stat">
-  <b>25%</b>
-  <span>of the 2026 OPEX budget goes to productivity. Infrastructure follows at 13%, professional services at 13%.</span>
-</figure>
+In the 2026 fiscal year, productivity alone takes 25% of the OPEX budget. Infrastructure follows at 13%, as do professional services.
 
 In the multi-year view, the report becomes a trend tool. One line takes off, another fades, and the decision is discussed on facts.
 
@@ -88,4 +85,4 @@ That is the point of a shared nomenclature: the question "how much does security
 4. Cross the report with the chargeback reports: who pays on one side, what for on the other.
 5. Re-run the report at every budget review. Split a dimension that is too broad, merge two that are too fine.
 
-For the first reading, see [IT cost chargeback, made easy](/blog/it-cost-chargeback-made-simple). The two reports read well side by side, and rely on the same items.
+Analytics dimensions complement the allocation of IT costs (see [IT cost chargeback, made easy](/blog/it-cost-chargeback-made-simple)) and give you the visibility you need to prepare, analyse and defend your budget.

@@ -52,10 +52,7 @@ Le rapport se trouve sous **Rapports > Dimensions analytiques**.
 
 ![Le rapport en 2026 : 3,2 M€ de budget OPEX répartis sur quinze dimensions analytiques](/screenshots/blog/analytics-report.png)
 
-<figure class="stat">
-  <b>25 %</b>
-  <span>du budget OPEX 2026 partent en productivité. L'infrastructure suit avec 13 %, les services professionnels avec 13 %.</span>
-</figure>
+Sur l'exercice 2026, la productivité capte 25 % du budget OPEX. L'infrastructure suit à 13 %, comme les services professionnels.
 
 En vue pluriannuelle, le rapport devient un outil de trajectoire. Une ligne s'envole, une autre s'éteint, et la décision se discute sur des faits.
 
@@ -88,4 +85,4 @@ C'est tout l'intérêt d'une nomenclature commune : la question « combien coût
 4. Croisez le rapport avec les rapports de refacturation : qui paie d'un côté, pour quoi de l'autre.
 5. Relancez le rapport à chaque revue budgétaire. Scindez une dimension trop large, fusionnez deux dimensions trop fines.
 
-Pour la première lecture, voir [La refacturation des coûts IT, c'est facile](/fr/blog/la-refacturation-des-couts-it-cest-facile). Les deux rapports se lisent bien côte à côte, et s'appuient sur les mêmes postes.
+Cette dimension analytique complète parfaitement la répartition des coûts IT (voir [La refacturation des coûts IT, c'est facile](/fr/blog/la-refacturation-des-couts-it-cest-facile)) et vous donnera toute la visibilité nécessaire pour préparer, analyser et défendre votre budget.
