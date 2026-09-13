@@ -49,6 +49,17 @@ Then write the body in plain Markdown. What renders well:
   </figure>
   ```
 
+- A tip callout, for a short aside the reader should not miss:
+
+  ```html
+  <aside class="tip">
+    <b>Tip</b>
+    <p>Reports use the reporting currency set in the currency settings.</p>
+  </aside>
+  ```
+
+  Use `Astuce` as the label in French articles.
+
 Reading time is computed from the text; you do not write it.
 
 ### Multi-part series

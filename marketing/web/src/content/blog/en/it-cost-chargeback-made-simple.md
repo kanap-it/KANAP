@@ -29,7 +29,7 @@ Three uses come up again and again:
 
 ### The default rule
 
-This is the rule that applies if you do nothing. By default, KANAP uses the headcount of the companies defined in the reference data: all costs are shared across all companies based on headcount.
+By default, KANAP uses the headcount of the companies defined in the reference data: all costs are shared across all companies based on headcount.
 
 You can change this default rule in Administration, Default allocation method. The rule you set applies year by year to entries that have not been customised yet (you do not lose work already done).
 
@@ -77,6 +77,11 @@ This report goes one level deeper and analyses the detail for a single company. 
 
 Both reports are fully parameterisable (year, company, sections) and export to CSV, PNG or PDF. They can also be presented directly in a budget review.
 
+<aside class="tip">
+  <b>Tip</b>
+  <p>Reports are expressed in the reporting currency set in the currency settings. Each subsidiary manages its budget in its own currency, but consolidation standardises on a single currency, which makes reading easier.</p>
+</aside>
+
 ## Hidden costs
 
 These reports often surface lines or situations that the big budget "top 10" hides. The 15k EUR tool used by three people that sends a department's cost per user through the roof. The application charged back to a subsidiary that already pays for an equivalent package. The gaps in cost per user between companies or departments.
@@ -92,5 +97,3 @@ Investments use the same Allocations tab and the same mechanics. A project funde
 - Check the company metrics for the current year: headcount, IT users, turnover. This is the reference data behind chargeback.
 - Set the default method that suits your environment, then handle only the special cases.
 - Choose the level of granularity you want when reviewing special cases, then stay consistent throughout.
-
-Chargeback becomes simple when the rule lives with the data. It turns back into an impossible spreadsheet as soon as it lives next to it.

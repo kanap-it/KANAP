@@ -446,6 +446,34 @@ const breadcrumb = breadcrumbLd(site, [
     color: var(--kanap-text-secondary);
   }
 
+  /* Tip callout: <aside class="tip"><b>Tip</b><p>…</p></aside> */
+  .mk-post__body :global(aside.tip) {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 28px 0;
+    padding: 16px 18px;
+    border: 1px solid var(--kanap-border-default);
+    border-left: 3px solid var(--kanap-teal);
+    border-radius: var(--kanap-radius-composer);
+    background: var(--kanap-bg-drawer);
+  }
+
+  .mk-post__body :global(aside.tip > b) {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--kanap-teal);
+  }
+
+  .mk-post__body :global(aside.tip p) {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--kanap-text-secondary);
+  }
+
   /* Code */
   .mk-post__body :global(code) {
     font-family: 'JetBrains Mono', ui-monospace, monospace;

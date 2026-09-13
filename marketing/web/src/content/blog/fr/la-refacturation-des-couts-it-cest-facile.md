@@ -29,7 +29,7 @@ Trois usages reviennent :
 
 ### La règle par défaut
 
-C'est celle qui s'appliquera si vous ne faites rien. Par défaut, KANAP utilise l'effectif des sociétés définies dans les données de référence : tous les coûts seront répartis entre toutes les sociétés en fonction de l'effectif.
+Par défaut, KANAP utilise l'effectif des sociétés définies dans les données de référence : tous les coûts seront répartis entre toutes les sociétés en fonction de l'effectif.
 
 Vous pouvez modifier cette règle par défaut dans Administration, Méthode de ventilation par défaut. La règle définie s'appliquera année par année sur les entrées qui n'auront pas encore été personnalisées (vous ne perdez pas le travail déjà effectué).
 
@@ -77,6 +77,11 @@ Ce rapport permet de descendre d'un niveau et d'analyser le détail au niveau d'
 
 Les deux rapports sont entièrement paramétrables (année, société, rubriques) et s'exportent en CSV, en PNG ou en PDF. Ils peuvent aussi être présentés directement en revue budgétaire.
 
+<aside class="tip">
+  <b>Astuce</b>
+  <p>Les rapports s'expriment dans la devise de reporting définie dans les paramètres de devise. Chaque filiale gère son budget dans sa devise, mais la consolidation standardise sur une seule devise, ce qui facilite la lecture.</p>
+</aside>
+
 ## Les coûts cachés
 
 Ces rapports font souvent émerger des lignes ou des situations que les gros « top 10 » budgétaires masquent. L'outil à 15 k€ utilisé par trois personnes qui fait exploser le coût par utilisateur d'un département. L'application refacturée à une filiale qui paie déjà pour un logiciel équivalent. Les écarts de coût par utilisateur entre sociétés ou départements.
@@ -92,5 +97,3 @@ Les investissements utilisent le même onglet Ventilations et la même mécaniqu
 - Vérifiez les métriques des sociétés pour l'année en cours : effectif, utilisateurs IT, chiffre d'affaires. C'est la donnée de référence de la refacturation !
 - Définissez la méthode par défaut qui convient à votre environnement, puis ne traitez que les cas particuliers.
 - Choisissez le niveau de granularité voulu dans la revue des cas particuliers, puis restez cohérent tout au long du traitement.
-
-La refacturation devient simple quand la règle vit avec la donnée. Elle redevient un tableur impossible dès qu'elle vit à côté.
