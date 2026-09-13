@@ -433,6 +433,12 @@ export class GlpiService {
   // Groups a ticket can be assigned to (Group.is_assign = 1), sorted by full name and
   // bounded to GLPI_ASSIGNABLE_GROUPS_MAX. Cached per GLPI instance + acting account.
   async listAssignableGroups(session: GlpiSession): Promise<GlpiAssignableGroup[]> {
+    return (await this.listAssignableGroupCatalogue(session)).slice(0, GLPI_ASSIGNABLE_GROUPS_MAX);
+  }
+
+  // Keep all assignable groups in the cache: the group prompt cap must not exclude
+  // technicians whose only membership is in a group beyond that cap.
+  private async listAssignableGroupCatalogue(session: GlpiSession): Promise<GlpiAssignableGroup[]> {
     const cacheKey = `${session.baseUrl}|${session.agentUserId ?? 'anon'}`;
     const now = Date.now();
     const cached = this.assignableGroupsCache.get(cacheKey);
@@ -453,7 +459,6 @@ export class GlpiService {
     groups.sort((left, right) => (left.completename ?? '').localeCompare(right.completename ?? '', undefined, { sensitivity: 'base' }));
     if (groups.length > GLPI_ASSIGNABLE_GROUPS_MAX) {
       this.logger.warn(`GLPI exposes ${groups.length} assignable groups; the agent routing catalogue keeps the first ${GLPI_ASSIGNABLE_GROUPS_MAX}.`);
-      groups.length = GLPI_ASSIGNABLE_GROUPS_MAX;
     }
     this.assignableGroupsCache.set(cacheKey, { expiresAt: now + GLPI_ASSIGNABLE_GROUPS_CACHE_TTL_MS, groups });
     return groups;
@@ -527,7 +532,7 @@ export class GlpiService {
     if (cached && cached.expiresAt > now) {
       return { technicians: cached.technicians, truncated: cached.truncated };
     }
-    const groupIds = new Set((await this.listAssignableGroups(session)).map((group) => group.id));
+    const groupIds = new Set((await this.listAssignableGroupCatalogue(session)).map((group) => group.id));
     if (groupIds.size === 0) {
       this.techniciansCache.set(cacheKey, { expiresAt: now + GLPI_ASSIGNABLE_GROUPS_CACHE_TTL_MS, technicians: [], truncated: false });
       return { technicians: [], truncated: false };
@@ -595,21 +600,8 @@ export class GlpiService {
       this.logger.warn(`GLPI refused the Group_User listing (${String(error?.message ?? error)}); falling back to per-group membership reads.`);
     }
     for (const groupId of groupIds) {
-      const pageUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/Group/${groupId}/Group_User`));
-      pageUrl.searchParams.set('expand_dropdowns', 'false');
-      pageUrl.searchParams.set('get_hateoas', 'false');
-      const payload = await this.requestJson(
-        pageUrl.toString(),
-        { headers: this.buildSessionHeaders(session) },
-      );
-      if (!Array.isArray(payload)) {
-        throw new BadRequestException(`GLPI group ${groupId} membership response was malformed.`);
-      }
-      for (const row of payload) {
-        if (!row || typeof row !== 'object' || Array.isArray(row)) {
-          continue;
-        }
-        const userId = parsePositiveInteger((row as Record<string, unknown>).users_id);
+      for (const row of await this.listItemTypeRows(session, `Group/${groupId}/Group_User`, GLPI_TREE_MAX_ROWS)) {
+        const userId = parsePositiveInteger(row.users_id);
         if (userId) {
           memberIds.add(userId);
         }
@@ -994,8 +986,8 @@ export class GlpiService {
     return parents;
   }
 
-  // Pages through `apirest.php/<itemType>` and returns the raw rows (deduplicated by id),
-  // bounded to maxRows. Backs the tree catalogs and the assignable-group catalogue.
+  // Pages through an item type or sub-item path under apirest.php, returning raw rows
+  // deduplicated by id and bounded to maxRows. Also used for group memberships.
   private async listItemTypeRows(
     session: GlpiSession,
     itemType: string,

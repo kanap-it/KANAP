@@ -1428,6 +1428,102 @@ async function testTechnicianCatalogueFallsBackToPerGroupMembership() {
   }
 }
 
+async function testTechnicianFallbackReadsEveryMembershipPage() {
+  const originalFetch = global.fetch;
+  const session = { baseUrl: 'https://glpi.internal/', sessionToken: 'session-token', appToken: 'app-token' };
+  try {
+    // Cover both GLPI's default 50-row window and the client's explicit 200-row window.
+    for (const memberCount of [51, 251]) {
+      const service = createService();
+      const membershipRanges: Array<string | null> = [];
+      const memberships = Array.from({ length: memberCount }, (_, index) => ({ id: index + 1, groups_id: 7, users_id: index + 1 }));
+      const users = memberships.map((member) => ({
+        id: member.users_id,
+        name: `tech${member.users_id}`,
+        // Keep the technician result below its own cap, even with multiple membership pages.
+        is_active: member.users_id > memberCount - 51 ? 1 : 0,
+      }));
+      global.fetch = (async (input: RequestInfo | URL) => {
+        const url = new URL(String(input));
+        const range = url.searchParams.get('range');
+        let rows: unknown[];
+        if (url.pathname === '/apirest.php/Group_User') {
+          return new Response(JSON.stringify(['ERROR_RIGHT_MISSING', 'Not allowed.']), {
+            status: 403, headers: { 'content-type': 'application/json' },
+          });
+        } else if (url.pathname === '/apirest.php/Group/7/Group_User') {
+          membershipRanges.push(range);
+          rows = memberships;
+        } else if (url.pathname === '/apirest.php/Group') {
+          rows = [{ id: 7, name: 'Support', is_assign: 1 }];
+        } else if (url.pathname === '/apirest.php/User') {
+          rows = users;
+        } else {
+          throw new Error(`Unexpected GLPI call ${url}`);
+        }
+        const [start, end] = (range ?? '0-49').split('-').map(Number);
+        const page = rows.slice(start, end + 1);
+        return new Response(JSON.stringify(page), {
+          status: page.length < rows.length ? 206 : 200,
+          headers: { 'content-type': 'application/json', 'content-range': `${start}-${start + page.length - 1}/${rows.length}` },
+        });
+      }) as typeof fetch;
+
+      const catalogue = await service.listTechnicians(session);
+      assert.equal(catalogue.technicians.length, 51);
+      assert.equal(catalogue.technicians.some((technician) => technician.id === memberCount), true);
+      assert.equal(catalogue.truncated, false);
+      assert.deepEqual(membershipRanges, memberCount === 51 ? ['0-199'] : ['0-199', '200-399']);
+    }
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testTechnicianMembershipIgnoresGroupPromptCap() {
+  const originalFetch = global.fetch;
+  const session = { baseUrl: 'https://glpi.internal/', sessionToken: 'session-token', appToken: 'app-token' };
+  try {
+    // Both call orders must share the complete cached group list without changing the
+    // bounded public group catalogue, including when the technician is the first reader.
+    for (const groupsFirst of [true, false]) {
+      const service = createService();
+      let groupReads = 0;
+      global.fetch = (async (input: RequestInfo | URL) => {
+        const url = new URL(String(input));
+        let rows: unknown[];
+        if (url.pathname === '/apirest.php/Group') {
+          groupReads += 1;
+          rows = Array.from({ length: 201 }, (_, index) => ({ id: index + 1, name: `Group ${String(index + 1).padStart(3, '0')}`, is_assign: 1 }));
+        } else if (url.pathname === '/apirest.php/Group_User') {
+          rows = [{ id: 1, groups_id: 201, users_id: 21 }];
+        } else if (url.pathname === '/apirest.php/User') {
+          rows = [{ id: 21, name: 'Only Technician', is_active: 1 }];
+        } else {
+          throw new Error(`Unexpected GLPI call ${url}`);
+        }
+        const [start, end] = (url.searchParams.get('range') ?? '0-49').split('-').map(Number);
+        const page = rows.slice(start, end + 1);
+        return new Response(JSON.stringify(page), {
+          status: page.length < rows.length ? 206 : 200,
+          headers: { 'content-type': 'application/json', 'content-range': `${start}-${start + page.length - 1}/${rows.length}` },
+        });
+      }) as typeof fetch;
+
+      if (groupsFirst) assert.equal((await service.listAssignableGroups(session)).length, 200);
+      const catalogue = await service.listTechnicians(session);
+      assert.deepEqual(catalogue.technicians.map((technician) => technician.id), [21]);
+      assert.equal(catalogue.truncated, false);
+      const groups = await service.listAssignableGroups(session);
+      assert.equal(groups.length, 200);
+      assert.equal(groups.some((group) => group.id === 201), false);
+      assert.equal(groupReads, 2);
+    }
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
 // The named-technician write: additive Ticket_User type 2, idempotent, and never outside
 // the catalogue. addTicketUser keeps its own-user-only guard for the ticket-actor feature.
 async function testAddTicketTechnicianIsAdditiveIdempotentAndRestricted() {
@@ -1536,6 +1632,8 @@ async function run() {
   await testTechnicianCatalogueFiltersSortsAndCaches();
   await testTechnicianCatalogueCapsAndFlagsTruncation();
   await testTechnicianCatalogueFallsBackToPerGroupMembership();
+  await testTechnicianFallbackReadsEveryMembershipPage();
+  await testTechnicianMembershipIgnoresGroupPromptCap();
   await testAddTicketTechnicianIsAdditiveIdempotentAndRestricted();
 }
 

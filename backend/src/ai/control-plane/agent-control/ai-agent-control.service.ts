@@ -2052,8 +2052,14 @@ function resolvePlannerAssignmentTarget(
   }
   const catalogue = Array.isArray(routing.supportedAssignmentTargets) ? routing.supportedAssignmentTargets.filter(isRecord) : [];
   const sameKind = catalogue.filter((candidate) => candidate.kind === action.target?.kind && typeof candidate.key === 'string' && typeof candidate.label === 'string');
-  const match = sameKind.find((candidate) => key && candidate.key === key)
-    ?? sameKind.find((candidate) => label && String(candidate.label).trim().toLowerCase() === label);
+  let match = sameKind.find((candidate) => key && candidate.key === key);
+  if (!match && label) {
+    const labelMatches = sameKind.filter((candidate) => String(candidate.label).trim().toLowerCase() === label);
+    if (labelMatches.length > 1) {
+      return { target: null, reason: 'assignment_target_ambiguous' };
+    }
+    match = labelMatches[0];
+  }
   if (!match || (match.kind !== 'group' && match.kind !== 'user')) {
     return { target: null, reason: 'assignment_target_not_in_routing_catalogue' };
   }

@@ -15849,6 +15849,14 @@ async function testManualTicketingTriageRequiresAgentDefinitionId() {
 // budget: a plan may name one group AND one technician, and the second candidate of either
 // kind is skipped. A technician already on the ticket is never re-proposed.
 async function testGlpiTriagePlannerTechnicianRoutingIsKindScoped() {
+  await assertGlpiTriagePlannerTechnicianRouting(false);
+}
+
+async function testGlpiTriagePlannerTechnicianRoutingRejectsAmbiguousNames() {
+  await assertGlpiTriagePlannerTechnicianRouting(true);
+}
+
+async function assertGlpiTriagePlannerTechnicianRouting(testHomonyms: boolean) {
   const { manager } = createMemoryManager();
   const context = createContext(manager);
   const queue = new AiAgentWorkQueueService();
@@ -15865,6 +15873,11 @@ async function testGlpiTriagePlannerTechnicianRoutingIsKindScoped() {
       { kind: 'user', key: '30', label: 'Already There' },
       { kind: 'user', key: '21', label: 'Marie Dupont' },
       { kind: 'user', key: '22', label: 'Paul Martin' },
+      ...(testHomonyms ? [
+        { kind: 'user', key: '23', label: 'marie DUPONT' },
+        // A user with the group's name must not make the group label ambiguous.
+        { kind: 'user', key: '24', label: 'SAP-team' },
+      ] : []),
     ],
     agentUserKey: '99',
     assignmentSupported: true,
@@ -15936,14 +15949,18 @@ async function testGlpiTriagePlannerTechnicianRoutingIsKindScoped() {
       source: 'llm',
       actions: [
         { action_type: 'internal_note', reason: 'Summarize the badge reader failure for the technicians.' },
-        // Valid: the instructions name this person. Label deliberately misspelled by the model.
-        { action_type: 'assignment_update', target: { kind: 'user', key: '21', label: 'marie DUPONT' }, reason: 'Badge tickets go to Marie Dupont.' },
+        ...(testHomonyms ? [
+          { action_type: 'assignment_update', target: { kind: 'user', key: 'unknown', label: 'Marie Dupont' }, reason: 'An ambiguous name must not select the first technician.' },
+        ] : []),
+        // A valid key can disambiguate the second homonym; the rejected name-only action
+        // must not consume the user slot. The catalogue still owns the display label.
+        { action_type: 'assignment_update', target: { kind: 'user', key: testHomonyms ? '23' : '21', label: 'marie DUPONT' }, reason: 'Badge tickets go to Marie Dupont.' },
         // Second technician in the same plan: one per kind.
         { action_type: 'assignment_update', target: { kind: 'user', key: '22', label: 'Paul Martin' }, reason: 'Also Paul.' },
         // Already a technician on the ticket: never re-added.
         { action_type: 'assignment_update', target: { kind: 'user', key: '30', label: 'Already There' }, reason: 'Already there.' },
         // The group slot is still free: a group and a technician may be proposed together.
-        { action_type: 'assignment_update', target: { kind: 'group', key: '12', label: 'SAP-team' }, reason: 'Badge readers are handled by SAP-team.' },
+        { action_type: 'assignment_update', target: { kind: 'group', key: testHomonyms ? 'unknown' : '12', label: 'SAP-team' }, reason: 'Badge readers are handled by SAP-team.' },
       ],
       rationale: 'Route the badge ticket.',
       confidence: 0.8,
@@ -15990,12 +16007,12 @@ async function testGlpiTriagePlannerTechnicianRoutingIsKindScoped() {
   assert.deepEqual(promptPayload.current_assignment.users, [{ key: '30', label: 'Already There' }]);
   assert.deepEqual(
     promptPayload.routing_targets.map((target: any) => `${target.kind}:${target.key}`),
-    ['group:12', 'user:30', 'user:21', 'user:22'],
+    ['group:12', 'user:30', 'user:21', 'user:22', ...(testHomonyms ? ['user:23', 'user:24'] : [])],
   );
   const assignmentCalls = calls.filter((call) => call.capabilityName === TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY);
   // One technician and one group prepared; the catalogue label wins over the model's spelling.
   assert.deepEqual(assignmentCalls.map((call) => call.input.target), [
-    { kind: 'user', key: '21', label: 'Marie Dupont' },
+    { kind: 'user', key: testHomonyms ? '23' : '21', label: testHomonyms ? 'marie DUPONT' : 'Marie Dupont' },
     { kind: 'group', key: '12', label: 'SAP-team' },
   ]);
   const planner = result.diagnostic.action_planner as any;
@@ -16003,9 +16020,9 @@ async function testGlpiTriagePlannerTechnicianRoutingIsKindScoped() {
     planner.authorized_actions.map((action: any) => action.action_type),
     ['internal_note', 'assignment_update', 'assignment_update'],
   );
-  // Per-kind budget, not per-plan: the second technician is what gets skipped, while the
-  // group proposed after it is still prepared. First skip wins per action type.
-  assert.equal(planner.skipped_actions.assignment_update, 'one_assignment_per_kind_per_plan');
+  // First skip wins per action type: either the ambiguous name or the second technician.
+  // In both cases a valid technician and the group proposed after it are still prepared.
+  assert.equal(planner.skipped_actions.assignment_update, testHomonyms ? 'assignment_target_ambiguous' : 'one_assignment_per_kind_per_plan');
 }
 
 // Replace-on-write is scoped to the target kind: proposing a group must not silently
@@ -16519,6 +16536,7 @@ async function run() {
   await testGlpiTriageDowngradesUnusableSourcedReplyToInternalNoteAndHonorsLanguage();
   await testGlpiTriagePlannerGroupRoutingUsesCatalogueAndSkipsInvalidTargets();
   await testGlpiTriagePlannerTechnicianRoutingIsKindScoped();
+  await testGlpiTriagePlannerTechnicianRoutingRejectsAmbiguousNames();
   await testGlpiTriageAssignmentExpiryIsScopedToTargetKind();
   await testReTriageWithPendingIdenticalTargetSupersedesInsteadOfThrowing();
   testRoutingDriftSnapshotIsKindScopedAndIgnoresTheAgentAccount();
