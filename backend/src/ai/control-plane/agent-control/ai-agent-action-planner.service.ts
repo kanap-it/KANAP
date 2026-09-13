@@ -1,3 +1,4 @@
+import { classificationContextWithoutCatalogue } from '../providers/ticket-classification';
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { AiExecutionContextWithManager } from '../../ai.types';
@@ -314,6 +315,7 @@ export class AiAgentActionPlannerService {
           verbatim_ref: 'optional exact configured message ref from verbatim_candidates',
           body: 'optional administrative draft only when not using verbatim_ref',
           transition_key: 'optional provider transition key when supported',
+          proposed: 'optional for classification_update: {type?, priority?, urgency?, category?}; copy keys from classification_options (category key or exact label)',
           target: 'optional for assignment_update: one entry of routing_targets copied exactly {kind, key, label}',
         }],
         rationale: 'one short summary sentence',
@@ -342,6 +344,10 @@ export class AiAgentActionPlannerService {
       web_summary: input.web_summary ?? { count: 0, status: null, query: null, items: [] },
       allowed_status_transitions: allowedStatusTransitions,
       terminal_status_transition_keys: terminalStatusTransitionKeys,
+      classification_options: input.owned_action_types.includes('classification_update') && isRecord(input.contexts.classification)
+        ? input.contexts.classification.options ?? { types: [], priorities: [], categories: [] }
+        : { types: [], priorities: [], categories: [] },
+      current_classification: classificationContextWithoutCatalogue(input.contexts.classification),
       routing_targets: routingTargets,
       current_assignment: currentAssignmentSummary(input.contexts.routing),
       verbatim_candidates: input.verbatim_candidates.map((candidate) => ({
@@ -364,7 +370,7 @@ export class AiAgentActionPlannerService {
       })),
       image_evidence: compactImageEvidence(input.image_evidence),
       contexts: {
-        classification: input.contexts.classification,
+        classification: classificationContextWithoutCatalogue(input.contexts.classification),
         lifecycle: input.contexts.lifecycle,
         routing: routingContextWithoutCatalogue(input.contexts.routing),
         participants: input.contexts.participants,

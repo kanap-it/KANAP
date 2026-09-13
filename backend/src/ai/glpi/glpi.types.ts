@@ -97,6 +97,8 @@ export type GlpiAssignableGroup = {
   completename: string | null;
 };
 
+export type GlpiCategory = GlpiAssignableGroup & { parentId: number | null };
+
 export type GlpiTicketFollowupWriteResult = {
   id: number;
   ticket_id: number;
@@ -105,6 +107,7 @@ export type GlpiTicketFollowupWriteResult = {
 };
 
 export type GlpiTicketUpdateFields = {
+  itilcategories_id?: number;
   type?: number;
   priority?: number;
   urgency?: number;

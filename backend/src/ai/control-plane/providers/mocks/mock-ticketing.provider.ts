@@ -1,3 +1,4 @@
+import { classificationContextWithoutCatalogue } from '../ticket-classification';
 import {
   AdapterResult,
   ProviderContext,
@@ -523,6 +524,13 @@ export class MockTicketingProvider implements TicketingProvider {
     const data: TicketClassificationContext = {
       ticketId: input.ticketId,
       category: 'Infrastructure / Monitoring',
+      categoryKey: 'category-monitoring',
+      classificationSupported: true,
+      options: {
+        types: ['incident', 'request'].map((key) => ({ key, label: key })),
+        priorities: ['very_low', 'low', 'medium', 'high', 'very_high', 'major'].map((key) => ({ key, label: key.replace(/_/g, ' ') })),
+        categories: [{ key: 'category-monitoring', label: 'Infrastructure / Monitoring' }, { key: 'category-sap', label: 'Software > SAP' }],
+      },
       service: 'SAP S/4HANA',
       type: 'Incident',
       priority: 'high',
@@ -629,7 +637,7 @@ export class MockTicketingProvider implements TicketingProvider {
       Object.entries(input.proposed)
         .filter(([, value]) => typeof value === 'string' && value.trim().length > 0)
         .map(([key, value]) => [key, String(value).trim()]),
-    ) as TicketClassificationUpdateProposal;
+    ) as TicketClassificationUpdateActionPayload['proposed'];
     if (!reason || Object.keys(proposed).length === 0) {
       return providerError<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>(
         'unsafe_operation',
@@ -645,10 +653,16 @@ export class MockTicketingProvider implements TicketingProvider {
         current.retryable,
       );
     }
+    if (proposed.category) {
+      const category = current.data.options?.categories.find((item) => item.key === proposed.category || item.label.toLowerCase() === proposed.category!.toLowerCase());
+      if (!category) return providerError<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>('unsafe_operation', 'Unknown mock category.', false);
+      proposed.category = category.label;
+      proposed.categoryKey = category.key;
+    }
     const actionPayload: TicketClassificationUpdateActionPayload = {
       ticketId: input.ticketId,
       action: 'classification_update',
-      current: current.data,
+      current: classificationContextWithoutCatalogue(current.data) as TicketClassificationContext,
       proposed,
       reason,
     };

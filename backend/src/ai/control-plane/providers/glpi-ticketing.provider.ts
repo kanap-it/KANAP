@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { AiSettingsService } from '../../ai-settings.service';
 import { GlpiService } from '../../glpi/glpi.service';
-import { GlpiAssignableGroup, GlpiConnectionOverrides, GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
+import { GlpiAssignableGroup, GlpiCategory, GlpiConnectionOverrides, GlpiTicket, GlpiTicketFollowup, GlpiTicketUserAssociation } from '../../glpi/glpi.types';
+import { classificationContextWithoutCatalogue } from './ticket-classification';
 import { decodeNumericHtmlEntities } from '../../../common/html-entities';
 import { GLPI_TICKETING_IMPLEMENTATION, LEGACY_GLPI_TICKETING_PROVIDER_KEY } from './provider-constants';
 import {
@@ -86,7 +87,8 @@ const GLPI_ACTION_PLANNER_PROFILE: ProviderActionPlannerProfile = {
     'For assignment_update, target must be one entry of routing_targets copied exactly (kind, key, label); propose at most one assignment_update per plan.',
     'Only propose assignment_update when the agent configuration says which group handles this kind of ticket; never invent a routing rule.',
     'Do not propose assignment_update for a group already listed in current_assignment.groups. Assignment is additive: it never removes existing technicians or groups.',
-    'Do not propose classification, assignment, or participant updates unless they are in owned_action_types.',
+    'For classification_update, copy proposed type/priority/urgency keys from classification_options; category must be a category key or exact label. Propose at most one classification_update per plan, with several fields allowed. Only propose when the instructions give a rule; do not repeat current_classification values. Urgency uses the priority scale.',
+    'Do not propose assignment or participant updates unless they are in owned_action_types.',
   ],
 };
 
@@ -1103,7 +1105,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
 
   async getTicketClassificationContext(
     context: ProviderContext,
-    input: { ticketId: string },
+    input: { ticketId: string; categoryScopeKeys?: string[] },
   ): Promise<AdapterResult<TicketClassificationContext>> {
     const ticketId = normalizeTicketId(input.ticketId);
     if (!ticketId) {
@@ -1111,20 +1113,58 @@ export class GlpiTicketingProvider implements TicketingProvider {
     }
     return this.withSession(context, async (session) => {
       const ticket = await this.glpi.getTicket(session, ticketId);
+      const warnings: string[] = [];
+      let categories: GlpiCategory[] = [];
+      try {
+        categories = await this.glpi.listCategories(session);
+      } catch {
+        // Category read permissions must not disable type/priority/urgency writes.
+        warnings.push('glpi_category_catalogue_unavailable');
+      }
+      const currentCategory = categories.find((category) => category.id === ticket.category_id);
+      let choices = categories;
+      if (choices.length > 200 && input.categoryScopeKeys?.length) {
+        const ids = new Set(input.categoryScopeKeys);
+        // Expand using the same complete cached tree, without another GLPI request.
+        let added = true;
+        while (added) {
+          added = false;
+          for (const category of categories) {
+            if (category.parentId && ids.has(String(category.parentId)) && !ids.has(String(category.id))) {
+              ids.add(String(category.id));
+              added = true;
+            }
+          }
+        }
+        choices = categories.filter((category) => ids.has(String(category.id)));
+      }
+      const categoryCatalogTruncated = choices.length > 200;
+      if (categoryCatalogTruncated) warnings.push('classification_catalog_truncated');
       const data: TicketClassificationContext = {
         ticketId: String(ticket.id),
-        category: null,
+        categoryKey: ticket.category_id ? String(ticket.category_id) : null,
+        category: currentCategory?.completename ?? currentCategory?.name ?? null,
         service: null,
         type: glpiTypeContextLabel(ticket.type),
         priority: glpiPriorityContextLabel(ticket.priority),
         impact: null,
         urgency: glpiPriorityContextLabel(numericDropdownValue(ticket.urgency)),
         supported: true,
-        warnings: ['glpi_category_context_not_available_in_current_adapter'],
+        classificationSupported: true,
+        categoryCatalogTruncated,
+        options: {
+          types: glpiTypeReferenceItems().map((item) => ({ key: item.value, label: item.label })),
+          priorities: glpiPriorityReferenceItems().map((item) => ({ key: item.value, label: item.label })),
+          categories: choices.slice(0, 200).map((item) => ({ key: String(item.id), label: item.completename ?? item.name ?? String(item.id) })),
+        },
+        warnings,
       };
       return ok(data, [
-        evidenceSeed('ticket_classification', data.ticketId, `GLPI ticket ${data.ticketId} classification context.`, data, ticket.glpi_url),
-      ], ['glpi_category_context_not_available_in_current_adapter']);
+        evidenceSeed('ticket_classification', data.ticketId, `GLPI ticket ${data.ticketId} classification context.`, {
+          ...(classificationContextWithoutCatalogue(data) as Record<string, unknown>),
+          categoryOptionCount: data.options!.categories.length,
+        }, ticket.glpi_url),
+      ], warnings);
     });
   }
 
@@ -1253,7 +1293,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
       return providerError<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>('unsafe_operation', 'GLPI provider rejected an unsafe or empty classification update reason.', false);
     }
     const providerFields: Record<string, number> = {};
-    const proposed: TicketClassificationUpdateProposal = {};
+    const proposed: TicketClassificationUpdateActionPayload['proposed'] = {};
     const typeCode = input.proposed.type == null ? null : glpiTypeCode(input.proposed.type);
     const priorityCode = input.proposed.priority == null ? null : glpiPriorityCode(input.proposed.priority);
     const urgencyCode = input.proposed.urgency == null ? null : glpiPriorityCode(input.proposed.urgency);
@@ -1278,12 +1318,28 @@ export class GlpiTicketingProvider implements TicketingProvider {
       providerFields.urgency = urgencyCode;
       proposed.urgency = input.proposed.urgency;
     }
-    if (input.proposed.category || input.proposed.service || input.proposed.impact) {
+    if (input.proposed.service || input.proposed.impact) {
       return providerError<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>(
         'unsafe_operation',
-        'GLPI category/service/impact writes are not enabled in the current adapter.',
+        'GLPI service/impact writes are not enabled in the current adapter.',
         false,
       );
+    }
+    if (input.proposed.category != null) {
+      // Resolve against the complete tree: a scoped planner catalogue can contain
+      // entries beyond the first 200 global choices.
+      const resolved = await this.withSession(context, async (session) => {
+        const catalogue = await this.glpi.listCategories(session);
+        const value = String(input.proposed.category).trim();
+        const byKey = catalogue.find((item) => String(item.id) === value);
+        const byLabel = catalogue.filter((item) => (item.completename ?? item.name ?? '').trim().toLowerCase() === value.toLowerCase());
+        const category = byKey ?? (byLabel.length === 1 ? byLabel[0] : null);
+        return category ? ok(category, []) : providerError<GlpiCategory>('unsafe_operation', 'Unknown or ambiguous GLPI ticket category.', false);
+      });
+      if (resolved.ok === false) return providerError<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>(resolved.errorCode, resolved.message, resolved.retryable);
+      providerFields.itilcategories_id = resolved.data.id;
+      proposed.category = resolved.data.completename ?? resolved.data.name ?? String(resolved.data.id);
+      proposed.categoryKey = String(resolved.data.id);
     }
     if (Object.keys(providerFields).length === 0) {
       return providerError<TicketProviderActionPrepared<TicketClassificationUpdateActionPayload>>('unsafe_operation', 'No supported GLPI classification fields were proposed.', false);
@@ -1299,7 +1355,7 @@ export class GlpiTicketingProvider implements TicketingProvider {
     const actionPayload: TicketClassificationUpdateActionPayload = {
       ticketId: String(ticketId),
       action: 'classification_update',
-      current: current.data,
+      current: classificationContextWithoutCatalogue(current.data) as TicketClassificationContext,
       proposed,
       providerFields,
       reason,
