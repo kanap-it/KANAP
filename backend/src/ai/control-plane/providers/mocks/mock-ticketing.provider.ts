@@ -100,6 +100,9 @@ const MOCK_CATALOGS: Record<TicketReferenceCatalogKind, RefItem[]> = {
     { value: 'helpdesk_l1', label: 'Helpdesk L1', metadata: { completename: 'Helpdesk L1', parentId: null } },
     { value: 'sap_operations', label: 'SAP Operations', metadata: { completename: 'SAP Operations', parentId: null } },
   ],
+  technician: [
+    { value: 'tech_jane', label: 'Jane Doe', metadata: { completename: 'Jane Doe', parentId: null } },
+  ],
 };
 
 // Quantized to a 6-hour anchor so repeated reads return identical timestamps:
@@ -591,6 +594,7 @@ export class MockTicketingProvider implements TicketingProvider {
       supportedAssignmentTargets: [
         { kind: 'group', key: 'helpdesk_l1', label: 'Helpdesk L1' },
         { kind: 'group', key: 'sap_operations', label: 'SAP Operations' },
+        { kind: 'user', key: 'tech_jane', label: 'Jane Doe' },
       ],
       assignmentSupported: true,
       supported: true,

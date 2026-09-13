@@ -223,11 +223,20 @@ function routingTargetSummaries(routing: unknown): Array<{ kind: string; key: st
   });
 }
 
-function currentAssignmentSummary(routing: unknown): { users: string[]; groups: Array<{ key: string; label: string }> } {
+function currentAssignmentSummary(routing: unknown): {
+  users: Array<{ key: string; label: string }>;
+  groups: Array<{ key: string; label: string }>;
+} {
   const record = isRecord(routing) ? routing : {};
+  // Keys, not just labels: the planner compares its candidate target key against what is
+  // already on the ticket, exactly as it does for groups.
   const users = Array.isArray(record.assignedUsers)
-    ? record.assignedUsers.filter(isRecord).map((user) => String(user.label ?? user.key ?? '')).filter(Boolean)
-    : typeof record.assignee === 'string' && record.assignee ? [record.assignee] : [];
+    ? record.assignedUsers.filter(isRecord).flatMap((user) => {
+      const key = typeof user.key === 'string' ? user.key : '';
+      if (!key) return [];
+      return [{ key, label: typeof user.label === 'string' ? user.label : key }];
+    })
+    : typeof record.assignee === 'string' && record.assignee ? [{ key: record.assignee, label: record.assignee }] : [];
   const groups = Array.isArray(record.assignedGroups)
     ? record.assignedGroups.filter(isRecord).flatMap((group) => {
       const key = typeof group.key === 'string' ? group.key : '';
