@@ -1348,6 +1348,7 @@
     "labels": {
       "change": "Modification",
       "comment": "Commentaire",
+      "created": "Créé",
       "decision": "Décision",
       "edited": "(modifié)",
       "statusChange": "Statut : {{from}} → {{to}}"
@@ -1405,6 +1406,7 @@
         "decisionWithOutcome": "Décision : {{outcome}}",
         "recorded": "Activité enregistrée",
         "removedField": "{{field}} supprimé : {{value}}",
+        "updatedDocument": "{{document}} mis à jour",
         "updatedMultiple": "Mis à jour : {{changes}}"
       },
       "feasibilityDimensions": {
@@ -1427,6 +1429,8 @@
         "capexItems": "Postes CAPEX",
         "category": "Catégorie",
         "company": "Société",
+        "createdFromRequest": "Créé à partir de la demande",
+        "criteriaValues": "Critères d'évaluation",
         "createdFromTask": "Créé à partir de la tâche",
         "convertedToRequest": "Converti en demande",
         "currentSituation": "Situation actuelle",
@@ -1455,6 +1459,7 @@
         "purpose": "Objectif",
         "requestor": "Demandeur",
         "risks": "Risques",
+        "schedulingMode": "Mode de planification",
         "source": "Source",
         "status": "Statut",
         "stream": "Filière",
@@ -1898,6 +1903,8 @@
       "mandatoryBypassTitle": "Les demandes obligatoires obtiennent automatiquement 100 points",
       "mandatoryBypassDescription": "Lorsque cette option est activée, les demandes marquées comme obligatoires reçoivent un score de priorité de 100, indépendamment des autres critères. La surcharge manuelle est bloquée.",
       "empty": "Aucun critère d'évaluation configuré pour le moment. Ajoutez des critères pour activer l'évaluation des demandes.",
+      "dragToReorder": "Glisser pour réorganiser",
+      "reorderHint": "Faites glisser la poignée à gauche pour réorganiser les critères — l'ordre s'applique à l'évaluation des demandes.",
       "chips": {
         "inverted": "Inversé",
         "weight": "Pondération : {{value}}"
@@ -1920,7 +1927,8 @@
       "messages": {
         "updateFailed": "Échec de la mise à jour du critère",
         "updateSettingsFailed": "Échec de la mise à jour des paramètres",
-        "deleteFailed": "Échec de la suppression du critère"
+        "deleteFailed": "Échec de la suppression du critère",
+        "reorderFailed": "Échec de la réorganisation des critères"
       }
     },
     "skills": {

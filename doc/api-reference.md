@@ -991,6 +991,7 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
 - DELETE `/portfolio/projects/:id/phases/:phaseId` — delete phase (logs `phase: [<name>, null]`) **[Requires: portfolio_projects:contributor]**
 - Priority override history:
   - `POST /portfolio/criteria/requests/:requestId/override` **[Requires: portfolio_requests:admin]** and `POST /portfolio/criteria/projects/:projectId/override` **[Requires: portfolio_projects:admin]** write `priority_override`, `override_value`, `override_justification`, and `priority_score` changes into activity history.
+- POST `/portfolio/criteria/reorder` — reorder evaluation criteria; body `{ criterion_ids: string[] }` reassigns `display_order` in the given order **[Requires: portfolio_settings:admin]**
 - GET `/portfolio/projects/filter-values?fields=fieldA,fieldB&q&filters` — distinct filter values for closed-choice columns **[Requires: portfolio_projects:reader]**
   - Response: `{ fieldA: Array<string | null>, fieldB: Array<string | null> }`
   - Caller should remove the column's own filter so values stay discoverable.

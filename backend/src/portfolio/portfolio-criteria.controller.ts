@@ -44,6 +44,16 @@ export class PortfolioCriteriaController {
 
   @UseGuards(PermissionGuard)
   @RequireLevel('portfolio_settings', 'admin')
+  @Post('reorder')
+  reorder(@Body() body: { criterion_ids: string[] }, @Req() req: any) {
+    const tenantId = req?.tenant?.id ?? '';
+    return this.svc.reorder(body?.criterion_ids ?? [], tenantId, {
+      manager: req?.queryRunner?.manager,
+    });
+  }
+
+  @UseGuards(PermissionGuard)
+  @RequireLevel('portfolio_settings', 'admin')
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: any, @Req() req: any) {
     const tenantId = req?.tenant?.id ?? '';

@@ -1348,6 +1348,7 @@
     "labels": {
       "change": "Change",
       "comment": "Comment",
+      "created": "Created",
       "decision": "Decision",
       "edited": "(edited)",
       "statusChange": "Status: {{from}} → {{to}}"
@@ -1405,6 +1406,7 @@
         "decisionWithOutcome": "Decision: {{outcome}}",
         "recorded": "Activity recorded",
         "removedField": "Removed {{field}}: {{value}}",
+        "updatedDocument": "{{document}} updated",
         "updatedMultiple": "Updated: {{changes}}"
       },
       "feasibilityDimensions": {
@@ -1427,7 +1429,9 @@
         "capexItems": "CAPEX items",
         "category": "Category",
         "company": "Company",
+        "createdFromRequest": "Created from request",
         "createdFromTask": "Created from task",
+        "criteriaValues": "Evaluation criteria",
         "convertedToRequest": "Converted to request",
         "currentSituation": "Current situation",
         "dependency": "Dependency",
@@ -1455,6 +1459,7 @@
         "purpose": "Purpose",
         "requestor": "Requestor",
         "risks": "Risks",
+        "schedulingMode": "Scheduling mode",
         "source": "Source",
         "status": "Status",
         "stream": "Stream",
@@ -1898,6 +1903,8 @@
       "mandatoryBypassTitle": "Mandatory requests automatically score 100 points",
       "mandatoryBypassDescription": "When enabled, requests with the flagged mandatory item receive a priority score of 100, regardless of other criteria. Manual override is blocked.",
       "empty": "No evaluation criteria configured yet. Add criteria to enable request scoring.",
+      "dragToReorder": "Drag to reorder",
+      "reorderHint": "Drag the left grip to reorder criteria — the order applies to request scoring.",
       "chips": {
         "inverted": "Inverted",
         "weight": "Weight: {{value}}"
@@ -1920,7 +1927,8 @@
       "messages": {
         "updateFailed": "Failed to update criterion",
         "updateSettingsFailed": "Failed to update settings",
-        "deleteFailed": "Failed to delete criterion"
+        "deleteFailed": "Failed to delete criterion",
+        "reorderFailed": "Failed to reorder criteria"
       }
     },
     "skills": {

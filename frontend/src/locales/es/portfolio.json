@@ -1348,6 +1348,7 @@
     "labels": {
       "change": "Cambio",
       "comment": "Comentario",
+      "created": "Creado",
       "decision": "Decisión",
       "edited": "(editado)",
       "statusChange": "Estado: {{from}} → {{to}}"
@@ -1405,6 +1406,7 @@
         "decisionWithOutcome": "Decisión: {{outcome}}",
         "recorded": "Actividad registrada",
         "removedField": "{{field}} eliminado: {{value}}",
+        "updatedDocument": "{{document}} actualizado",
         "updatedMultiple": "Actualizado: {{changes}}"
       },
       "feasibilityDimensions": {
@@ -1427,6 +1429,8 @@
         "capexItems": "Partidas CAPEX",
         "category": "Categoría",
         "company": "Empresa",
+        "createdFromRequest": "Creado a partir de solicitud",
+        "criteriaValues": "Criterios de evaluación",
         "createdFromTask": "Creado a partir de tarea",
         "convertedToRequest": "Convertida en solicitud",
         "currentSituation": "Situación actual",
@@ -1455,6 +1459,7 @@
         "purpose": "Objetivo",
         "requestor": "Solicitante",
         "risks": "Riesgos",
+        "schedulingMode": "Modo de planificación",
         "source": "Origen",
         "status": "Estado",
         "stream": "Línea",
@@ -1898,6 +1903,8 @@
       "mandatoryBypassTitle": "Las solicitudes obligatorias obtienen automáticamente 100 puntos",
       "mandatoryBypassDescription": "Cuando se activa, las solicitudes marcadas como obligatorias reciben una puntuación de prioridad de 100, independientemente de otros criterios. La sobrescritura manual se bloquea.",
       "empty": "Aún no hay criterios de evaluación configurados. Agregue criterios para activar la evaluación de solicitudes.",
+      "dragToReorder": "Arrastrar para reordenar",
+      "reorderHint": "Arrastre el asa izquierda para reordenar los criterios; el orden se aplica a la evaluación de solicitudes.",
       "chips": {
         "inverted": "Invertido",
         "weight": "Peso: {{value}}"
@@ -1920,7 +1927,8 @@
       "messages": {
         "updateFailed": "Error al actualizar el criterio",
         "updateSettingsFailed": "Error al actualizar la configuración",
-        "deleteFailed": "Error al eliminar el criterio"
+        "deleteFailed": "Error al eliminar el criterio",
+        "reorderFailed": "Error al reordenar los criterios"
       }
     },
     "skills": {

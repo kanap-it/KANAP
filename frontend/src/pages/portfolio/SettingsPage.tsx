@@ -11,7 +11,25 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import PageHeader from '../../components/PageHeader';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
@@ -116,6 +134,112 @@ interface PortfolioCategory {
   display_order: number;
   is_system: boolean;
   streams: PortfolioStream[];
+}
+
+/**
+ * One evaluation criterion card. The left grip is only active when the user
+ * can edit; it drives the @dnd-kit sortable reordering of the criteria list.
+ */
+function SortableCriterionCard({
+  criterion,
+  canEdit,
+  onToggle,
+  onEdit,
+  onDelete,
+  t,
+}: {
+  criterion: Criterion;
+  canEdit: boolean;
+  onToggle: (criterion: Criterion) => void;
+  onEdit: (criterion: Criterion) => void;
+  onDelete: (id: string) => void;
+  t: TFunction;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: criterion.id, disabled: !canEdit });
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+      }}
+    >
+      <CardContent>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Box
+            component="span"
+            aria-label={t('settings.scoring.dragToReorder')}
+            sx={{
+              display: 'inline-flex',
+              cursor: canEdit ? 'grab' : 'default',
+              touchAction: 'none',
+              color: 'kanap.text.tertiary',
+            }}
+            {...(canEdit ? attributes : {})}
+            {...(canEdit ? listeners : {})}
+          >
+            <DragIndicatorIcon fontSize="small" />
+          </Box>
+
+          <Switch
+            checked={criterion.enabled}
+            onChange={() => onToggle(criterion)}
+            size="small"
+            disabled={!canEdit}
+          />
+
+          <Box sx={{ flex: 1 }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="subtitle1">{criterion.name}</Typography>
+              {criterion.inverted && (
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                  {t('settings.scoring.chips.inverted')}
+                </Typography>
+              )}
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
+                {t('settings.scoring.chips.weight', { value: criterion.weight })}
+              </Typography>
+              {!criterion.enabled && (
+                <Typography variant="body2" color="warning.main" sx={{ fontSize: '0.8125rem' }}>
+                  {t('common:statuses.disabled')}
+                </Typography>
+              )}
+            </Stack>
+
+            <Stack direction="row" spacing={0.5} mt={1} flexWrap="wrap" useFlexGap>
+              {criterion.values.map((v, idx) => (
+                <Typography
+                  key={v.id || idx}
+                  variant="body2"
+                  sx={{
+                    fontSize: '0.8125rem',
+                    color: v.triggers_mandatory_bypass ? 'error.main' : 'text.secondary',
+                    fontWeight: v.triggers_mandatory_bypass ? 500 : 400,
+                  }}
+                >
+                  {v.label}
+                </Typography>
+              ))}
+            </Stack>
+          </Box>
+
+          {canEdit && (
+            <>
+              <IconButton onClick={() => onEdit(criterion)}>
+                <EditIcon />
+              </IconButton>
+              <IconButton color="error" onClick={() => onDelete(criterion.id)}>
+                <DeleteIcon />
+              </IconButton>
+            </>
+          )}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function SettingsPage() {
@@ -246,6 +370,32 @@ export default function SettingsPage() {
       setError(getApiErrorMessage(e, t, t('settings.scoring.messages.deleteFailed')));
     }
   }, [loadData, canEdit, confirmDelete, t]);
+
+  const criteriaSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleCriteriaDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = criteria.findIndex((c) => c.id === active.id);
+    const newIndex = criteria.findIndex((c) => c.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reordered = arrayMove(criteria, oldIndex, newIndex);
+    setCriteria(reordered);
+
+    try {
+      await api.post('/portfolio/criteria/reorder', {
+        criterion_ids: reordered.map((c) => c.id),
+      });
+    } catch (e: any) {
+      setError(getApiErrorMessage(e, t, t('settings.scoring.messages.reorderFailed')));
+      loadData();
+    }
+  }, [criteria, loadData, t]);
 
   // Skills handlers
   const handleSeedDefaults = useCallback(async () => {
@@ -624,8 +774,11 @@ export default function SettingsPage() {
             </Card>
 
             {/* Evaluation Criteria */}
-            <Typography variant="h6" sx={{ mb: 2 }}>
+            <Typography variant="h6" sx={{ mb: 1 }}>
               {t('settings.scoring.title')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {t('settings.scoring.reorderHint')}
             </Typography>
 
             {criteria.length === 0 && !loading && (
@@ -634,70 +787,30 @@ export default function SettingsPage() {
               </Alert>
             )}
 
-            <Stack spacing={2}>
-              {criteria.map((criterion) => (
-                <Card key={criterion.id}>
-                  <CardContent>
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                      <DragIndicatorIcon color="disabled" />
-
-                      <Switch
-                        checked={criterion.enabled}
-                        onChange={() => handleToggleEnabled(criterion)}
-                        size="small"
-                        disabled={!canEdit}
-                      />
-
-                      <Box sx={{ flex: 1 }}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                          <Typography variant="subtitle1">{criterion.name}</Typography>
-                          {criterion.inverted && (
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
-                              {t('settings.scoring.chips.inverted')}
-                            </Typography>
-                          )}
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
-                            {t('settings.scoring.chips.weight', { value: criterion.weight })}
-                          </Typography>
-                          {!criterion.enabled && (
-                            <Typography variant="body2" color="warning.main" sx={{ fontSize: '0.8125rem' }}>
-                              {t('common:statuses.disabled')}
-                            </Typography>
-                          )}
-                        </Stack>
-
-                        <Stack direction="row" spacing={0.5} mt={1} flexWrap="wrap" useFlexGap>
-                          {criterion.values.map((v, idx) => (
-                            <Typography
-                              key={v.id || idx}
-                              variant="body2"
-                              sx={{
-                                fontSize: '0.8125rem',
-                                color: v.triggers_mandatory_bypass ? 'error.main' : 'text.secondary',
-                                fontWeight: v.triggers_mandatory_bypass ? 500 : 400,
-                              }}
-                            >
-                              {v.label}
-                            </Typography>
-                          ))}
-                        </Stack>
-                      </Box>
-
-                      {canEdit && (
-                        <>
-                          <IconButton onClick={() => handleEditClick(criterion)}>
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton color="error" onClick={() => handleDeleteCriterion(criterion.id)}>
-                            <DeleteIcon />
-                          </IconButton>
-                        </>
-                      )}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
+            <DndContext
+              sensors={criteriaSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleCriteriaDragEnd}
+            >
+              <SortableContext
+                items={criteria.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <Stack spacing={2}>
+                  {criteria.map((criterion) => (
+                    <SortableCriterionCard
+                      key={criterion.id}
+                      criterion={criterion}
+                      canEdit={canEdit}
+                      onToggle={handleToggleEnabled}
+                      onEdit={handleEditClick}
+                      onDelete={handleDeleteCriterion}
+                      t={t}
+                    />
+                  ))}
+                </Stack>
+              </SortableContext>
+            </DndContext>
           </>
         )}
 

@@ -334,6 +334,54 @@ export class PortfolioCriteriaService {
     return after;
   }
 
+  // ==================== REORDER ====================
+  /**
+   * Reorder criteria for a tenant by reassigning `display_order` from the
+   * given id list. Criteria not present in the payload keep their relative
+   * order, appended after the listed ones, so the tenant order stays dense.
+   */
+  async reorder(
+    ids: string[],
+    tenantId: string,
+    opts?: { manager?: EntityManager },
+  ) {
+    const mg = opts?.manager ?? this.repo.manager;
+    const criteriaRepo = mg.getRepository(PortfolioCriterion);
+
+    const existing = await criteriaRepo.find({
+      where: { tenant_id: tenantId },
+      order: { display_order: 'ASC', name: 'ASC' },
+    });
+    const existingById = new Map(existing.map((c) => [c.id, c]));
+
+    const ordered: PortfolioCriterion[] = [];
+    const seen = new Set<string>();
+    for (const id of ids) {
+      const c = existingById.get(id);
+      if (c && !seen.has(id)) {
+        ordered.push(c);
+        seen.add(id);
+      }
+    }
+    for (const c of existing) {
+      if (!seen.has(c.id)) {
+        ordered.push(c);
+        seen.add(c.id);
+      }
+    }
+
+    for (let i = 0; i < ordered.length; i++) {
+      const c = ordered[i];
+      if (c.display_order === i) continue;
+      await criteriaRepo.update(
+        { id: c.id, tenant_id: tenantId },
+        { display_order: i, updated_at: new Date() },
+      );
+    }
+
+    return { ok: true };
+  }
+
   /**
    * When a scale value is deleted, reassign requests to adjacent lower-score position
    * per spec section 4.5.2
