@@ -1,9 +1,29 @@
-import { BadRequestException, Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { FreezeService, FreezeTarget } from './freeze.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
-import { RequireLevel } from '../auth/require-level.decorator';
+import { RequireAnyLevel, RequireLevel } from '../auth/require-level.decorator';
 import { ALL_KEY } from './freeze.service';
+import { assertCanManageMasterDataScope, MasterDataAccess } from '../master-data/master-data-access.util';
+
+const MANAGE_FREEZE_REQUIREMENTS = [
+  { resource: 'budget_ops', level: 'admin' as const },
+  { resource: 'companies', level: 'admin' as const },
+  { resource: 'departments', level: 'admin' as const },
+];
+
+// Master data administrators may only (un)freeze their own scopes; OPEX/CAPEX stay budget-only.
+function assertCanManageTargets(targets: FreezeTarget[], req: any) {
+  const access: MasterDataAccess = { isAdmin: req?.isAdmin, permissions: req?.permissions };
+  for (const target of targets) {
+    const scope = String(target?.scope ?? '').toLowerCase();
+    if (scope === 'companies' || scope === 'departments') {
+      assertCanManageMasterDataScope(access, scope, `change the ${scope} freeze`);
+    } else if (!access.isAdmin && access.permissions?.budget_ops !== 'admin') {
+      throw new ForbiddenException('You need Budget administration admin permissions to change this freeze');
+    }
+  }
+}
 
 @UseGuards(JwtAuthGuard)
 @Controller('freeze-states')
@@ -12,7 +32,11 @@ export class FreezeController {
 
   @Get()
   @UseGuards(PermissionGuard)
-  @RequireLevel('budget_ops', 'reader')
+  @RequireAnyLevel([
+    { resource: 'budget_ops', level: 'reader' },
+    { resource: 'companies', level: 'reader' },
+    { resource: 'departments', level: 'reader' },
+  ])
   async list(@Query('year') yearRaw: string, @Req() req: any) {
     const parsed = Number(yearRaw ?? new Date().getFullYear());
     if (!Number.isFinite(parsed)) {
@@ -49,10 +73,11 @@ export class FreezeController {
 
   @Post('freeze')
   @UseGuards(PermissionGuard)
-  @RequireLevel('budget_ops', 'admin')
+  @RequireAnyLevel(MANAGE_FREEZE_REQUIREMENTS)
   async freezeAction(@Body() body: any, @Req() req: any) {
     const year = Number(body?.year);
     const targets = this.normalizeTargets(body?.scopes);
+    assertCanManageTargets(targets, req);
     const entries = await this.freeze.freeze(year, targets, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
     return {
       year,
@@ -72,10 +97,11 @@ export class FreezeController {
 
   @Post('unfreeze')
   @UseGuards(PermissionGuard)
-  @RequireLevel('budget_ops', 'admin')
+  @RequireAnyLevel(MANAGE_FREEZE_REQUIREMENTS)
   async unfreezeAction(@Body() body: any, @Req() req: any) {
     const year = Number(body?.year);
     const targets = this.normalizeTargets(body?.scopes);
+    assertCanManageTargets(targets, req);
     const entries = await this.freeze.unfreeze(year, targets, req.user?.sub ?? null, { manager: req?.queryRunner?.manager });
     return {
       year,

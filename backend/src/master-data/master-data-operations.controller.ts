@@ -1,7 +1,7 @@
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
-import { RequireLevel } from '../auth/require-level.decorator';
+import { RequireAnyLevel } from '../auth/require-level.decorator';
 import { MasterDataOperationsService } from './master-data-operations.service';
 
 @UseGuards(JwtAuthGuard)
@@ -11,7 +11,11 @@ export class MasterDataOperationsController {
 
   @Post('copy')
   @UseGuards(PermissionGuard)
-  @RequireLevel('budget_ops', 'admin')
+  @RequireAnyLevel([
+    { resource: 'budget_ops', level: 'admin' },
+    { resource: 'companies', level: 'admin' },
+    { resource: 'departments', level: 'admin' },
+  ])
   async copy(@Body() body: any, @Req() req: any) {
     const manager = req?.queryRunner?.manager;
     const userId = req?.user?.sub ?? null;
@@ -30,6 +34,7 @@ export class MasterDataOperationsController {
       companyMetrics: metrics,
       dryRun,
       userId,
+      access: { isAdmin: req?.isAdmin, permissions: req?.permissions },
     }, { manager });
   }
 }

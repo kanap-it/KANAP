@@ -8,8 +8,7 @@ import { DepartmentMetric } from '../departments/department-metric.entity';
 import { CompanyMetricsService } from '../companies/company-metrics.service';
 import { DepartmentMetricsService } from '../departments/department-metrics.service';
 import { FreezeService } from '../freeze/freeze.service';
-import { PermissionsService, PermissionLevel } from '../permissions/permissions.service';
-import { UsersService } from '../users/users.service';
+import { assertCanManageMasterDataScope, MasterDataAccess } from './master-data-access.util';
 
 const COMPANY_METRIC_KEYS = ['headcount', 'it_users', 'turnover'] as const;
 export type CompanyMetricKey = typeof COMPANY_METRIC_KEYS[number];
@@ -22,6 +21,7 @@ type MasterDataCopyRequest = {
   companyMetrics: string[];
   dryRun: boolean;
   userId: string | null;
+  access: MasterDataAccess;
 };
 
 type MasterDataCopyResultItem = {
@@ -56,8 +56,6 @@ type MasterDataCopyResponse = {
   errors: MasterDataCopyError[];
 };
 
-const RANK: Record<PermissionLevel, number> = { reader: 1, contributor: 2, member: 3, admin: 4 };
-
 function toNumber(value: any): number | null {
   if (value == null) return null;
   const num = Number(value);
@@ -88,8 +86,6 @@ export class MasterDataOperationsService {
     private readonly companyMetricsService: CompanyMetricsService,
     private readonly departmentMetricsService: DepartmentMetricsService,
     private readonly freeze: FreezeService,
-    private readonly permissions: PermissionsService,
-    private readonly users: UsersService,
   ) {}
 
   private manager(opts?: { manager?: EntityManager }) {
@@ -102,14 +98,9 @@ export class MasterDataOperationsService {
     }
   }
 
-  private levelAtLeast(current: PermissionLevel | undefined, required: PermissionLevel) {
-    if (!current) return false;
-    return (RANK[current] ?? 0) >= RANK[required];
-  }
-
   async copyMasterData(params: MasterDataCopyRequest, opts?: { manager?: EntityManager }): Promise<MasterDataCopyResponse> {
     const manager = this.manager(opts);
-    const { sourceYear, destinationYear, includeCompanies, includeDepartments, companyMetrics, dryRun, userId } = params;
+    const { sourceYear, destinationYear, includeCompanies, includeDepartments, companyMetrics, dryRun, userId, access } = params;
 
     this.ensureYears(sourceYear, 'sourceYear');
     this.ensureYears(destinationYear, 'destinationYear');
@@ -135,20 +126,11 @@ export class MasterDataOperationsService {
       throw new ForbiddenException('User context is required');
     }
 
-    const user = await this.users.findById(userId, { manager });
-    if (!user) {
-      throw new ForbiddenException('User not found');
+    if (includeCompanies) {
+      assertCanManageMasterDataScope(access, 'companies', 'copy company metrics');
     }
-    const perms = await this.permissions.listForRole(user.role_id, { manager });
-    const hasBudgetOpsAdmin = this.levelAtLeast(perms.get('budget_ops'), 'admin');
-    const hasCompanyAdmin = this.levelAtLeast(perms.get('companies'), 'admin') || hasBudgetOpsAdmin;
-    const hasDepartmentAdmin = this.levelAtLeast(perms.get('departments'), 'admin') || hasBudgetOpsAdmin;
-
-    if (includeCompanies && !hasCompanyAdmin) {
-      throw new ForbiddenException('You need Companies admin permissions to copy company metrics');
-    }
-    if (includeDepartments && !hasDepartmentAdmin) {
-      throw new ForbiddenException('You need Departments admin permissions to copy department metrics');
+    if (includeDepartments) {
+      assertCanManageMasterDataScope(access, 'departments', 'copy department metrics');
     }
 
     if (includeCompanies) {
