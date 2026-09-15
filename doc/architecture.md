@@ -141,7 +141,7 @@ flowchart LR
 
 ## Multitenancy
 - Storage model: single Postgres database per environment (not per-tenant). Tenants share tables keyed by `tenant_id`. See `doc/adr/0002-multitenancy-storage.md`.
-- Isolation: RLS on all multi-tenant tables; the API sets a request-scoped session variable (`set_config('app.current_tenant', '<uuid>', true)`) used by the policies. Two canonicalization migrations (`1844300000000`, `1844400000000`) repaired earlier drift and enforce the `FORCE ROW LEVEL SECURITY` + `tenant_id = app_current_tenant()` shape.
+- Isolation: RLS on all multi-tenant tables; the API sets a request-scoped session variable (`set_config('app.current_tenant', '<uuid>', true)`) used by the policies. Two canonicalization migrations (`1844300000000`, `1844400000000`) repaired earlier drift and enforce `FORCE ROW LEVEL SECURITY` everywhere. Policies exist in two equivalent forms: `tenant_id = app_current_tenant()` (most tables) and the older `tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::uuid` (about a quarter, `portfolio_projects` included). `app_current_tenant()` is that same expression with no fallback: without context it returns NULL, so both forms filter out every row and inserts fail on `NOT NULL`.
 - Indexing: lead with `tenant_id` in composite keys and uniques (`PRIMARY KEY (tenant_id, id)`, `UNIQUE (tenant_id, slug)`).
 - Tenancy resolution (`backend/src/main.ts`): apex hosts (`kanap.net`, `www.`, `dev.`, `qa.`, `*.lvh.me`) are no-tenant public hosts; `<slug>.<domain>` resolves a `Tenant` by slug (404 `TENANT_NOT_FOUND` with a marketing redirect otherwise); `PLATFORM_ADMIN_HOST` binds the `platform-admin` system tenant. In single-tenant mode Host parsing is skipped and `DEFAULT_TENANT_SLUG` is used (503 `TENANT_NOT_READY` until provisioned).
 - Sessions: cookies are scoped per subdomain; no cross-subdomain cookies.
@@ -186,7 +186,7 @@ flowchart LR
 - `TenancyManager` (`backend/src/common/tenancy/`) is a request-scoped abstraction over the same context. It is available and imported, but the live host-resolution path is the inline middleware in `backend/src/main.ts`.
 
 ### Current Coverage (RLS + tenant_id)
-Every tenant-scoped table has `ENABLE` + `FORCE ROW LEVEL SECURITY` with a `USING`/`WITH CHECK` policy on `tenant_id = app_current_tenant()`. Families covered today:
+Every table with a `tenant_id` column has `ENABLE` + `FORCE ROW LEVEL SECURITY` and a `USING`/`WITH CHECK` policy binding `tenant_id` to the session tenant (210 tables on 2026-09-15, none enabled without force). Families covered today:
 - Identity and RBAC: users, roles, role_permissions (tenant-scoped, aligned with the parent role), user_roles, refresh_tokens, password_reset_tokens, user_notification_preferences, user_dashboard_config.
 - Master data: companies, departments, suppliers and supplier_contacts, contacts, locations (+ contacts, links, sub-items), business_processes (+ categories), accounts, chart of accounts, company_metrics, department_metrics, analytics_categories.
 - Budget: spend_items, spend_versions, spend_amounts, spend_allocations, spend_links/attachments/contacts/tasks; capex_items, capex_versions, capex_amounts, capex_allocations, capex_links/attachments/contacts; contracts, contract_spend_items, contract_capex_items, contract_attachments, contract_links, contract_contacts; currency_rate_sets, freeze_states; subscriptions.
@@ -197,7 +197,8 @@ Every tenant-scoped table has `ENABLE` + `FORCE ROW LEVEL SECURITY` with a `USIN
 - AI: ai_settings, ai_api_keys, ai_conversations, ai_messages (+ attachments), ai_model_configs, ai_adapter_configs, ai_runs, ai_run_steps, ai_tool_executions, ai_action_requests, ai_approvals, ai_approval_policies, ai_autonomy_*, ai_evidence, ai_observations, ai_decisions, ai_recommendations, ai_evaluations, ai_emergency_pauses, ai_agent_* (definitions, triggers, target states, work items, audit events), ai_external_mcp_*, ai_mutation_*, ai_automation_job_catalog, ai_live_test_targets, ai_builtin_usage.
 - Cross-cutting: audit_log, item_sequences (business references), allocation_rules.
 - `allocation_rules` mixes global defaults (`tenant_id IS NULL`, unique per fiscal year) and per-tenant overrides (`UNIQUE (tenant_id, fiscal_year)`, `mode` in `auto|manual_company`, `company_ids`). Its policy is deliberately `tenant_id IS NULL OR tenant_id = app_current_tenant()`; per-tenant rows are removed at purge, global defaults remain.
-- Global tables without `tenant_id` (no RLS): tenants, trial_signups, currencies, fx_rates, spread_profiles, account_classifications, coa_templates, scheduled_tasks, scheduled_task_runs, platform_ai_config, platform_ai_plan_limits.
+- Global tables without `tenant_id` (no RLS): tenants, trial_signups, currencies, fx_rates, spread_profiles, account_classifications, coa_templates, scheduled_tasks, scheduled_task_runs, platform_ai_config, platform_ai_plan_limits, and TypeORM's `migrations`.
+- Known exception: `portfolio_criterion_values` (scoring value labels) has neither `tenant_id` nor RLS. It is isolated only transitively through its `criterion_id` FK to the RLS-protected `portfolio_criteria`, so every read must join or filter through the parent. Two paths in `portfolio-criteria.service.ts` and `csv-json-validators.ts` still query it by id or criterion id alone; the durable fix is a `tenant_id` column with the standard policy.
 
 The authoritative list is the database itself. Check it on any environment with:
 ```sql
