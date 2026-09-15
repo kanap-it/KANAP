@@ -61,3 +61,7 @@ jobs:
       - name: Build frontend (${{ matrix.mode }})
         working-directory: frontend
         run: npm ci && npm run build
+      - name: Run frontend tests (${{ matrix.mode }})
+        if: matrix.mode == 'cloud'
+        working-directory: frontend
+        run: npm test
