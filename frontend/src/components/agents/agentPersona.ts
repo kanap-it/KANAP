@@ -168,3 +168,26 @@ export function collectEffectivePromptBounds(prompt: {
   }
   return out;
 }
+
+/**
+ * Insert a catalogue name into the instructions at the caret, replacing the
+ * current selection. A space is added on either side only when the neighbouring
+ * character is not already whitespace, so clicking several names in a row reads
+ * as a sentence. Returns the new text and where the caret should land.
+ */
+export function insertAtCaret(
+  text: string,
+  selectionStart: number,
+  selectionEnd: number,
+  name: string,
+): { text: string; caret: number } {
+  const safeText = text ?? '';
+  const start = Math.max(0, Math.min(Math.floor(selectionStart), safeText.length));
+  const end = Math.max(start, Math.min(Math.floor(selectionEnd), safeText.length));
+  const before = safeText.slice(0, start);
+  const after = safeText.slice(end);
+  const leading = before.length > 0 && !/\s$/.test(before) ? ' ' : '';
+  const trailing = after.length > 0 && !/^\s/.test(after) ? ' ' : '';
+  const inserted = `${leading}${name}${trailing}`;
+  return { text: `${before}${inserted}${after}`, caret: start + inserted.length };
+}

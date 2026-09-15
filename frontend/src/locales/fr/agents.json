@@ -771,6 +771,10 @@
     "capabilitiesInfo": "Ce que cet agent peut préparer. Tout ce qui est désactivé ici n’est jamais proposé, quelles que soient les instructions.",
     "reference": {
       "title": "Noms utilisables dans les instructions",
+      "insertHint": "Cliquez sur un nom pour l’insérer dans les instructions.",
+      "search": "Rechercher un nom",
+      "noMatch": "Aucun résultat.",
+      "countCapped": "{{count}}+",
       "statuses": "Statuts de ticket",
       "groups": "Groupes de techniciens",
       "empty": "Rien de disponible.",
@@ -778,12 +782,10 @@
       "groupsDisabled": "Activez « Attribution » dans les capacités pour que l’agent puisse router un ticket vers un groupe.",
       "technicians": "Techniciens",
       "techniciansEmpty": "L’outil de ticketing n’expose aucun technicien dans un groupe attribuable.",
-      "techniciansSearch": "Ex. : Dupont",
       "categories": "Catégories",
       "priorities": "Priorités",
       "types": "Types",
       "classificationDisabled": "Activez « Classification » dans les capacités pour piloter la catégorie, la priorité et le type par les instructions.",
-      "categoriesSearch": "Ex. : SAP",
       "categoriesMore": "Saisissez un nom pour affiner la liste.",
       "categoriesScope": "La recherche couvre toutes les catégories. Si le catalogue est très volumineux, l’agent part d’abord des catégories de votre ciblage.",
       "catalogueError": "Le catalogue n’a pas pu être chargé."

@@ -1486,7 +1486,8 @@ export const aiAgentControlApi = {
       | 'status' | 'priority' | 'type' | 'category' | 'entity'
       | 'severity' | 'ack_state' | 'group' | 'technician' | 'device' | 'check_type',
     params: { query?: string; limit?: number } = {},
-  ): Promise<{ options: AiAgentControlRefItem[] }> {
+    // `total` is present only when the backend knows the catalogue size cheaply.
+  ): Promise<{ options: AiAgentControlRefItem[]; total?: number }> {
     const res = await api.get(`/ai/admin/control-plane/agents/${id}/targeting-options/${field}`, { params });
     return res.data;
   },

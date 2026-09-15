@@ -1811,10 +1811,13 @@ async function testTicketingProviderReferenceDataContract() {
       killSession: async () => {
         killedSessions += 1;
       },
-      searchReferenceCatalog: async (_session: unknown, input: any) => [
-        { id: 12, name: 'VPN', completename: 'IT > Access > VPN', parent_id: 4 },
-        { id: 13, name: 'Badge', completename: 'IT > Access > Badge', parent_id: 4 },
-      ].slice(0, input.limit),
+      searchReferenceCatalogPage: async (_session: unknown, input: any) => ({
+        items: [
+          { id: 12, name: 'VPN', completename: 'IT > Access > VPN', parent_id: 4 },
+          { id: 13, name: 'Badge', completename: 'IT > Access > Badge', parent_id: 4 },
+        ].slice(0, input.limit),
+        total: 2,
+      }),
     } as any,
   );
   const glpiEnums = await glpi.describeReferenceEnums(context);
@@ -1829,6 +1832,7 @@ async function testTicketingProviderReferenceDataContract() {
 
   const glpiCatalog = await glpi.searchReferenceCatalog(context, { kind: 'category', query: 'vpn', limit: 1 });
   assert.equal(glpiCatalog.ok, true);
+  assert.equal(glpiCatalog.ok ? glpiCatalog.data.total : null, 2, 'the catalogue page carries the total GLPI reports');
   assert.deepEqual(glpiCatalog.ok ? glpiCatalog.data.items : [], [{
     value: '12',
     label: 'IT > Access > VPN',
@@ -7528,6 +7532,7 @@ async function testPhase137TargetingOptionsAreProviderScopedAndCached() {
             value: `${input.kind}-${String(input.query || 'root')}`,
             label: `${input.kind} ${String(input.query || 'root')}`,
           }],
+          total: 33,
         },
         evidence: [],
       };
@@ -7557,7 +7562,10 @@ async function testPhase137TargetingOptionsAreProviderScopedAndCached() {
   const categorySecond = await service.getAgentTargetingOptions(context, agentId, 'category', { query: 'vpn', limit: 5 });
   const categoryOtherQuery = await service.getAgentTargetingOptions(context, agentId, 'category', { query: 'badge', limit: 5 });
   assert.equal(categoryFirst.options[0].value, 'category-vpn');
+  assert.equal(categoryFirst.total, 33, 'catalogue total must be forwarded when the provider knows it');
   assert.deepEqual(categorySecond.options, categoryFirst.options);
+  assert.equal(categorySecond.total, 33, 'cached catalogue answers keep the total');
+  assert.equal(first.total, 1, 'enum fields are fully listed, so the page length is the total');
   assert.equal(categoryOtherQuery.options[0].value, 'category-badge');
   assert.equal(catalogCalls, 2, 'catalog cache key must include query');
 

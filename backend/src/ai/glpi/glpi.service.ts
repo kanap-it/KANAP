@@ -846,29 +846,48 @@ export class GlpiService {
     session: GlpiSession,
     input: { kind: GlpiReferenceCatalogKind; query?: string | null; limit: number },
   ): Promise<GlpiReferenceItem[]> {
+    return (await this.searchReferenceCatalogPage(session, input)).items;
+  }
+
+  // Same search, plus the catalogue size when GLPI already knows it: the cached
+  // group/technician catalogues count their own matches, and the GLPI search API
+  // returns `totalcount`. Callers that only need the page use
+  // `searchReferenceCatalog` above.
+  async searchReferenceCatalogPage(
+    session: GlpiSession,
+    input: { kind: GlpiReferenceCatalogKind; query?: string | null; limit: number },
+  ): Promise<{ items: GlpiReferenceItem[]; total?: number }> {
     const limit = Math.max(1, Math.min(Math.floor(input.limit), 50));
     const query = textOrNull(input.query);
     if (input.kind === 'group') {
       // Only groups a ticket can be assigned to; served from the bounded cached catalogue
       // so the picker and the agent see the same list.
       const needle = query?.toLowerCase() ?? null;
-      return (await this.listAssignableGroups(session))
+      const matches = (await this.listAssignableGroups(session))
         .filter((group) => !needle
           || String(group.id) === needle
-          || (group.completename ?? group.name ?? '').toLowerCase().includes(needle))
-        .slice(0, limit)
-        .map((group) => ({ id: group.id, name: group.name, completename: group.completename }));
+          || (group.completename ?? group.name ?? '').toLowerCase().includes(needle));
+      return {
+        total: matches.length,
+        items: matches
+          .slice(0, limit)
+          .map((group) => ({ id: group.id, name: group.name, completename: group.completename })),
+      };
     }
     if (input.kind === 'technician') {
       // Named technicians: served from the same bounded cached catalogue the agent sees,
       // so the picker and the planner never disagree. No GLPI user search is issued.
       const needle = query?.toLowerCase() ?? null;
-      return (await this.listTechnicians(session)).technicians
+      const matches = (await this.listTechnicians(session)).technicians
         .filter((technician) => !needle
           || String(technician.id) === needle
-          || technician.label.toLowerCase().includes(needle))
-        .slice(0, limit)
-        .map((technician) => ({ id: technician.id, name: technician.name, completename: technician.label }));
+          || technician.label.toLowerCase().includes(needle));
+      return {
+        total: matches.length,
+        items: matches
+          .slice(0, limit)
+          .map((technician) => ({ id: technician.id, name: technician.name, completename: technician.label })),
+      };
     }
     const itemType = referenceSearchItemType(input.kind);
     const searchUrl = new URL(this.buildUrl(session.baseUrl, `apirest.php/search/${itemType}`));
@@ -894,8 +913,9 @@ export class GlpiService {
     );
     const record = this.expectRecord(payload, `GLPI ${itemType} search`);
     const totalCount = typeof record.totalcount === 'number' ? record.totalcount : Number(record.totalcount ?? Number.NaN);
+    const total = Number.isFinite(totalCount) && totalCount >= 0 ? Math.floor(totalCount) : undefined;
     if (record.data == null && (totalCount === 0 || record.count === 0)) {
-      return [];
+      return { items: [], ...(total === undefined ? {} : { total }) };
     }
     if (!Array.isArray(record.data)) {
       throw new BadRequestException(`GLPI ${itemType} search response was malformed.`);
@@ -913,7 +933,7 @@ export class GlpiService {
         break;
       }
     }
-    return items;
+    return { items, ...(total === undefined ? {} : { total }) };
   }
 
   // Expand tree-catalog root ids to root + all descendants, roots first. Backs

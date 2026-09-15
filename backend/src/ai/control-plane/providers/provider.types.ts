@@ -789,7 +789,10 @@ export interface TicketingProvider extends ProviderBase {
   readTicketAttachment(context: ProviderContext, input: { ticketId: string; target: string; source?: TicketAttachmentRef['source'] | null; sourceNoteId?: string | null }): Promise<AdapterResult<TicketAttachmentReadResult>>;
   listTicketsForScope(context: ProviderContext, input: { scope: TicketListScope }): Promise<AdapterResult<{ tickets: TicketRecord[] }>>;
   describeReferenceEnums(context: ProviderContext): Promise<AdapterResult<TicketReferenceEnums>>;
-  searchReferenceCatalog(context: ProviderContext, input: { kind: TicketReferenceCatalogKind; query?: string | null; limit: number }): Promise<AdapterResult<{ items: RefItem[] }>>;
+  // `total` is optional: providers that already know the catalogue size (cached
+  // catalogues, search APIs returning a count) report it so the UI can show a
+  // real count instead of "50+". Consumers must tolerate it being absent.
+  searchReferenceCatalog(context: ProviderContext, input: { kind: TicketReferenceCatalogKind; query?: string | null; limit: number }): Promise<AdapterResult<{ items: RefItem[]; total?: number }>>;
   // Expand tree-catalog ids (categories/entities) to the ids plus all their
   // descendants, input ids first. Backs recursive targeting selection.
   resolveReferenceSubtree(context: ProviderContext, input: { kind: TicketReferenceCatalogKind; ids: string[] }): Promise<AdapterResult<{ ids: string[] }>>;

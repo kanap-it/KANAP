@@ -1063,15 +1063,18 @@ export class GlpiTicketingProvider implements TicketingProvider {
   async searchReferenceCatalog(
     context: ProviderContext,
     input: { kind: TicketReferenceCatalogKind; query?: string | null; limit: number },
-  ): Promise<AdapterResult<{ items: RefItem[] }>> {
+  ): Promise<AdapterResult<{ items: RefItem[]; total?: number }>> {
     const limit = Math.max(1, Math.min(Math.floor(input.limit), 50));
     return this.withAvailableSession(context, async (session) => {
-      const items = await this.glpi.searchReferenceCatalog(session, {
+      const page = await this.glpi.searchReferenceCatalogPage(session, {
         kind: input.kind,
         query: input.query ?? null,
         limit,
       });
-      const data = { items: items.map((item) => referenceCatalogItem(input.kind, item)) };
+      const data = {
+        items: page.items.map((item) => referenceCatalogItem(input.kind, item)),
+        ...(page.total === undefined ? {} : { total: page.total }),
+      };
       const label = input.kind === 'category' ? 'categories'
         : input.kind === 'group' ? 'assignable groups'
         : input.kind === 'technician' ? 'technicians'

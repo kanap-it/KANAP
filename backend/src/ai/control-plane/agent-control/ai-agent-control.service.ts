@@ -3353,7 +3353,7 @@ function serializeAgentAuditEvent(event: AiAgentAuditEvent) {
 @Injectable()
 export class AiAgentControlService {
   private readonly logger = new Logger(AiAgentControlService.name);
-  private readonly targetingOptionsCache = new Map<string, { expiresAt: number; staleUntil: number; refreshing?: boolean; options: RefItem[] }>();
+  private readonly targetingOptionsCache = new Map<string, { expiresAt: number; staleUntil: number; refreshing?: boolean; options: RefItem[]; total?: number }>();
 
   constructor(
     private readonly diagnostics: AiReadonlyDiagnosticWorkflowService,
@@ -4766,7 +4766,7 @@ export class AiAgentControlService {
     id: string,
     fieldInput: string,
     input: { query?: string | null; limit?: number | string | null } = {},
-  ): Promise<{ options: RefItem[] }> {
+  ): Promise<{ options: RefItem[]; total?: number }> {
     const limit = cleanTargetingOptionLimit(input.limit);
     const query = cleanTargetingOptionQuery(input.query);
     const definition = await context.manager.getRepository(AiAgentDefinition).findOne({
@@ -4814,7 +4814,7 @@ export class AiAgentControlService {
     const now = Date.now();
     const cached = this.targetingOptionsCache.get(cacheKey);
     if (cached && cached.expiresAt > now) {
-      return { options: cloneOptions(cached.options) };
+      return { options: cloneOptions(cached.options), ...(cached.total === undefined ? {} : { total: cached.total }) };
     }
 
     const filterEnumOptions = (source: RefItem[]): RefItem[] => {
@@ -4825,8 +4825,11 @@ export class AiAgentControlService {
           || item.value.toLocaleLowerCase().includes(normalizedQuery))
         .slice(0, limit);
     };
-    const fetchAndCache = async (fetchContext: AiExecutionContextWithManager): Promise<RefItem[]> => {
+    const fetchAndCache = async (fetchContext: AiExecutionContextWithManager): Promise<{ options: RefItem[]; total?: number }> => {
       let options: RefItem[];
+      // Catalogue size when the provider knows it cheaply; enum fields are fully
+      // listed, so their page length is already the total.
+      let total: number | undefined;
       if (monitoringOptions) {
         const provider = await this.providers.monitoring(fetchContext, providerKey);
         if (isEnumField) {
@@ -4840,6 +4843,7 @@ export class AiAgentControlService {
               ? result.data.severities
               : result.data.ackStates;
           options = filterEnumOptions(source);
+          total = options.length;
         } else {
           const result = await provider.searchReferenceCatalog(fetchContext, {
             kind: field as MonitoringReferenceCatalogKind,
@@ -4864,6 +4868,7 @@ export class AiAgentControlService {
               ? result.data.priorities
               : result.data.types;
           options = filterEnumOptions(source);
+          total = options.length;
         } else {
           const result = await provider.searchReferenceCatalog(fetchContext, {
             kind: field as TicketReferenceCatalogKind,
@@ -4874,6 +4879,9 @@ export class AiAgentControlService {
             throw new BadRequestException(result.message);
           }
           options = result.data.items.slice(0, limit);
+          total = typeof (result.data as { total?: unknown }).total === 'number'
+            ? Math.max(0, Math.floor((result.data as { total: number }).total))
+            : undefined;
         }
       }
       const safeOptions = options.map((item) => ({
@@ -4886,8 +4894,9 @@ export class AiAgentControlService {
         expiresAt: fetchedAt + ttlMs,
         staleUntil: fetchedAt + TARGETING_OPTIONS_STALE_SERVE_MS,
         options: safeOptions,
+        ...(total === undefined ? {} : { total }),
       });
-      return safeOptions;
+      return { options: safeOptions, ...(total === undefined ? {} : { total }) };
     };
 
     // Expired but still stale-servable: answer immediately from the stale copy and
@@ -4908,11 +4917,11 @@ export class AiAgentControlService {
             }
           });
       }
-      return { options: cloneOptions(cached.options) };
+      return { options: cloneOptions(cached.options), ...(cached.total === undefined ? {} : { total: cached.total }) };
     }
 
-    const options = await fetchAndCache(context);
-    return { options: cloneOptions(options) };
+    const fetched = await fetchAndCache(context);
+    return { options: cloneOptions(fetched.options), ...(fetched.total === undefined ? {} : { total: fetched.total }) };
   }
 
   async createAgentDefinition(
