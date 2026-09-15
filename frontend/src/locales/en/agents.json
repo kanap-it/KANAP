@@ -771,6 +771,10 @@
     "capabilitiesInfo": "What this agent may prepare. Everything switched off here is never proposed, whatever the instructions say.",
     "reference": {
       "title": "Names you can use in the instructions",
+      "insertHint": "Click a name to insert it in the instructions.",
+      "search": "Search a name",
+      "noMatch": "Nothing matches.",
+      "countCapped": "{{count}}+",
       "statuses": "Ticket statuses",
       "groups": "Technician groups",
       "empty": "Nothing available.",
@@ -778,12 +782,10 @@
       "groupsDisabled": "Enable Assignment in Capabilities to let the agent route tickets to a group.",
       "technicians": "Technicians",
       "techniciansEmpty": "The ticketing system exposes no technician in an assignable group.",
-      "techniciansSearch": "e.g., Dupont",
       "categories": "Categories",
       "priorities": "Priorities",
       "types": "Types",
       "classificationDisabled": "Enable Classification in Capabilities to let the instructions guide category, priority and type.",
-      "categoriesSearch": "e.g., SAP",
       "categoriesMore": "Type to narrow the list.",
       "categoriesScope": "Search covers every category. With a very large catalogue, the agent works from the categories you target first.",
       "catalogueError": "The catalogue could not be loaded."

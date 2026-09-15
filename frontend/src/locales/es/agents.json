@@ -771,6 +771,10 @@
     "capabilitiesInfo": "Lo que este agente puede preparar. Todo lo que esté desactivado aquí nunca se propone, digan lo que digan las instrucciones.",
     "reference": {
       "title": "Nombres que puede usar en las instrucciones",
+      "insertHint": "Haga clic en un nombre para insertarlo en las instrucciones.",
+      "search": "Buscar un nombre",
+      "noMatch": "Sin coincidencias.",
+      "countCapped": "{{count}}+",
       "statuses": "Estados del ticket",
       "groups": "Grupos de técnicos",
       "empty": "Nada disponible.",
@@ -778,12 +782,10 @@
       "groupsDisabled": "Active «Asignación» en las capacidades para que el agente pueda dirigir tickets a un grupo.",
       "technicians": "Técnicos",
       "techniciansEmpty": "La herramienta de tickets no expone ningún técnico en un grupo asignable.",
-      "techniciansSearch": "P. ej., Dupont",
       "categories": "Categorías",
       "priorities": "Prioridades",
       "types": "Tipos",
       "classificationDisabled": "Active «Clasificación» en las capacidades para definir la categoría, la prioridad y el tipo mediante las instrucciones.",
-      "categoriesSearch": "P. ej., SAP",
       "categoriesMore": "Escriba un nombre para acotar la lista.",
       "categoriesScope": "La búsqueda abarca todas las categorías. Si el catálogo es muy grande, el agente parte primero de las categorías de su selección.",
       "catalogueError": "No se pudo cargar el catálogo."

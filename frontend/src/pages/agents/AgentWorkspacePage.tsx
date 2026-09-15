@@ -49,6 +49,7 @@ import {
   collectEffectivePromptBounds,
   droppedInstructionLineCount,
   droppedSharedContextLineCount,
+  insertAtCaret,
   MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS,
   MAX_PERSONA_PURPOSE_CHARS,
   mergeInstructionsForDisplay,
@@ -231,43 +232,80 @@ function SettingsField({ label, hint, info, children }: {
   return <PropertyRow label={labelNode} helperText={hint}>{children}</PropertyRow>;
 }
 
-// Searchable catalogue section of the reference panel (categories, technicians). These
-// catalogues are too large to list in full, so they are searched server-side (debounced)
-// and capped at one page of results. Names only — never an email address.
-function InstructionsCatalogReference({ agentId, field, title, placeholder, enabled, emptyText, scopeNote }: {
-  agentId: string;
-  field: 'category' | 'technician';
-  title: string;
-  placeholder: string;
-  enabled: boolean;
-  emptyText: string;
-  scopeNote?: string;
-}) {
-  const { t } = useTranslation(['agents']);
-  const [query, setQuery] = React.useState('');
-  const searchId = React.useId();
-  const settled = useDebouncedValue(query).trim();
-  const catalogue = useQuery({
-    queryKey: ['ai-agent-targeting-options', agentId, field, settled],
-    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, field, { query: settled || undefined, limit: TARGETING_CATALOG_OPTIONS_LIMIT }),
+// Catalogues the panel keeps collapsed: a production ticketing system has dozens
+// of groups and hundreds of technicians and categories, so they are counted, not listed.
+type ReferenceCatalogueField = 'group' | 'technician' | 'category';
+// About eight rows of a 13px list before the expanded catalogue starts scrolling.
+const REFERENCE_LIST_MAX_HEIGHT = 178;
+
+function useReferenceCatalogue(agentId: string, field: ReferenceCatalogueField, enabled: boolean, query: string) {
+  return useQuery({
+    // Same cache entries as the targeting filters.
+    queryKey: ['ai-agent-targeting-options', agentId, field, query],
+    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(agentId, field, {
+      query: query || undefined,
+      limit: TARGETING_CATALOG_OPTIONS_LIMIT,
+    }),
     enabled,
     staleTime: TARGETING_OPTIONS_STALE_TIME_MS,
   });
-  const options = catalogue.data?.options ?? [];
+}
+
+function referenceMatches(options: AiAgentControlRefItem[], needle: string): AiAgentControlRefItem[] {
+  if (!needle) return options;
+  const lowered = needle.toLocaleLowerCase();
+  return options.filter((option) => option.label.toLocaleLowerCase().includes(lowered)
+    || option.value.toLocaleLowerCase().includes(lowered));
+}
+
+// A name the admin can drop into the instructions. Neutral at rest; the interactive
+// treatment shows up on hover only.
+function ReferenceName({ label, badge, onInsert }: {
+  label: string;
+  badge?: string;
+  onInsert: (name: string) => void;
+}) {
   return (
-    <Box sx={{ mt: 1.5 }}>
-      <Typography component="label" htmlFor={searchId} sx={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>
-        {title}
-      </Typography>
-      <TextField id={searchId} size="small" variant="standard" fullWidth value={query} onChange={(event) => setQuery(event.target.value)} placeholder={placeholder} sx={drawerFieldValueSx} />
-      <Box component="ul" aria-busy={catalogue.isFetching} sx={{ listStyle: 'none', m: 0, p: 0, mt: 0.5, maxHeight: 220, overflowY: 'auto' }}>
-        {options.map((option) => <Box component="li" key={option.value} sx={{ fontSize: 13, color: 'kanap.text.primary', lineHeight: 1.7 }}>{option.label}</Box>)}
+    <Box component="li" sx={{ m: 0 }}>
+      <Box
+        component="button"
+        type="button"
+        onClick={() => onInsert(label)}
+        sx={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 1,
+          width: '100%',
+          textAlign: 'left',
+          p: 0,
+          border: 0,
+          background: 'none',
+          font: 'inherit',
+          fontSize: 13,
+          lineHeight: 1.7,
+          color: 'kanap.text.primary',
+          cursor: 'pointer',
+          '&:hover': { color: 'primary.main' },
+        }}
+      >
+        <Box component="span">{label}</Box>
+        {badge && (
+          <Box component="span" sx={{ fontFamily: 'var(--kanap-font-mono, ui-monospace, monospace)', fontSize: 11, color: 'kanap.text.tertiary' }}>{badge}</Box>
+        )}
       </Box>
-      {catalogue.isError && <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('settings.reference.catalogueError')}</Typography>}
-      {!catalogue.isFetching && !catalogue.isError && options.length === 0 && <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{emptyText}</Typography>}
-      {options.length === TARGETING_CATALOG_OPTIONS_LIMIT && <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.5 }}>{t('settings.reference.categoriesMore')}</Typography>}
-      {scopeNote && <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.5 }}>{scopeNote}</Typography>}
     </Box>
+  );
+}
+
+function ReferenceSectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>{children}</Typography>
+  );
+}
+
+function ReferenceNote({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', lineHeight: 1.5 }}>{children}</Typography>
   );
 }
 
@@ -275,21 +313,104 @@ function InstructionsCatalogReference({ agentId, field, title, placeholder, enab
 // Only what the runtime actually lets the instructions drive: status transitions, the
 // technician groups and the individual technicians when Assignment is on, and the
 // categories, priorities and types when Classification is on.
-function InstructionsReferencePanel({ statuses, groups, routingEnabled, classificationEnabled, priorities, types, agentId }: {
+// Short enum lists stay inline; the large catalogues collapse to a counted row, and one
+// search field looks through all of them at once.
+function InstructionsReferencePanel({ statuses, routingEnabled, classificationEnabled, priorities, types, agentId, onInsert }: {
   agentId: string;
   classificationEnabled: boolean;
   priorities: AiAgentControlRefItem[];
   types: AiAgentControlRefItem[];
   statuses: AiAgentControlRefItem[] | null;
-  groups: AiAgentControlRefItem[] | null;
   routingEnabled: boolean;
+  onInsert: (name: string) => void;
 }) {
   const { t } = useTranslation(['agents']);
-  const groupLabel = (
-    <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>
-      {t('settings.reference.groups')}
-    </Typography>
+  const searchId = React.useId();
+  const [query, setQuery] = React.useState('');
+  const [expanded, setExpanded] = React.useState<ReferenceCatalogueField | null>(null);
+  const settled = useDebouncedValue(query).trim();
+  const searching = settled.length > 0;
+
+  const groupsQuery = useReferenceCatalogue(agentId, 'group', routingEnabled, settled);
+  const techniciansQuery = useReferenceCatalogue(agentId, 'technician', routingEnabled, settled);
+  const categoriesQuery = useReferenceCatalogue(agentId, 'category', classificationEnabled, settled);
+
+  const statusMatches = referenceMatches(statuses ?? [], settled);
+  const priorityMatches = classificationEnabled ? referenceMatches(priorities, settled) : [];
+  const typeMatches = classificationEnabled ? referenceMatches(types, settled) : [];
+
+  const catalogues: {
+    field: ReferenceCatalogueField;
+    title: string;
+    enabled: boolean;
+    query: ReturnType<typeof useReferenceCatalogue>;
+    emptyText: string;
+    note?: string;
+  }[] = [
+    {
+      field: 'group',
+      title: t('settings.reference.groups'),
+      enabled: routingEnabled,
+      query: groupsQuery,
+      emptyText: t('settings.reference.groupsEmpty'),
+    },
+    {
+      field: 'technician',
+      title: t('settings.reference.technicians'),
+      enabled: routingEnabled,
+      query: techniciansQuery,
+      emptyText: t('settings.reference.techniciansEmpty'),
+    },
+    {
+      field: 'category',
+      title: t('settings.reference.categories'),
+      enabled: classificationEnabled,
+      query: categoriesQuery,
+      emptyText: t('settings.reference.empty'),
+      note: t('settings.reference.categoriesScope'),
+    },
+  ];
+
+  // Real total when the ticketing system knows it, "50+" when the page is capped.
+  const countLabel = (catalogue: typeof catalogues[number]): string => {
+    const total = catalogue.query.data?.total;
+    if (typeof total === 'number') return String(total);
+    const length = catalogue.query.data?.options.length ?? 0;
+    return length >= TARGETING_CATALOG_OPTIONS_LIMIT
+      ? t('settings.reference.countCapped', { count: TARGETING_CATALOG_OPTIONS_LIMIT })
+      : String(length);
+  };
+
+  const enumSections = [
+    // `empty` is only set once the list is known to be loaded, so the panel does not
+    // claim "nothing available" while the first fetch is still in flight.
+    { key: 'statuses', title: t('settings.reference.statuses'), options: statusMatches, shown: true, empty: statuses !== null },
+    { key: 'priorities', title: t('settings.reference.priorities'), options: priorityMatches, shown: classificationEnabled, empty: false },
+    { key: 'types', title: t('settings.reference.types'), options: typeMatches, shown: classificationEnabled, empty: false },
+  ].filter((section) => section.shown);
+
+  const visibleCatalogues = catalogues.filter((catalogue) => catalogue.enabled);
+  const somethingMatches = enumSections.some((section) => section.options.length > 0)
+    || visibleCatalogues.some((catalogue) => (catalogue.query.data?.options.length ?? 0) > 0);
+  const stillLoading = visibleCatalogues.some((catalogue) => catalogue.query.isFetching);
+  const catalogueError = visibleCatalogues.some((catalogue) => catalogue.query.isError);
+
+  const renderNames = (options: AiAgentControlRefItem[], withKeys: boolean, scroll: boolean) => (
+    <Box
+      component="ul"
+      sx={{
+        listStyle: 'none',
+        m: 0,
+        p: 0,
+        ...(scroll ? { maxHeight: REFERENCE_LIST_MAX_HEIGHT, overflowY: 'auto' } : {}),
+      }}
+    >
+      {options.map((option) => (
+        <ReferenceName key={option.value} label={option.label} badge={withKeys ? option.value : undefined} onInsert={onInsert} />
+      ))}
+    </Box>
   );
+
   return (
     <Box
       sx={{
@@ -301,72 +422,116 @@ function InstructionsReferencePanel({ statuses, groups, routingEnabled, classifi
         bgcolor: 'kanap.bg.drawer',
       }}
     >
-      <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.tertiary', mb: 1.25 }}>
+      <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.tertiary' }}>
         {t('settings.reference.title')}
       </Typography>
-      <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>
-        {t('settings.reference.statuses')}
+      <Typography sx={{ fontSize: 11, color: 'kanap.text.tertiary', mt: 0.25, mb: 1 }}>
+        {t('settings.reference.insertHint')}
       </Typography>
-      <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, mb: 1.5 }}>
-        {(statuses ?? []).map((status) => (
-          <Box component="li" key={status.value} sx={{ display: 'flex', alignItems: 'baseline', gap: 1, fontSize: 13, color: 'kanap.text.primary', lineHeight: 1.7 }}>
-            <span>{status.label}</span>
-            <Box component="span" sx={{ fontFamily: 'var(--kanap-font-mono, ui-monospace, monospace)', fontSize: 11, color: 'kanap.text.tertiary' }}>{status.value}</Box>
-          </Box>
-        ))}
-        {statuses && statuses.length === 0 && (
-          <Box component="li" sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('settings.reference.empty')}</Box>
-        )}
-      </Box>
-      {groupLabel}
-      {!routingEnabled ? (
-        <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', lineHeight: 1.5 }}>{t('settings.reference.groupsDisabled')}</Typography>
-      ) : (
-        <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
-          {(groups ?? []).map((group) => (
-            <Box component="li" key={group.value} sx={{ fontSize: 13, color: 'kanap.text.primary', lineHeight: 1.7 }}>{group.label}</Box>
-          ))}
-          {groups && groups.length === 0 && (
-            <Box component="li" sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>{t('settings.reference.groupsEmpty')}</Box>
-          )}
-        </Box>
-      )}
-      {routingEnabled && (
-        <InstructionsCatalogReference
-          agentId={agentId}
-          field="technician"
-          title={t('settings.reference.technicians')}
-          placeholder={t('settings.reference.techniciansSearch')}
-          enabled={routingEnabled}
-          emptyText={t('settings.reference.techniciansEmpty')}
-        />
-      )}
-      {classificationEnabled ? (
-        <>
-          <InstructionsCatalogReference
-            agentId={agentId}
-            field="category"
-            title={t('settings.reference.categories')}
-            placeholder={t('settings.reference.categoriesSearch')}
-            enabled={classificationEnabled}
-            emptyText={t('settings.reference.empty')}
-            scopeNote={t('settings.reference.categoriesScope')}
-          />
-          {([{ title: t('settings.reference.priorities'), options: priorities }, { title: t('settings.reference.types'), options: types }]).map((section) => (
-            <Box key={section.title} sx={{ mt: 1.5 }}>
-              <Typography sx={{ fontSize: 11, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.5 }}>{section.title}</Typography>
-              <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
-                {section.options.map((option) => (
-                  <Box component="li" key={option.value} sx={{ display: 'flex', alignItems: 'baseline', gap: 1, fontSize: 13, color: 'kanap.text.primary', lineHeight: 1.7 }}>
-                    <span>{option.label}</span>
-                    <Box component="span" sx={{ fontFamily: 'var(--kanap-font-mono, ui-monospace, monospace)', fontSize: 11, color: 'kanap.text.tertiary' }}>{option.value}</Box>
-                  </Box>
-                ))}
-              </Box>
+      <TextField
+        id={searchId}
+        size="small"
+        variant="standard"
+        fullWidth
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder={t('settings.reference.search')}
+        sx={drawerFieldValueSx}
+        inputProps={{ 'aria-label': t('settings.reference.search') }}
+      />
+
+      {searching ? (
+        <Box sx={{ mt: 1.5 }}>
+          {enumSections.filter((section) => section.options.length > 0).map((section) => (
+            <Box key={section.key} sx={{ mb: 1.5 }}>
+              <ReferenceSectionLabel>{section.title}</ReferenceSectionLabel>
+              {renderNames(section.options, true, false)}
             </Box>
           ))}
-        </>
-      ) : <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary', lineHeight: 1.5, mt: 1.5 }}>{t('settings.reference.classificationDisabled')}</Typography>}
+          {visibleCatalogues.filter((catalogue) => (catalogue.query.data?.options.length ?? 0) > 0).map((catalogue) => (
+            <Box key={catalogue.field} sx={{ mb: 1.5 }}>
+              <ReferenceSectionLabel>{catalogue.title}</ReferenceSectionLabel>
+              {renderNames(catalogue.query.data?.options ?? [], false, true)}
+              {(catalogue.query.data?.options.length ?? 0) >= TARGETING_CATALOG_OPTIONS_LIMIT && (
+                <ReferenceNote>{t('settings.reference.categoriesMore')}</ReferenceNote>
+              )}
+            </Box>
+          ))}
+          {catalogueError && <ReferenceNote>{t('settings.reference.catalogueError')}</ReferenceNote>}
+          {!somethingMatches && !stillLoading && !catalogueError && (
+            <ReferenceNote>{t('settings.reference.noMatch')}</ReferenceNote>
+          )}
+        </Box>
+      ) : (
+        <Box sx={{ mt: 1.5 }}>
+          {enumSections.map((section) => (
+            <Box key={section.key} sx={{ mb: 1.5 }}>
+              <ReferenceSectionLabel>{section.title}</ReferenceSectionLabel>
+              {section.options.length > 0 && renderNames(section.options, true, false)}
+              {section.options.length === 0 && section.empty && (
+                <ReferenceNote>{t('settings.reference.empty')}</ReferenceNote>
+              )}
+            </Box>
+          ))}
+          {!routingEnabled && <ReferenceNote>{t('settings.reference.groupsDisabled')}</ReferenceNote>}
+          {!classificationEnabled && (
+            <Box sx={{ mt: routingEnabled ? 0 : 0.75 }}>
+              <ReferenceNote>{t('settings.reference.classificationDisabled')}</ReferenceNote>
+            </Box>
+          )}
+          {visibleCatalogues.map((catalogue) => {
+            const open = expanded === catalogue.field;
+            const options = catalogue.query.data?.options ?? [];
+            return (
+              <Box key={catalogue.field}>
+                <Box
+                  component="button"
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => setExpanded(open ? null : catalogue.field)}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1,
+                    width: '100%',
+                    p: 0,
+                    py: 0.5,
+                    border: 0,
+                    background: 'none',
+                    font: 'inherit',
+                    fontSize: 13,
+                    color: 'kanap.text.primary',
+                    cursor: 'pointer',
+                    '&:hover': { color: 'primary.main' },
+                  }}
+                >
+                  <Box component="span">
+                    {catalogue.title}
+                    <Box component="span" sx={{ color: 'kanap.text.tertiary' }}>{` · ${countLabel(catalogue)}`}</Box>
+                  </Box>
+                  {open
+                    ? <ExpandLessIcon sx={{ fontSize: 15, color: 'kanap.text.tertiary' }} />
+                    : <ExpandMoreIcon sx={{ fontSize: 15, color: 'kanap.text.tertiary' }} />}
+                </Box>
+                {open && (
+                  <Box sx={{ pb: 0.75 }}>
+                    {catalogue.query.isError && <ReferenceNote>{t('settings.reference.catalogueError')}</ReferenceNote>}
+                    {!catalogue.query.isError && options.length === 0 && !catalogue.query.isFetching && (
+                      <ReferenceNote>{catalogue.emptyText}</ReferenceNote>
+                    )}
+                    {renderNames(options, false, true)}
+                    {options.length >= TARGETING_CATALOG_OPTIONS_LIMIT && (
+                      <ReferenceNote>{t('settings.reference.categoriesMore')}</ReferenceNote>
+                    )}
+                    {catalogue.note && <ReferenceNote>{catalogue.note}</ReferenceNote>}
+                  </Box>
+                )}
+              </Box>
+            );
+          })}
+        </Box>
+      )}
     </Box>
   );
 }
@@ -1438,12 +1603,6 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
     enabled: !isSre,
     staleTime: 5 * 60 * 1000,
   });
-  const routingGroupsQuery = useQuery({
-    queryKey: ['ai-agent-targeting-options', definition.id, 'group', ''],
-    queryFn: () => aiAgentControlApi.getAgentTargetingOptions(definition.id, 'group', { limit: 50 }),
-    enabled: routingGroupsEnabled,
-    staleTime: 5 * 60 * 1000,
-  });
   const webSearchAvailable = useFeatures().config.features.aiWebSearch;
   const librariesQuery = useQuery({
     queryKey: ['knowledge-libraries'],
@@ -1559,6 +1718,8 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
   // values at execution time, not stale schedule-time values.
   const agentFormRef = React.useRef(agentForm);
   agentFormRef.current = agentForm;
+  // The instructions textarea, so the reference panel can insert at the caret.
+  const instructionsInputRef = React.useRef<HTMLTextAreaElement | null>(null);
   const formRef = React.useRef(form);
   formRef.current = form;
   const sreFormRef = React.useRef(sreForm);
@@ -1754,6 +1915,23 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
   };
   const updateAgentPatch = (patch: Partial<typeof agentForm>) => {
     applyAgentForm(patch);
+  };
+  // Clicking a name in the reference panel types it into the instructions at the
+  // caret, through the same setter as the keyboard, so autosave and the character
+  // limit behave exactly as they do when the admin types.
+  const insertIntoInstructions = (name: string) => {
+    const input = instructionsInputRef.current;
+    const current = agentFormRef.current.instructionsDraft ?? '';
+    const start = input ? input.selectionStart ?? current.length : current.length;
+    const end = input ? input.selectionEnd ?? start : current.length;
+    const next = insertAtCaret(current, start, end, name);
+    applyAgentForm({ instructionsDraft: next.text, instructionsTouched: true });
+    window.requestAnimationFrame(() => {
+      const node = instructionsInputRef.current;
+      if (!node) return;
+      node.focus();
+      node.setSelectionRange(next.caret, next.caret);
+    });
   };
   const update = <K extends keyof HelpdeskSettingsForm>(field: K, value: HelpdeskSettingsForm[K]) => {
     settingsSectionRef.current = 'operating';
@@ -1988,6 +2166,7 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
                 value={agentForm.instructionsDraft}
                 placeholder={t('settings.instructionsPlaceholder')}
                 sx={agentPersonaFieldSx}
+                inputRef={instructionsInputRef}
                 onChange={(event) => applyAgentForm({
                   instructionsDraft: event.target.value,
                   instructionsTouched: true,
@@ -2011,12 +2190,12 @@ function SettingsTab({ definition, autosaveRegistry, saveQueue }: {
           {!isSre && (
             <InstructionsReferencePanel
               statuses={referenceStatusesQuery.data?.options ?? null}
-              groups={routingGroupsEnabled ? (routingGroupsQuery.data?.options ?? null) : null}
               routingEnabled={routingGroupsEnabled}
               classificationEnabled={classificationEnabled}
               priorities={referencePrioritiesQuery.data?.options ?? []}
               types={referenceTypesQuery.data?.options ?? []}
               agentId={definition.id}
+              onInsert={insertIntoInstructions}
             />
           )}
           </Box>
