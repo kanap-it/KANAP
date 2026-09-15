@@ -174,6 +174,8 @@ L'historique est la vue d'audit. Utilisez-la lorsque vous devez répondre à des
 - quand les assignations d'équipe ont changé
 - si un changement d'évaluation ou d'analyse s'est produit avant ou après une décision
 
+La liste se termine par l'entrée de création — qui a créé la demande et quand — sous les changements enregistrés, qui incluent les modifications des documents Objectif et Risques.
+
 Si vous avez besoin de récit, utilisez Commentaires. Si vous avez besoin de preuve, utilisez Historique.
 
 ## Analyse

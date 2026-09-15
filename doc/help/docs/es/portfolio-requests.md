@@ -174,6 +174,8 @@ El historial es la vista de auditoría. Úselo cuando necesite responder pregunt
 - cuándo cambiaron las asignaciones de equipo
 - si un cambio de evaluación o análisis ocurrió antes o después de una decisión
 
+La lista termina con la entrada de creación — quién creó la solicitud y cuándo — bajo los cambios registrados, que incluyen las ediciones de los documentos Objetivo y Riesgos.
+
 Si necesita narrativa, use Comentarios. Si necesita prueba, use Historial.
 
 ## Análisis

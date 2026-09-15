@@ -407,13 +407,18 @@ The Activity model supports three entry types:
 
 - **Tasks:** `title`, `description`, `status`, `task_type_id`, `priority_level`, `creator_id`, `assignee_user_id`, `start_date`, `due_date`, `labels`, `phase_id`, `source_id`, `category_id`, `stream_id`, `company_id`, plus synthetic `related_to` on context change.
 - **Requests:** `name`, `purpose`, `requestor_id`, `target_delivery_date`, classification/org fields, sponsors/leads, analysis fields (`current_situation`, `expected_benefits`, `risks`, `feasibility_review`), and sub-entity diffs (`business_team`, `it_team`, `dependency`, `capex_items`, `opex_items`).
-- **Projects:** `name`, `purpose`, classification/org fields, sponsors/leads, `planned_start`, `planned_end`, `execution_progress`, effort fields, effort-allocation mode fields, and sub-entity diffs (`business_team`, `it_team`, `dependency`, `capex_items`, `opex_items`, `phase`, `phase.<phaseId>.<field>`, `task_created`).
+- **Projects:** `name`, `purpose`, classification/org fields, sponsors/leads, `planned_start`, `planned_end`, `execution_progress`, effort fields, effort-allocation mode fields, and sub-entity diffs (`business_team`, `it_team`, `dependency`, `capex_items`, `opex_items`, `phase`, `phase.<phaseId>.<field>`, `task_created`, `created_from_request`).
+- **Scoring (requests/projects):** `priority_score` when the score moves numerically, plus `criteria_values` as readable before/after labels of the criteria that changed — never the raw criterion/value identifier maps.
+- **Managed documents (requests/projects):** `document_updated` holding the slot key (`purpose`, `risks_mitigations`), which the UI labels in the reader's language.
 - **Scoring overrides (requests/projects):** `priority_override`, `override_value`, `override_justification`, `priority_score`.
+
+**Creation is not a stored activity.** The History tab therefore appends a synthetic creation entry, rendered like any other feed row (date with time, and author), as the last entry — the feed is newest first. It is built from the record itself (`created_at`) and the creator resolved from the audit trail: `portfolio_projects` has no creator column, and `tasks.creator_id` holds the requestor — a mutable field — so neither can be used. Accounts without a name are shown by email.
 
 **Snapshot semantics:**
 
 - `changed_fields` is stored as JSONB with structure `{ "<field>": [oldValue, newValue] }`.
 - Foreign-key values are resolved to human-readable labels at write time where possible (for example user names), preserving historical readability even if related records are later renamed.
+- Numeric columns are compared and stored as numbers: Postgres returns `numeric` as a string, so a plain comparison logs an unchanged value as a change.
 
 **Tenant safety:**
 

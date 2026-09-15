@@ -322,6 +322,9 @@ Der Reiter **Historie** zeigt alle Änderungen an der Aufgabe:
   - Statusänderungen
   - Feldänderungen
   - Wer welche Änderung gemacht hat und wann
+  - Der Erstellungseintrag mit Datum, Uhrzeit und Ersteller, als letzter Eintrag angezeigt
+
+Das Feld **Antragsteller** ist eine Arbeitsangabe, die jederzeit neu zugewiesen werden kann; die Erstellungszeile zeigt immer, wer die Aufgabe tatsächlich erstellt hat.
 
 ### E-Mail-Benachrichtigungen und Schnellaktionen
 

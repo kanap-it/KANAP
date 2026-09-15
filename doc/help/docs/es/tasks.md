@@ -322,6 +322,9 @@ La pestaña **Historial** muestra todos los cambios de la tarea:
   - Cambios de estado
   - Modificaciones de campos
   - Quién hizo cada cambio y cuándo
+  - La entrada de creación, con la fecha, la hora y el creador, mostrada como último elemento
+
+El campo **Solicitante** es información de trabajo que puede reasignarse en cualquier momento; la línea de creación siempre indica quién creó realmente la tarea.
 
 ### Notificaciones por correo electrónico y acciones rápidas
 

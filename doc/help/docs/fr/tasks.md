@@ -322,6 +322,9 @@ L'onglet **Historique** affiche tous les changements de la tâche :
   - Changements de statut
   - Modifications de champs
   - Qui a effectué chaque changement et quand
+  - L'entrée de création, avec la date, l'heure et le créateur, affichée en dernière position
+
+Le champ **Demandeur** est une information de travail qui peut être réassignée à tout moment ; la ligne de création indique toujours qui a réellement créé la tâche.
 
 ### Notifications par e-mail et actions rapides
 

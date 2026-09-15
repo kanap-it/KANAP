@@ -185,6 +185,8 @@ Unter Zweck enthält der Reiter Zusammenfassung den Projektaktivitäts-Stream:
 - **Kommentare** für Diskussion, kontextbezogene Notizen und formale Entscheidungen
 - **Historie** für das Audit-Protokoll von Feld- und Statusänderungen
 
+**Historie** listet die erfassten Änderungen auf — Statuswechsel, Feldänderungen, Team- und Beziehungsänderungen, Änderungen am Dokument Zweck — und endet mit dem Erstellungseintrag: wer das Projekt erstellt hat und wann.
+
 Manager können Projektkommentare hinzufügen und bearbeiten. Kommentare können auch als formale Entscheidungen aufgezeichnet werden, mit einem Ergebnis und einer optionalen Statusänderung. Verwenden Sie das, wenn die Diskussion selbst den Verlauf des Projekts ändert.
 
 Bilder können in Aktivitätskommentaren enthalten sein, wenn visuelle Beweise nützlich sind — Architekturskizzen, Screenshots oder Review-Beweise.

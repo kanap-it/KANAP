@@ -174,6 +174,8 @@ History is the audit view. Use it when you need to answer questions such as:
 - when team assignments changed
 - whether a scoring or analysis change happened before or after a decision
 
+The list closes with the creation entry — who created the request and when — below the recorded changes, which include edits to the Purpose and Risks documents.
+
 If you need narrative, use Comments. If you need proof, use History.
 
 ## Analysis

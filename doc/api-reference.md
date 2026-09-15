@@ -869,6 +869,10 @@ Response: `{ success: true }` (202-style fire-and-forget; email failures are sil
     - `changed_fields` uses historical snapshots with human-readable FK values (not UUIDs) where possible.
     - Common auto-generated keys: `title`, `description`, `status`, `task_type_id`, `priority_level`, `creator_id`, `assignee_user_id`, `start_date`, `due_date`, `labels`, `phase_id`, `source_id`, `category_id`, `stream_id`, `company_id`, plus synthetic `related_to` when context changes.
     - Creating a task under a project also writes a project history change key: `task_created: [null, <task title>]`.
+    - Portfolio reads that include activities (`?include=activities` on project and request detail) return `created_by_name`: the creation author resolved from the audit trail, with the email as fallback for accounts without a name. `created_at` carries the creation date. Creation itself is not a stored activity row, so the history feed appends a creation entry (date with time, and author) after the recorded changes, which are listed newest first.
+    - Managed document edits are stored as `document_updated: [null, <slotKey>]` (`purpose`, `risks_mitigations`) instead of a rendered sentence, so clients can label the change in their own language; a `change` row without `changed_fields` still carries a human-readable `content`.
+    - Scoring changes store `criteria_values` as readable before/after labels of the criteria that changed, and `priority_score` only when the score actually moved. Rows written before that format hold raw `{criterionId: valueId}` maps; clients must not render them as text.
+    - Converting a request into a project writes `created_from_request: [null, "REQ-<n>: <name>"]` on the new project.
 - GET `/tasks/:id/time-entries` — list time entries for a task **[Requires: tasks:reader]**
 - GET `/tasks/:id/time-entries/sum` — get total logged hours for a task **[Requires: tasks:reader]**
 - POST `/tasks/:id/time-entries` — create time entry **[Requires: tasks:member]**

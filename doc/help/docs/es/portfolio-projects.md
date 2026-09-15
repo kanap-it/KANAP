@@ -185,6 +185,8 @@ Debajo de Propósito, la pestaña Resumen incluye el flujo de actividad del proy
 - **Comentarios** para discusión, notas contextuales y decisiones formales
 - **Historial** para la pista de auditoría de cambios de campo y estado
 
+**Historial** enumera los cambios registrados — cambios de estado, ediciones de campos, cambios de equipo y relaciones, ediciones del documento Objetivo — y termina con la entrada de creación: quién creó el proyecto y cuándo.
+
 Los gestores pueden añadir y editar comentarios del proyecto. Los comentarios también pueden registrarse como decisiones formales, con un resultado y un cambio de estado opcional. Use eso cuando la propia discusión cambie el rumbo del proyecto.
 
 Las imágenes pueden incluirse en los comentarios de actividad cuando la evidencia visual sea útil — bocetos de arquitectura, capturas de pantalla o evidencia de revisión.

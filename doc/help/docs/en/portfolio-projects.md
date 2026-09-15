@@ -185,6 +185,8 @@ Below Purpose, the Summary tab includes the project activity stream:
 - **Comments** for discussion, contextual notes, and formal decisions
 - **History** for the audit trail of field and status changes
 
+**History** lists the recorded changes — status moves, field edits, team and relation changes, edits to the Purpose document — and closes with the creation entry: who created the project and when.
+
 Managers can add and edit project comments. Comments can also be recorded as formal decisions, with an outcome and an optional status change. Use that when the discussion itself changes the project's course.
 
 Images can be included in activity comments when visual evidence is useful — architecture sketches, screenshots, or review evidence.

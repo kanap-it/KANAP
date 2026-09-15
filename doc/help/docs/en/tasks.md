@@ -322,6 +322,9 @@ The **History** tab shows all changes to the task:
   - Status changes
   - Field modifications
   - Who made each change and when
+  - The creation entry, with the date, time and creator, shown as the last entry
+
+The **Requestor** field is working information that can be reassigned at any time; the creation line always shows who actually created the task.
 
 ### Email notifications and quick actions
 
