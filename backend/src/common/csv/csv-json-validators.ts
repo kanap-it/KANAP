@@ -112,8 +112,8 @@ export class CsvJsonValidators {
       const valueId = value[criterionId];
       if (valueId) {
         const values = await manager.query(
-          `SELECT id FROM portfolio_criterion_values WHERE criterion_id = $1`,
-          [criterionId],
+          `SELECT id FROM portfolio_criterion_values WHERE criterion_id = $1 AND tenant_id = $2`,
+          [criterionId, tenantId],
         );
         const validValueIds = new Set(values.map((v: any) => v.id));
 

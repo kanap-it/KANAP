@@ -383,15 +383,29 @@ SQL
   fi
 done
 
-# -- Import portfolio_criterion_values (no tenant_id, linked via FK) ---------
+# -- Import portfolio_criterion_values ----------------------------------------
+# tenant_id is NOT NULL since migration 1853560000000. Exports made before that
+# migration have no tenant_id column, and 'replica' mode disables the trigger
+# that would fill it, so stage the rows and resolve the tenant from the parent.
 pcv_file="$EXPORT_DIR/portfolio_criterion_values.csv"
 if [[ -f "$pcv_file" ]]; then
   row_count=$(( $(wc -l < "$pcv_file") - 1 ))
   if [[ $row_count -gt 0 ]]; then
     pcv_cols=$(csv_columns "$pcv_file")
+    if [[ ",$pcv_cols," == *",tenant_id,"* ]]; then
+      pcv_insert_cols="$pcv_cols"
+    else
+      pcv_insert_cols="$pcv_cols,tenant_id"
+    fi
     psql_exec <<SQL
 SET session_replication_role = 'replica';
-\\COPY portfolio_criterion_values($pcv_cols) FROM '$(realpath "$pcv_file")' WITH (FORMAT csv, HEADER true);
+CREATE TEMP TABLE _tmp_pcv AS SELECT * FROM portfolio_criterion_values WITH NO DATA;
+ALTER TABLE _tmp_pcv ALTER COLUMN tenant_id DROP NOT NULL;
+\\COPY _tmp_pcv($pcv_cols) FROM '$(realpath "$pcv_file")' WITH (FORMAT csv, HEADER true);
+UPDATE _tmp_pcv t SET tenant_id = c.tenant_id
+  FROM portfolio_criteria c WHERE c.id = t.criterion_id AND t.tenant_id IS NULL;
+INSERT INTO portfolio_criterion_values($pcv_insert_cols) SELECT $pcv_insert_cols FROM _tmp_pcv;
+DROP TABLE _tmp_pcv;
 SQL
     imported_count=$(( imported_count + 1 ))
     imported_rows=$(( imported_rows + row_count ))

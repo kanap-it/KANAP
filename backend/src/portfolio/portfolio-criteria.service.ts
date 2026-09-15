@@ -173,6 +173,7 @@ export class PortfolioCriteriaService {
     for (let i = 0; i < values.length; i++) {
       const v = values[i];
       const value = valuesRepo.create({
+        tenant_id: savedCriterion.tenant_id,
         criterion_id: savedCriterion.id,
         label: String(v.label || '').trim(),
         position: i,
@@ -314,6 +315,7 @@ export class PortfolioCriteriaService {
         } else {
           // Create new
           const newValue = valuesRepo.create({
+            tenant_id: criterion.tenant_id,
             criterion_id: id,
             label: String(v.label || '').trim(),
             position: i,
@@ -1170,8 +1172,8 @@ export class PortfolioCriteriaService {
 
     const result = await mg.query(
       `SELECT id FROM portfolio_criterion_values
-       WHERE id = ANY($1) AND triggers_mandatory_bypass = true`,
-      [valueIds]
+       WHERE id = ANY($1) AND tenant_id = $2 AND triggers_mandatory_bypass = true`,
+      [valueIds, tenantId]
     );
 
     return result.length > 0;
@@ -1444,6 +1446,7 @@ export class PortfolioCriteriaService {
       for (let j = 0; j < def.values.length; j++) {
         const v = def.values[j];
         const value = valuesRepo.create({
+          tenant_id: savedCriterion.tenant_id,
           criterion_id: savedCriterion.id,
           label: v.label,
           position: j,

@@ -198,7 +198,7 @@ Every table with a `tenant_id` column has `ENABLE` + `FORCE ROW LEVEL SECURITY` 
 - Cross-cutting: audit_log, item_sequences (business references), allocation_rules.
 - `allocation_rules` mixes global defaults (`tenant_id IS NULL`, unique per fiscal year) and per-tenant overrides (`UNIQUE (tenant_id, fiscal_year)`, `mode` in `auto|manual_company`, `company_ids`). Its policy is deliberately `tenant_id IS NULL OR tenant_id = app_current_tenant()`; per-tenant rows are removed at purge, global defaults remain.
 - Global tables without `tenant_id` (no RLS): tenants, trial_signups, currencies, fx_rates, spread_profiles, account_classifications, coa_templates, scheduled_tasks, scheduled_task_runs, platform_ai_config, platform_ai_plan_limits, and TypeORM's `migrations`.
-- Known exception: `portfolio_criterion_values` (scoring value labels) has neither `tenant_id` nor RLS. It is isolated only transitively through its `criterion_id` FK to the RLS-protected `portfolio_criteria`, so every read must join or filter through the parent. Two paths in `portfolio-criteria.service.ts` and `csv-json-validators.ts` still query it by id or criterion id alone; the durable fix is a `tenant_id` column with the standard policy.
+- `portfolio_criterion_values` lost its `tenant_id` in migration `1767200000000` and got it back in `1853560000000`, with the canonical policy and a `BEFORE INSERT OR UPDATE` trigger that fills `tenant_id` from the parent criterion and rejects a criterion from another tenant (FK checks bypass RLS, the trigger does not).
 
 The authoritative list is the database itself. Check it on any environment with:
 ```sql

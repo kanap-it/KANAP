@@ -313,7 +313,8 @@ EXPORTED_TABLES+=("allocation_rules")
 echo "  allocation_rules: $row_count rows"
 
 # ---------------------------------------------------------------------------
-# Export portfolio_criterion_values (no tenant_id, linked via FK)
+# Export portfolio_criterion_values through the parent criterion so exports made
+# before tenant_id was re-added (migration 1853560000000) and after share one shape
 # ---------------------------------------------------------------------------
 echo "Exporting portfolio_criterion_values..."
 csv_file="$OUTPUT_DIR/portfolio_criterion_values.csv"

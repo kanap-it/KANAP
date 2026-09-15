@@ -28,7 +28,7 @@ const TABLES_TO_CHECK_RLS = Array.from(new Set([
   'audit_log', 'company_metrics', 'department_metrics', 'user_page_roles',
   'applications', 'assets', 'app_instances', 'app_asset_assignments',
   'application_suites', 'asset_relations',
-  'portfolio_projects', 'portfolio_requests',
+  'portfolio_projects', 'portfolio_requests', 'portfolio_criteria', 'portfolio_criterion_values',
   'portfolio_request_projects', 'portfolio_request_dependencies', 'portfolio_project_dependencies',
   'application_projects', 'asset_projects',
   'portfolio_request_applications', 'portfolio_request_assets',
@@ -93,6 +93,8 @@ const TABLES_TO_CHECK_POLICY = new Set([
   'ai_decisions',
   'ai_evaluations',
   'search_index',
+  'portfolio_criteria',
+  'portfolio_criterion_values',
 ]);
 
 const TABLES_TO_CHECK_FORCE = new Set([
@@ -1705,6 +1707,60 @@ async function main() {
       'companies: cross-tenant insert blocked',
       `INSERT INTO companies(tenant_id, name, country_iso, city, status) VALUES ($1, $2, $3, $4, 'enabled')`,
       [tenantOneId, `X ${tag}`, 'US', 'Boston'],
+    );
+
+    // portfolio_criterion_values: tenant_id re-added by migration 1853560000000.
+    // The trigger must fill tenant_id from the parent criterion, and a criterion
+    // from another tenant must be rejected even though FK checks bypass RLS.
+    await setTenant(r, tenantOneId);
+    const criterionRows = await r.query(
+      `INSERT INTO portfolio_criteria(tenant_id, name, weight, display_order) VALUES ($1, $2, 1, 0) RETURNING id`,
+      [tenantOneId, `CRIT ${tag}`],
+    );
+    const criterionId = criterionRows[0].id as string;
+    const criterionValueRows = await r.query(
+      `INSERT INTO portfolio_criterion_values(criterion_id, label, position) VALUES ($1, 'Low', 0) RETURNING id, tenant_id`,
+      [criterionId],
+    );
+    const criterionValueId = criterionValueRows[0].id as string;
+    results.push({
+      name: 'portfolio_criterion_values: trigger fills tenant_id from the criterion',
+      ok: criterionValueRows[0].tenant_id === tenantOneId,
+      info: criterionValueRows[0].tenant_id !== tenantOneId ? `got ${criterionValueRows[0].tenant_id}` : undefined,
+    });
+    const criterionValueSelf = await r.query(`SELECT 1 FROM portfolio_criterion_values WHERE id = $1`, [criterionValueId]);
+    results.push({ name: 'portfolio_criterion_values: self-tenant read', ok: criterionValueSelf.length === 1 });
+    await expectCrossTenantInsertBlocked(
+      r,
+      results,
+      'portfolio_criterion_values: mismatched tenant_id rejected by trigger',
+      `INSERT INTO portfolio_criterion_values(tenant_id, criterion_id, label, position) VALUES ($1, $2, 'Wrong', 9)`,
+      [tenantTwoId, criterionId],
+    );
+
+    await setTenant(r, tenantTwoId);
+    await expectCrossTenantReadBlocked(r, results, 'portfolio_criterion_values: cross-tenant read by id blocked', `SELECT 1 FROM portfolio_criterion_values WHERE id = $1`, [criterionValueId]);
+    await expectCrossTenantReadBlocked(r, results, 'portfolio_criterion_values: cross-tenant read by criterion blocked', `SELECT 1 FROM portfolio_criterion_values WHERE criterion_id = $1`, [criterionId]);
+    await expectCrossTenantInsertBlocked(
+      r,
+      results,
+      'portfolio_criterion_values: cross-tenant insert with foreign tenant_id blocked',
+      `INSERT INTO portfolio_criterion_values(tenant_id, criterion_id, label, position) VALUES ($1, $2, 'X', 1)`,
+      [tenantOneId, criterionId],
+    );
+    await expectCrossTenantInsertBlocked(
+      r,
+      results,
+      'portfolio_criterion_values: own tenant_id on a foreign criterion blocked',
+      `INSERT INTO portfolio_criterion_values(tenant_id, criterion_id, label, position) VALUES ($1, $2, 'X', 2)`,
+      [tenantTwoId, criterionId],
+    );
+    await expectCrossTenantInsertBlocked(
+      r,
+      results,
+      'portfolio_criterion_values: omitted tenant_id on a foreign criterion blocked',
+      `INSERT INTO portfolio_criterion_values(criterion_id, label, position) VALUES ($1, 'X', 3)`,
+      [criterionId],
     );
 
     await setTenant(r, tenantOneId);

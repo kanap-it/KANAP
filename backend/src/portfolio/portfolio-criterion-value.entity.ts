@@ -2,9 +2,13 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('portfolio_criterion_values')
 @Index(['criterion_id', 'position'])
+@Index(['tenant_id', 'criterion_id'])
 export class PortfolioCriterionValue {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column('uuid')
+  tenant_id!: string;
 
   @Column('uuid')
   criterion_id!: string;

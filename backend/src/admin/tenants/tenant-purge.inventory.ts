@@ -39,8 +39,7 @@ export const TENANT_PURGE_TABLES = [
   'portfolio_activities',
   'portfolio_projects',
   'portfolio_requests',
-  // portfolio_criterion_values: no tenant_id (dropped in migration 1767200000000)
-  // Records deleted via ON DELETE CASCADE from portfolio_criteria
+  'portfolio_criterion_values',
   'portfolio_criteria',
   'portfolio_team_member_configs',
   'portfolio_teams',

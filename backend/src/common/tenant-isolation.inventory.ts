@@ -148,6 +148,7 @@ export const TENANT_SCOPED_TABLES = [
   'portfolio_activities',
   'portfolio_categories',
   'portfolio_criteria',
+  'portfolio_criterion_values',
   'portfolio_employment_types',
   'portfolio_phase_template_items',
   'portfolio_phase_templates',
