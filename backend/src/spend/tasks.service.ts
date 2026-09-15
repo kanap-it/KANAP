@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { Repository, EntityManager, DataSource } from 'typeorm';
 import { ParticipationAccessScope, taskParticipantCondition } from '../auth/business-contributor-scope';
 import { incidentRelatedLabelSql } from '../incidents/incident-visibility';
+import { resolveRecordCreators } from '../audit/record-creator.util';
 
 export interface TaskListItem {
   id: string;
@@ -40,6 +41,8 @@ export interface TaskListItem {
   company_name: string | null;
   creator_id: string | null;
   creator_name: string | null;
+  /** Creation author resolved from the audit trail (detail reads only). */
+  created_by_name?: string | null;
   owner_ids: string[];
   viewer_ids: string[];
   application_ids: string[];
@@ -1077,7 +1080,15 @@ export class TasksService {
       LIMIT 1
     `;
     const rows: TaskListItem[] = await manager.query(dataQuery, params);
-    return rows[0] || null;
+    const task = rows[0];
+    if (!task) return null;
+
+    // `creator_id` is the requestor (mutable, labelled "Requestor"), so the
+    // creation author comes from the audit trail instead.
+    const creators = await resolveRecordCreators(manager, 'tasks', [task.id]);
+    task.created_by_name = creators.get(task.id) ?? null;
+
+    return task;
   }
 
   async assertVisible(

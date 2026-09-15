@@ -339,13 +339,6 @@ export class IntegratedDocumentsService {
     return `${ref} - ${source.name} - ${definition.displayName}`;
   }
 
-  private getSemanticUpdateLabel(
-    sourceEntityType: SourceScopedEntityType,
-    slotKey: IntegratedDocumentSlotKey,
-  ): string {
-    return `${this.getSlotDefinition(sourceEntityType, slotKey).displayName} updated`;
-  }
-
   private getImportChangeNote(sourceEntityType: SourceScopedEntityType): string {
     return sourceEntityType === 'requests'
       ? 'Imported from legacy request field'
@@ -1612,7 +1605,9 @@ export class IntegratedDocumentsService {
       project_id: sourceEntityType === 'projects' ? sourceEntityId : null,
       author_id: userId || null,
       type: 'change',
-      content: this.getSemanticUpdateLabel(sourceEntityType, slotKey),
+      // The slot key is stored instead of a rendered sentence so the activity
+      // feed can label the change in the reader's language.
+      changed_fields: { document_updated: [null, slotKey] },
     }));
   }
 

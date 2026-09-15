@@ -8,6 +8,27 @@ import { PortfolioProject } from './portfolio-project.entity';
 import { PortfolioSettings } from './portfolio-settings.entity';
 import { PortfolioActivity } from './portfolio-activity.entity';
 import { AuditService } from '../audit/audit.service';
+import {
+  CriteriaLabelMaps,
+  CriteriaValuesMap,
+  formatCriteriaDiff,
+  listChangedCriteria,
+} from './utils/activity-labels';
+import { detectChanges, FieldConfig } from '../common/change-detection';
+
+// `numeric` columns come back from Postgres as strings, so the score and the
+// override value are compared (and recorded) as numbers: a plain `!==` would
+// log "75.00 → 75" on every save.
+const SCORE_FIELDS: FieldConfig[] = [
+  { field: 'priority_score', compare: 'number' },
+];
+
+const OVERRIDE_FIELDS: FieldConfig[] = [
+  { field: 'priority_override' },
+  { field: 'override_value', compare: 'number' },
+  { field: 'override_justification' },
+  { field: 'priority_score', compare: 'number' },
+];
 
 @Injectable()
 export class PortfolioCriteriaService {
@@ -644,18 +665,13 @@ export class PortfolioCriteriaService {
     const saved = await requestRepo.save(request);
 
     // Log scoring change as activity
-    if (before.priority_score !== saved.priority_score) {
-      await mg.getRepository(PortfolioActivity).save({
-        request_id: requestId,
-        tenant_id: tenantId,
-        author_id: userId,
-        type: 'change',
-        changed_fields: {
-          priority_score: [before.priority_score, saved.priority_score],
-          criteria_values: [before.criteria_values, saved.criteria_values],
-        },
-      });
-    }
+    await this.logScoringChange(mg, {
+      target: { request_id: requestId },
+      tenantId,
+      userId,
+      before,
+      after: saved,
+    });
 
     await this.audit.log({
       table: 'portfolio_requests',
@@ -667,6 +683,75 @@ export class PortfolioCriteriaService {
     }, { manager: mg });
 
     return saved;
+  }
+
+  /**
+   * Log a scoring change on a request or a project.
+   *
+   * The score is only recorded when it really moved, and the criteria are
+   * stored as readable before/after labels of the criteria that changed —
+   * never as the raw criterion/value identifier maps, which no one can read.
+   */
+  private async logScoringChange(
+    mg: EntityManager,
+    params: {
+      target: { request_id: string } | { project_id: string };
+      tenantId: string;
+      userId: string | null;
+      before: { priority_score?: unknown; criteria_values?: unknown };
+      after: { priority_score?: unknown; criteria_values?: unknown };
+    },
+  ): Promise<void> {
+    const changedFields: Record<string, [unknown, unknown]> = {};
+    for (const change of detectChanges(
+      params.before as unknown as Record<string, unknown>,
+      params.after as unknown as Record<string, unknown>,
+      SCORE_FIELDS,
+    )) {
+      changedFields[change.field] = [change.before, change.after];
+    }
+
+    const beforeValues = (params.before.criteria_values ?? {}) as CriteriaValuesMap;
+    const afterValues = (params.after.criteria_values ?? {}) as CriteriaValuesMap;
+    if (listChangedCriteria(beforeValues, afterValues).length > 0) {
+      const labels = await this.loadCriteriaLabels(params.tenantId, mg);
+      const diff = formatCriteriaDiff(beforeValues, afterValues, labels);
+      if (diff) changedFields.criteria_values = diff;
+    }
+
+    if (Object.keys(changedFields).length === 0) return;
+
+    await mg.getRepository(PortfolioActivity).save({
+      ...params.target,
+      tenant_id: params.tenantId,
+      author_id: params.userId,
+      type: 'change',
+      changed_fields: changedFields,
+    });
+  }
+
+  /** Criterion names and option labels of the tenant, for scoring diffs. */
+  private async loadCriteriaLabels(tenantId: string, mg: EntityManager): Promise<CriteriaLabelMaps> {
+    const rows = await mg.query<Array<{
+      criterion_id: string;
+      criterion_name: string;
+      value_id: string | null;
+      value_label: string | null;
+    }>>(
+      `SELECT c.id AS criterion_id, c.name AS criterion_name, v.id AS value_id, v.label AS value_label
+       FROM portfolio_criteria c
+       LEFT JOIN portfolio_criterion_values v ON v.criterion_id = c.id
+       WHERE c.tenant_id = $1`,
+      [tenantId],
+    );
+
+    const criterionName = new Map<string, string>();
+    const optionLabel = new Map<string, string>();
+    for (const row of rows) {
+      criterionName.set(row.criterion_id, row.criterion_name);
+      if (row.value_id) optionLabel.set(row.value_id, row.value_label ?? '');
+    }
+    return { criterionName, optionLabel };
   }
 
   /**
@@ -764,17 +849,12 @@ export class PortfolioCriteriaService {
     const saved = await requestRepo.save(request);
 
     const changedFields: Record<string, [unknown, unknown]> = {};
-    if (before.priority_override !== saved.priority_override) {
-      changedFields.priority_override = [before.priority_override, saved.priority_override];
-    }
-    if (before.override_value !== saved.override_value) {
-      changedFields.override_value = [before.override_value, saved.override_value];
-    }
-    if (before.override_justification !== saved.override_justification) {
-      changedFields.override_justification = [before.override_justification, saved.override_justification];
-    }
-    if (before.priority_score !== saved.priority_score) {
-      changedFields.priority_score = [before.priority_score, saved.priority_score];
+    for (const change of detectChanges(
+      before as unknown as Record<string, unknown>,
+      saved as unknown as Record<string, unknown>,
+      OVERRIDE_FIELDS,
+    )) {
+      changedFields[change.field] = [change.before, change.after];
     }
     if (Object.keys(changedFields).length > 0) {
       await mg.getRepository(PortfolioActivity).save({
@@ -941,18 +1021,13 @@ export class PortfolioCriteriaService {
     const saved = await projectRepo.save(project);
 
     // Log scoring change as activity
-    if (before.priority_score !== saved.priority_score) {
-      await mg.getRepository(PortfolioActivity).save({
-        project_id: projectId,
-        tenant_id: tenantId,
-        author_id: userId,
-        type: 'change',
-        changed_fields: {
-          priority_score: [before.priority_score, saved.priority_score],
-          criteria_values: [before.criteria_values, saved.criteria_values],
-        },
-      });
-    }
+    await this.logScoringChange(mg, {
+      target: { project_id: projectId },
+      tenantId,
+      userId,
+      before,
+      after: saved,
+    });
 
     await this.audit.log({
       table: 'portfolio_projects',
@@ -1035,17 +1110,12 @@ export class PortfolioCriteriaService {
     const saved = await projectRepo.save(project);
 
     const changedFields: Record<string, [unknown, unknown]> = {};
-    if (before.priority_override !== saved.priority_override) {
-      changedFields.priority_override = [before.priority_override, saved.priority_override];
-    }
-    if (before.override_value !== saved.override_value) {
-      changedFields.override_value = [before.override_value, saved.override_value];
-    }
-    if (before.override_justification !== saved.override_justification) {
-      changedFields.override_justification = [before.override_justification, saved.override_justification];
-    }
-    if (before.priority_score !== saved.priority_score) {
-      changedFields.priority_score = [before.priority_score, saved.priority_score];
+    for (const change of detectChanges(
+      before as unknown as Record<string, unknown>,
+      saved as unknown as Record<string, unknown>,
+      OVERRIDE_FIELDS,
+    )) {
+      changedFields[change.field] = [change.before, change.after];
     }
     if (Object.keys(changedFields).length > 0) {
       await mg.getRepository(PortfolioActivity).save({

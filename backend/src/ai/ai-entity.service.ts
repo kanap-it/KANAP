@@ -250,6 +250,17 @@ function summarizeActivityChangedFields(changedFields: unknown): string | null {
     }
   }
 
+  // Managed document edit: the activity stores the slot key, not a sentence.
+  const documentUpdate = record.document_updated;
+  if (Array.isArray(documentUpdate) && documentUpdate.length >= 2) {
+    const slotLabel = getIntegratedDocumentSlotLabel(
+      documentUpdate[1] == null ? null : String(documentUpdate[1]),
+    );
+    if (slotLabel) {
+      return `Document updated: ${slotLabel}`;
+    }
+  }
+
   const fieldNames = Object.keys(record)
     .map((field) => formatActivityFieldName(field))
     .filter((field) => field.length > 0);

@@ -24,6 +24,7 @@ import { PortfolioProjectDependency } from './portfolio-project-dependency.entit
 import { PortfolioProject } from './portfolio-project.entity';
 import { PortfolioActivity } from './portfolio-activity.entity';
 import { AuditService } from '../audit/audit.service';
+import { resolveRecordCreators } from '../audit/record-creator.util';
 import { ItemNumberService } from '../common/item-number.service';
 import { StorageService } from '../common/storage/storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -1082,9 +1083,11 @@ export class PortfolioRequestsService {
          LEFT JOIN users u ON u.id = a.author_id
          WHERE a.request_id = $1
            AND a.tenant_id = app_current_tenant()
-         ORDER BY a.created_at DESC`,
+         ORDER BY a.created_at DESC, a.id`,
         [id]
       );
+      const creators = await resolveRecordCreators(mg, 'portfolio_requests', [id]);
+      result.created_by_name = creators.get(id) ?? null;
     }
 
     return result;

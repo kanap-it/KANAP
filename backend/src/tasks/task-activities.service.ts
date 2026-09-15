@@ -16,6 +16,7 @@ export interface TaskActivityItem {
   author_id: string | null;
   first_name: string | null;
   last_name: string | null;
+  email: string | null;
   decision_outcome: string | null;
   changed_fields: Record<string, [unknown, unknown]> | null;
   created_at: Date;
@@ -134,6 +135,7 @@ export class TaskActivitiesService {
       author_id: string | null;
       first_name: string | null;
       last_name: string | null;
+      email: string | null;
       decision_outcome: string | null;
       changed_fields: Record<string, [unknown, unknown]> | null;
       created_at: Date;
@@ -147,6 +149,7 @@ export class TaskActivitiesService {
         a.author_id,
         u.first_name,
         u.last_name,
+        u.email,
         a.decision_outcome,
         a.changed_fields,
         a.created_at,

@@ -11,12 +11,14 @@ import { PortfolioProjectOpex } from '../portfolio-project-opex.entity';
 import { PortfolioProjectDependency } from '../portfolio-project-dependency.entity';
 import { TeamRole } from '../portfolio-request-team.entity';
 import { AuditService } from '../../audit/audit.service';
+import { resolveRecordCreators } from '../../audit/record-creator.util';
 import { ItemNumberService } from '../../common/item-number.service';
 import { PortfolioCriteriaService } from '../portfolio-criteria.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { ShareItemDto } from '../../notifications/dto/share-item.dto';
 import { PortfolioProjectsBaseService, ServiceOpts } from './portfolio-projects-base.service';
 import { computeAutoAllocations } from '../utils/allocation-utils';
+import { formatItemLabel } from '../utils/activity-labels';
 import { detectChanges, PROJECT_TRACKED_FIELDS, resolveDisplayNames } from '../../common/change-detection';
 import { normalizeMarkdownRichText } from '../../common/markdown-rich-text';
 import { IntegratedDocumentsService } from '../../knowledge/integrated-documents.service';
@@ -238,9 +240,11 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
          LEFT JOIN users u ON u.id = a.author_id
          WHERE a.project_id = $1
            AND a.tenant_id = app_current_tenant()
-         ORDER BY a.created_at DESC`,
+         ORDER BY a.created_at DESC, a.id`,
         [id]
       );
+      const creators = await resolveRecordCreators(mg, 'portfolio_projects', [id]);
+      result.created_by_name = creators.get(id) ?? null;
     }
 
     // Load phases
@@ -505,6 +509,17 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     await this.copyCapexFromRequest(requestId, savedProject.id, tenantId, mg);
     await this.copyOpexFromRequest(requestId, savedProject.id, tenantId, mg);
     await this.copyDependenciesFromRequest(requestId, savedProject.id, tenantId, mg);
+
+    // The new project starts with a single history entry: where it came from.
+    await this.logActivity(mg, {
+      project_id: savedProject.id,
+      tenant_id: tenantId,
+      author_id: userId,
+      type: 'change',
+      changed_fields: {
+        created_from_request: [null, formatItemLabel('REQ', request.item_number, request.name)],
+      },
+    });
 
     await this.audit.log({
       table: 'portfolio_projects',
