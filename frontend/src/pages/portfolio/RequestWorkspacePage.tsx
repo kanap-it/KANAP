@@ -37,6 +37,7 @@ import WorkspaceTabLoadingFallback from './workspace/WorkspaceTabLoadingFallback
 import { getRequestWorkspaceInclude } from './workspace/workspace-detail-includes';
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { formatUserName } from '../../utils/userDisplay';
 import { getDotColor, REQUEST_STATUS_COLORS } from '../../utils/statusColors';
 import {
   getDecisionOutcomeLabel,
@@ -901,9 +902,7 @@ export default function RequestWorkspacePage() {
   const latestRecommendationOutcomeColor = latestAnalysisRecommendation?.decision_outcome
     ? (DECISION_OUTCOME_COLORS[latestAnalysisRecommendation.decision_outcome] || 'default')
     : 'default';
-  const latestRecommendationAuthor = [latestAnalysisRecommendation?.first_name, latestAnalysisRecommendation?.last_name]
-    .filter(Boolean)
-    .join(' ')
+  const latestRecommendationAuthor = formatUserName(latestAnalysisRecommendation)
     || t('portfolio:activity.authorUnknown');
   const latestRecommendationCreatedAt = latestAnalysisRecommendation?.created_at
     ? new Date(latestAnalysisRecommendation.created_at).toLocaleString(locale, {
@@ -1120,6 +1119,8 @@ export default function RequestWorkspacePage() {
                 <RequestActivityTab
                   entityId={form?.id || ''}
                   activities={form?.activities || []}
+                  createdAt={form?.created_at || null}
+                  createdByName={form?.created_by_name || null}
                   currentStatus={form?.status || ''}
                   allowedTransitions={ALLOWED_TRANSITIONS[form?.status] || []}
                   statusOptions={statusOptions}

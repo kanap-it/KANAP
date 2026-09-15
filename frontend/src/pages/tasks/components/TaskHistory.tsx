@@ -11,6 +11,8 @@ import { contentToPlainText } from '../../../utils/contentToPlainText';
 import { useLocale } from '../../../i18n/useLocale';
 import { formatShortDate, formatShortDateTime } from '../../../lib/dateFormat';
 import { getPriorityLabel, getTaskStatusLabel } from '../../../utils/portfolioI18n';
+import { formatUserName } from '../../../utils/userDisplay';
+import { buildCreatedEntry, isCreatedEntry } from '../../../utils/activityFeed';
 
 interface Activity {
   id: string;
@@ -20,6 +22,8 @@ interface Activity {
   author_id: string | null;
   first_name: string | null;
   last_name: string | null;
+  full_name?: string | null;
+  email?: string | null;
   created_at: string;
   changed_fields?: Record<string, [unknown, unknown]>;
 }
@@ -27,6 +31,10 @@ interface Activity {
 interface TaskHistoryProps {
   taskId: string;
   projectId?: string;
+  /** Creation timestamp of the task, shown above the change feed. */
+  createdAt?: string | null;
+  /** Creation author (name, or email when the account has no name). */
+  createdByName?: string | null;
 }
 
 const FIELD_LABEL_KEYS: Record<string, string> = {
@@ -63,7 +71,7 @@ const toCommentPreview = (value: string, maxLen = 150): string => {
   return `${text.substring(0, maxLen)}...`;
 };
 
-export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
+export default function TaskHistory({ taskId, projectId, createdAt, createdByName }: TaskHistoryProps) {
   const { t } = useTranslation('portfolio');
   const locale = useLocale();
   const { data: activities = [], isLoading } = useQuery({
@@ -81,6 +89,13 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
     },
     enabled: !!taskId,
   });
+
+  // Creation is appended last (the feed is newest first) and must stay above the
+  // loading return: hooks cannot be called conditionally.
+  const entries: Activity[] = React.useMemo(() => {
+    const created = buildCreatedEntry(createdAt, createdByName);
+    return created ? [...activities, created] : activities;
+  }, [activities, createdAt, createdByName]);
 
   const formatTime = (dateStr: string) => formatShortDateTime(dateStr, locale);
 
@@ -151,17 +166,14 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
     return <Typography color="text.secondary">{t('portfolio:activity.messages.loadingHistory')}</Typography>;
   }
 
-  if (activities.length === 0) {
-    return (
-      <Typography color="text.secondary" variant="body2">
-        {t('portfolio:activity.messages.noHistory')}
-      </Typography>
-    );
-  }
-
   return (
     <Stack spacing={1}>
-      {activities.map((activity) => (
+      {entries.length === 0 ? (
+        <Typography color="text.secondary" variant="body2">
+          {t('portfolio:activity.messages.noHistory')}
+        </Typography>
+      ) : (
+        entries.map((activity) => (
         <Box
           key={activity.id}
           sx={{
@@ -174,17 +186,21 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
             <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem' }}>
-              {activity.type === 'comment'
+              {isCreatedEntry(activity)
+                ? t('portfolio:activity.labels.created')
+                : activity.type === 'comment'
                 ? t('activity.labels.comment')
                 : activity.type === 'change'
                 ? t('activity.labels.change')
                 : t('activity.labels.decision')}
             </Box>
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              {getActivityDescription(activity)}
-            </Typography>
+            {!isCreatedEntry(activity) && (
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {getActivityDescription(activity)}
+              </Typography>
+            )}
             <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-              {`${activity.first_name || ''} ${activity.last_name || ''}`.trim() || t('activity.authorUnknown')} • {formatTime(activity.created_at)}
+              {formatUserName(activity) || t('activity.authorUnknown')} • {formatTime(activity.created_at)}
             </Typography>
           </Stack>
           {activity.type === 'comment' && activity.content && (
@@ -203,7 +219,8 @@ export default function TaskHistory({ taskId, projectId }: TaskHistoryProps) {
             </Typography>
           )}
         </Box>
-      ))}
+        ))
+      )}
     </Stack>
   );
 }

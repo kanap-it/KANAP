@@ -77,7 +77,8 @@ describe('AdminIntegrationsPage', () => {
     renderPage();
 
     expect(await screen.findByText('Integrations')).toBeInTheDocument();
-    expect(await screen.findByText('GLPI Integration')).toBeInTheDocument();
+    // Sentence case, matching the aiAdmin.glpi.title copy (#125).
+    expect(await screen.findByText('GLPI integration')).toBeInTheDocument();
     expect(await screen.findByText('Enable GLPI ticket import')).toBeInTheDocument();
     expect(await screen.findAllByText('Test connection')).toHaveLength(1);
   });

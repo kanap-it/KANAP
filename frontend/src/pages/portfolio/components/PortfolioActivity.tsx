@@ -31,6 +31,8 @@ interface PortfolioActivityProps {
   entityType: 'request' | 'project';
   entityId: string;
   activities: Activity[];
+  createdAt?: string | null;
+  createdByName?: string | null;
   currentStatus: string;
   allowedTransitions: string[];
   statusOptions: Array<{ value: string; label: string }>;
@@ -52,6 +54,8 @@ export default function PortfolioActivity({
   entityType,
   entityId,
   activities,
+  createdAt,
+  createdByName,
   currentStatus,
   allowedTransitions,
   statusOptions,
@@ -117,6 +121,8 @@ export default function PortfolioActivity({
           <PortfolioHistory
             entityType={entityType}
             activities={activities}
+            createdAt={createdAt}
+            createdByName={createdByName}
           />
         )}
       </Box>

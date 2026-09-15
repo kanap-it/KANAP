@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { MarkdownContent } from '../../../components/MarkdownContent';
 import { useLocale } from '../../../i18n/useLocale';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
+import { formatUserName, getUserInitials } from '../../../utils/userDisplay';
 import {
   formatRelativeTime,
   getDecisionOutcomeLabel,
@@ -47,6 +48,7 @@ interface Activity {
   author_id: string | null;
   first_name: string | null;
   last_name: string | null;
+  email?: string | null;
   created_at: string;
   updated_at?: string | null;
 }
@@ -199,11 +201,8 @@ export default function PortfolioComments({
     );
   };
 
-  const getInitials = (firstName: string | null, lastName: string | null) => {
-    const f = firstName?.[0]?.toUpperCase() || '';
-    const l = lastName?.[0]?.toUpperCase() || '';
-    return f + l || '?';
-  };
+  const authorLabel = (activity: Activity) =>
+    formatUserName(activity) || t('portfolio:activity.authorUnknown');
 
   return (
     <Stack spacing={3}>
@@ -397,7 +396,7 @@ export default function PortfolioComments({
                       a.type === 'decision' ? 'warning.main' : 'primary.main',
                   }}
                 >
-                  {getInitials(a.first_name, a.last_name)}
+                  {getUserInitials(a)}
                 </Avatar>
                 <Box sx={{ flex: 1 }}>
                   <Stack
@@ -417,7 +416,7 @@ export default function PortfolioComments({
                       </Typography>
                     )}
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {`${a.first_name || ''} ${a.last_name || ''}`.trim() || t('portfolio:activity.authorUnknown')}
+                      {authorLabel(a)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       {formatRelativeTime(t, a.created_at, locale)}

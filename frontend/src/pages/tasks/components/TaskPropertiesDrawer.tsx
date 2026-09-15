@@ -19,6 +19,7 @@ import { drawerMenuItemSx, drawerSelectSx, selectPlaceholderSx, tealLinkSx } fro
 import DrawerKnowledgeSection from './DrawerKnowledgeSection';
 import TaskLogTimeDialog from './TaskLogTimeDialog';
 import { taskDetailTokens, taskDetailTypography } from '../theme/taskDetailTokens';
+import { getInitials } from '../../../utils/userDisplay';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -92,12 +93,6 @@ function selectPlaceholder(text: string) {
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
-
-function getInitials(name: string | null): string {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  return (parts[0]?.[0] ?? '').toUpperCase() + (parts[1]?.[0] ?? '').toUpperCase() || '?';
-}
 
 function formatHours(t: any, hours: number) {
   const days = Math.floor(hours / 8);

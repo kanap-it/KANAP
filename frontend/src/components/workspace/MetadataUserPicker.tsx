@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import { taskDetailAvatarSizes, taskDetailTypography, metaItemSx, metaLabelSx } from '../../pages/tasks/theme/taskDetailTokens';
+import { formatUserName, getInitials } from '../../utils/userDisplay';
 
 export type MetadataUserOption = {
   id: string;
@@ -41,19 +42,7 @@ type MetadataUserPickerProps = {
 };
 
 export function formatMetadataUserName(user: MetadataUserOption | null | undefined): string | null {
-  if (!user) return null;
-  const fullName = String(user.full_name || '').trim();
-  if (fullName) return fullName;
-  const firstName = String(user.first_name || '').trim();
-  const lastName = String(user.last_name || '').trim();
-  const name = [firstName, lastName].filter(Boolean).join(' ').trim();
-  return name || null;
-}
-
-function getInitials(name: string | null): string {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
+  return formatUserName(user);
 }
 
 function sortUserKey(user: MetadataUserOption): string {

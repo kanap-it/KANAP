@@ -20,6 +20,7 @@ import { useTenant } from '../../../tenant/TenantContext';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 import { buildInlineImageUrl, resolveInlineImageTenantSlug } from '../../../utils/inlineImageUrls';
 import { formatRelativeTime } from '../../../utils/portfolioI18n';
+import { formatUserName, getUserInitials } from '../../../utils/userDisplay';
 import UnifiedActivityForm from './UnifiedActivityForm';
 import type { TaskStatus } from '../task.constants';
 
@@ -33,6 +34,7 @@ interface Activity {
   author_id: string | null;
   first_name: string | null;
   last_name: string | null;
+  email?: string | null;
   created_at: string;
   updated_at?: string | null;
   changed_fields?: Record<string, [unknown, unknown]>;
@@ -153,11 +155,8 @@ export default function TaskComments({
     );
   };
 
-  const getInitials = (firstName: string | null, lastName: string | null) => {
-    const f = firstName?.[0]?.toUpperCase() || '';
-    const l = lastName?.[0]?.toUpperCase() || '';
-    return f + l || '?';
-  };
+  const authorLabel = (activity: Activity) =>
+    formatUserName(activity) || t('portfolio:activity.authorUnknown');
 
   return (
     <Stack spacing={2}>
@@ -203,12 +202,12 @@ export default function TaskComments({
             sx={{ display: 'flex', gap: '12px' }}
           >
             <Avatar sx={{ width: 26, height: 26, fontSize: '10px', fontWeight: 500, bgcolor: 'primary.main', flexShrink: 0 }}>
-              {getInitials(comment.first_name, comment.last_name)}
+              {getUserInitials(comment)}
             </Avatar>
             <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Stack direction="row" spacing={1} alignItems="baseline">
                   <Typography sx={{ fontSize: '13px', fontWeight: 500 }}>
-                    {`${comment.first_name || ''} ${comment.last_name || ''}`.trim() || t('portfolio:activity.authorUnknown')}
+                    {authorLabel(comment)}
                   </Typography>
                   <Typography sx={{ fontSize: '11px', color: 'text.secondary' }}>
                     {formatRelativeTime(t, comment.created_at, locale)}

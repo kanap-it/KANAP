@@ -17,6 +17,10 @@ type ActivityTab = 'comments' | 'history' | 'worklog';
 interface TaskActivityProps {
   taskId: string;
   projectId?: string;
+  /** Creation timestamp of the task, forwarded to the History tab. */
+  createdAt?: string | null;
+  /** Creation author (name, or email when the account has no name). */
+  createdByName?: string | null;
   readOnly?: boolean;
   relatedObjectType?: string;
   currentStatus: TaskStatus;
@@ -31,6 +35,8 @@ const TIME_LOGGING_EXCLUDED_TYPES = ['contract', 'spend_item', 'capex_item'];
 export default function TaskActivity({
   taskId,
   projectId,
+  createdAt,
+  createdByName,
   readOnly = false,
   relatedObjectType,
   currentStatus,
@@ -90,7 +96,12 @@ export default function TaskActivity({
           />
         )}
         {activeTab === 'history' && (
-          <TaskHistory taskId={taskId} projectId={projectId} />
+          <TaskHistory
+            taskId={taskId}
+            projectId={projectId}
+            createdAt={createdAt}
+            createdByName={createdByName}
+          />
         )}
         {activeTab === 'worklog' && supportsTimeLogging && (
           <TaskWorkLog taskId={taskId} projectId={projectId} readOnly={readOnly} relatedObjectType={relatedObjectType} />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Avatar, Box, Stack, Tooltip, Typography } from '@mui/material';
 import { ICellRendererParams } from 'ag-grid-community';
+import { getInitials } from '../../../utils/userDisplay';
 
 /**
  * User data structure
@@ -34,17 +35,6 @@ export interface UserCellRendererProps<T = unknown> extends ICellRendererParams<
   onClick?: (data: T, user: UserData | null) => void;
   /** Text to show when user is null/undefined */
   emptyText?: string;
-}
-
-/**
- * Get initials from a name
- */
-function getInitials(name: string | null | undefined): string {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
 /**

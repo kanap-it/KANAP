@@ -12,6 +12,8 @@ import {
 } from '../../../utils/portfolioI18n';
 import { useLocale } from '../../../i18n/useLocale';
 import { formatShortDate, formatShortDateTime } from '../../../lib/dateFormat';
+import { formatUserName } from '../../../utils/userDisplay';
+import { buildCreatedEntry, isCreatedEntry } from '../../../utils/activityFeed';
 
 interface Activity {
   id: string;
@@ -23,12 +25,18 @@ interface Activity {
   author_id: string | null;
   first_name: string | null;
   last_name: string | null;
+  full_name?: string | null;
+  email?: string | null;
   created_at: string;
 }
 
 interface PortfolioHistoryProps {
   entityType: 'request' | 'project';
   activities: Activity[];
+  /** Creation timestamp of the entity, shown above the change feed. */
+  createdAt?: string | null;
+  /** Creation author (name, or email when the account has no name). */
+  createdByName?: string | null;
 }
 
 // Labels for common field names
@@ -73,6 +81,9 @@ const FIELD_LABEL_KEYS: Record<string, string> = {
   phase: 'phase',
   task_created: 'taskCreated',
   created_from_task: 'createdFromTask',
+  created_from_request: 'createdFromRequest',
+  criteria_values: 'criteriaValues',
+  scheduling_mode: 'schedulingMode',
   converted_to_request: 'convertedToRequest',
   it_effort_allocation_mode: 'itEffortAllocationMode',
   business_effort_allocation_mode: 'businessEffortAllocationMode',
@@ -84,6 +95,39 @@ const humanize = (field: string) =>
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (s) => s.toUpperCase());
 
+type ChangeEntries = Array<[string, [unknown, unknown]]>;
+
+const isPlainObject = (value: unknown): boolean =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * Rows written before scoring diffs became readable stored the raw
+ * criterion/value identifier maps, which cannot be rendered. They are dropped
+ * from the line, which keeps the score change it was logged with.
+ */
+const visibleChangeEntries = (changedFields: Record<string, [unknown, unknown]>): ChangeEntries =>
+  (Object.entries(changedFields) as ChangeEntries).filter(
+    ([field, [oldVal, newVal]]) =>
+      !(field === 'criteria_values' && (isPlainObject(oldVal) || isPlainObject(newVal))),
+  );
+
+const DOCUMENT_SLOTS: Record<string, 'purpose' | 'risks'> = {
+  purpose: 'purpose',
+  risks_mitigations: 'risks',
+};
+
+/** Rows written before the slot key was stored carry a rendered sentence. */
+const LEGACY_DOCUMENT_UPDATES: Record<string, 'purpose' | 'risks'> = {
+  'Purpose updated': 'purpose',
+  'Risks & Mitigations updated': 'risks',
+};
+
+const getDocumentUpdateField = (activity: { content: string | null; changed_fields?: Record<string, [unknown, unknown]> }): 'purpose' | 'risks' | null => {
+  const slot = activity.changed_fields?.document_updated?.[1];
+  if (typeof slot === 'string' && DOCUMENT_SLOTS[slot]) return DOCUMENT_SLOTS[slot];
+  return LEGACY_DOCUMENT_UPDATES[String(activity.content || '').trim()] ?? null;
+};
+
 const toCommentPreview = (value: string, maxLen = 180): string => {
   const text = contentToPlainText(value);
   if (!text) return '';
@@ -94,6 +138,8 @@ const toCommentPreview = (value: string, maxLen = 180): string => {
 export default function PortfolioHistory({
   entityType,
   activities,
+  createdAt,
+  createdByName,
 }: PortfolioHistoryProps) {
   const { t } = useTranslation('portfolio');
   const locale = useLocale();
@@ -187,8 +233,15 @@ export default function PortfolioHistory({
         ? t('activity.history.actions.decisionWithOutcome', { outcome: outcomeLabel })
         : t('activity.labels.decision');
     }
-    if (activity.type === 'change' && activity.changed_fields) {
-      const entries = Object.entries(activity.changed_fields);
+    if (activity.type === 'change') {
+      const documentField = getDocumentUpdateField(activity);
+      if (documentField) {
+        return t('activity.history.actions.updatedDocument', {
+          document: t(`activity.history.fields.${documentField}`),
+        });
+      }
+
+      const entries = activity.changed_fields ? visibleChangeEntries(activity.changed_fields) : [];
       if (entries.length === 1) {
         const [field, [oldVal, newVal]] = entries[0];
         const fieldLabel = formatFieldLabel(field);
@@ -210,28 +263,35 @@ export default function PortfolioHistory({
           to: formatFieldValue(field, newVal),
         });
       }
-      return t('activity.history.actions.updatedMultiple', {
-        changes: entries.map(([field, [oldVal, newVal]]) => {
-        const label = formatFieldLabel(field);
-        if ((oldVal === null || oldVal === undefined) && (newVal !== null && newVal !== undefined)) {
-          return t('activity.history.actions.addedField', {
-            field: label,
-            value: formatFieldValue(field, newVal),
-          });
-        }
-        if ((oldVal !== null && oldVal !== undefined) && (newVal === null || newVal === undefined)) {
-          return t('activity.history.actions.removedField', {
-            field: label,
-            value: formatFieldValue(field, oldVal),
-          });
-        }
-        return t('activity.history.actions.changedField', {
-          field: label,
-          from: formatFieldValue(field, oldVal),
-          to: formatFieldValue(field, newVal),
+      if (entries.length > 1) {
+        return t('activity.history.actions.updatedMultiple', {
+          changes: entries.map(([field, [oldVal, newVal]]) => {
+            const label = formatFieldLabel(field);
+            if ((oldVal === null || oldVal === undefined) && (newVal !== null && newVal !== undefined)) {
+              return t('activity.history.actions.addedField', {
+                field: label,
+                value: formatFieldValue(field, newVal),
+              });
+            }
+            if ((oldVal !== null && oldVal !== undefined) && (newVal === null || newVal === undefined)) {
+              return t('activity.history.actions.removedField', {
+                field: label,
+                value: formatFieldValue(field, oldVal),
+              });
+            }
+            return t('activity.history.actions.changedField', {
+              field: label,
+              from: formatFieldValue(field, oldVal),
+              to: formatFieldValue(field, newVal),
+            });
+          }).join(' | '),
         });
-      }).join(' | '),
-      });
+      }
+
+      // A change row without a readable diff still tells what happened rather
+      // than showing an empty "activity recorded" line.
+      const fallback = String(activity.content || '').trim();
+      return fallback || t('activity.history.actions.recorded');
     }
     return t('activity.history.actions.recorded');
   };
@@ -249,17 +309,21 @@ export default function PortfolioHistory({
     }
   };
 
-  if (activities.length === 0) {
-    return (
-      <Typography color="text.secondary" variant="body2">
-        {t('activity.messages.noHistory')}
-      </Typography>
-    );
-  }
+  // Creation is appended last (the feed is newest first) and renders exactly like
+  // the other entries, timestamp included.
+  const entries: Activity[] = React.useMemo(() => {
+    const created = buildCreatedEntry(createdAt, createdByName);
+    return created ? [...activities, created] : activities;
+  }, [activities, createdAt, createdByName]);
 
   return (
     <Stack spacing={1}>
-      {activities.map((activity) => (
+      {entries.length === 0 ? (
+        <Typography color="text.secondary" variant="body2">
+          {t('activity.messages.noHistory')}
+        </Typography>
+      ) : (
+        entries.map((activity) => (
         <Box
           key={activity.id}
           sx={{
@@ -272,17 +336,21 @@ export default function PortfolioHistory({
         >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
             <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-              {activity.type === 'comment'
+              {isCreatedEntry(activity)
+                ? t('activity.labels.created')
+                : activity.type === 'comment'
                 ? t('activity.labels.comment')
                 : activity.type === 'change'
                 ? t('activity.labels.change')
                 : t('activity.labels.decision')}
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              {getActivityDescription(activity)}
-            </Typography>
+            {!isCreatedEntry(activity) && (
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {getActivityDescription(activity)}
+              </Typography>
+            )}
             <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-              {`${activity.first_name || ''} ${activity.last_name || ''}`.trim() || t('activity.authorUnknown')} &bull;{' '}
+              {formatUserName(activity) || t('activity.authorUnknown')} &bull;{' '}
               {formatTime(activity.created_at)}
             </Typography>
           </Stack>
@@ -311,7 +379,8 @@ export default function PortfolioHistory({
             </Typography>
           )}
         </Box>
-      ))}
+        ))
+      )}
     </Stack>
   );
 }

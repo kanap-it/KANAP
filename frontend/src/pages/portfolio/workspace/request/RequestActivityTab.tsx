@@ -4,6 +4,8 @@ import PortfolioActivity from '../../components/PortfolioActivity';
 type RequestActivityTabProps = {
   activities: any[];
   allowedTransitions: string[];
+  createdAt?: string | null;
+  createdByName?: string | null;
   currentStatus: string;
   currentUserId?: string | null;
   entityId: string;
@@ -24,6 +26,8 @@ type RequestActivityTabProps = {
 export default function RequestActivityTab({
   activities,
   allowedTransitions,
+  createdAt,
+  createdByName,
   currentStatus,
   currentUserId,
   entityId,
@@ -39,6 +43,8 @@ export default function RequestActivityTab({
       entityType="request"
       entityId={entityId}
       activities={activities}
+      createdAt={createdAt}
+      createdByName={createdByName}
       currentStatus={currentStatus}
       allowedTransitions={allowedTransitions}
       statusOptions={statusOptions}
