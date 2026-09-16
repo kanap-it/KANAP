@@ -38,9 +38,10 @@ function validateStartupEnv() {
 }
 
 /**
- * Token families sign with their own key: `PASSWORD_RESET_SECRET` / `PROVISIONING_TOKEN_SECRET` /
- * `ENTRA_STATE_SECRET` when configured, otherwise a key derived from `JWT_SECRET` with a versioned
- * label. Report where each key comes from (never a value) and where the access-token
+ * Token families sign with their own key: `PASSWORD_RESET_SECRET` / `ENTRA_STATE_SECRET` when
+ * configured, otherwise a key derived from `JWT_SECRET` with a versioned label. Provisioning keeps
+ * `JWT_SECRET` until `PROVISIONING_TOKEN_SECRET` is set, because its issuer is outside this
+ * repository. Report where each key comes from (never a value) and where the access-token
  * compatibility window stands.
  */
 function logTokenSecretPolicy() {

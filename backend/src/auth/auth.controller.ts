@@ -216,8 +216,10 @@ export class AuthController {
   async exchangeProvisioningToken(@Body() body: { token?: string }) {
     const t = body?.token;
     if (!t) throw new BadRequestException({ code: 'TOKEN_REQUIRED', message: 'token is required' });
-    // Dedicated `PROVISIONING_TOKEN_SECRET` when configured, otherwise the derived
-    // `kanap:v1:provisioning` key. Never the shared access-token secret (constat n°2).
+    // Dedicated `PROVISIONING_TOKEN_SECRET` when configured, otherwise `JWT_SECRET` — the issuer
+    // lives outside this repository and cannot compute a derived key. Sharing the key is safe
+    // because `JwtAuthGuard` refuses the `provision` marker; what made it dangerous was the missing
+    // purpose control (constat n°2).
     const secret = getProvisioningSecret();
     let payload: any;
     try {
