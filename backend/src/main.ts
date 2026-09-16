@@ -19,6 +19,9 @@ import { TenantInitGuard } from './common/tenant-init.guard';
 import { HttpAdapterHost, Reflector } from '@nestjs/core';
 import { ReleaseTenantRunnerFilter } from './common/filters/release-tenant-runner.filter';
 import { isProductionEnv, parseBoolean, parseCorsPatterns, matchesCorsOrigin, requireAppBaseUrl, requireEnv } from './common/env';
+import { describeTokenPurposePolicy } from './auth/access-token.util';
+import { describeSecretPolicy } from './auth/token-secret.util';
+import { PROCESS_STARTED_AT } from './common/process-start';
 import { shouldTrustProxyForRateLimit } from './common/rate-limit';
 import { Features } from './config/features';
 import { TenantsService } from './tenants/tenants.service';
@@ -31,6 +34,28 @@ function validateStartupEnv() {
   requireEnv('JWT_SECRET');
   if (isProductionEnv()) {
     requireAppBaseUrl();
+  }
+}
+
+/**
+ * Token families sign with their own key: `PASSWORD_RESET_SECRET` / `PROVISIONING_TOKEN_SECRET` /
+ * `ENTRA_STATE_SECRET` when configured, otherwise a key derived from `JWT_SECRET` with a versioned
+ * label. Report where each key comes from (never a value) and where the access-token
+ * compatibility window stands.
+ */
+function logTokenSecretPolicy() {
+  try {
+    const entries = describeSecretPolicy();
+    const families = entries.map((entry) => `${entry.family}=${entry.source}`).join(' ');
+    // eslint-disable-next-line no-console
+    console.log(`[SECRETS] token families: ${families} (environment variables: ${entries.map((e) => e.envVar).join(', ')})`);
+    const purpose = describeTokenPurposePolicy(process.env, PROCESS_STARTED_AT, PROCESS_STARTED_AT);
+    // eslint-disable-next-line no-console
+    (purpose.level === 'warn' ? console.warn : console.log)(`[SECRETS] ${purpose.message}`);
+  } catch (err: any) {
+    // Never block start-up on this line: the access-token policy itself logs its own warnings.
+    // eslint-disable-next-line no-console
+    console.warn(`[SECRETS] unable to report token secret policy: ${err?.message || String(err)}`);
   }
 }
 
@@ -54,6 +79,7 @@ async function ensurePrimaryUserRole(manager: EntityManager, user: User, role: R
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   validateStartupEnv();
+  logTokenSecretPolicy();
   const reflector = app.get(Reflector);
   if (shouldTrustProxyForRateLimit()) {
     const expressApp = app.getHttpAdapter().getInstance();

@@ -198,6 +198,48 @@ Required at startup (enforced by `validateStartupEnv()`):
 
 Fail fast with a clear error if missing.
 
+## Token Family Secrets and Purpose Typing
+
+Every token this application signs is typed and signed per family. The policy is identical in both
+deployment modes, and applies to agents that build external integrations (the cloud provisioning
+service reads the same rules).
+
+| Family | Marker | Key | Verifier |
+|--------|--------|-----|----------|
+| Access token | `purpose: 'access'` | `JWT_SECRET` | `JwtAuthGuard` |
+| Password-reset link | `purpose: 'kanap:v1:password-reset'` | `PASSWORD_RESET_SECRET`, else derived | `AuthService.resetPasswordWithToken` |
+| Provisioning exchange | `purpose: 'kanap:v1:provisioning'` | `PROVISIONING_TOKEN_SECRET`, else derived | `AuthController.exchangeProvisioningToken` |
+| Entra SSO state | `purpose: 'kanap:v1:entra-state'` | `ENTRA_STATE_SECRET`, else derived | `EntraAuthService.verifyState` |
+| Entra login handoff | `type: 'entra_login_handoff'` | idem SSO state | `EntraAuthService.verifyLoginHandoff` |
+
+Rules:
+
+- A family with a configured key uses **only** that key — never a retry with `JWT_SECRET` after a
+  failure. Without its own variable, a family derives a key from `JWT_SECRET` through HMAC-SHA256
+  with a stable, versioned label (`kanap:v1:<family>`, `token-secret.util.ts`). The label version is
+  a contract: bumping it rotates that family's key material.
+- `JwtAuthGuard` accepts only access tokens (RFC 8725 §3.12, "Use Explicit Typing"). Signature and
+  tenant checks alone would accept any family, since all of them carry a valid `sub`/`tenant_id`.
+  `purpose` is tested explicitly: `null`, `''`, a number, an object, another family's marker and the
+  handoff's `type` are all rejected. A marker-less payload is accepted **only** during the
+  compatibility window, and only if it is shaped like the access tokens the previous build issued
+  (non-empty `sub`); a pre-fix SSO state (`mode`/`nonce`, no `sub`) is therefore refused from day one.
+- Start-up reports where each family key comes from, plus the access-token compatibility window
+  (`[SECRETS]` lines in `main.ts`). The window line is informational when the cut-over is pinned
+  explicitly, and a warning when it needs an operator decision: deadline unparseable or already
+  past, or no deadline configured (the derived window then renews with every restart).
+- **Upgrade impact (both modes, once):**
+  - Password-reset links and Entra SSO states minted before the upgrade stop verifying, because
+    their family key changes even when no dedicated variable is configured.
+  - The provisioning marker changes from `provision` to `kanap:v1:provisioning` **and** its key
+    changes: every provisioning exchange fails until the minting service (outside this repository)
+    is redeployed with the new marker and key. Treat that as a lockstep deploy, not a rolling one.
+  - Untyped access tokens stop being accepted at `JWT_LEGACY_ACCESS_TOKEN_DEADLINE`, which must be
+    an explicit future instant. In the web UI this costs one extra round trip (a 401 triggers
+    `/auth/refresh`, and refresh tokens are unaffected); only clients holding a stale `Bearer` token
+    of their own break. Announce both effects before deploying, then pin the deadline once every
+    instance runs the new build.
+
 ---
 
 ## Feature Gate Inventory

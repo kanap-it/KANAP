@@ -5,39 +5,31 @@ import { UsersService } from '../users/users.service';
 import * as argon2 from 'argon2';
 import * as jwt from 'jsonwebtoken';
 import * as crypto from 'crypto';
-import { createPasswordResetToken as buildPasswordResetToken, getPasswordResetExpirationMinutes, getPasswordResetSecret } from './password-reset.util';
+import { createPasswordResetToken as buildPasswordResetToken, getPasswordResetExpirationMinutes } from './password-reset.util';
+import { ACCESS_TOKEN_PURPOSE, PASSWORD_RESET_PURPOSE } from './access-token.util';
+import { getPasswordResetSecret } from './token-secret.util';
+import {
+  DEFAULT_ACCESS_TOKEN_TTL,
+  DEFAULT_REFRESH_TOKEN_TTL,
+  parseDurationMs,
+  parseDurationSec,
+} from './token-ttl.util';
 import { RefreshToken } from './refresh-token.entity';
 import { PasswordResetToken } from './password-reset-token.entity';
 import { requireJwtSecret } from '../common/env';
-
-// Default token TTLs
-const DEFAULT_ACCESS_TOKEN_TTL = '15m';
-const DEFAULT_REFRESH_TOKEN_TTL = '4h';
-
-function parseDurationMs(duration: string): number {
-  const match = duration.match(/^(\d+)(s|m|h|d)$/);
-  if (!match) return 15 * 60 * 1000; // default 15 minutes
-  const value = parseInt(match[1], 10);
-  const unit = match[2];
-  switch (unit) {
-    case 's': return value * 1000;
-    case 'm': return value * 60 * 1000;
-    case 'h': return value * 60 * 60 * 1000;
-    case 'd': return value * 24 * 60 * 60 * 1000;
-    default: return 15 * 60 * 1000;
-  }
-}
-
-function parseDurationSec(duration: string): number {
-  return Math.floor(parseDurationMs(duration) / 1000);
-}
 
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-function buildAccessTokenPayload(user: { id: string; email: string; role?: any; tenant_id?: string | null }) {
+/**
+ * Access-token claims. `purpose` is the explicit type marker `JwtAuthGuard` requires since the
+ * constat n°2 fix (RFC 8725 §3.12): without it, any other family signed by this application —
+ * a password-reset link above all — verifies as a valid access token.
+ */
+export function buildAccessTokenPayload(user: { id: string; email: string; role?: any; tenant_id?: string | null }) {
   return {
+    purpose: ACCESS_TOKEN_PURPOSE,
     sub: user.id,
     email: user.email,
     role: user.role,
@@ -266,7 +258,7 @@ export class AuthService {
     } catch {
       throw new BadRequestException('invalid or expired token');
     }
-    if (!payload || payload.purpose !== 'password-reset' || !payload.sub || !payload.jti) {
+    if (!payload || payload.purpose !== PASSWORD_RESET_PURPOSE || typeof payload.sub !== 'string' || typeof payload.jti !== 'string') {
       throw new BadRequestException('invalid token payload');
     }
     const resetRepo = opts?.manager ? opts.manager.getRepository(PasswordResetToken) : this.passwordResetTokenRepo;

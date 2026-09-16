@@ -5,11 +5,13 @@ import { randomBytes, createPublicKey, KeyObject } from 'crypto';
 import * as https from 'https';
 import { DirectoryProfile } from './entra-directory-sync.util';
 import { URL, URLSearchParams } from 'url';
-import { requireJwtSecret } from '../common/env';
+import { ENTRA_LOGIN_HANDOFF_TYPE, ENTRA_STATE_PURPOSE } from './access-token.util';
+import { getEntraStateSecret } from './token-secret.util';
 
 type EntraMode = 'setup' | 'login';
 
 type EntraState = {
+  purpose: typeof ENTRA_STATE_PURPOSE;
   mode: EntraMode;
   tenantId: string;
   redirectTo?: string;
@@ -17,7 +19,7 @@ type EntraState = {
 };
 
 type EntraLoginHandoff = {
-  type: 'entra_login_handoff';
+  type: typeof ENTRA_LOGIN_HANDOFF_TYPE;
   tenantId: string;
   userId: string;
   redirectTo?: string;
@@ -65,7 +67,9 @@ export class EntraAuthService {
   private jwksPromise: Promise<JwksResponse> | null = null;
 
   constructor(private readonly config: ConfigService) {
-    this.stateSecret = process.env.ENTRA_STATE_SECRET || requireJwtSecret();
+    // Dedicated `ENTRA_STATE_SECRET` when configured, otherwise the derived
+    // `kanap:v1:entra-state` key. Never the shared access-token secret (constat n°2).
+    this.stateSecret = getEntraStateSecret();
   }
 
   private getClientId(): string {
@@ -259,7 +263,9 @@ export class EntraAuthService {
   private verifyState(token: string): EntraState {
     try {
       const decoded = jwt.verify(token, this.stateSecret) as EntraState;
-      if (!decoded || !decoded.mode || !decoded.tenantId || !decoded.nonce) {
+      // Explicit typing (RFC 8725 §3.12): an SSO state must be an SSO state, not merely a token
+      // this application can verify.
+      if (!decoded || decoded.purpose !== ENTRA_STATE_PURPOSE || !decoded.mode || !decoded.tenantId || !decoded.nonce) {
         throw new Error('invalid payload');
       }
       return decoded;
@@ -273,7 +279,7 @@ export class EntraAuthService {
     try {
       return jwt.sign(
         {
-          type: 'entra_login_handoff',
+          type: ENTRA_LOGIN_HANDOFF_TYPE,
           tenantId: payload.tenantId,
           userId: payload.userId,
           redirectTo: payload.redirectTo ?? '/',
@@ -292,7 +298,7 @@ export class EntraAuthService {
       const decoded = jwt.verify(token, this.stateSecret) as EntraLoginHandoff;
       if (
         !decoded
-        || decoded.type !== 'entra_login_handoff'
+        || decoded.type !== ENTRA_LOGIN_HANDOFF_TYPE
         || !decoded.tenantId
         || !decoded.userId
       ) {
@@ -313,6 +319,7 @@ export class EntraAuthService {
 
     const nonce = randomBytes(16).toString('hex');
     const state = this.signState({
+      purpose: ENTRA_STATE_PURPOSE,
       mode: params.mode,
       tenantId: params.tenantId,
       redirectTo: params.redirectTo ?? '/',
