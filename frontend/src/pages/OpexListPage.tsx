@@ -139,6 +139,18 @@ export default function OpexListPage() {
   const [selectedRows, setSelectedRows] = useState<SummaryRow[]>([]);
   const lastQueryRef = useRef<{ sort: string; q: string; filters: any; filtersString: string; statusScope?: StatusScope } | null>(null);
   const storedContextRef = useRef(readStoredOpexListContext());
+
+  const initialGridState = useMemo(() => {
+    const raw = new URLSearchParams(window.location.search).get('filters') || storedContextRef.current?.filters || '';
+    if (!raw) return undefined;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {
+        return { filter: { filterModel: parsed } };
+      }
+    } catch {}
+    return undefined;
+  }, []);
   const [pinnedTotals, setPinnedTotals] = useState<any[]>([]);
 
   useEffect(() => {
@@ -861,6 +873,7 @@ export default function OpexListPage() {
         extraParams={{ years: [Y - 1, Y, Y + 1, Y + 2].join(',') }}
         statusScopeConfig={{ defaultScope: 'enabled' }}
         columnPreferencesKey="opex-summary"
+        initialState={initialGridState}
         refreshKey={refreshKey}
         onGridApiReady={(gridApi) => { gridApiRef.current = gridApi; }}
         onQueryStateChange={(state) => {

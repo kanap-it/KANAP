@@ -103,6 +103,18 @@ export default function CapexPage() {
   const gridApiRef = useRef<any>(null);
   const storedContextRef = useRef(readStoredCapexListContext());
 
+  const initialGridState = useMemo(() => {
+    const raw = new URLSearchParams(window.location.search).get('filters') || storedContextRef.current?.filters || '';
+    if (!raw) return undefined;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {
+        return { filter: { filterModel: parsed } };
+      }
+    } catch {}
+    return undefined;
+  }, []);
+
   const getCapexFilterValues = useCallback((field: string, opts?: { emptyLabel?: string; labelMap?: Record<string, string> }) => {
     const emptyLabel = opts?.emptyLabel ?? t('shared.blank');
     const labelMap = opts?.labelMap;
@@ -694,6 +706,7 @@ export default function CapexPage() {
         extraParams={{ years: [Y - 1, Y, Y + 1, Y + 2].join(',') }}
         statusScopeConfig={{ defaultScope: 'enabled' }}
         columnPreferencesKey="capex-summary"
+        initialState={initialGridState}
         refreshKey={refreshKey}
         onGridApiReady={(gridApi) => { gridApiRef.current = gridApi; }}
         onQueryStateChange={(state) => {
