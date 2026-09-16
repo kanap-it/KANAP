@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { Brackets } from 'typeorm';
 import { buildStatusWhereFragment, applyStatusFilter } from '../status-filter';
 import { StatusState } from '../status';
 
@@ -54,10 +55,17 @@ async function testPeriodStartPreferredOverAsOfWhenNeutral() {
 }
 
 async function testApplyStatusFilterAddsClause() {
+  // applyStatusFilter wraps the fragment in a Brackets; unwrap it the way TypeORM would.
   const clauses: Array<{ sql: string; params: Record<string, unknown> }> = [];
   const qb = {
-    andWhere(sql: string, params: Record<string, unknown>) {
-      clauses.push({ sql, params });
+    andWhere(condition: Brackets) {
+      assert.ok(condition instanceof Brackets);
+      condition.whereFactory({
+        where(sql: string, params: Record<string, unknown>) {
+          clauses.push({ sql, params });
+          return this;
+        },
+      } as any);
       return this;
     },
   };
