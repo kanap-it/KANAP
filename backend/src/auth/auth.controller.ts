@@ -15,7 +15,8 @@ import { isPlatformAdmin } from './platform-admin.util';
 import { FxIngestionService } from '../currency/fx-ingestion.service';
 import { DataSource, EntityManager } from 'typeorm';
 import { withTenant } from '../common/tenant-runner';
-import { requireJwtSecret } from '../common/env';
+import { PROVISIONING_PURPOSE } from './access-token.util';
+import { getProvisioningSecret } from './token-secret.util';
 import { TenantsService } from '../tenants/tenants.service';
 import { UserRole } from '../users/user-role.entity';
 import { RateLimitGuard } from '../common/rate-limit.guard';
@@ -215,14 +216,18 @@ export class AuthController {
   async exchangeProvisioningToken(@Body() body: { token?: string }) {
     const t = body?.token;
     if (!t) throw new BadRequestException({ code: 'TOKEN_REQUIRED', message: 'token is required' });
-    const secret = requireJwtSecret();
+    // Dedicated `PROVISIONING_TOKEN_SECRET` when configured, otherwise `JWT_SECRET` — the issuer
+    // lives outside this repository and cannot compute a derived key. Sharing the key is safe
+    // because `JwtAuthGuard` refuses the `provision` marker; what made it dangerous was the missing
+    // purpose control (constat n°2).
+    const secret = getProvisioningSecret();
     let payload: any;
     try {
       payload = jwt.verify(t, secret);
     } catch {
       throw new BadRequestException({ code: 'TOKEN_EXPIRED', message: 'invalid or expired token' });
     }
-    if (!payload || payload.purpose !== 'provision' || !payload.tenant_id || !payload.email) {
+    if (!payload || payload.purpose !== PROVISIONING_PURPOSE || !payload.tenant_id || !payload.email) {
       throw new BadRequestException('invalid token payload');
     }
     const tenantId = payload.tenant_id as string;

@@ -1,20 +1,17 @@
 import type { StringValue } from 'ms';
 import * as jwt from 'jsonwebtoken';
-import { requireJwtSecret } from '../common/env';
+import { getPasswordResetSecret } from './token-secret.util';
+import { PASSWORD_RESET_PURPOSE } from './access-token.util';
 
 const DEFAULT_TTL: StringValue | number = '1h';
 
 export type PasswordResetTokenPayload = {
-  purpose: 'password-reset';
+  purpose: typeof PASSWORD_RESET_PURPOSE;
   sub: string;
   email: string;
   tenant_id?: string | null;
   jti: string;
 };
-
-export function getPasswordResetSecret() {
-  return process.env.PASSWORD_RESET_SECRET || requireJwtSecret();
-}
 
 export function getPasswordResetTtl(): StringValue | number {
   const raw = process.env.PASSWORD_RESET_TTL;
@@ -48,9 +45,12 @@ export function getPasswordResetExpirationMinutes() {
 }
 
 export function createPasswordResetToken(user: { id: string; email: string; tenant_id?: string | null }, jti: string) {
+  // Signing key: `PASSWORD_RESET_SECRET` when configured, otherwise a key derived from
+  // `JWT_SECRET` with the `kanap:v1:password-reset` label — never `JWT_SECRET` itself, which is
+  // what made a reset link usable as an access token (constat n°2).
   const secret = getPasswordResetSecret();
   const payload: PasswordResetTokenPayload = {
-    purpose: 'password-reset',
+    purpose: PASSWORD_RESET_PURPOSE,
     sub: user.id,
     email: user.email,
     tenant_id: user.tenant_id ?? null,

@@ -1,13 +1,13 @@
-export function requireEnv(name: string): string {
-  const value = process.env[name];
+export function requireEnv(name: string, env: NodeJS.ProcessEnv = process.env): string {
+  const value = env[name];
   if (!value || value.trim() === '') {
     throw new Error(`FATAL: ${name} environment variable is required`);
   }
   return value;
 }
 
-export function requireJwtSecret(): string {
-  return requireEnv('JWT_SECRET');
+export function requireJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
+  return requireEnv('JWT_SECRET', env);
 }
 
 export function requireAppBaseUrl(): string {

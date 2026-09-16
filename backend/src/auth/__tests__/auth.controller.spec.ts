@@ -1,6 +1,9 @@
 import * as assert from 'node:assert/strict';
+import * as jwt from 'jsonwebtoken';
 import { AuthController } from '../auth.controller';
 import { REFRESH_TOKEN_COOKIE_NAME } from '../auth-cookie.util';
+import { PASSWORD_RESET_PURPOSE, PROVISIONING_PURPOSE } from '../access-token.util';
+import { deriveSecret } from '../token-secret.util';
 
 function createTenantDataSource(manager: any = { id: 'tenant-manager-1' }) {
   const queries: Array<{ sql: string; params?: any[] }> = [];
@@ -54,12 +57,14 @@ function createController(
       refresh_expires_in: 14_400,
     }),
     revokeToken: async () => undefined,
+    signToken: () => ({ access_token: 'access-token' }),
     ...authOverrides,
   };
 
   const controller = new AuthController(
     auth as any,
-    {} as any,
+    // `login` also records the sign-in; the spec needs a minimal users service, not an empty object.
+    { touchLastLogin: async () => undefined } as any,
     {} as any,
     {} as any,
     {} as any,
@@ -194,10 +199,70 @@ async function testLoginUsesTenantRunnerEvenWhenRequestRunnerIsReleased() {
   assert.equal(calls[0]?.options?.secure, true);
 }
 
+async function testProvisioningExchangeUsesItsOwnKeyAndRejectsTheLegacyOne() {
+  const JWT_SECRET = 'auth-controller-spec-jwt-secret';
+  process.env.JWT_SECRET = JWT_SECRET;
+  const payload = {
+    purpose: PROVISIONING_PURPOSE,
+    tenant_id: 'tenant-1',
+    email: 'user@example.com',
+    exp: Math.floor(Date.now() / 1000) + 600,
+  };
+
+  const exchangeWith = async (token: string, dedicatedKey?: string) => {
+    const previous = process.env.PROVISIONING_TOKEN_SECRET;
+    if (dedicatedKey === undefined) delete process.env.PROVISIONING_TOKEN_SECRET;
+    else process.env.PROVISIONING_TOKEN_SECRET = dedicatedKey;
+    try {
+      const { controller } = createController();
+      // `AuthController` is constructed with an empty users service everywhere in this spec;
+      // the exchange path needs exactly these two methods.
+      (controller as any).users = {
+        findByEmail: async () => ({ id: 'user-1', email: 'user@example.com', role: 'member' }),
+        touchLastLogin: async () => undefined,
+      };
+      return await controller.exchangeProvisioningToken({ token });
+    } finally {
+      if (previous === undefined) delete process.env.PROVISIONING_TOKEN_SECRET;
+      else process.env.PROVISIONING_TOKEN_SECRET = previous;
+    }
+  };
+
+  // Historical contract of the external issuer: `purpose: 'provision'` signed with `JWT_SECRET`.
+  // It keeps working until an operator sets the dedicated key.
+  assert.equal((await exchangeWith(jwt.sign(payload, JWT_SECRET))).access_token, 'access-token');
+  // A token signed with another family's KEY is still refused: the key is not shared anymore
+  // for the families that derive (they are the ones the constat was about).
+  await assert.rejects(
+    () => exchangeWith(jwt.sign(payload, deriveSecret(JWT_SECRET, 'password-reset'))),
+    /invalid or expired token/,
+  );
+
+  // Dedicated key configured: it becomes the only accepted key (lockstep with the issuer).
+  const dedicated = 'dedicated-provisioning-key';
+  assert.equal((await exchangeWith(jwt.sign(payload, dedicated), dedicated)).access_token, 'access-token');
+  await assert.rejects(() => exchangeWith(jwt.sign(payload, JWT_SECRET), dedicated), /invalid or expired token/);
+  await assert.rejects(
+    () => exchangeWith(jwt.sign(payload, deriveSecret(JWT_SECRET, 'password-reset')), dedicated),
+    /invalid or expired token/,
+  );
+
+  // Wrong purpose on the right key is still refused, in both configurations.
+  await assert.rejects(
+    () => exchangeWith(jwt.sign({ ...payload, purpose: PASSWORD_RESET_PURPOSE }, JWT_SECRET)),
+    /invalid token payload/,
+  );
+  await assert.rejects(
+    () => exchangeWith(jwt.sign({ ...payload, purpose: PASSWORD_RESET_PURPOSE }, dedicated), dedicated),
+    /invalid token payload/,
+  );
+}
+
 async function run() {
   await testRefreshPassesTenantIdToAuthService();
   await testLogoutPassesTenantIdToAuthService();
   await testLoginUsesTenantRunnerEvenWhenRequestRunnerIsReleased();
+  await testProvisioningExchangeUsesItsOwnKeyAndRejectsTheLegacyOne();
 }
 
 void run();

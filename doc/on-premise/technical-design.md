@@ -198,6 +198,53 @@ Required at startup (enforced by `validateStartupEnv()`):
 
 Fail fast with a clear error if missing.
 
+## Token Family Secrets and Purpose Typing
+
+Every token this application signs is typed and signed per family. The policy is identical in both
+deployment modes, and applies to agents that build external integrations (the cloud provisioning
+service reads the same rules).
+
+| Family | Marker | Key | Verifier |
+|--------|--------|-----|----------|
+| Access token | `purpose: 'access'` | `JWT_SECRET` | `JwtAuthGuard` |
+| Password-reset link | `purpose: 'kanap:v1:password-reset'` | `PASSWORD_RESET_SECRET`, else derived | `AuthService.resetPasswordWithToken` |
+| Provisioning exchange | `purpose: 'provision'` | `PROVISIONING_TOKEN_SECRET`, else `JWT_SECRET` | `AuthController.exchangeProvisioningToken` |
+| Entra SSO state | `purpose: 'kanap:v1:entra-state'` | `ENTRA_STATE_SECRET`, else derived | `EntraAuthService.verifyState` |
+| Entra login handoff | `type: 'entra_login_handoff'` | idem SSO state | `EntraAuthService.verifyLoginHandoff` |
+
+Rules:
+
+- A family with a configured key uses **only** that key — never a retry with `JWT_SECRET` after a
+  failure. Without its own variable, password-reset and SSO state derive a key from `JWT_SECRET`
+  through HMAC-SHA256 with a stable, versioned label (`kanap:v1:<family>`, `token-secret.util.ts`).
+  The label version is a contract: bumping it rotates that family's key material.
+- **Provisioning is the deliberate exception.** Its tokens are minted by a service outside this
+  repository, which cannot compute a derived key, so the marker stays `provision` and the key stays
+  `JWT_SECRET` until `PROVISIONING_TOKEN_SECRET` is set — and then that key is the only accepted one
+  (lockstep deploy with the issuer). Sharing `JWT_SECRET` here is safe because the guard refuses the
+  marker; what made it dangerous was the missing purpose control.
+- `JwtAuthGuard` accepts only access tokens (RFC 8725 §3.12, "Use Explicit Typing"). Signature and
+  tenant checks alone would accept any family, since all of them carry a valid `sub`/`tenant_id`.
+  `purpose` is tested explicitly: `null`, `''`, a number, an object, another family's marker and the
+  handoff's `type` are all rejected. Shape is checked on **every** acceptance path — a non-empty
+  `sub` and no `type` claim — so a marked token cannot also be something else. A marker-less payload
+  is accepted **only** during the compatibility window and only with that shape; a pre-fix SSO state
+  (`mode`/`nonce`, no `sub`) is therefore refused from day one.
+- Start-up reports where each family key comes from, plus the access-token compatibility window
+  (`[SECRETS]` lines in `main.ts`). The window line is informational when the cut-over is pinned
+  explicitly, and a warning when it needs an operator decision: deadline unparseable or already
+  past, or no deadline configured (the derived window then renews with every restart).
+- **Upgrade impact (both modes, once):**
+  - Password-reset links and Entra SSO states minted before the upgrade stop verifying, because
+    their family key changes even when no dedicated variable is configured.
+  - Provisioning keeps working untouched, until an operator sets `PROVISIONING_TOKEN_SECRET`; from
+    that moment the issuer must sign with the same key.
+  - Untyped access tokens stop being accepted at `JWT_LEGACY_ACCESS_TOKEN_DEADLINE`, which must be
+    an explicit future instant. In the web UI this costs one extra round trip (a 401 triggers
+    `/auth/refresh`, and refresh tokens are unaffected); only clients holding a stale `Bearer` token
+    of their own break. Announce both effects before deploying, then pin the deadline once every
+    instance runs the new build.
+
 ---
 
 ## Feature Gate Inventory
