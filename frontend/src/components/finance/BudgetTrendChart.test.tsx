@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@mui/material/styles';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,13 +23,25 @@ vi.mock('../../api', () => ({
   default: { get: vi.fn() },
 }));
 
+type LegendEvent = { itemId: string; enabled: boolean };
+type ChartOptions = {
+  data?: YearTotals[];
+  series?: { yKey: string; visible: boolean }[];
+  legend?: {
+    listeners?: {
+      legendItemClick?: (e: LegendEvent) => void;
+      legendItemDoubleClick?: (e: LegendEvent) => void;
+    };
+  };
+};
+
 const chartState = {
   mounts: 0,
-  lastOptions: null as { data?: YearTotals[] } | null,
+  lastOptions: null as ChartOptions | null,
 };
 
 vi.mock('ag-charts-react', () => ({
-  AgChartsReact: ({ options }: { options: { data?: YearTotals[] } }) => {
+  AgChartsReact: ({ options }: { options: ChartOptions }) => {
     React.useEffect(() => {
       chartState.mounts += 1;
     }, []);
@@ -39,6 +51,22 @@ vi.mock('ag-charts-react', () => ({
 }));
 
 import BudgetTrendChart from './BudgetTrendChart';
+
+// jsdom here ships without localStorage; the chart persists its legend choice there.
+if (!window.localStorage) {
+  const store = new Map<string, string>();
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => (store.has(key) ? store.get(key)! : null),
+      setItem: (key: string, value: string) => { store.set(key, String(value)); },
+      removeItem: (key: string) => { store.delete(key); },
+      clear: () => { store.clear(); },
+      key: (index: number) => [...store.keys()][index] ?? null,
+      get length() { return store.size; },
+    },
+  });
+}
 
 const theme = createAppTheme('light');
 const year = YEARLY_TOTALS_FROM + 3;
@@ -78,7 +106,11 @@ describe('BudgetTrendChart', () => {
   beforeEach(() => {
     chartState.mounts = 0;
     chartState.lastOptions = null;
+    window.localStorage.clear();
   });
+
+  const visibleKeys = () =>
+    (chartState.lastOptions?.series ?? []).filter((s) => s.visible).map((s) => s.yKey);
 
   it('overlays live totals onto the selected year and leaves other years unchanged', () => {
     renderChart({
@@ -123,5 +155,37 @@ describe('BudgetTrendChart', () => {
   it('keeps fetched yearly totals when live overlay is not ready', () => {
     renderChart(undefined);
     expect(chartState.lastOptions?.data).toEqual(seeded);
+  });
+
+  it('remembers hidden legend series across remounts', () => {
+    const first = renderChart(undefined);
+    expect(visibleKeys()).toEqual(['budget', 'revision', 'actual', 'landing']);
+
+    act(() => {
+      chartState.lastOptions?.legend?.listeners?.legendItemClick?.({ itemId: 'revision', enabled: false });
+    });
+    expect(visibleKeys()).toEqual(['budget', 'actual', 'landing']);
+
+    first.unmount();
+    renderChart(undefined);
+    expect(visibleKeys()).toEqual(['budget', 'actual', 'landing']);
+
+    act(() => {
+      chartState.lastOptions?.legend?.listeners?.legendItemClick?.({ itemId: 'revision', enabled: true });
+    });
+    expect(visibleKeys()).toEqual(['budget', 'revision', 'actual', 'landing']);
+  });
+
+  it('double-click isolates a series, and shows all again when it is already alone', () => {
+    renderChart(undefined);
+    const dblclick = (itemId: string) =>
+      act(() => {
+        chartState.lastOptions?.legend?.listeners?.legendItemDoubleClick?.({ itemId, enabled: true });
+      });
+
+    dblclick('actual');
+    expect(visibleKeys()).toEqual(['actual']);
+    dblclick('actual');
+    expect(visibleKeys()).toEqual(['budget', 'revision', 'actual', 'landing']);
   });
 });

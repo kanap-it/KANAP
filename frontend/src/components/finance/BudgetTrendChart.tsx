@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import { formatAmount } from '../../i18n/formatters';
+import { useLocalStorageState } from '../../hooks/useLocalStorageState';
 import { FinanceModuleConfig } from './config';
 import {
   overlayYear,
@@ -14,6 +15,11 @@ import {
   type LiveBudgetTotals,
   type YearTotals,
 } from './yearlyTotals';
+
+const SERIES_KEYS = ['budget', 'revision', 'actual', 'landing'] as const;
+type SeriesKey = (typeof SERIES_KEYS)[number];
+
+const isSeriesKey = (v: unknown): v is SeriesKey => SERIES_KEYS.includes(v as SeriesKey);
 
 export default function BudgetTrendChart({
   id,
@@ -31,6 +37,17 @@ export default function BudgetTrendChart({
   const { t } = useTranslation(['ops', 'common']);
   const theme = useTheme();
   const dark = theme.palette.mode === 'dark';
+
+  // Legend toggles live inside AG Charts and reset whenever the chart remounts
+  // (navigating between items). Mirror them here so the choice survives, per module.
+  const [storedHidden, setHidden] = useLocalStorageState<SeriesKey[]>(
+    `kanap.${config.module}.budgetTrend.hiddenSeries`,
+    [],
+  );
+  const hidden = React.useMemo(
+    () => (Array.isArray(storedHidden) ? storedHidden.filter(isSeriesKey) : []),
+    [storedHidden],
+  );
 
   const { data } = useQuery({
     queryKey: yearlyTotalsQueryKey(config, id),
@@ -61,11 +78,12 @@ export default function BudgetTrendChart({
       actual: dark ? '#34D399' : '#10B981',
       landing: theme.palette.kanap.orange,
     };
-    const line = (yKey: string, yName: string, color: string) => ({
+    const line = (yKey: SeriesKey, yName: string, color: string) => ({
       type: 'line' as const,
       xKey: 'year',
       yKey,
       yName,
+      visible: !hidden.includes(yKey),
       stroke: color,
       strokeWidth: 2,
       marker: { enabled: true, size: 6, fill: color, stroke: color },
@@ -76,7 +94,24 @@ export default function BudgetTrendChart({
       line('actual', t('operations.budgetColumns.followUp'), colors.actual),
       line('landing', t('operations.budgetColumns.landing'), colors.landing),
     ];
-  }, [dark, theme, t]);
+  }, [dark, theme, t, hidden]);
+
+  // Mirror AG Charts' own legend behaviour: click toggles one series, double-click
+  // isolates it (or shows everything again when it is already the only one visible).
+  const legendListeners = React.useMemo(() => ({
+    legendItemClick: ({ itemId, enabled }: { itemId: string; enabled: boolean }) => {
+      if (!isSeriesKey(itemId)) return;
+      setHidden((prev) => (enabled ? prev.filter((k) => k !== itemId) : [...prev.filter((k) => k !== itemId), itemId]));
+    },
+    legendItemDoubleClick: ({ itemId }: { itemId: string }) => {
+      if (!isSeriesKey(itemId)) return;
+      setHidden((prev) => {
+        const others = SERIES_KEYS.filter((k) => k !== itemId);
+        const alreadyAlone = others.every((k) => prev.includes(k)) && !prev.includes(itemId);
+        return alreadyAlone ? [] : others;
+      });
+    },
+  }), [setHidden]);
 
   // Theme / series stay on a data-independent object so AG Charts can delta-update
   // the series data without re-applying the theme (canvas flash).
@@ -88,10 +123,10 @@ export default function BudgetTrendChart({
       { type: 'category', position: 'bottom' },
       { type: 'number', position: 'left', label: { formatter: (p: { value: number }) => formatAmount(p.value) } },
     ],
-    legend: { enabled: true, position: 'bottom' },
+    legend: { enabled: true, position: 'bottom', listeners: legendListeners },
     padding: { top: 8, right: 12, bottom: 4, left: 4 },
     animation: { enabled: false },
-  }), [dark, series]);
+  }), [dark, series, legendListeners]);
 
   const options = React.useMemo(
     () => ({ ...chartMeta, data: merged }),
