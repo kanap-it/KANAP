@@ -14,13 +14,14 @@ import { TOKEN_SECRET_LABEL } from './token-secret.util';
 export const ACCESS_TOKEN_PURPOSE = 'access';
 
 /**
- * Purpose markers of the other families. The first three double as the versioned HMAC labels that
- * derive their signing keys, so a marker rename cannot silently desynchronise a family from its
- * key derivation. The handoff is discriminated by `ENTRA_LOGIN_HANDOFF_TYPE`, its own legacy
- * marker, and is listed here so the access-token predicate refuses it outright.
+ * Purpose markers of the other families. Two double as the versioned HMAC labels that derive their
+ * signing keys, so a marker rename cannot silently desynchronise a family from its key derivation.
+ * Provisioning keeps its historical marker, because its issuer is a service outside this
+ * repository; the handoff is discriminated by `ENTRA_LOGIN_HANDOFF_TYPE`, its own legacy marker.
+ * All four are listed here so the access-token predicate refuses the whole set.
  */
 export const PASSWORD_RESET_PURPOSE = TOKEN_SECRET_LABEL['password-reset'];
-export const PROVISIONING_PURPOSE = TOKEN_SECRET_LABEL.provisioning;
+export const PROVISIONING_PURPOSE = 'provision';
 export const ENTRA_STATE_PURPOSE = TOKEN_SECRET_LABEL['entra-state'];
 export const ENTRA_LOGIN_HANDOFF_TYPE = 'entra_login_handoff';
 
@@ -37,10 +38,11 @@ export const FOREIGN_TOKEN_MARKERS: readonly string[] = [
 ];
 
 /**
- * Access tokens carry a subject. Nothing else that shares the legacy layout does: the Entra SSO
- * state is `{ mode, tenantId, nonce }` and the login handoff is `{ type, tenantId, userId }`,
- * both signed with `JWT_SECRET` by an instance that predates this fix. Without this test a
- * marker-less state token would pass as a legacy access token for the length of the window.
+ * Access tokens declare nothing but `purpose: 'access'`. Everything else that shares the legacy
+ * layout is refused: the SSO state is `{ mode, tenantId, nonce }` and the login handoff is
+ * `{ type, tenantId, userId }` — both signed with `JWT_SECRET` by an instance that predates this
+ * fix, and neither carrying a usable subject. The subject is required even on the accepted path,
+ * so a token can never be both "an access token" and something else.
  */
 function hasAccessTokenSubject(payload: Record<string, unknown>): boolean {
   return typeof payload.sub === 'string' && payload.sub !== '';
@@ -188,19 +190,26 @@ export function describeTokenPurposePolicy(
 /**
  * Purpose test for an access token.
  *
- * - `purpose: 'access'` → accepted (tokens minted by this version);
- * - no `purpose` claim at all → accepted only while the transition window is open, and only for
- *   payloads shaped like the access tokens the previous build issued (a non-empty `sub`). A
- *   pre-fix SSO state or login handoff is marker-less yet must never pass as a legacy access
- *   token, so both the family markers and the subject are required;
- * - anything else — another family's marker, `null`, `''`, a number, an object — refused,
- *   error or not. "Absent" is tested explicitly (`hasOwnProperty`), never by truthiness.
+ * Shape is checked first and applies to every acceptance path, so a token can never be accepted as
+ * an access token while also being something else:
+ *
+ * - an unrecognised `type` claim, or a missing/empty `sub`, is refused — with or without
+ *   `purpose: 'access'`;
+ * - `purpose: 'access'` → accepted;
+ * - no `purpose` claim at all → accepted only while the transition window is open, for the
+ *   marker-less access tokens the previous build issued;
+ * - anything else — another family's marker, `null`, `''`, a number, an object — refused, error or
+ *   not. "Absent" is tested explicitly (`hasOwnProperty`), never by truthiness.
  */
 export function checkAccessTokenPurpose(
   payload: Record<string, unknown>,
   policy: AccessTokenPolicy,
   now: number = Date.now(),
 ): AccessTokenPurposeCheck {
+  if (declaresForeignType(payload) || !hasAccessTokenSubject(payload)) {
+    return { ok: false, legacy: false, reason: 'purpose-declared' };
+  }
+
   const declaresPurpose = Object.prototype.hasOwnProperty.call(payload, 'purpose');
   if (declaresPurpose) {
     const purpose = payload.purpose;
@@ -209,7 +218,6 @@ export function checkAccessTokenPurpose(
     return { ok: false, legacy: false, reason: 'purpose-declared' };
   }
   if (declaresForeignFamily(payload)) return { ok: false, legacy: false, reason: 'purpose-declared' };
-  if (!hasAccessTokenSubject(payload)) return { ok: false, legacy: false, reason: 'purpose-declared' };
   if (now >= policy.strictPurposeAt) return { ok: false, legacy: false, reason: 'legacy-window-closed' };
   return { ok: true, legacy: true };
 }
@@ -219,6 +227,11 @@ function declaresForeignFamily(payload: Record<string, unknown>): boolean {
   return FOREIGN_TOKEN_MARKERS.some(
     (marker) => payload.purpose === marker || payload.type === marker,
   );
+}
+
+/** Any `type` claim other than `undefined` marks a payload this predicate does not issue. */
+function declaresForeignType(payload: Record<string, unknown>): boolean {
+  return payload.type !== undefined;
 }
 
 export function isAccessTokenPayload(

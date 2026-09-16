@@ -5,25 +5,30 @@ import { requireJwtSecret } from '../common/env';
  * Per-family signing keys.
  *
  * Every token family (access, password reset, provisioning, SSO state) used to fall back to
- * `JWT_SECRET` when its own variable was unset — and no deployment ever set them, so a single
- * key signed and verified all four families. The only thing separating them was an unverified
- * `purpose` claim, which is exactly the confusion reported as constat n°2.
+ * `JWT_SECRET` when its own variable was unset — and no deployment ever set them, so a single key
+ * signed and verified all four families. The only thing separating them was an unverified `purpose`
+ * claim, which is exactly the confusion reported as constat n°2.
  *
- * A key configured for a family is now the ONLY key used for that family (no fallback attempt
- * with `JWT_SECRET` after a failure), and a family without its own key derives one from
- * `JWT_SECRET` through HMAC with a stable, versioned label. Rotating a label version rotates the
- * key material without touching `JWT_SECRET` itself.
+ * Two families now derive their own key from `JWT_SECRET` through HMAC with a stable, versioned
+ * label: rotating a label version rotates that family's key material without touching
+ * `JWT_SECRET`. A configured dedicated key is the ONLY key used for its family — no fallback
+ * attempt with another key after a failure.
+ *
+ * Provisioning is the exception, deliberately: its tokens are minted by a service outside this
+ * repository, so the default stays `JWT_SECRET` and the marker stays `provision` until that issuer
+ * is redeployed. Its dedicated variable takes effect as soon as it is set (lockstep).
  */
 
 export const TOKEN_SECRET_LABEL_PREFIX = 'kanap:v1:';
 
+/** Families whose key is derived from `JWT_SECRET` when they have no dedicated variable. */
 export const TOKEN_SECRET_LABEL = {
   'password-reset': `${TOKEN_SECRET_LABEL_PREFIX}password-reset`,
-  provisioning: `${TOKEN_SECRET_LABEL_PREFIX}provisioning`,
   'entra-state': `${TOKEN_SECRET_LABEL_PREFIX}entra-state`,
 } as const;
 
-export type TokenFamily = keyof typeof TOKEN_SECRET_LABEL;
+export type DerivedTokenFamily = keyof typeof TOKEN_SECRET_LABEL;
+export type TokenFamily = DerivedTokenFamily | 'provisioning';
 
 /** Environment variable holding a family's dedicated key, when the operator sets one. */
 export const TOKEN_FAMILY_ENV: Record<TokenFamily, string> = {
@@ -32,13 +37,15 @@ export const TOKEN_FAMILY_ENV: Record<TokenFamily, string> = {
   'entra-state': 'ENTRA_STATE_SECRET',
 };
 
-export type TokenSecretSource = 'dedicated-key' | 'derived-key';
+export type TokenSecretSource = 'dedicated-key' | 'derived-key' | 'jwt-secret';
+
+export const TOKEN_FAMILIES: TokenFamily[] = ['password-reset', 'provisioning', 'entra-state'];
 
 /**
  * Derive a family key from `JWT_SECRET` with a distinct, stable HMAC label (RFC 2104 PRF).
  * Same base secret + same label ⇒ same key on every instance and environment.
  */
-export function deriveSecret(jwtSecret: string, family: TokenFamily): string {
+export function deriveSecret(jwtSecret: string, family: DerivedTokenFamily): string {
   if (!jwtSecret || jwtSecret.trim() === '') {
     throw new Error('FATAL: cannot derive a token family key without JWT_SECRET');
   }
@@ -47,14 +54,20 @@ export function deriveSecret(jwtSecret: string, family: TokenFamily): string {
     .digest('hex');
 }
 
+export type ResolvedFamilySecret = { secret: string; source: TokenSecretSource; envVar: string };
+
 export function resolveFamilySecret(
   family: TokenFamily,
   env: NodeJS.ProcessEnv = process.env,
-): { secret: string; source: TokenSecretSource; envVar: string } {
+): ResolvedFamilySecret {
   const envVar = TOKEN_FAMILY_ENV[family];
   const dedicated = (env[envVar] || '').trim();
   if (dedicated !== '') {
     return { secret: dedicated, source: 'dedicated-key', envVar };
+  }
+  // The provisioning issuer lives outside this repository and cannot compute a derived key.
+  if (family === 'provisioning') {
+    return { secret: requireJwtSecret(env), source: 'jwt-secret', envVar };
   }
   return { secret: deriveSecret(requireJwtSecret(env), family), source: 'derived-key', envVar };
 }
@@ -64,7 +77,10 @@ export function getPasswordResetSecret(env: NodeJS.ProcessEnv = process.env): st
   return resolveFamilySecret('password-reset', env).secret;
 }
 
-/** Provisioning exchange token signing key. */
+/**
+ * Provisioning exchange token signing key: `PROVISIONING_TOKEN_SECRET` when configured, otherwise
+ * `JWT_SECRET`, which is what the external issuer signs with today.
+ */
 export function getProvisioningSecret(env: NodeJS.ProcessEnv = process.env): string {
   return resolveFamilySecret('provisioning', env).secret;
 }
@@ -85,7 +101,7 @@ export type TokenSecretPolicyEntry = {
  * key comes from, so it is safe to log.
  */
 export function describeSecretPolicy(env: NodeJS.ProcessEnv = process.env): TokenSecretPolicyEntry[] {
-  return (Object.keys(TOKEN_SECRET_LABEL) as TokenFamily[]).map((family) => {
+  return TOKEN_FAMILIES.map((family) => {
     const { source, envVar } = resolveFamilySecret(family, env);
     return { family, envVar, source };
   });

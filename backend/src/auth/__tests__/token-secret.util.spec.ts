@@ -39,30 +39,46 @@ function cleanEnv(): NodeJS.ProcessEnv {
 function testLabelsAreStableAndVersioned() {
   const expected = {
     'password-reset': 'kanap:v1:password-reset',
-    provisioning: 'kanap:v1:provisioning',
     'entra-state': 'kanap:v1:entra-state',
   };
   assert.deepEqual({ ...TOKEN_SECRET_LABEL }, expected);
   for (const label of Object.values(TOKEN_SECRET_LABEL)) {
     assert.ok(label.startsWith(TOKEN_SECRET_LABEL_PREFIX), `label ${label} must be versioned`);
   }
-  // The keywords are frozen contract: changing one invalidates every token of that family.
+  // The markers are frozen contract: changing one invalidates every token of that family, and the
+  // provisioning issuer lives outside this repository, so its marker cannot move with a label.
   assert.equal(PASSWORD_RESET_PURPOSE, 'kanap:v1:password-reset');
-  assert.equal(PROVISIONING_PURPOSE, 'kanap:v1:provisioning');
   assert.equal(ENTRA_STATE_PURPOSE, 'kanap:v1:entra-state');
+  assert.equal(PROVISIONING_PURPOSE, 'provision');
 }
 
 function testDerivedKeysAreDistinctAndNeverTheBaseSecret() {
   const reset = deriveSecret(JWT_SECRET, 'password-reset');
-  const provisioning = deriveSecret(JWT_SECRET, 'provisioning');
   const state = deriveSecret(JWT_SECRET, 'entra-state');
 
   assert.notEqual(reset, probe(JWT_SECRET, 'password-reset'));
-  for (const [name, key] of [['reset', reset], ['provisioning', provisioning], ['state', state]] as const) {
+  for (const [name, key] of [['reset', reset], ['state', state]] as const) {
     assert.notEqual(key, JWT_SECRET, `${name} key must not be the access-token secret`);
     assert.match(key, /^[0-9a-f]{64}$/, `${name} key must be the HMAC digest`);
   }
-  assert.equal(new Set([reset, provisioning, state]).size, 3, 'families must derive distinct keys');
+  assert.notEqual(reset, state, 'families must derive distinct keys');
+}
+
+function testProvisioningKeepsTheHistoricalKeyUntilToldOtherwise() {
+  // The provisioning tokens are minted outside this repository: defaulting to a derived key would
+  // break every exchange until that issuer learns the derivation. `JWT_SECRET` stays the default.
+  const fallback = resolveFamilySecret('provisioning', cleanEnv());
+  assert.equal(fallback.source, 'jwt-secret');
+  assert.equal(fallback.secret, JWT_SECRET);
+  assert.equal(fallback.envVar, 'PROVISIONING_TOKEN_SECRET');
+
+  // The dedicated key takes over as soon as it is configured — and then it is the only one.
+  const env = cleanEnv();
+  env.PROVISIONING_TOKEN_SECRET = 'dedicated-provisioning-key';
+  const dedicated = resolveFamilySecret('provisioning', env);
+  assert.equal(dedicated.source, 'dedicated-key');
+  assert.equal(dedicated.secret, 'dedicated-provisioning-key');
+  assert.notEqual(dedicated.secret, JWT_SECRET);
 }
 
 function probe(secret: string, label: string) {
@@ -106,14 +122,20 @@ function testEachFamilyReadsItsOwnVariable() {
 }
 
 function testDerivedSecretsCannotVerifyAsAccessTokens() {
-  // The mirror image of the constat: a foreign family token is not a valid access token, in
-  // either direction — the guard only trusts `JWT_SECRET`.
-  for (const family of ['password-reset', 'provisioning', 'entra-state'] as const) {
+  // The mirror image of the constat: a family that derives its own key is not signed with the
+  // access-token secret at all.
+  for (const family of ['password-reset', 'entra-state'] as const) {
     const token = jwt.sign({ purpose: TOKEN_SECRET_LABEL[family], sub: 'user-1' }, deriveSecret(JWT_SECRET, family));
     assert.throws(() => jwt.verify(token, JWT_SECRET), /invalid signature/, `${family} must not verify with JWT_SECRET`);
   }
   const handoff = jwt.sign({ type: ENTRA_LOGIN_HANDOFF_TYPE, userId: 'user-1' }, deriveSecret(JWT_SECRET, 'entra-state'));
   assert.throws(() => jwt.verify(handoff, JWT_SECRET), /invalid signature/);
+
+  // Provisioning shares `JWT_SECRET` by default, so it verifies — the purpose claim is the only
+  // thing that stops it being used as an access credential (see the guard spec).
+  const provisioning = jwt.sign({ purpose: PROVISIONING_PURPOSE, sub: 'user-1' }, JWT_SECRET);
+  assert.doesNotThrow(() => jwt.verify(provisioning, JWT_SECRET));
+  assert.equal((jwt.verify(provisioning, JWT_SECRET) as any).purpose, PROVISIONING_PURPOSE);
 }
 
 function testSecretPolicyReportsSourcesWithoutValues() {
@@ -122,7 +144,7 @@ function testSecretPolicyReportsSourcesWithoutValues() {
   const policy = describeSecretPolicy(env);
   assert.deepEqual(policy, [
     { family: 'password-reset', envVar: 'PASSWORD_RESET_SECRET', source: 'derived-key' },
-    { family: 'provisioning', envVar: 'PROVISIONING_TOKEN_SECRET', source: 'derived-key' },
+    { family: 'provisioning', envVar: 'PROVISIONING_TOKEN_SECRET', source: 'jwt-secret' },
     { family: 'entra-state', envVar: 'ENTRA_STATE_SECRET', source: 'dedicated-key' },
   ]);
   // Nothing that could leak a secret value.
@@ -142,6 +164,7 @@ function testMissingJwtSecretIsAnExplicitFailure() {
 function run() {
   testLabelsAreStableAndVersioned();
   testDerivedKeysAreDistinctAndNeverTheBaseSecret();
+  testProvisioningKeepsTheHistoricalKeyUntilToldOtherwise();
   testDerivationIsDeterministicAndLabelSensitive();
   testDedicatedKeyWinsAndIsTheOnlyKeyTried();
   testEachFamilyReadsItsOwnVariable();
@@ -149,7 +172,7 @@ function run() {
   testSecretPolicyReportsSourcesWithoutValues();
   testMissingJwtSecretIsAnExplicitFailure();
   // eslint-disable-next-line no-console
-  console.log('token-secret.util.spec: OK (8 cases)');
+  console.log('token-secret.util.spec: OK (9 cases)');
 }
 
 run();

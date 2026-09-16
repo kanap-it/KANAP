@@ -228,24 +228,30 @@ async function testProvisioningExchangeUsesItsOwnKeyAndRejectsTheLegacyOne() {
     }
   };
 
-  // Default configuration: the derived `kanap:v1:provisioning` key.
-  const derivedKey = deriveSecret(JWT_SECRET, 'provisioning');
-  assert.equal((await exchangeWith(jwt.sign(payload, derivedKey))).access_token, 'access-token');
-  // A token signed with the shared access-token secret is refused (constat n°2).
-  await assert.rejects(() => exchangeWith(jwt.sign(payload, JWT_SECRET)), /invalid or expired token/);
-  // Same for a token signed with another family's derived key.
+  // Historical contract of the external issuer: `purpose: 'provision'` signed with `JWT_SECRET`.
+  // It keeps working until an operator sets the dedicated key.
+  assert.equal((await exchangeWith(jwt.sign(payload, JWT_SECRET))).access_token, 'access-token');
+  // A token signed with another family's KEY is still refused: the key is not shared anymore
+  // for the families that derive (they are the ones the constat was about).
   await assert.rejects(
     () => exchangeWith(jwt.sign(payload, deriveSecret(JWT_SECRET, 'password-reset'))),
     /invalid or expired token/,
   );
 
-  // Dedicated key configured: it is the only accepted key.
+  // Dedicated key configured: it becomes the only accepted key (lockstep with the issuer).
   const dedicated = 'dedicated-provisioning-key';
   assert.equal((await exchangeWith(jwt.sign(payload, dedicated), dedicated)).access_token, 'access-token');
-  await assert.rejects(() => exchangeWith(jwt.sign(payload, derivedKey), dedicated), /invalid or expired token/);
   await assert.rejects(() => exchangeWith(jwt.sign(payload, JWT_SECRET), dedicated), /invalid or expired token/);
+  await assert.rejects(
+    () => exchangeWith(jwt.sign(payload, deriveSecret(JWT_SECRET, 'password-reset')), dedicated),
+    /invalid or expired token/,
+  );
 
-  // Wrong purpose on the right key is still refused.
+  // Wrong purpose on the right key is still refused, in both configurations.
+  await assert.rejects(
+    () => exchangeWith(jwt.sign({ ...payload, purpose: PASSWORD_RESET_PURPOSE }, JWT_SECRET)),
+    /invalid token payload/,
+  );
   await assert.rejects(
     () => exchangeWith(jwt.sign({ ...payload, purpose: PASSWORD_RESET_PURPOSE }, dedicated), dedicated),
     /invalid token payload/,

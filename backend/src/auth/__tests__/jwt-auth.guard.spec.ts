@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../jwt-auth.guard';
 import * as accessTokenUtil from '../access-token.util';
 import {
   ACCESS_TOKEN_PURPOSE,
+  ENTRA_LOGIN_HANDOFF_TYPE,
   ENTRA_STATE_PURPOSE,
   PROVISIONING_PURPOSE,
   PASSWORD_RESET_PURPOSE,
@@ -132,7 +133,7 @@ function testRejectsProvisioningToken() {
 function testRejectsEntraHandoffToken() {
   const guard = newGuard();
   const token = sign({
-    type: 'entra_login_handoff',
+    type: ENTRA_LOGIN_HANDOFF_TYPE,
     tenantId: TENANT_ID,
     userId: 'user-1',
     tenant_id: TENANT_ID,
@@ -184,6 +185,27 @@ function testRejectsMalformedPurpose() {
   ];
   for (const [label, purpose] of cases) {
     assertRejected(guard, requestWith(sign(accessClaims({ purpose }))), `purpose=${label}`);
+  }
+}
+
+// --- shape is checked on every acceptance path ------------------------------------------------
+
+function testMarkedTokenMustStillBeShapedLikeAnAccessToken() {
+  // A contradictory payload must never be accepted just because it declares `purpose: 'access'`.
+  const guard = newGuard();
+  const { sub: _sub, ...withoutSubject } = accessClaims();
+  const cases: Array<[string, Record<string, unknown>]> = [
+    ['marked, no sub', { ...withoutSubject, purpose: ACCESS_TOKEN_PURPOSE }],
+    ['marked, empty sub', { ...accessClaims(), sub: '', purpose: ACCESS_TOKEN_PURPOSE }],
+    ['marked, non-string sub', { ...accessClaims(), sub: 42, purpose: ACCESS_TOKEN_PURPOSE }],
+    ['marked, foreign type', { ...accessClaims(), purpose: ACCESS_TOKEN_PURPOSE, type: ENTRA_LOGIN_HANDOFF_TYPE }],
+    ['marked, unknown type', { ...accessClaims(), purpose: ACCESS_TOKEN_PURPOSE, type: 'something_else' }],
+    ['marked, null type', { ...accessClaims(), purpose: ACCESS_TOKEN_PURPOSE, type: null }],
+    ['legacy, unknown type', { ...accessClaims(), type: 'something_else' }],
+    ['legacy, null type', { ...accessClaims(), type: null }],
+  ];
+  for (const [label, payload] of cases) {
+    assertRejected(guard, requestWith(sign(payload)), label);
   }
 }
 
@@ -355,6 +377,7 @@ function run() {
   testRejectsEntraStateToken();
   testRejectsPrefixEntraStateTokenWithoutAnyMarker();
   testRejectsMalformedPurpose();
+  testMarkedTokenMustStillBeShapedLikeAnAccessToken();
   testRejectsTenantMismatch();
   testRejectsPlatformHostTenantMismatch();
   testRejectsInvalidSignature();
@@ -365,7 +388,7 @@ function run() {
   testReportedWindowMatchesTheEnforcedWindow();
   testMutationWithoutPurposeControlAcceptsForeignTokens();
   // eslint-disable-next-line no-console
-  console.log('jwt-auth.guard.spec: OK (18 cases)');
+  console.log('jwt-auth.guard.spec: OK (19 cases)');
 }
 
 run();
