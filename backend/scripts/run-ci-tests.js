@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 /*
- * Runs the backend hardening checks the way CI does, but in parallel.
+ * Runs every backend spec the way CI does, in parallel.
  *
- * The list of specs is read from the package.json `test:*` scripts named in
- * CHAIN below, so those scripts stay the single source of truth and can still
- * be run one by one with `npm run test:<name>`. Each spec keeps running in its
- * own ts-node process, exactly as before; only the scheduling changes:
+ * Specs are discovered on disk: every `src/** /__tests__/*.spec.ts` plus the
+ * database scripts listed in EXTRA. A new spec file is therefore run by CI
+ * from its first commit, without touching package.json or this file. The
+ * `test:*` scripts in package.json remain available for local, targeted runs.
  *
+ * Each spec keeps running in its own ts-node process; only the scheduling is
+ * parallel:
  *   - specs that never open the database run in parallel (one lane per CPU),
  *   - specs that connect to PostgreSQL share one serial lane, because they all
  *     work on the same `appdb`.
@@ -21,59 +23,51 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const CHAIN = [
-  'test:auth',
-  'test:security',
-  'test:tenant-isolation',
-  'test:rls',
-  'test:allocation-rules',
-  'test:capex',
-  'test:portfolio',
-  'test:incidents',
-  'test:integrated-docs',
-  'test:incident-review-access',
-  'test:csv',
-  'test:it-ops-settings',
-  'test:application-classification',
-  'test:ai',
-];
+// Database scripts that are part of the hardening checks.
+const EXTRA = ['scripts/tenant-isolation-audit.ts', 'scripts/rls-self-test.ts'];
+
+// Specs that need a dedicated, isolated database (`kanap_classification_v1_test`)
+// and refuse to run against `appdb`. Run them by hand with
+// `npm run test:application-classification:integration` / `:http`.
+const EXCLUDE = new Set([
+  'src/applications/__tests__/application-classification.integration.spec.ts',
+  'src/applications/__tests__/application-classification-concurrency.integration.spec.ts',
+  'src/applications/__tests__/application-classification-http-permissions.integration.spec.ts',
+  'src/it-ops-settings/__tests__/it-ops-settings.integration.spec.ts',
+]);
+
+// Specs that exercise the on-premise code paths.
+const ENV = {
+  'src/ai/__tests__/ai-chat-orchestrator.service.spec.ts': { DEPLOYMENT_MODE: 'single-tenant' },
+  'src/ai/__tests__/glpi.service.spec.ts': { DEPLOYMENT_MODE: 'single-tenant' },
+};
 
 // A spec that matches one of these opens a real database connection.
 const DB_PATTERN = /NestFactory\.create|createTestingModule|TypeOrmModule|\.initialize\(\)|data-source/;
 
 const root = path.resolve(__dirname, '..');
-const scripts = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts;
 
-function collect(name, out, seen) {
-  if (!scripts[name]) throw new Error(`Unknown npm script: ${name}`);
-  for (const raw of scripts[name].split('&&')) {
-    const part = raw.trim();
-    const nested = part.match(/^npm run (\S+)$/);
-    if (nested) {
-      collect(nested[1], out, seen);
-      continue;
+function discover() {
+  const found = [];
+  (function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.spec.ts') && path.basename(dir) === '__tests__') {
+        found.push(path.relative(root, full));
+      }
     }
-    const cmd = part.match(/^((?:\w+=\S+\s+)*)ts-node (\S+)$/);
-    if (!cmd) throw new Error(`Cannot parse step of "${name}": ${part}`);
-    const file = cmd[2];
-    if (seen.has(file)) continue; // a spec listed by several scripts runs once
-    seen.add(file);
-    const env = {};
-    for (const assignment of cmd[1].trim().split(/\s+/).filter(Boolean)) {
-      const [key, value] = assignment.split('=');
-      env[key] = value;
-    }
-    out.push({ file, env, script: name });
-  }
+  })(path.join(root, 'src'));
+  return [...EXTRA, ...found.sort()].filter((file) => !EXCLUDE.has(file));
 }
 
-function runSpec(spec) {
+function runSpec(file) {
   return new Promise((resolve) => {
     const started = Date.now();
     const chunks = [];
-    const child = spawn(path.join(root, 'node_modules', '.bin', 'ts-node'), [spec.file], {
+    const child = spawn(path.join(root, 'node_modules', '.bin', 'ts-node'), [file], {
       cwd: root,
-      env: { ...process.env, ...spec.env },
+      env: { ...process.env, ...(ENV[file] || {}) },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     child.stdout.on('data', (c) => chunks.push(c));
@@ -81,8 +75,8 @@ function runSpec(spec) {
     child.on('close', (code) => {
       const seconds = ((Date.now() - started) / 1000).toFixed(1);
       const status = code === 0 ? 'ok' : `FAILED (exit ${code})`;
-      process.stdout.write(`\n── ${spec.file} · ${seconds}s · ${status}\n${Buffer.concat(chunks)}`);
-      resolve({ spec, code, seconds });
+      process.stdout.write(`\n── ${file} · ${seconds}s · ${status}\n${Buffer.concat(chunks)}`);
+      resolve({ file, code });
     });
   });
 }
@@ -90,7 +84,7 @@ function runSpec(spec) {
 async function runLane(queue, workers) {
   const results = [];
   async function worker() {
-    for (let spec = queue.shift(); spec; spec = queue.shift()) results.push(await runSpec(spec));
+    for (let file = queue.shift(); file; file = queue.shift()) results.push(await runSpec(file));
   }
   await Promise.all(Array.from({ length: Math.min(workers, queue.length) || 1 }, worker));
   return results;
@@ -101,12 +95,9 @@ async function main() {
   const cpus = typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
   const jobs = Math.max(2, jobsArg >= 0 ? Number(process.argv[jobsArg + 1]) : cpus);
 
-  const specs = [];
-  const seen = new Set();
-  for (const name of CHAIN) collect(name, specs, seen);
-
-  const db = specs.filter((s) => DB_PATTERN.test(fs.readFileSync(path.join(root, s.file), 'utf8')));
-  const unit = specs.filter((s) => !db.includes(s));
+  const specs = discover();
+  const db = specs.filter((f) => DB_PATTERN.test(fs.readFileSync(path.join(root, f), 'utf8')));
+  const unit = specs.filter((f) => !db.includes(f));
   console.log(`${specs.length} specs: ${unit.length} in parallel (${jobs - 1} lanes), ${db.length} database specs in series`);
 
   const started = Date.now();
@@ -117,7 +108,7 @@ async function main() {
   console.log(`\n${results.length - failed.length}/${results.length} specs passed in ${total}s`);
   if (failed.length) {
     console.log('Failed:');
-    for (const r of failed) console.log(`  - ${r.spec.file} (${r.spec.script})`);
+    for (const r of failed) console.log(`  - ${r.file}`);
     process.exit(1);
   }
 }

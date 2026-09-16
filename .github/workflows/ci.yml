@@ -12,7 +12,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build:
+  backend:
+    name: backend (cloud)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -28,14 +29,66 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-    strategy:
-      matrix:
-        mode: [cloud, onprem]
     env:
-      DEPLOYMENT_MODE: ${{ matrix.mode == 'onprem' && 'single-tenant' || '' }}
       DATABASE_URL: postgres://app:app@127.0.0.1:5432/appdb
       # Types are checked once by `typecheck:ci`; ts-node then only transpiles.
       TS_NODE_TRANSPILE_ONLY: '1'
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Build backend
+        run: npm ci && npm run build
+      - name: Type-check backend sources and specs
+        run: npm run typecheck:ci
+      - name: Prepare CI PostgreSQL role/database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE app LOGIN PASSWORD 'app' NOSUPERUSER NOBYPASSRLS;"
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE appdb OWNER app;"
+          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS citext;"
+          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "GRANT ALL ON SCHEMA public TO app;"
+      - name: Prepare backend database
+        run: npm run typeorm -- migration:run
+      - name: Run backend hardening checks
+        run: npm run test:ci
+
+  frontend:
+    name: frontend (cloud)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build frontend
+        run: npm ci && npm run build
+      - name: Run frontend tests
+        run: npm test
+
+  onprem:
+    name: build (onprem)
+    runs-on: ubuntu-latest
+    env:
+      DEPLOYMENT_MODE: single-tenant
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,36 +100,9 @@ jobs:
           cache-dependency-path: |
             backend/package-lock.json
             frontend/package-lock.json
-      - name: Build backend (${{ matrix.mode }})
+      - name: Build backend (onprem)
         working-directory: backend
         run: npm ci && npm run build
-      - name: Type-check backend sources and specs (${{ matrix.mode }})
-        if: matrix.mode == 'cloud'
-        working-directory: backend
-        run: npm run typecheck:ci
-      - name: Prepare CI PostgreSQL role/database (${{ matrix.mode }})
-        if: matrix.mode == 'cloud'
-        env:
-          PGPASSWORD: postgres
-        run: |
-          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE app LOGIN PASSWORD 'app' NOSUPERUSER NOBYPASSRLS;"
-          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE appdb OWNER app;"
-          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS citext;"
-          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
-          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
-          psql -h 127.0.0.1 -U postgres -d appdb -v ON_ERROR_STOP=1 -c "GRANT ALL ON SCHEMA public TO app;"
-      - name: Prepare backend database (${{ matrix.mode }})
-        if: matrix.mode == 'cloud'
-        working-directory: backend
-        run: npm run typeorm -- migration:run
-      - name: Run backend hardening checks (${{ matrix.mode }})
-        if: matrix.mode == 'cloud'
-        working-directory: backend
-        run: npm run test:ci
-      - name: Build frontend (${{ matrix.mode }})
+      - name: Build frontend (onprem)
         working-directory: frontend
         run: npm ci && npm run build
-      - name: Run frontend tests (${{ matrix.mode }})
-        if: matrix.mode == 'cloud'
-        working-directory: frontend
-        run: npm test
