@@ -7,18 +7,24 @@ import * as AdmZip from 'adm-zip';
 import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ExportFormat } from './dto/export.dto';
 import { getEnvMode, isProductionEnv, parseBoolean } from './env';
+import { readStreamWithCaps, StreamLimitError } from './bounded-stream';
 
 const execFileAsync = promisify(execFile);
 
 const MAX_EXPORT_CONTENT_BYTES = 1_000_000;
-const MAX_EMBEDDED_IMAGE_BYTES = 10 * 1024 * 1024;
+// Budgets mémoire. Les images validées sont incorporées à l'arbre sous forme de
+// data: URI : leur contenu transite donc entièrement par la mémoire du processus,
+// d'où trois plafonds distincts (téléchargement, incorporation, arbre sérialisé).
+export const MAX_IMAGE_BYTES_PER_IMAGE = 10 * 1024 * 1024;
+const MAX_IMAGE_BYTES_TOTAL = 32 * 1024 * 1024;
+const MAX_INLINED_IMAGE_BYTES = 64 * 1024 * 1024;
+const MAX_PARSED_AST_JSON_BYTES = 32 * 1024 * 1024;
+const MAX_REWRITTEN_AST_JSON_BYTES = 64 * 1024 * 1024;
 const PANDOC_TIMEOUT_MS = 30_000;
 const IMAGE_FETCH_TIMEOUT_MS = 15_000;
 const PANDOC_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
 const DEFAULT_FILENAME = 'document';
-const IMAGE_MARKDOWN_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
-const IMAGE_HTML_RE = /<img\b[^>]*>/gi;
-const DATA_IMAGE_RE = /^data:image\/([a-z0-9.+-]+);base64,/i;
+const HTML_IMAGE_RE = /<img\b[^>]*>/gi;
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const ODT_MAX_IMAGE_WIDTH_CM = 16;
 const ODT_SIZE_RE = /^([0-9]*\.?[0-9]+)\s*(cm|mm|in|pt|px)$/i;
@@ -29,8 +35,31 @@ type ExportConfig = {
   pandocTarget: 'pdf' | 'docx' | 'odt';
 };
 
-type ExportImageFetchOptions = {
+export type ExportImageFetchOptions = {
   imageFetchHeaders?: Record<string, string>;
+  /**
+   * Résolution interne d'une image de l'application (lecture du stockage, contrôlée
+   * par les droits de l'appelant), prioritaire sur le téléchargement HTTP. Fournie
+   * par les appelants qui disposent d'une identité et d'un contexte tenant ; son
+   * absence laisse le comportement d'origine intact.
+   */
+  resolveInlineImage?: (rawTarget: string) => Promise<ResolvedExportImage | null>;
+};
+
+export type ResolvedExportImage = {
+  buffer: Buffer;
+  mimeType: string | null;
+};
+
+type ImageBudget = {
+  downloadedBytes: number;
+  inlinedBytes: number;
+};
+
+type AstImageContext = {
+  opts?: ExportImageFetchOptions;
+  cache: Map<string, string>;
+  budget: ImageBudget;
 };
 
 @Injectable()
@@ -60,22 +89,47 @@ export class DocumentExportService {
 
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'kanap-export-'));
     const inputFile = path.join(tempDir, 'input.md');
+    const parsedAstFile = path.join(tempDir, 'parsed.json');
+    const rewrittenAstFile = path.join(tempDir, 'rewritten.json');
     const outputFile = path.join(tempDir, `output.${config.extension}`);
 
     try {
-      const markdown = await this.normalizeMarkdownImages(normalized, tempDir, opts);
-      await fs.writeFile(inputFile, markdown, 'utf8');
+      await fs.writeFile(inputFile, normalized, 'utf8');
+
+      // Passe 1 — lecture seule. Le lecteur Pandoc résout lui-même les images par
+      // référence et certaines balises HTML : c'est son arbre, et non une
+      // reconnaissance textuelle du Markdown, qui fait autorité pour la validation.
+      // Aucune ressource n'est chargée pendant cette passe.
+      await this.runPandoc(
+        ['--sandbox', '--from', 'gfm', '--to', 'json', '--output', parsedAstFile, inputFile],
+        tempDir,
+      );
+      const parsedAst = await this.readAstFile(parsedAstFile, MAX_PARSED_AST_JSON_BYTES);
+
+      // Toutes les ressources sont validées puis incorporées ici : la passe 2 ne
+      // verra plus que des data: URI produites par nos soins. Les métadonnées du
+      // document sont écartées ; le titre reste fourni par l'application.
+      await this.inlineAstImages(parsedAst, {
+        opts,
+        cache: new Map<string, string>(),
+        budget: { downloadedBytes: 0, inlinedBytes: 0 },
+      });
+
+      const rewrittenAst = JSON.stringify(parsedAst);
+      if (Buffer.byteLength(rewrittenAst, 'utf8') > MAX_REWRITTEN_AST_JSON_BYTES) {
+        throw new BadRequestException('Document export is too large');
+      }
+      await fs.writeFile(rewrittenAstFile, rewrittenAst, 'utf8');
 
       const args = [
+        '--sandbox',
         '--from',
-        'gfm',
+        'json',
         '--to',
         config.pandocTarget,
         '--standalone',
         '--output',
         outputFile,
-        '--resource-path',
-        tempDir,
       ];
       if (title && title.trim()) {
         args.push('--metadata', `title=${title.trim()}`);
@@ -90,13 +144,10 @@ export class DocumentExportService {
           '--variable=monofont:DejaVu Sans Mono',
         );
       }
-      args.push(inputFile);
+      args.push(rewrittenAstFile);
 
-      await execFileAsync('pandoc', args, {
-        cwd: tempDir,
-        timeout: PANDOC_TIMEOUT_MS,
-        maxBuffer: PANDOC_MAX_BUFFER_BYTES,
-      });
+      await this.runPandoc(args, tempDir);
+
       if (config.pandocTarget === 'odt') {
         await this.normalizeOdtImageFrames(outputFile).catch((error: any) => {
           const message = String(error?.message || error || 'unknown error');
@@ -120,6 +171,35 @@ export class DocumentExportService {
       throw new InternalServerErrorException('Document export failed');
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
+
+  /**
+   * `--sandbox` limite les E/S des lecteurs et rédacteurs Pandoc aux fichiers
+   * nommés sur la ligne de commande. Il ne limite ni les filtres ni la production
+   * du PDF (moteur externe, ici Typst) et ne constitue donc pas un confinement de
+   * processus : c'est une protection complémentaire. La garantie principale reste
+   * qu'aucune ressource n'est résolue par Pandoc — tout est validé puis fourni
+   * sous forme de data: URI.
+   */
+  private async runPandoc(args: string[], cwd: string): Promise<void> {
+    await execFileAsync('pandoc', args, {
+      cwd,
+      timeout: PANDOC_TIMEOUT_MS,
+      maxBuffer: PANDOC_MAX_BUFFER_BYTES,
+    });
+  }
+
+  private async readAstFile(file: string, maxBytes: number): Promise<any> {
+    const stats = await fs.stat(file);
+    if (stats.size > maxBytes) {
+      throw new BadRequestException('Document export is too large');
+    }
+    const raw = await fs.readFile(file, 'utf8');
+    try {
+      return JSON.parse(raw);
+    } catch {
+      throw new InternalServerErrorException('Document export failed');
     }
   }
 
@@ -148,129 +228,133 @@ export class DocumentExportService {
     }
   }
 
-  private async normalizeMarkdownImages(
-    markdown: string,
-    tempDir: string,
-    opts?: ExportImageFetchOptions,
-  ): Promise<string> {
-    const cache = new Map<string, string>();
-    return this.transformOutsideFencedCode(markdown, async (chunk) => {
-      const withMarkdownImages = await this.localizeMarkdownImageSyntax(chunk, tempDir, cache, opts);
-      return this.localizeHtmlImageTags(withMarkdownImages, tempDir, cache, opts);
-    });
+  private async inlineAstImages(ast: any, ctx: AstImageContext): Promise<void> {
+    if (!ast || typeof ast !== 'object') return;
+    ast.blocks = await this.rewriteImageNodes(ast.blocks, ctx);
+    ast.meta = {};
   }
 
-  private async transformOutsideFencedCode(
-    markdown: string,
-    transform: (chunk: string) => Promise<string>,
-  ): Promise<string> {
-    const lines = String(markdown || '').split(/\r?\n/);
-    const result: string[] = [];
-    const textBuffer: string[] = [];
-    let inFence = false;
-    let fenceChar = '';
-    let fenceLen = 0;
-
-    const flushTextBuffer = async () => {
-      if (textBuffer.length === 0) return;
-      result.push(await transform(textBuffer.join('\n')));
-      textBuffer.length = 0;
-    };
-
-    for (const line of lines) {
-      const markerMatch = line.match(/^\s*([`~]{3,})/);
-      if (markerMatch) {
-        const marker = markerMatch[1];
-        const markerChar = marker[0];
-        const markerLen = marker.length;
-        if (!inFence) {
-          await flushTextBuffer();
-          inFence = true;
-          fenceChar = markerChar;
-          fenceLen = markerLen;
-          result.push(line);
+  /**
+   * Parcours récursif de l'arbre : tout nœud Image — quelle que soit la syntaxe
+   * d'origine, y compris les images par référence que seul le lecteur Pandoc
+   * résout — est remplacé par une ressource validée par nos soins.
+   */
+  private async rewriteImageNodes(node: any, ctx: AstImageContext): Promise<any> {
+    if (Array.isArray(node)) {
+      const rewritten: any[] = [];
+      for (const child of node) {
+        // Les tableaux imbriqués de l'AST (attributs, listes d'inlines, lignes de
+        // tableau…) sont des données : ils restent imbriqués tels quels.
+        if (Array.isArray(child)) {
+          rewritten.push(await this.rewriteImageNodes(child, ctx));
           continue;
         }
-        if (markerChar === fenceChar && markerLen >= fenceLen) {
-          inFence = false;
-          fenceChar = '';
-          fenceLen = 0;
-          result.push(line);
+        // `null` et les valeurs scalaires sont signifiants dans l'AST (un `Maybe`
+        // vide, un niveau de titre…) : ils sont recopiés sans modification.
+        if (child === null || typeof child !== 'object') {
+          rewritten.push(child);
           continue;
         }
+        // Un nœud remplacé par plusieurs nœuds (images issues de HTML brut, texte
+        // de remplacement d'une image) est inséré à la place de l'original.
+        const value = await this.rewriteImageNodes(child, ctx);
+        if (Array.isArray(value)) rewritten.push(...value);
+        else rewritten.push(value);
       }
-
-      if (inFence) {
-        result.push(line);
-      } else {
-        textBuffer.push(line);
-      }
+      return rewritten;
     }
 
-    await flushTextBuffer();
-    return result.join('\n');
+    if (!node || typeof node !== 'object') return node;
+
+    if (node.t === 'Image' && Array.isArray(node.c) && Array.isArray(node.c[2])) {
+      const alt = Array.isArray(node.c[1]) ? node.c[1] : [];
+      const rawTarget = String(node.c[2][0] ?? '');
+      if (!rawTarget.trim()) {
+        // Cible vide : il n'y a aucune ressource à charger. L'image est remplacée
+        // par son texte de remplacement plutôt que de faire échouer l'export sur
+        // une syntaxe incomplète. Ce texte peut lui-même contenir des images.
+        return this.rewriteImageNodes(alt, ctx);
+      }
+      node.c[2] = [await this.imageTargetToDataUri(rawTarget, ctx), node.c[2][1] ?? ''];
+      // Pas de retour anticipé : le texte alternatif est lui aussi parcouru, car
+      // `![a ![b](cible)](cible)` y imbrique un nœud Image qui doit passer par la
+      // même validation.
+    }
+
+    if ((node.t === 'RawInline' || node.t === 'RawBlock') && Array.isArray(node.c) && node.c[0] === 'html') {
+      const images = await this.extractHtmlImages(String(node.c[1] ?? ''), ctx);
+      if (images.length > 0) {
+        // Les sorties bureautiques ignorent le HTML brut : les images qu'il
+        // contient étaient donc perdues. On les réinjecte comme nœuds Image,
+        // validés par la même voie que les images Markdown.
+        return node.t === 'RawBlock' ? images.map((image) => ({ t: 'Para', c: [image] })) : images;
+      }
+      return node;
+    }
+
+    for (const key of Object.keys(node)) {
+      node[key] = await this.rewriteImageNodes(node[key], ctx);
+    }
+    return node;
   }
 
-  private async localizeMarkdownImageSyntax(
-    markdown: string,
-    tempDir: string,
-    cache: Map<string, string>,
-    opts?: ExportImageFetchOptions,
-  ): Promise<string> {
-    const regex = new RegExp(IMAGE_MARKDOWN_RE.source, 'g');
-    let result = '';
-    let lastIndex = 0;
+  private async extractHtmlImages(html: string, ctx: AstImageContext): Promise<any[]> {
+    const images: any[] = [];
+    const regex = new RegExp(HTML_IMAGE_RE.source, 'gi');
     let match: RegExpExecArray | null;
-    while ((match = regex.exec(markdown)) !== null) {
-      const whole = match[0];
-      const alt = String(match[1] || '');
-      const inner = String(match[2] || '');
-      result += markdown.slice(lastIndex, match.index);
-      const { target, suffix } = this.splitMarkdownTarget(inner);
-      const normalizedTarget = this.normalizeAndValidateImageTarget(target);
-      const localizedTarget = await this.materializeImageTarget(normalizedTarget, tempDir, cache, opts);
-      const targetForMarkdown = /[\s()]/.test(localizedTarget)
-        ? `<${localizedTarget}>`
-        : localizedTarget;
-      result += `![${alt}](${targetForMarkdown}${suffix})`;
-      lastIndex = match.index + whole.length;
+    while ((match = regex.exec(html)) !== null) {
+      const rawSrc = this.readHtmlAttribute(match[0], 'src');
+      if (!rawSrc || !rawSrc.trim()) continue;
+      const alt = this.readHtmlAttribute(match[0], 'alt') || '';
+      const target = await this.imageTargetToDataUri(rawSrc, ctx);
+      images.push({
+        t: 'Image',
+        c: [['', [], []], alt ? [{ t: 'Str', c: alt }] : [], [target, '']],
+      });
     }
-    result += markdown.slice(lastIndex);
-    return result;
+    return images;
   }
 
-  private async localizeHtmlImageTags(
-    markdown: string,
-    tempDir: string,
-    cache: Map<string, string>,
-    opts?: ExportImageFetchOptions,
-  ): Promise<string> {
-    const regex = new RegExp(IMAGE_HTML_RE.source, 'gi');
-    let result = '';
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(markdown)) !== null) {
-      const wholeTag = match[0];
-      result += markdown.slice(lastIndex, match.index);
-      lastIndex = match.index + wholeTag.length;
-
-      const rawSrc = this.readHtmlAttribute(wholeTag, 'src');
-      if (!rawSrc) {
-        result += wholeTag;
-        continue;
-      }
-
-      const normalizedTarget = this.normalizeAndValidateImageTarget(rawSrc);
-      const localizedTarget = await this.materializeImageTarget(normalizedTarget, tempDir, cache, opts);
-      const rawAlt = this.readHtmlAttribute(wholeTag, 'alt') || '';
-      const escapedAlt = this.escapeMarkdownAlt(rawAlt);
-      const targetForMarkdown = /[\s()]/.test(localizedTarget)
-        ? `<${localizedTarget}>`
-        : localizedTarget;
-      result += `![${escapedAlt}](${targetForMarkdown})`;
+  private async imageTargetToDataUri(rawTarget: string, ctx: AstImageContext): Promise<string> {
+    const cacheKey = String(rawTarget ?? '').trim();
+    const cached = ctx.cache.get(cacheKey);
+    if (cached) {
+      this.accountInlinedImage(cached, ctx);
+      return cached;
     }
-    result += markdown.slice(lastIndex);
-    return result;
+
+    // Le résolveur interne passe **avant** la validation d'hôte : une image servie
+    // depuis notre stockage n'a ni hôte à autoriser ni requête à émettre, ce qui la
+    // rend insensible à APP_URL et à la liste d'hôtes. Tout le reste garde le
+    // comportement d'origine, validation comprise (chemin local, data: d'auteur,
+    // schéma non HTTP, hôte hors allowlist → BadRequestException).
+    const internal = await ctx.opts?.resolveInlineImage?.(cacheKey);
+    const dataUri = internal
+      ? this.dataUriFromResolvedImage(internal, ctx)
+      : await this.fetchImageAsDataUri(this.normalizeAndValidateImageTarget(rawTarget), ctx);
+
+    ctx.cache.set(cacheKey, dataUri);
+    this.accountInlinedImage(dataUri, ctx);
+    return dataUri;
+  }
+
+  private dataUriFromResolvedImage(image: ResolvedExportImage, ctx: AstImageContext): string {
+    // Une image lue depuis le stockage consomme la même mémoire qu'une image
+    // téléchargée : elle entre donc dans le même budget total.
+    ctx.budget.downloadedBytes += image.buffer.length;
+    if (ctx.budget.downloadedBytes > MAX_IMAGE_BYTES_TOTAL) {
+      throw new BadRequestException('Exported images exceed the size budget');
+    }
+    return this.toDataUri(image.buffer, this.resolveImageMimeType(image.buffer, image.mimeType || ''));
+  }
+
+  private accountInlinedImage(dataUri: string, ctx: AstImageContext): void {
+    // Une image répétée est incorporée autant de fois que d'occurrences : le budget
+    // porte donc sur les incorporations, pas sur les téléchargements uniques.
+    ctx.budget.inlinedBytes += dataUri.length;
+    if (ctx.budget.inlinedBytes > MAX_INLINED_IMAGE_BYTES) {
+      throw new BadRequestException('Exported images exceed the size budget');
+    }
   }
 
   private readHtmlAttribute(tag: string, attrName: string): string | null {
@@ -289,33 +373,12 @@ export class DocumentExportService {
       .replace(/&gt;/g, '>');
   }
 
-  private async materializeImageTarget(
-    normalizedTarget: string,
-    tempDir: string,
-    cache: Map<string, string>,
-    opts?: ExportImageFetchOptions,
-  ): Promise<string> {
-    if (cache.has(normalizedTarget)) {
-      return cache.get(normalizedTarget)!;
-    }
-
-    let localPath: string;
-    if (DATA_IMAGE_RE.test(normalizedTarget)) {
-      localPath = await this.materializeDataImageTarget(normalizedTarget, tempDir, cache.size + 1);
-    } else {
-      localPath = await this.materializeHttpImageTarget(normalizedTarget, tempDir, cache.size + 1, opts);
-    }
-
-    cache.set(normalizedTarget, localPath);
-    return localPath;
-  }
-
-  private async materializeHttpImageTarget(
-    target: string,
-    tempDir: string,
-    index: number,
-    opts?: ExportImageFetchOptions,
-  ): Promise<string> {
+  /**
+   * Télécharge une ressource autorisée et l'encode en data: URI. La lecture est
+   * bornée pendant le transfert : ni la taille annoncée ni la taille réelle ne
+   * peuvent faire dépasser les budgets mémoire du processus.
+   */
+  private async fetchImageAsDataUri(target: string, ctx: AstImageContext): Promise<string> {
     const candidates = this.buildImageFetchCandidates(target);
     let lastError = '';
 
@@ -325,7 +388,7 @@ export class DocumentExportService {
         const parsed = new URL(candidate);
         this.assertAllowedImageHost(parsed.hostname);
         response = await fetch(candidate, {
-          headers: opts?.imageFetchHeaders,
+          headers: this.imageFetchHeadersFor(candidate, ctx),
           redirect: 'error',
           signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS),
         });
@@ -336,35 +399,154 @@ export class DocumentExportService {
 
       if (!response.ok) {
         lastError = `HTTP ${response.status}`;
+        await this.cancelStream(response.body);
         continue;
       }
 
       const responseContentType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
       if (responseContentType && !responseContentType.startsWith('image/') && responseContentType !== 'application/octet-stream' && responseContentType !== 'application/pdf') {
         lastError = `unexpected content-type: ${responseContentType}`;
+        await this.cancelStream(response.body);
         continue;
       }
 
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const remainingTotal = MAX_IMAGE_BYTES_TOTAL - ctx.budget.downloadedBytes;
+      const buffer = await this.readImageBody(response, target, remainingTotal);
       if (buffer.length === 0) {
         lastError = 'empty image payload';
         continue;
       }
-      if (buffer.length > MAX_EMBEDDED_IMAGE_BYTES) {
-        throw new BadRequestException(`Image too large for export: ${target}`);
-      }
 
-      const extension = this.inferImageExtension(candidate, response.headers.get('content-type'));
-      const relPath = path.posix.join('assets', `image-${index}.${extension}`);
-      const absPath = path.join(tempDir, relPath);
-      await fs.mkdir(path.dirname(absPath), { recursive: true });
-      await fs.writeFile(absPath, buffer);
-      return relPath;
+      ctx.budget.downloadedBytes += buffer.length;
+      return this.toDataUri(buffer, this.resolveImageMimeType(buffer, responseContentType));
     }
 
     const suffix = lastError ? ` (${lastError})` : '';
     throw new BadRequestException(`Unable to fetch image: ${target}${suffix}`);
+  }
+
+  /**
+   * Le cookie de session n'est transmis qu'aux cibles de notre propre
+   * infrastructure (self hosts et boucle locale) : il n'a aucune raison d'aller
+   * vers un CDN tiers autorisé. Sans cette restriction, l'export transmettait le
+   * cookie du navigateur à tout hôte de la liste autorisée (constat n°3 de l'audit).
+   */
+  private imageFetchHeadersFor(candidate: string, ctx: AstImageContext): Record<string, string> | undefined {
+    const configured = ctx.opts?.imageFetchHeaders;
+    if (!configured) return undefined;
+    try {
+      const host = new URL(candidate).hostname.toLowerCase();
+      if (this.selfHostnames.has(host) || LOOPBACK_HOSTS.has(host)) return configured;
+    } catch {
+      // Candidat illisible : aucun en-tête transmis.
+    }
+    return undefined;
+  }
+
+  private async readImageBody(
+    response: Response,
+    target: string,
+    remainingTotalBytes: number,
+  ): Promise<Buffer> {
+    const declaredLength = Number(response.headers.get('content-length') || 0);
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_IMAGE_BYTES_PER_IMAGE) {
+      await this.cancelStream(response.body);
+      throw new BadRequestException(`Image too large for export: ${target}`);
+    }
+    if (remainingTotalBytes <= 0) {
+      await this.cancelStream(response.body);
+      throw new BadRequestException('Exported images exceed the size budget');
+    }
+
+    const body = response.body as any;
+    // Attention : appeler `body.getReader()` ici verrouillerait le flux avant de le
+    // confier au lecteur partagé. On se contente donc de vérifier sa présence.
+    if (!body || typeof body.getReader !== 'function') {
+      // Corps non diffusé (réponse vide) : le contrôle a posteriori reste appliqué.
+      const fallback = Buffer.from(await response.arrayBuffer());
+      this.assertImageBytesWithinCaps(fallback.length, remainingTotalBytes, target);
+      return fallback;
+    }
+
+    try {
+      // Lecture bornée partagée avec les flux du stockage objet : le compteur est
+      // incrémenté à chaque morceau et l'annulation passe par le lecteur (`body`
+      // étant verrouillé, `body.cancel()` laisserait la connexion ouverte).
+      return await readStreamWithCaps(
+        { web: body },
+        { maxBytes: MAX_IMAGE_BYTES_PER_IMAGE, remainingTotalBytes },
+      );
+    } catch (error) {
+      if (error instanceof StreamLimitError) {
+        throw new BadRequestException(
+          error.failure === 'per-resource'
+            ? `Image too large for export: ${target}`
+            : 'Exported images exceed the size budget',
+        );
+      }
+      throw error;
+    }
+  }
+
+  private assertImageBytesWithinCaps(total: number, remainingTotalBytes: number, target: string): void {
+    if (total > MAX_IMAGE_BYTES_PER_IMAGE) {
+      throw new BadRequestException(`Image too large for export: ${target}`);
+    }
+    if (total > remainingTotalBytes) {
+      throw new BadRequestException('Exported images exceed the size budget');
+    }
+  }
+
+  /**
+   * Annule un transfert abandonné pour ne pas laisser une connexion ouverte :
+   * budget dépassé, type refusé, erreur de lecture. Accepte un `ReadableStream`
+   * ou le lecteur qui le verrouille — dans ce second cas, seul `reader.cancel()`
+   * atteint réellement la source.
+   */
+  private async cancelStream(source: { cancel?: () => Promise<void> } | null | undefined): Promise<void> {
+    try {
+      await source?.cancel?.();
+    } catch {
+      // Flux déjà consommé, annulé ou verrouillé : rien à faire de plus.
+    }
+  }
+
+  private toDataUri(buffer: Buffer, mimeType: string): string {
+    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+  }
+
+  private resolveImageMimeType(buffer: Buffer, declaredContentType: string): string {
+    // Le type réel prime : Pandoc et Typst doivent pouvoir décoder la ressource
+    // même si le serveur annonce application/octet-stream ou un type erroné.
+    const sniffed = this.sniffImageMimeType(buffer);
+    if (sniffed) return sniffed;
+    return declaredContentType || 'application/octet-stream';
+  }
+
+  private sniffImageMimeType(buffer: Buffer): string | null {
+    const startsWith = (bytes: number[], offset = 0) =>
+      buffer.length >= offset + bytes.length &&
+      bytes.every((byte, index) => buffer[offset + index] === byte);
+
+    if (startsWith([0x89, 0x50, 0x4e, 0x47])) return 'image/png';
+    if (startsWith([0xff, 0xd8, 0xff])) return 'image/jpeg';
+    if (startsWith([0x47, 0x49, 0x46, 0x38])) return 'image/gif';
+    if (startsWith([0x42, 0x4d])) return 'image/bmp';
+    if (
+      startsWith([0x52, 0x49, 0x46, 0x46]) &&
+      buffer.length >= 12 &&
+      buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+    ) {
+      return 'image/webp';
+    }
+    if (startsWith([0x25, 0x50, 0x44, 0x46])) return 'application/pdf';
+
+    const head = buffer.subarray(0, 512).toString('utf8').trimStart().toLowerCase();
+    if (head.startsWith('<svg') || (head.startsWith('<?xml') && head.includes('<svg'))) {
+      return 'image/svg+xml';
+    }
+
+    return null;
   }
 
   private buildImageFetchCandidates(target: string): string[] {
@@ -418,90 +600,6 @@ export class DocumentExportService {
     }
 
     return candidates;
-  }
-
-  private async materializeDataImageTarget(
-    target: string,
-    tempDir: string,
-    index: number,
-  ): Promise<string> {
-    const match = target.match(DATA_IMAGE_RE);
-    if (!match) {
-      throw new BadRequestException('Invalid data image URI');
-    }
-    const metaEnd = target.indexOf(',');
-    if (metaEnd < 0) {
-      throw new BadRequestException('Invalid data image URI');
-    }
-
-    const base64Part = target.slice(metaEnd + 1);
-    const buffer = Buffer.from(base64Part, 'base64');
-    if (buffer.length === 0) {
-      throw new BadRequestException('Invalid data image payload');
-    }
-    if (buffer.length > MAX_EMBEDDED_IMAGE_BYTES) {
-      throw new BadRequestException('Embedded image is too large for export');
-    }
-
-    const extension = this.extensionFromMimeSubtype(match[1]);
-    const relPath = path.posix.join('assets', `image-${index}.${extension}`);
-    const absPath = path.join(tempDir, relPath);
-    await fs.mkdir(path.dirname(absPath), { recursive: true });
-    await fs.writeFile(absPath, buffer);
-    return relPath;
-  }
-
-  private inferImageExtension(target: string, contentTypeHeader: string | null): string {
-    const contentType = String(contentTypeHeader || '').split(';')[0].trim().toLowerCase();
-    const fromMime = this.extensionFromMimeType(contentType);
-    if (fromMime) return fromMime;
-
-    try {
-      const parsed = new URL(target);
-      const ext = path.extname(parsed.pathname || '').toLowerCase().replace(/^\./, '');
-      if (/^[a-z0-9]{1,8}$/.test(ext)) return ext;
-    } catch {
-      // ignore
-    }
-
-    return 'png';
-  }
-
-  private extensionFromMimeType(contentType: string): string | null {
-    if (!contentType) return null;
-    switch (contentType) {
-      case 'image/jpeg':
-        return 'jpg';
-      case 'image/png':
-        return 'png';
-      case 'image/gif':
-        return 'gif';
-      case 'image/webp':
-        return 'webp';
-      case 'image/svg+xml':
-        return 'svg';
-      case 'image/bmp':
-        return 'bmp';
-      default:
-        return null;
-    }
-  }
-
-  private extensionFromMimeSubtype(subtypeRaw: string): string {
-    const subtype = String(subtypeRaw || '').trim().toLowerCase();
-    if (!subtype) return 'png';
-    if (subtype === 'jpeg') return 'jpg';
-    if (subtype === 'svg+xml') return 'svg';
-    if (/^[a-z0-9.+-]{1,32}$/.test(subtype)) {
-      return subtype.replace(/\+xml$/, '').replace(/[+.]/g, '-');
-    }
-    return 'png';
-  }
-
-  private escapeMarkdownAlt(value: string): string {
-    return String(value || '')
-      .replace(/\\/g, '\\\\')
-      .replace(/\]/g, '\\]');
   }
 
   private async normalizeOdtImageFrames(odtPath: string): Promise<void> {
@@ -574,40 +672,15 @@ export class DocumentExportService {
     return `${text}cm`;
   }
 
-  private splitMarkdownTarget(rawInner: string): { target: string; suffix: string } {
-    const inner = String(rawInner || '').trim();
-    if (!inner) {
-      throw new BadRequestException('Invalid image markdown syntax');
-    }
-
-    if (inner.startsWith('<')) {
-      const close = inner.indexOf('>');
-      if (close <= 1) {
-        throw new BadRequestException('Invalid image markdown syntax');
-      }
-      return {
-        target: inner.slice(1, close).trim(),
-        suffix: inner.slice(close + 1),
-      };
-    }
-
-    const splitAt = inner.search(/\s/);
-    if (splitAt < 0) {
-      return { target: inner, suffix: '' };
-    }
-
-    return {
-      target: inner.slice(0, splitAt).trim(),
-      suffix: inner.slice(splitAt),
-    };
-  }
-
   private normalizeAndValidateImageTarget(rawTarget: string): string {
     const target = String(rawTarget || '').trim();
     if (!target) {
       throw new BadRequestException('Image URL cannot be empty');
     }
 
+    // Les data: URI sont produits par le service après validation, jamais acceptés
+    // en entrée : c'est ce qui garantit qu'une cible fournie par l'auteur passe
+    // toujours par la liste d'hôtes autorisés.
     if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(target)) {
       throw new BadRequestException('Inline base64 images are not supported. Upload image attachments first.');
     }

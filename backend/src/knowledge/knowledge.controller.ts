@@ -33,6 +33,7 @@ import { StorageService } from '../common/storage/storage.service';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { KnowledgeService, RelationEntityType } from './knowledge.service';
+import { InlineImageResolverService } from './inline-image-resolver.service';
 import { KnowledgeRelationsService } from './knowledge-relations.service';
 import { KnowledgeWorkflowService } from './knowledge-workflow.service';
 
@@ -45,6 +46,7 @@ export class KnowledgeController {
     private readonly workflows: KnowledgeWorkflowService,
     private readonly storage: StorageService,
     private readonly dataSource: DataSource,
+    private readonly inlineImages: InlineImageResolverService,
   ) {}
 
   private resolveWorkflowBaseUrl(req: any): string | null {
@@ -696,10 +698,12 @@ export class KnowledgeController {
     @Tenant() ctx: TenantRequest,
   ): Promise<void> {
     const format = body?.format || 'pdf';
+    const resolveInlineImage = this.inlineImages.exporter(ctx);
     const output = await this.docs.exportDocument(idOrRef, format, {
       manager: ctx.manager,
       imageFetchCookie: req?.headers?.cookie,
       userId: ctx.userId || null,
+      ...(resolveInlineImage ? { resolveInlineImage } : {}),
     });
 
     res.setHeader('Content-Type', output.mimeType);

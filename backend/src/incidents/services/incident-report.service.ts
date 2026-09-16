@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DocumentExportService } from '../../common/document-export.service';
+import { DocumentExportService, ExportImageFetchOptions } from '../../common/document-export.service';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
 import { INCIDENT_REVIEW_TEMPLATE_CONTENT_MARKDOWN } from '../../knowledge/integrated-document.constants';
 import { incidentRef } from './incidents-base.service';
@@ -722,7 +722,11 @@ function resolveCategoryLabel(
 }
 
 /** Record options plus the request cookie, forwarded to inline image fetches. */
-export type IncidentReportOpts = IncidentRecordOpts & { imageFetchCookie?: string | null };
+export type IncidentReportOpts = IncidentRecordOpts & {
+  imageFetchCookie?: string | null;
+  /** Résolution interne des images inline (voir `InlineImageResolverService`). */
+  resolveInlineImage?: ExportImageFetchOptions['resolveInlineImage'];
+};
 
 @Injectable()
 export class IncidentReportService {
@@ -748,17 +752,23 @@ export class IncidentReportService {
       labels,
       timeZone,
     );
-    // The review can embed inline images served by `/knowledge/inline/...`,
-    // which needs the caller's session cookie — same contract as
-    // `KnowledgeService.exportDocument`. The export service applies its own
-    // allowed-host list on top.
+    // The review can embed inline images served by `/knowledge/inline/...`.
+    // They are resolved internally from storage with the caller's identity, which
+    // removes the dependency on the session cookie and on the URL host; the cookie
+    // is still forwarded for internal targets the resolver does not recognize, and
+    // the export service applies its own allowed-host list on top.
+    const exportOptions: ExportImageFetchOptions = {};
+    if (opts.imageFetchCookie) {
+      exportOptions.imageFetchHeaders = { Cookie: opts.imageFetchCookie };
+    }
+    if (opts.resolveInlineImage) {
+      exportOptions.resolveInlineImage = opts.resolveInlineImage;
+    }
     const exported = await this.documentExport.exportMarkdown(
       markdown,
       'pdf',
       reportHeading(record.incident.item_number, String(record.incident.title || '')),
-      opts.imageFetchCookie
-        ? { imageFetchHeaders: { Cookie: opts.imageFetchCookie } }
-        : undefined,
+      Object.keys(exportOptions).length > 0 ? exportOptions : undefined,
     );
     return { ...exported, filename: reportPdfFilename(record.incident.item_number) };
   }

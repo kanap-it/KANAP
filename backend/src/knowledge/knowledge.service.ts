@@ -20,7 +20,7 @@ import { DocumentImportService, ImportedDocumentResult } from '../common/documen
 import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { markdownToSearchText } from '../common/markdown-search-text';
 import { bilingualDocumentTsQueryAnyTermSql, bilingualDocumentTsQuerySql, normalizeDocumentAnyTermQuery } from '../common/document-search-tsquery';
-import { DocumentExportService } from '../common/document-export.service';
+import { DocumentExportService, ExportImageFetchOptions } from '../common/document-export.service';
 import { BulkDeleteResult } from '../common/delete.types';
 import { ImportExecutionOptions, readUploadedFileBuffer } from '../common/import-connection';
 import { fixMulterFilename } from '../common/upload';
@@ -1477,7 +1477,24 @@ export class KnowledgeService {
   ): Promise<boolean> {
     const userId = await this.resolveUserIdFromRefreshToken(manager, tenantId, refreshToken);
     if (!userId) return false;
+    return this.canAccessInlineAttachmentForUser(manager, tenantId, userId, parent);
+  }
 
+  /**
+   * Même règle d'accès que la route `inline`, mais avec une identité déjà établie
+   * (JWT) plutôt qu'un `refresh_token` de cookie. Le résolveur d'images de l'export
+   * et la route publique partagent ainsi une seule implémentation : elles ne
+   * peuvent pas diverger.
+   */
+  async canAccessInlineAttachmentForUser(
+    manager: EntityManager,
+    tenantId: string,
+    userId: string,
+    parent?: {
+      documentId: string;
+      integratedBinding?: Pick<IntegratedDocumentBinding, 'source_entity_type'> | null;
+    } | null,
+  ): Promise<boolean> {
     const sourceEntityType = parent?.integratedBinding?.source_entity_type ?? null;
 
     if (sourceEntityType === 'incidents') {
@@ -1512,6 +1529,18 @@ export class KnowledgeService {
   ): Promise<boolean> {
     const userId = await this.resolveUserIdFromRefreshToken(manager, tenantId, refreshToken);
     if (!userId) return false;
+    return this.canAccessResourceForUser(manager, userId, resource);
+  }
+
+  /**
+   * Variante à identité déjà établie (JWT) de `canAccessInlineAttachment`, partagée
+   * avec le résolveur d'images de l'export.
+   */
+  async canAccessResourceForUser(
+    manager: EntityManager,
+    userId: string,
+    resource: string,
+  ): Promise<boolean> {
     const level = await this.getPermissionLevelForUser(manager, userId, resource);
     return this.hasPermissionLevel(level || undefined, 'reader');
   }
@@ -6276,49 +6305,20 @@ export class KnowledgeService {
       const tenantId = String(tenantRows[0].id || '').trim();
       await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
 
-      const rows = await runner.query(
-        `SELECT a.storage_path,
-                a.mime_type,
-                a.size,
-                a.document_id::text AS document_id,
-                b.source_entity_type
-         FROM document_attachments a
-         LEFT JOIN integrated_document_bindings b
-           ON b.document_id = a.document_id
-          AND b.tenant_id = a.tenant_id
-         WHERE a.id = $1
-           AND a.source_field IS NOT NULL
-         LIMIT 1`,
-        [attachmentId],
-      ) as Array<{
-        storage_path: string;
-        mime_type: string | null;
-        size: number | null;
-        document_id: string;
-        source_entity_type: IntegratedDocumentBinding['source_entity_type'] | null;
-      }>;
-      if (!rows.length) {
+      const userId = await this.resolveUserIdFromRefreshToken(runner.manager, tenantId, refreshToken);
+      if (!userId) {
         await runner.rollbackTransaction();
         return null;
       }
 
-      const canAccess = await this.ensureInlineAttachmentAccess(runner.manager, tenantId, refreshToken, {
-        documentId: String(rows[0].document_id),
-        integratedBinding: rows[0]?.source_entity_type
-          ? { source_entity_type: rows[0].source_entity_type }
-          : null,
-      });
-      if (!canAccess) {
+      const meta = await this.getInlineAttachmentMetaForUser(runner.manager, tenantId, userId, attachmentId);
+      if (!meta) {
         await runner.rollbackTransaction();
         return null;
       }
 
       await runner.commitTransaction();
-      return {
-        storagePath: rows[0].storage_path,
-        mimeType: rows[0].mime_type ?? null,
-        size: rows[0].size == null ? null : Number(rows[0].size),
-      };
+      return meta;
     } catch (error) {
       if (runner.isTransactionActive) {
         await runner.rollbackTransaction();
@@ -6329,21 +6329,88 @@ export class KnowledgeService {
     }
   }
 
+  /**
+   * Cœur partagé de la résolution d'une image inline de document : lecture de la
+   * ligne d'attachement puis contrôle d'accès, dans un contexte tenant déjà établi.
+   * Utilisé par la route publique — via `getInlineAttachmentMeta`, identité issue du
+   * cookie — et par le résolveur d'images de l'export, avec l'identité du JWT.
+   */
+  async getInlineAttachmentMetaForUser(
+    manager: EntityManager,
+    tenantId: string,
+    userId: string,
+    attachmentId: string,
+  ): Promise<{
+    storagePath: string;
+    mimeType: string | null;
+    size: number | null;
+  } | null> {
+    const rows = await manager.query(
+      `SELECT a.storage_path,
+              a.mime_type,
+              a.size,
+              a.document_id::text AS document_id,
+              b.source_entity_type
+       FROM document_attachments a
+       LEFT JOIN integrated_document_bindings b
+         ON b.document_id = a.document_id
+        AND b.tenant_id = a.tenant_id
+       WHERE a.id = $1
+         AND a.tenant_id = $2
+         AND a.source_field IS NOT NULL
+       LIMIT 1`,
+      [attachmentId, tenantId],
+    ) as Array<{
+      storage_path: string;
+      mime_type: string | null;
+      size: number | null;
+      document_id: string;
+      source_entity_type: IntegratedDocumentBinding['source_entity_type'] | null;
+    }>;
+    if (!rows.length) return null;
+
+    const canAccess = await this.canAccessInlineAttachmentForUser(manager, tenantId, userId, {
+      documentId: String(rows[0].document_id),
+      integratedBinding: rows[0]?.source_entity_type
+        ? { source_entity_type: rows[0].source_entity_type }
+        : null,
+    });
+    if (!canAccess) return null;
+
+    return {
+      storagePath: rows[0].storage_path,
+      mimeType: rows[0].mime_type ?? null,
+      size: rows[0].size == null ? null : Number(rows[0].size),
+    };
+  }
+
   async exportDocument(
     idOrRef: string,
     format: 'pdf' | 'docx' | 'odt',
-    opts?: { manager?: EntityManager; imageFetchCookie?: string | null; userId?: string | null } & DocumentAccessOptions,
+    opts?: {
+      manager?: EntityManager;
+      imageFetchCookie?: string | null;
+      userId?: string | null;
+      /** Résolution interne des images inline (voir `InlineImageResolverService`). */
+      resolveInlineImage?: ExportImageFetchOptions['resolveInlineImage'];
+    } & DocumentAccessOptions,
   ) {
     const manager = this.getManager(opts);
     const document = await this.get(idOrRef, { ...(opts ?? {}), manager, userId: opts?.userId || null });
+
+    const exportOptions: ExportImageFetchOptions = {};
+    if (opts?.imageFetchCookie) {
+      exportOptions.imageFetchHeaders = { Cookie: opts.imageFetchCookie };
+    }
+    if (opts?.resolveInlineImage) {
+      exportOptions.resolveInlineImage = opts.resolveInlineImage;
+    }
 
     return this.exportService.exportMarkdown(
       String(document.content_markdown || ''),
       format,
       String(document.title || `DOC-${document.item_number}`),
-      opts?.imageFetchCookie
-        ? { imageFetchHeaders: { Cookie: opts.imageFetchCookie } }
-        : undefined,
+      Object.keys(exportOptions).length > 0 ? exportOptions : undefined,
     );
   }
 

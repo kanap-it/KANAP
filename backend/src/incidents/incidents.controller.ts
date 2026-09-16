@@ -24,6 +24,7 @@ import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { InlineImageResolverService } from '../knowledge/inline-image-resolver.service';
 import {
   IncidentEntriesService,
   IncidentRelationsService,
@@ -58,6 +59,7 @@ export class IncidentsController {
     private readonly knowledge: KnowledgeService,
     private readonly integratedDocuments: IntegratedDocumentsService,
     private readonly dataSource: DataSource,
+    private readonly inlineImages: InlineImageResolverService,
   ) {}
 
   private resolveId(id: string, manager: EntityManager): Promise<string> {
@@ -205,13 +207,16 @@ export class IncidentsController {
     @Tenant() ctx: TenantRequest,
   ): Promise<void> {
     const id = await this.visibleId(idOrRef, ctx);
+    const resolveInlineImage = this.inlineImages.exporter(ctx);
     const result = await this.report.exportPdf(id, lang, {
       manager: ctx.manager,
       tenantId: ctx.tenantId,
       userId: ctx.userId || null,
       viewer: incidentViewerFromContext(ctx),
-      // Inline images of the review are served by an authenticated route.
+      // Inline images of the review: resolved internally with the caller's
+      // identity; the cookie stays as a fallback for unrecognized internal targets.
       imageFetchCookie: req?.headers?.cookie ?? null,
+      ...(resolveInlineImage ? { resolveInlineImage } : {}),
     }, tz);
     res.setHeader('Content-Type', result.mimeType);
     res.setHeader('Content-Disposition', contentDisposition(result.filename));

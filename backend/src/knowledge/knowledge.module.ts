@@ -37,6 +37,7 @@ import { KnowledgeRelationsService } from './knowledge-relations.service';
 import { KnowledgeService } from './knowledge.service';
 import { KnowledgeWorkflowService } from './knowledge-workflow.service';
 import { DocumentTypesController } from './document-types.controller';
+import { InlineImageResolverService } from './inline-image-resolver.service';
 
 @Module({
   imports: [
@@ -83,12 +84,14 @@ import { DocumentTypesController } from './document-types.controller';
     KnowledgeRelationsService,
     KnowledgeWorkflowService,
     IntegratedDocumentsService,
+    InlineImageResolverService,
   ],
   exports: [
     KnowledgeService,
     KnowledgeRelationsService,
     KnowledgeWorkflowService,
     IntegratedDocumentsService,
+    InlineImageResolverService,
     TypeOrmModule,
   ],
 })

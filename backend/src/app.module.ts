@@ -30,6 +30,7 @@ import { AdminCoaTemplatesModule } from './admin/coa-templates/admin-coa-templat
 import { AdminOpsModule } from './admin/ops/admin-ops.module';
 import { AdminBrandingModule } from './admin/branding/admin-branding.module';
 import { StorageModule } from './common/storage/storage.module';
+import { DocumentExportModule } from './common/document-export.module';
 import { TenancyModule } from './common/tenancy';
 import { ApplicationsModule } from './applications/applications.module';
 import { AppInstancesModule } from './app-instances/app-instances.module';
@@ -132,6 +133,7 @@ import { CleanupModule } from './cleanup/cleanup.module';
     DashboardModule,
     NotificationsModule,
     KnowledgeModule,
+    DocumentExportModule,
     PlatformAiModule,
     AiModule,
     ScheduledTasksModule,
