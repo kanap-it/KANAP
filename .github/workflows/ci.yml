@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main ]
 
+# A new push to a pull request cancels the run of the previous push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,6 +34,8 @@ jobs:
     env:
       DEPLOYMENT_MODE: ${{ matrix.mode == 'onprem' && 'single-tenant' || '' }}
       DATABASE_URL: postgres://app:app@127.0.0.1:5432/appdb
+      # Types are checked once by `typecheck:ci`; ts-node then only transpiles.
+      TS_NODE_TRANSPILE_ONLY: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,9 +43,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
       - name: Build backend (${{ matrix.mode }})
         working-directory: backend
         run: npm ci && npm run build
+      - name: Type-check backend sources and specs (${{ matrix.mode }})
+        if: matrix.mode == 'cloud'
+        working-directory: backend
+        run: npm run typecheck:ci
       - name: Prepare CI PostgreSQL role/database (${{ matrix.mode }})
         if: matrix.mode == 'cloud'
         env:
@@ -57,7 +72,7 @@ jobs:
       - name: Run backend hardening checks (${{ matrix.mode }})
         if: matrix.mode == 'cloud'
         working-directory: backend
-        run: npm run test:auth && npm run test:security && npm run test:tenant-isolation && npm run test:rls && npm run test:allocation-rules && npm run test:capex && npm run test:portfolio && npm run test:incidents && npm run test:integrated-docs && npm run test:incident-review-access && npm run test:csv && npm run test:it-ops-settings && npm run test:application-classification && npm run test:ai
+        run: npm run test:ci
       - name: Build frontend (${{ matrix.mode }})
         working-directory: frontend
         run: npm ci && npm run build
