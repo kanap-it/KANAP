@@ -1,5 +1,5 @@
 import * as assert from 'node:assert/strict';
-import { buildDerivedUsersByApp } from '../services/derived-users';
+import { buildDerivedUsersByApp, pickMetricForYear } from '../services/derived-users';
 
 /**
  * Regression guard for the applications list N+1.
@@ -47,7 +47,6 @@ function makeApps(count: number) {
     id: APP_ID(i),
     name: `App ${i}`,
     users_mode: 'it_users' as const,
-    users_year: 2026,
     users_override: null,
   }));
 }
@@ -56,9 +55,9 @@ async function testQueryCountDoesNotGrowWithPageSize() {
   const run = buildDerivedUsersByApp;
 
   const small = createCountingManager(3);
-  await run.call(null, makeApps(3), small.manager);
+  await run.call(null, makeApps(3), small.manager, 2026);
   const large = createCountingManager(40);
-  await run.call(null, makeApps(40), large.manager);
+  await run.call(null, makeApps(40), large.manager, 2026);
 
   // The point of the fix: 40 rows must not cost more queries than 3 rows.
   assert.equal(
@@ -78,7 +77,7 @@ async function testDerivesTheSameTotalsAsThePerRowRule() {
   const run = buildDerivedUsersByApp;
   const { manager } = createCountingManager(2);
 
-  const itUsers = await run.call(null, makeApps(2), manager);
+  const itUsers = await run.call(null, makeApps(2), manager, 2026);
   // company it_users 10 + outside department headcount 5
   assert.deepEqual(itUsers, { 'app-0': 15, 'app-1': 15 });
 
@@ -86,6 +85,7 @@ async function testDerivesTheSameTotalsAsThePerRowRule() {
     null,
     makeApps(2).map((a) => ({ ...a, users_mode: 'headcount' as const })),
     manager,
+    2026,
   );
   // company headcount 12 + outside department headcount 5
   assert.deepEqual(headcount, { 'app-0': 17, 'app-1': 17 });
@@ -108,7 +108,7 @@ async function testSkipsTheDepartmentAlreadyCoveredByACompany() {
     }),
   };
 
-  const out = await run.call(null, makeApps(1), ownManager);
+  const out = await run.call(null, makeApps(1), ownManager, 2026);
   assert.deepEqual(out, { 'app-0': 10 }, 'the in-company department is not double counted');
 }
 
@@ -118,7 +118,7 @@ async function testManualModeUsesTheRowWithoutAnyQuery() {
 
   const out = await run.call(
     null,
-    [{ id: 'app-x', users_mode: 'manual', users_year: null, users_override: 42 }],
+    [{ id: 'app-x', users_mode: 'manual', users_override: 42 }],
     manager,
   );
 
@@ -126,16 +126,30 @@ async function testManualModeUsesTheRowWithoutAnyQuery() {
   assert.equal(total(), 0, 'manual mode needs no database read at all');
 }
 
-async function testWithoutAYearNothingIsDerived() {
-  // The per-application copy used to pass `fiscal_year: null` to find(); TypeORM drops a
-  // null from find options, so it summed the metrics of every year. The grid and the
-  // application's own total now share this rule, and both report 0.
+function testPicksTheReferenceYearThenTheClosestEarlierThenLater() {
+  const byYear = new Map([[2024, 'a'], [2025, 'b'], [2027, 'c']]);
+  assert.equal(pickMetricForYear(byYear, 2025), 'b', 'the reference year itself');
+  assert.equal(pickMetricForYear(byYear, 2026), 'b', 'else the closest earlier year');
+  assert.equal(pickMetricForYear(byYear, 2030), 'c');
+  assert.equal(pickMetricForYear(byYear, 2020), 'a', 'else the closest later year');
+  assert.equal(pickMetricForYear(new Map(), 2026), undefined);
+  assert.equal(pickMetricForYear(undefined, 2026), undefined);
+}
+
+async function testFollowsTheCurrentYearWhateverTheApplicationWasStampedWith() {
+  // `users_year` was stamped at creation and never moved (or left empty by a CSV import),
+  // so the total must not depend on it. Metrics exist for 2026 only.
+  const stamped = [{ id: 'app-0', users_mode: 'it_users' as const, users_override: null, users_year: 2019 }];
   const { manager } = createCountingManager(1);
-  const out = await buildDerivedUsersByApp(
-    [{ id: 'app-0', users_mode: 'it_users', users_year: null, users_override: null }],
-    manager,
+  // company it_users 10 + outside department headcount 5
+  assert.deepEqual(await buildDerivedUsersByApp(stamped, manager, 2026), { 'app-0': 15 });
+  // January of the next year, figures not entered yet: last year's still count.
+  assert.deepEqual(await buildDerivedUsersByApp(stamped, manager, 2027), { 'app-0': 15 });
+  // An explicit reference year wins over the current year.
+  assert.deepEqual(
+    await buildDerivedUsersByApp([{ ...stamped[0], reference_year: 2026 }], manager, 2031),
+    { 'app-0': 15 },
   );
-  assert.deepEqual(out, { 'app-0': 0 });
 }
 
 async function testEmptyPageIsFree() {
@@ -151,7 +165,8 @@ async function run() {
   await testDerivesTheSameTotalsAsThePerRowRule();
   await testSkipsTheDepartmentAlreadyCoveredByACompany();
   await testManualModeUsesTheRowWithoutAnyQuery();
-  await testWithoutAYearNothingIsDerived();
+  testPicksTheReferenceYearThenTheClosestEarlierThenLater();
+  await testFollowsTheCurrentYearWhateverTheApplicationWasStampedWith();
   await testEmptyPageIsFree();
 }
 
