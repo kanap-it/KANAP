@@ -267,44 +267,14 @@ export abstract class ApplicationsBaseService {
 
 ## Query Building
 
-### QueryBuilderFactory
+Services build queries with TypeORM and reuse the helpers in
+`backend/src/common/ag-grid-filtering.ts`: `compileAgFilterCondition`,
+`createParamNameGenerator`, and `buildQuickSearchConditions`.
 
-Centralizes AG-Grid filter/sort translation to SQL.
-
-**Location:** `backend/src/common/query/query-builder.factory.ts`
-
-```typescript
-interface FilterTarget {
-  field: string;      // AG-Grid field name
-  column: string;     // SQL column
-  type: 'string' | 'number' | 'boolean' | 'date' | 'enum';
-  table?: string;     // Table alias
-}
-
-@Injectable()
-export class QueryBuilderFactory {
-  create<T>(repository: Repository<T>, filterTargets: FilterTarget[]): QueryBuilder<T>
-}
-```
-
-### DataExpander
-
-Handles `include` parameter expansion for list endpoints.
-
-**Location:** `backend/src/common/query/data-expander.ts`
-
-```typescript
-interface ExpandConfig<T, R> {
-  key: keyof T;
-  loader: (ids: string[]) => Promise<Map<string, R>>;
-  attach: (item: T, data: R | undefined) => void;
-}
-
-class DataExpander<T> {
-  constructor(configs: ExpandConfig<T, any>[])
-  async expand(items: T[], includes: string[]): Promise<T[]>
-}
-```
+Field mappings, joins, sorting, and `include` expansions are handled by the
+individual services. For an example of sharing filter conditions across list,
+navigation, and summary queries, see `buildFilteredScope` in
+`backend/src/applications/services/applications-list.service.ts`.
 
 ---
 
@@ -419,10 +389,6 @@ backend/src/common/
 │   ├── tenancy.module.ts
 │   ├── tenancy.middleware.ts
 │   ├── tenancy.interceptor.ts
-│   └── index.ts
-├── query/                      # Query building utilities
-│   ├── query-builder.factory.ts
-│   ├── data-expander.ts
 │   └── index.ts
 ├── dto/                        # Common DTOs
 │   └── list-query.dto.ts
