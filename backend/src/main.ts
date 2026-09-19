@@ -103,7 +103,7 @@ async function bootstrap() {
     // eslint-disable-next-line no-console
     console.log(`[CORS] Configured ${corsPatterns.length} origin pattern(s)`);
     app.use(cors({
-      origin: (origin, callback) => {
+      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
         // Allow requests with no origin (server-to-server, curl, etc.)
         if (!origin) {
           callback(null, true);

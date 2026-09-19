@@ -562,12 +562,14 @@ async function testChatControllerStreamsForTenantHost() {
 }
 
 async function testChatControllerAbortsOnDisconnect() {
-  let capturedSignal: AbortSignal | null = null;
+  // Held on an object so the control-flow analysis of the local variable cannot
+  // hide the assignment made from inside the stream generator.
+  const captured: { signal: AbortSignal | null } = { signal: null };
   const controller = new AiChatController(
     {
       prepareRequest: async () => ({ providerSource: 'custom' }),
       streamPrepared: async function* (_prepared: any, opts: any) {
-        capturedSignal = opts.signal ?? null;
+        captured.signal = opts.signal ?? null;
         yield { type: 'text_delta', text: 'chunk-1' };
         while (!(opts.signal?.aborted)) {
           await new Promise((resolve) => setTimeout(resolve, 1));
@@ -592,7 +594,7 @@ async function testChatControllerAbortsOnDisconnect() {
 
   await streamPromise;
 
-  assert.equal(capturedSignal?.aborted, true);
+  assert.equal(captured.signal?.aborted, true);
   assert.equal(state.writes.length, 1);
   assert.equal(state.ended, false);
 }

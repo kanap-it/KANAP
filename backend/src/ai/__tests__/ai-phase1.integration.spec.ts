@@ -3917,6 +3917,7 @@ async function testAiQueryExecutorClosesRemainingMilestone1aGapFields() {
     });
     assert.equal(contractResult.total, 1);
     assert.deepEqual(contractResult.items.map((item: any) => item.id), [matchingContractId]);
+    assert.ok(contractResult.items[0].metadata, 'the contract summary must carry metadata');
     assert.equal(contractResult.items[0].metadata.supplier, 'ERP Vendor');
     assert.equal(contractResult.items[0].metadata.company, 'Tenant A Holdings');
     assert.equal(contractResult.items[0].metadata.auto_renewal, true);
@@ -3936,6 +3937,7 @@ async function testAiQueryExecutorClosesRemainingMilestone1aGapFields() {
     });
     assert.equal(companyResult.total, 1);
     assert.deepEqual(companyResult.items.map((item: any) => item.id), [companyId]);
+    assert.ok(companyResult.items[0].metadata, 'the company summary must carry metadata');
     assert.equal(companyResult.items[0].metadata.country_iso, 'FR');
     assert.equal(companyResult.items[0].metadata.state, 'Ile-de-France');
     assert.equal(companyResult.items[0].metadata.metrics_year, metricYear);
@@ -3955,6 +3957,7 @@ async function testAiQueryExecutorClosesRemainingMilestone1aGapFields() {
     assert.equal(companyMetricResult.filters_ignored.length, 0);
     assert.equal(companyMetricResult.total, 1);
     assert.deepEqual(companyMetricResult.items.map((item: any) => item.id), [companyId]);
+    assert.ok(companyMetricResult.items[0].metadata, 'the company summary must carry metadata');
     assert.equal(companyMetricResult.items[0].metadata.headcount, 42);
 
     const companyDetail = await queryExecutor.executeDetail(context, {
@@ -3978,6 +3981,7 @@ async function testAiQueryExecutorClosesRemainingMilestone1aGapFields() {
     assert.equal(departmentMetricResult.filters_ignored.length, 0);
     assert.equal(departmentMetricResult.total, 1);
     assert.deepEqual(departmentMetricResult.items.map((item: any) => item.id), [departmentId]);
+    assert.ok(departmentMetricResult.items[0].metadata, 'the department summary must carry metadata');
     assert.equal(departmentMetricResult.items[0].metadata.headcount, 11);
     assert.equal(departmentMetricResult.items[0].metadata.metrics_year, metricYear);
 
@@ -4076,6 +4080,7 @@ async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
     [anchorYear - 2, anchorYear - 1, anchorYear, anchorYear + 1, anchorYear + 2].join(','),
   );
   assert.equal(result.total, 1);
+  assert.ok(result.items[0].metadata, 'the spend item summary must carry metadata');
   assert.equal(result.items[0].metadata.budget_anchor_year, anchorYear);
   assert.equal(result.items[0].metadata.project_name, 'Infrastructure Refresh');
   assert.equal(result.items[0].metadata.project_stream, 'Infrastructure');

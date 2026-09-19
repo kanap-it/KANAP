@@ -13,7 +13,15 @@ const VISIBLE_ID = '33333333-3333-3333-3333-333333333333';
 const READER = '44444444-4444-4444-4444-444444444444';
 const OWNER = '55555555-5555-5555-5555-555555555555';
 
-const hiddenRow = {
+type ExistingIncidentRow = {
+  id: string;
+  item_number: number;
+  confidential: boolean;
+  reporter_user_id: string;
+  owner_user_id: string | null;
+};
+
+const hiddenRow: ExistingIncidentRow = {
   id: HIDDEN_ID,
   item_number: 12,
   confidential: true,
@@ -21,7 +29,7 @@ const hiddenRow = {
   owner_user_id: OWNER,
 };
 
-const visibleRestrictedRow = {
+const visibleRestrictedRow: ExistingIncidentRow = {
   id: VISIBLE_ID,
   item_number: 13,
   confidential: true,

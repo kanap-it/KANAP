@@ -80,12 +80,12 @@ export class DepartmentsController {
   @UseGuards(PermissionGuard)
   @RequireLevel('departments', 'member')
   @Post()
-  create(@Body() body: DepartmentUpsertDto, @Tenant() ctx: TenantRequest) { return this.svc.create(body, ctx.userId || null, { manager: ctx.manager }); }
+  create(@Body() body: DepartmentUpsertDto, @Tenant() ctx: TenantRequest) { return this.svc.create(body, ctx.userId || undefined, { manager: ctx.manager }); }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('departments', 'member')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: DepartmentUpsertDto, @Tenant() ctx: TenantRequest) { return this.svc.update(id, body, ctx.userId || null, { manager: ctx.manager }); }
+  update(@Param('id') id: string, @Body() body: DepartmentUpsertDto, @Tenant() ctx: TenantRequest) { return this.svc.update(id, body, ctx.userId || undefined, { manager: ctx.manager }); }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('departments', 'admin')

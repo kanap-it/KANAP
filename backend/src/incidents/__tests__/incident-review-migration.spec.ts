@@ -4,7 +4,6 @@ import * as assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Client } from 'pg';
 import { DataSource, QueryRunner } from 'typeorm';
 import { IncidentReviewDocument1853490000000 } from '../../migrations/1853490000000-incident-review-document';
 import { provisionIncidentReviewDocuments } from '../../knowledge/incident-review-provisioning';
@@ -33,6 +32,18 @@ const PREVIOUS_MIGRATION_TIMESTAMP = 1853470000000;
 const TARGET_MIGRATION_TIMESTAMP = 1853490000000;
 
 type MigrationClass = { new (): any; name: string };
+
+// `pg` ships no type declarations (and `@types/pg` is not a dependency); the
+// harness only uses this tiny surface, so it is typed here instead of imported.
+type PgClient = {
+  connect(): Promise<void>;
+  query(sql: string, params?: unknown[]): Promise<unknown>;
+  end(): Promise<void>;
+};
+
+const { Client: PgClientConstructor } = require('pg') as {
+  Client: new (config: { connectionString: string }) => PgClient;
+};
 
 function scratchUrl(databaseName: string): string {
   const url = new URL(APP_URL);
@@ -64,8 +75,8 @@ function loadMigrationClasses(): Array<{ timestamp: number; migration: Migration
   return loaded;
 }
 
-async function withAdminClient<T>(databaseUrl: string, fn: (client: Client) => Promise<T>): Promise<T> {
-  const client = new Client({ connectionString: databaseUrl });
+async function withAdminClient<T>(databaseUrl: string, fn: (client: PgClient) => Promise<T>): Promise<T> {
+  const client = new PgClientConstructor({ connectionString: databaseUrl });
   await client.connect();
   try {
     return await fn(client);

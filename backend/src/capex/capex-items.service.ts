@@ -402,6 +402,13 @@ export class CapexItemsService {
     const item_number = await this.itemNumbers.nextItemNumber('capex', tenantId, mg);
     const entity = repo.create({
       ...rest,
+      // These columns are NOT NULL on the entity while the DTO allows null
+      description: rest.description ?? undefined,
+      ppe_type: rest.ppe_type ?? undefined,
+      investment_type: rest.investment_type ?? undefined,
+      priority: rest.priority ?? undefined,
+      currency: rest.currency ?? undefined,
+      effective_start: rest.effective_start ?? undefined,
       item_number,
       account_id: body.account_id ?? null,
       paying_company_id,
@@ -794,7 +801,7 @@ export class CapexItemsService {
 
   async summaryFilterValues(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {
     const mg = opts?.manager ?? this.repo.manager;
-    const rawFields = typeof query.fields === 'string'
+    const rawFields: string[] = typeof query.fields === 'string'
       ? query.fields.split(',').map((f: string) => f.trim()).filter(Boolean)
       : [];
     const allowedFields = new Set([

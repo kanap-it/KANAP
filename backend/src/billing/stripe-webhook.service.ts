@@ -223,12 +223,15 @@ export class StripeWebhookService implements OnModuleInit {
       return;
     }
 
-    const subscriptionData = await this.resolveSubscriptionData(event, identifiers.subscriptionId);
+    // Captured as a local: the guard's narrowing does not survive into the callback below.
+    const subscriptionId = identifiers.subscriptionId;
+
+    const subscriptionData = await this.resolveSubscriptionData(event, subscriptionId);
     const invoiceData = event?.type?.startsWith('invoice.') ? event?.data?.object ?? null : null;
 
     await withTenant(this.dataSource, tenantId, async (manager) => {
       const repo = manager.getRepository(Subscription);
-      let sub = await repo.findOne({ where: { stripe_subscription_id: identifiers.subscriptionId } });
+      let sub = await repo.findOne({ where: { stripe_subscription_id: subscriptionId } });
 
       if (!sub) {
         sub = await repo.findOne({ where: {} });
@@ -248,7 +251,7 @@ export class StripeWebhookService implements OnModuleInit {
       if (identifiers.customerId) {
         sub.stripe_customer_id = identifiers.customerId;
       }
-      sub.stripe_subscription_id = identifiers.subscriptionId;
+      sub.stripe_subscription_id = subscriptionId;
       if (subscriptionData) {
         sub.status = this.resolveStatus(subscriptionData?.status) ?? sub.status ?? null;
         sub.collection_method = this.resolveCollectionMethod(subscriptionData?.collection_method) ?? sub.collection_method ?? null;

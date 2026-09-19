@@ -98,14 +98,14 @@ export class CompaniesController {
   @RequireLevel('companies', 'member')
   @Post()
   create(@Body() body: CompanyUpsertDto, @Tenant() ctx: TenantRequest) {
-    return this.svc.create(body, ctx.userId || null, { manager: ctx.manager });
+    return this.svc.create(body, ctx.userId || undefined, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('companies', 'member')
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: CompanyUpsertDto, @Tenant() ctx: TenantRequest) {
-    return this.svc.update(id, body, ctx.userId || null, { manager: ctx.manager });
+    return this.svc.update(id, body, ctx.userId || undefined, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)

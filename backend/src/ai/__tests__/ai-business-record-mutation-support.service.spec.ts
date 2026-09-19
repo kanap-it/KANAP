@@ -126,6 +126,7 @@ async function testUpdateResolvesConfiguredBusinessApplicationsLabel() {
 
   assert.equal(prepared.targetEntityId, APP_ID);
   assert.equal((prepared.mutationInput.fields as Record<string, unknown>).category, 'line_of_business');
+  assert.ok(prepared.currentValues, 'an update preview must expose the current values');
   assert.deepEqual(prepared.currentValues.values, {
     category: 'productivity',
   });

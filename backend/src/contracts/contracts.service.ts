@@ -283,7 +283,7 @@ export class ContractsService {
   }
 
   private validateInput(body: {
-    start_date?: string;
+    start_date?: string | null;
     billing_frequency?: string | null;
     currency?: string | null;
     company_id?: string | null;
@@ -307,6 +307,11 @@ export class ContractsService {
     const lifecycle = resolveLifecycleState({ nextStatus: statusInput, nextDisabledAt: disabled_at });
     const toCreate: DeepPartial<Contract> = {
       ...rest,
+      // These columns are NOT NULL on the entity while the DTO allows null
+      name: rest.name ?? undefined,
+      company_id: rest.company_id ?? undefined,
+      supplier_id: rest.supplier_id ?? undefined,
+      start_date: rest.start_date ?? undefined,
       status: lifecycle.status,
       disabled_at: lifecycle.disabled_at,
       duration_months: body.duration_months ?? 12,

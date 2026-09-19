@@ -603,7 +603,7 @@ export class AiMutationPreviewService {
           step_key: step.step_key,
           label: step.label ?? null,
           tool_name: step.tool_name,
-          message: step.error_message,
+          message: step.error_message || 'Preview creation failed.',
         });
       }
     }

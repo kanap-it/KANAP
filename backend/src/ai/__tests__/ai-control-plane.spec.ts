@@ -326,7 +326,7 @@ function createMemoryManager() {
         id: payload.id ?? ([AiActionRequest.name, AiApproval.name].includes(name) ? randomUUID() : `${name}-${++idCounter}`),
         ...payload,
       }),
-      save: async (record: any) => {
+      save: async (record: any): Promise<unknown> => {
         if (Array.isArray(record)) {
           return Promise.all(record.map((entry) => repoFor(entity).save(entry)));
         }
@@ -1414,7 +1414,7 @@ async function testApprovedPreviewExecutionLinksActionAndApproval() {
       risk_level: 'medium',
       max_autonomy_level: 'A3',
       default_approval: 'human',
-      approval_strategy: { mode: 'mutation_preview' },
+      approval_strategy: { mode: 'mutation_preview', preview_id_input_field: 'preview_ids' },
       mcp_exposure: { enabled: false, read_only: false },
       idempotency: { mode: 'idempotent', key_fields: ['preview_ids'] },
       live_test_safety: 'live_write_gated',
@@ -5375,9 +5375,11 @@ function createHelpdeskIngestionService(input: {
     ticketing: async () => input.provider,
   };
   const runQueuedTriage = async (context: AiExecutionContextWithManager, runInput: { work_item_id?: string | null }) => {
-    const workItem = await context.manager.getRepository(AiAgentWorkItem).findOne({
-      where: { id: runInput.work_item_id, tenant_id: context.tenantId },
-    });
+    const workItem = runInput.work_item_id
+      ? await context.manager.getRepository(AiAgentWorkItem).findOne({
+        where: { id: runInput.work_item_id, tenant_id: context.tenantId },
+      })
+      : null;
     if (!workItem) {
       throw new Error('missing test work item');
     }
@@ -6398,8 +6400,11 @@ async function testKnowledgeInterpreterFallbackKeepsRequesterNeedAbovePlannerNoi
     assert.equal(result.source, 'llm_fallback');
     assert.deepEqual(result.selected_refs, []);
     assert.equal(result.needs_human_review, true);
-    assert.equal(result.selected_refs.includes('DOC-55'), false);
-    assert.equal(result.selected_refs.includes('DOC-152'), false);
+    // `selected_refs` is inferred as `never[]` on the fallback path, so it is
+    // widened once here to keep the negative lookups meaningful.
+    const selectedRefs: string[] = result.selected_refs;
+    assert.equal(selectedRefs.includes('DOC-55'), false);
+    assert.equal(selectedRefs.includes('DOC-152'), false);
     assert.match(result.rationale ?? '', /no candidate with enough lexical evidence/i);
   } finally {
     if (previousPlannerFlag == null) {
@@ -10757,6 +10762,8 @@ async function testEffectivePromptExposesBoundsApplied() {
   const preview = await service.getAgentEffectivePrompt(context, definition.id);
   assert.ok(Array.isArray(preview.bounds_applied));
   assert.ok(preview.bounds_applied.some((entry: string) => entry.startsWith('instructions_clamped')));
+  assert.ok(preview.tasks.synthesis, 'the synthesis task must be exposed');
+  assert.ok(preview.tasks.planner, 'the planner task must be exposed');
   assert.ok(preview.tasks.synthesis.bounds_applied.some((entry: string) => entry.startsWith('instructions_clamped')));
   assert.ok(preview.tasks.planner.bounds_applied.some((entry: string) => entry.startsWith('instructions_clamped')));
 }
@@ -10802,6 +10809,7 @@ async function testAgentAutonomyGrantRequiresEligibilityAndAllowlist() {
     confirm: true,
   });
   const internalNote = result.items.find((item: any) => item.actionClass === 'internal_note');
+  assert.ok(internalNote, 'the internal_note policy must be present in the autonomy overview');
   assert.equal(internalNote.mode, 'automatic');
   const policy = (stores.get(AiApprovalPolicy.name) ?? []).find((row: AiApprovalPolicy) => row.metadata_json?.created_by === AGENT_AUTONOMY_POLICY_SOURCE);
   assert.ok(policy);

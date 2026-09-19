@@ -1,7 +1,7 @@
 import { resolvePlannerClassificationProposal } from '../providers/ticket-classification';
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { FindOptionsWhere, In, SelectQueryBuilder } from 'typeorm';
+import { FindOptionsWhere, In, ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { Features } from '../../../config/features';
 import { decodeNumericHtmlEntities } from '../../../common/html-entities';
 import { AiExecutionContextWithManager } from '../../ai.types';
@@ -5398,7 +5398,7 @@ export class AiAgentControlService {
     // keep the count the UI already has instead of paying six COUNTs a minute.
     const countTotals = cursor == null;
     let total = 0;
-    const readStream = async <E>(
+    const readStream = async <E extends ObjectLiteral>(
       build: (withCursor: boolean) => SelectQueryBuilder<E>,
       orderColumn: string,
     ): Promise<E[]> => {
@@ -8254,7 +8254,9 @@ export class AiAgentControlService {
     }
 
     const synthesisLanguage = resolveReplyLanguage(agentDefinition, ticket, knowledgeSearchPlan.language);
-    let replySynthesisResult: ReplySynthesisResult | null = null;
+    // Assigned inside the `runReplySynthesis` closure below. Flow analysis cannot see that write,
+    // so without keeping the declared union here the reads after the closure call narrow to `null`.
+    let replySynthesisResult: ReplySynthesisResult | null = null as ReplySynthesisResult | null;
     let synthesisFallbackReason: string | null = null;
     let synthesisProjection: { estimatedTokens: number; estimatedCostEur: number } | null = null;
     const synthesisInputSummary = {
@@ -8434,7 +8436,7 @@ export class AiAgentControlService {
       && definitionAllowsCapability(agentDefinition, TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY)
       && definitionAllowsCapability(agentDefinition, TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY)
       && definitionAllowsCapability(agentDefinition, TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY);
-    const targetingEligibility = closeWriteCapable
+    const targetingEligibility = closeWriteCapable && agentDefinition
       ? await this.ticketTargetingEligibility(context, agentDefinition, ticket as TicketRecord, target.provider_key)
       : { matched: false, hasInactivityAge: false };
     const closeEligible = closeWriteCapable
@@ -8638,7 +8640,9 @@ export class AiAgentControlService {
             markPlannerSkipped(actionType, 'one_classification_per_plan');
             continue;
           }
-          const resolved = resolvePlannerClassificationProposal(classificationContext, action);
+          const resolved = resolvePlannerClassificationProposal(classificationContext, {
+            proposed: action.proposed ?? undefined,
+          });
           if (!resolved.proposed) {
             markPlannerSkipped(actionType, resolved.reason ?? 'classification_field_not_in_catalogue');
             continue;
@@ -8815,10 +8819,10 @@ export class AiAgentControlService {
         .filter(isProseReason)
         .filter((reason, index, all) => all.indexOf(reason) === index)
         .join(' — ') || null;
-    const escalationReason = isPlannerEscalation
+    const escalationReason = isPlannerEscalation && actionPlannerResult
       ? plannerReasonProse([actionPlannerResult.rationale, effectiveInternalNoteAction.action.reason])
       : null;
-    const administrativeReason = isPlannerAdministrativeReply
+    const administrativeReason = isPlannerAdministrativeReply && actionPlannerResult
       ? plannerReasonProse([
         actionPlannerResult.rationale,
         effectiveAdministrativeReplyAction.action.reason,
@@ -10004,10 +10008,13 @@ export class AiAgentControlService {
     }, {
       status: APPROVED_ACTION_EXECUTING_STATUS,
       error_message: null,
+      // TypeORM's deep-partial update type maps the `Record<string, unknown>` jsonb column to
+      // `unknown`-valued leaves, which it cannot accept; the value is a plain JSON object that is
+      // written as-is.
       metadata_json: withApprovedBatchContext(action.metadata_json, {
         execution_claim_id: claimId,
         execution_claimed_at: now.toISOString(),
-      }),
+      }) as Parameters<typeof repo.update>[1]['metadata_json'],
       updated_at: now,
     });
     if ((result.affected ?? 0) !== 1) {

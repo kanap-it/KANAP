@@ -208,7 +208,8 @@ export function helpdeskAgentDefaults(input: { ticketingProviderKey: string }): 
         web: { enabled: false },
         precedence: 'knowledge_first',
       },
-    }),
+      // The helper only returns null for a null input; this literal is never null.
+    }) ?? {},
     queue_policy_json: {
       enabled: true,
       dedup_mode: 'active_work_item',

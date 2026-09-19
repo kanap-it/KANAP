@@ -305,7 +305,7 @@ export function hasGuidanceContent(guidance: CompiledGuidance | null | undefined
 
 export function compileSystemPrompt(floor: string[], guidance: CompiledGuidance | null | undefined): string {
   const floorText = floor.join(' ');
-  if (!hasGuidanceContent(guidance)) {
+  if (!guidance || !hasGuidanceContent(guidance)) {
     return floorText;
   }
   return [

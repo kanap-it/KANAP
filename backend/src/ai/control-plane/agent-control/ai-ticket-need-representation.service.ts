@@ -749,7 +749,10 @@ export class AiTicketNeedRepresentationService {
       const warning = result.metadata.retry_attempted
         ? 'Need builder JSON was repaired after one retry.'
         : null;
-      const need = normalizeParsedNeed(result.value, fallback);
+      // `NeedSchema` is a `z.preprocess` (ZodEffects) whose input type is `unknown`, so the client's
+      // `z.ZodType<T>` parameter infers `unknown`; the value is the schema's parsed output (see
+      // AiAgentLlmClient.parseStructuredJson).
+      const need = normalizeParsedNeed(result.value as ParsedNeed, fallback);
       if (warning) {
         need.warnings = uniqueStrings([...need.warnings, warning], 24);
       }

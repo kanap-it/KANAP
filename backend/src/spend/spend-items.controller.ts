@@ -330,7 +330,7 @@ export class SpendItemsController {
     @Body() body: CreateSpendItemInput,
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.svc.create(body as Record<string, unknown>, ctx.userId || null, { manager: ctx.manager });
+    return this.svc.create(body as Record<string, unknown>, ctx.userId || undefined, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
@@ -341,7 +341,7 @@ export class SpendItemsController {
     @Body() body: UpdateSpendItemInput,
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.svc.update(id, body as Record<string, unknown>, ctx.userId || null, { manager: ctx.manager });
+    return this.svc.update(id, body as Record<string, unknown>, ctx.userId || undefined, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)

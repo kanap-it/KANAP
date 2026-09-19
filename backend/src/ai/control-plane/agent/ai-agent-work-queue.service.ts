@@ -1842,7 +1842,8 @@ export class AiAgentWorkQueueService {
         // so claim-deferred items show status 'failed' with attempt_count still at 0.
         this.applyWorkItemTransition(workItem, 'failed', now);
         workItem.last_error = `Target deferred by active claim: ${claim.reason ?? 'claim_conflict'}`;
-        workItem.next_attempt_at = claim.claimExpiresAt ? dateFromUnknown(claim.claimExpiresAt) : new Date(now.getTime() + DEFAULT_COOLDOWN_SECONDS * 1000);
+        workItem.next_attempt_at = (claim.claimExpiresAt ? dateFromUnknown(claim.claimExpiresAt) : null)
+          ?? new Date(now.getTime() + DEFAULT_COOLDOWN_SECONDS * 1000);
         await repo.save(workItem);
         throw new ForbiddenException('Agent work item target is currently claimed by another agent.');
       }

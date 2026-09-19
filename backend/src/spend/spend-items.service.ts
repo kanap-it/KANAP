@@ -278,6 +278,10 @@ export class SpendItemsService {
     const item_number = await this.itemNumbers.nextItemNumber('spend', tenantId, mg);
     const entity = repo.create({
       ...rest,
+      // These columns are NOT NULL on the entity while the DTO allows null
+      product_name: rest.product_name ?? undefined,
+      currency: rest.currency ?? undefined,
+      effective_start: rest.effective_start ?? undefined,
       item_number,
       status: lifecycle.status,
       disabled_at: lifecycle.disabled_at,
@@ -459,7 +463,7 @@ export class SpendItemsService {
 
   async summaryFilterValues(query: any, opts?: { manager?: EntityManager }): Promise<Record<string, Array<string | null>>> {
     const mg = opts?.manager ?? this.repo.manager;
-    const rawFields = typeof query.fields === 'string'
+    const rawFields: string[] = typeof query.fields === 'string'
       ? query.fields.split(',').map((f: string) => f.trim()).filter(Boolean)
       : [];
     const allowedFields = new Set([

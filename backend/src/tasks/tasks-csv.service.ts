@@ -148,7 +148,8 @@ export class TasksCsvService {
 
       // Attach names to tasks
       for (const task of typeTasks) {
-        (task as any)._relatedObjectName = nameById.get(task.related_object_id) ?? '';
+        const relatedObjectId = task.related_object_id;
+        (task as any)._relatedObjectName = relatedObjectId ? (nameById.get(relatedObjectId) ?? '') : '';
       }
     }
   }

@@ -39,7 +39,7 @@ function createService() {
       state.saveArgs.push(value);
       return value;
     },
-    findOne: async (value: any) => {
+    findOne: async (value: any): Promise<Record<string, unknown> | null> => {
       state.findOneArgs.push(value);
       return null;
     },

@@ -55,12 +55,12 @@ export class AccountsController {
   create(@Body() body: AccountUpsertDto, @Query('coaId') coaId: string | undefined, @Tenant() ctx: TenantRequest) {
     const payload = { ...body } as AccountUpsertDto;
     if (!payload.coa_id && coaId) (payload as any).coa_id = coaId;
-    return this.svc.create(payload, ctx.userId || null, { manager: ctx.manager });
+    return this.svc.create(payload, ctx.userId || undefined, { manager: ctx.manager });
   }
   @UseGuards(PermissionGuard)
   @RequireLevel('accounts', 'member')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: AccountUpsertDto, @Tenant() ctx: TenantRequest) { return this.svc.update(id, body, ctx.userId || null, { manager: ctx.manager }); }
+  update(@Param('id') id: string, @Body() body: AccountUpsertDto, @Tenant() ctx: TenantRequest) { return this.svc.update(id, body, ctx.userId || undefined, { manager: ctx.manager }); }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('accounts', 'admin')

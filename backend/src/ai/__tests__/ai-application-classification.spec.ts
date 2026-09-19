@@ -140,7 +140,7 @@ function testRegistryFiltersSortingAggregationAndSql() {
   assert.equal(applicationsRegistry.sortFields.business_criticality_rank, 'business_criticality_rank');
   assert.equal(applicationsRegistry.fields.cyber_criticality.groupable, true);
   assert.equal(applicationsRegistry.aggregate?.groupFields.cyber_criticality.expression, 'a.cyber_criticality');
-  assert.equal(applicationsRegistry.aggregate?.metricFields.rto_minutes.type, 'number');
+  assert.equal(applicationsRegistry.aggregate?.metricFields?.rto_minutes.type, 'number');
   assert.equal(applicationsRegistry.aggregate?.metricFields.cyber_criticality_rank.type, 'number');
   const sql = classificationSqlExpressions('a');
   assert.match(sql.cyber_criticality_rank, /cyber_criticality_levels/);
@@ -171,6 +171,7 @@ async function testCreateAndUpdatePreviews() {
     fields: { criticality: 'stop_now', cyber_criticality: null },
   });
   assert.deepEqual(update.mutationInput.classification, { has_classification_input: true, invalidates_review: true });
+  assert.ok(update.currentValues, 'an update preview must expose the current values');
   assert.deepEqual(update.currentValues.values, { criticality: 'patient', cyber_criticality: 'custom_calm' });
   const shown = service.presentPreview({ id: 'preview-1', status: 'pending', target_entity_type: 'applications', target_entity_id: APP_ID, mutation_input: update.mutationInput, current_values: update.currentValues } as any);
   assert.equal(shown.changes.criticality.to, 'Immediate');

@@ -779,7 +779,8 @@ export class BillingService {
   private async shouldRefreshFromStripe(sub: Subscription): Promise<boolean> {
     if (!sub.stripe_subscription_id) return false;
     const missingCore = !sub.current_period_end || !sub.amount || !sub.currency;
-    const missingPaymentMethod = sub.stripe_subscription_id && !sub.default_payment_method_id;
+    // `stripe_subscription_id` is already known to be set (guarded above).
+    const missingPaymentMethod = !sub.default_payment_method_id;
     const stale = !sub.last_synced_at || Date.now() - sub.last_synced_at.getTime() > 5 * 60 * 1000;
     return (missingCore || missingPaymentMethod) && stale;
   }

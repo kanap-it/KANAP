@@ -114,7 +114,7 @@ function createMemoryManager() {
         id: payload.id ?? `${name}-${++idCounter}`,
         ...payload,
       }),
-      save: async (record: any) => {
+      save: async (record: any): Promise<unknown> => {
         if (Array.isArray(record)) {
           return Promise.all(record.map((entry) => repoFor(entity).save(entry)));
         }
@@ -539,6 +539,8 @@ async function testHappyPathPersistsCitedRecommendation() {
   assert.equal(result.status, 'completed');
   assert.equal(result.work_item.status, 'completed');
   assert.equal(result.diagnostic.diagnosis_stage, 'llm_brief');
+  assert.ok(result.diagnostic.brief, 'the diagnosis must expose its brief');
+  assert.ok(result.diagnostic.kanap_context, 'the diagnosis must expose its KANAP context');
   assert.equal(result.diagnostic.brief.fallback, false);
   assert.equal(result.diagnostic.kanap_context.asset_match, 'matched');
   assert.equal(quota.reserved, 1, 'one diagnosis reserves exactly one included message');
@@ -548,6 +550,7 @@ async function testHappyPathPersistsCitedRecommendation() {
   const brief = result.diagnostic.brief;
   assert.deepEqual(brief.used_sources.map((source: any) => `${source.kind}:${source.ref}`).sort(), ['entity:AST-1', 'knowledge:DOC-9']);
   const entitySource = brief.used_sources.find((source: any) => source.kind === 'entity');
+  assert.ok(entitySource, 'the entity citation must be listed in the brief');
   assert.equal(entitySource.url, '/it/assets/AST-1/overview', 'entity citation carries the KANAP deep link');
   assert.equal(brief.rejected_sources.length, 1);
   assert.equal(brief.rejected_sources[0].ref, 'DOC-10');
@@ -639,6 +642,7 @@ async function testCitationGateDropsUnknownRefs() {
   });
 
   assert.equal(result.status, 'completed');
+  assert.ok(result.diagnostic.brief, 'the diagnosis must expose its brief');
   assert.equal(result.diagnostic.brief.fallback, false);
   assert.deepEqual(result.diagnostic.brief.used_sources, [], 'unknown citations are dropped by the knownSources gate');
   assert.equal(result.diagnostic.brief.needs_human_review, true, 'dropped citations force an honest review flag');
@@ -671,6 +675,7 @@ async function testTimeoutProducesConservativeFallback() {
   assert.equal(calls.length, 1);
   assert.equal(result.status, 'completed', 'a timed-out synthesis still completes the work item');
   assert.equal(result.work_item.status, 'completed');
+  assert.ok(result.diagnostic.brief, 'a timed-out synthesis must still expose a brief');
   const brief = result.diagnostic.brief;
   assert.equal(brief.fallback, true);
   assert.equal(brief.fallback_reason, 'timeout', 'timeout classified distinctly from other failures');
@@ -715,6 +720,7 @@ async function testOverCapProjectionSkipsLlm() {
 
   assert.equal(calls.length, 0, 'projection gate must skip the LLM call entirely');
   assert.equal(result.status, 'completed');
+  assert.ok(result.diagnostic.brief, 'an over-cap projection must still expose a brief');
   assert.equal(result.diagnostic.brief.fallback, true);
   assert.equal(result.diagnostic.brief.fallback_reason, 'synthesis_projected_over_per_run_cap');
 }
@@ -753,7 +759,9 @@ async function testKanapDataDisabledSkipsEntityDispatches() {
   const entityDispatches = dispatched.filter((entry) => entry.capability.startsWith('kanap.entity.'));
   assert.equal(entityDispatches.length, 0, 'kanap_data disabled => zero entity dispatches in the run trace');
   assert.equal(result.status, 'completed');
+  assert.ok(result.diagnostic.kanap_context, 'the diagnosis must expose its KANAP context');
   assert.equal(result.diagnostic.kanap_context.asset_match, 'disabled');
+  assert.ok(result.diagnostic.brief, 'the diagnosis must expose its brief');
   assert.equal(result.diagnostic.brief.fallback, false, 'brief still produced without KANAP context');
   assert.deepEqual(result.diagnostic.brief.used_sources.map((source: any) => source.ref), ['DOC-9']);
 }
@@ -920,10 +928,12 @@ async function testIpTiebreakResolvesSameNameAssetsThroughPipeline() {
   const assetDetailDispatches = dispatched.filter((entry) => entry.capability === KANAP_ENTITY_DETAIL_CAPABILITY
     && entry.input.entity_type === 'assets');
   assert.equal(assetDetailDispatches.length, 2, 'IP tiebreak reads the candidates\' detail records');
+  assert.ok(result.diagnostic.kanap_context, 'the diagnosis must expose its KANAP context');
   assert.equal(result.diagnostic.kanap_context.asset_match, 'matched');
   // AST-1 owns the device IP; the same-name twin does not and is never used.
   assert.equal(result.diagnostic.kanap_context.entity_refs.includes('AST-1'), true);
   assert.equal(result.diagnostic.kanap_context.entity_refs.includes('AST-2'), false);
+  assert.ok(result.diagnostic.brief, 'the diagnosis must expose its brief');
   assert.equal(
     result.diagnostic.brief.used_sources.some((source: any) => source.kind === 'entity' && source.ref === 'AST-1'),
     true,
@@ -1181,6 +1191,7 @@ async function testSreCreateAcceptsMonitoringCapabilitiesAndIsRunnable() {
   // Runnable once enabled: assertSreMonitoringDefinitionRunnable passes.
   const repo = context.manager.getRepository(AiAgentDefinition);
   const row = await repo.findOne({ where: { id: created.agent_definition.id, tenant_id: context.tenantId } });
+  assert.ok(row, 'the created definition must be readable from the tenant store');
   row.status = 'enabled';
   await repo.save(row);
   assert.doesNotThrow(() => queue.assertSreMonitoringDefinitionRunnable(row));

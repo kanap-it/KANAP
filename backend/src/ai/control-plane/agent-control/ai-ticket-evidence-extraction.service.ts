@@ -439,7 +439,10 @@ export class AiTicketEvidenceExtractionService {
           warnings.push(`Image ${ref.id ?? ref.target} skipped: vision JSON invalid (${message.slice(0, 180)}).`);
           continue;
         }
-        const item = normalizeParsedEvidence(ref, result.value);
+        // `VisionEvidenceSchema` is a `z.preprocess` (ZodEffects) whose input type is `unknown`, so
+        // the client's `z.ZodType<T>` parameter infers `unknown`; the value is the schema's parsed
+        // output (see AiAgentLlmClient.parseStructuredJson).
+        const item = normalizeParsedEvidence(ref, result.value as ParsedVisionEvidence);
         if (result.metadata.retry_attempted) {
           item.warnings = [...item.warnings, 'Vision JSON was repaired after one retry.'];
         }

@@ -114,7 +114,7 @@ function createMemoryManager() {
         id: payload.id ?? `${name}-${++idCounter}`,
         ...payload,
       }),
-      save: async (record: any) => {
+      save: async (record: any): Promise<unknown> => {
         if (Array.isArray(record)) {
           return Promise.all(record.map((entry) => repoFor(entity).save(entry)));
         }
@@ -353,7 +353,9 @@ function completingControl(queue: AiAgentWorkQueueService, processed: string[] =
   return {
     runMonitoringDiagnosis: async (runContext: AiExecutionContextWithManager, input: { work_item_id?: string | null }) => {
       const repo = runContext.manager.getRepository(AiAgentWorkItem);
-      const workItem = await repo.findOne({ where: { id: input.work_item_id, tenant_id: runContext.tenantId } });
+      const workItem = input.work_item_id
+        ? await repo.findOne({ where: { id: input.work_item_id, tenant_id: runContext.tenantId } })
+        : null;
       if (!workItem) {
         throw new Error('missing test work item');
       }
@@ -630,10 +632,14 @@ async function testTouchedByPredicateIsOccurrenceScoped() {
   const control = {
     runMonitoringDiagnosis: async (runContext: AiExecutionContextWithManager, input: { work_item_id?: string | null }) => {
       const repo = runContext.manager.getRepository(AiAgentWorkItem);
-      const workItem = await repo.findOne({ where: { id: input.work_item_id, tenant_id: runContext.tenantId } });
+      const workItem = input.work_item_id
+        ? await repo.findOne({ where: { id: input.work_item_id, tenant_id: runContext.tenantId } })
+        : null;
+      assert.ok(workItem, 'the diagnosis must run against an enqueued work item');
       const definitionRow = await runContext.manager.getRepository(AiAgentDefinition).findOne({
         where: { id: workItem.agent_definition_id, tenant_id: runContext.tenantId },
       });
+      assert.ok(definitionRow, 'the work item must resolve its agent definition');
       const snapshot = (workItem.metadata_json as any)?.alert ?? {};
       await queue.recordMonitoringDiagnosisOutcome(runContext, {
         definition: definitionRow,
@@ -1035,11 +1041,13 @@ async function testManualDiagnosisTestPath() {
   });
   assert.equal(result.status, 'completed');
   assert.equal(result.diagnostic.diagnosis_stage, 'llm_brief');
+  assert.ok(result.diagnostic.brief, 'a manual diagnosis must expose its brief');
   assert.equal(result.diagnostic.brief.fallback, true, 'no brief service in this harness -> conservative fallback');
   assert.equal(result.diagnostic.alert.id, 'mock-sensor-cpu-001');
   assert.equal(result.work_item.status, 'completed');
   assert.equal(result.work_item.work_kind, MONITORING_ALERT_DIAGNOSTIC_WORK_KIND);
   assert.equal(typeof result.diagnostic.observation_id, 'string');
+  assert.ok(result.diagnostic.related_alert_count != null, 'a manual diagnosis must report its related alert count');
   assert.equal(result.diagnostic.related_alert_count <= 5, true);
 
   const state = (stores.get(AiAgentTargetState.name) ?? []).find((row) => row.target_ref === 'mock-sensor-cpu-001');

@@ -185,8 +185,9 @@ export class WorldBankClient {
 
   private extractCsvFromArchive(buffer: Buffer): string {
     const zip = new AdmZip(buffer);
-    const entries = zip.getEntries();
-    const entry = entries.find((item) => {
+    // `adm-zip` is declared untyped in `src/types/external.d.ts`.
+    const zipEntries: Array<{ entryName: string; getData(): Buffer }> = zip.getEntries();
+    const entry = zipEntries.find((item) => {
       const name = item.entryName.toLowerCase();
       return name.endsWith('.csv') && name.includes('api_pa.nus.fcrf') && !name.includes('metadata');
     });

@@ -506,9 +506,9 @@ export class UsersService {
       }, { manager: opts?.manager });
     }
 
-    const passwordProvided = params.password && params.password.trim().length > 0;
-    const password_hash = passwordProvided
-      ? await argon2.hash(params.password, { type: argon2.argon2id })
+    const passwordToHash = params.password && params.password.trim().length > 0 ? params.password : null;
+    const password_hash = passwordToHash
+      ? await argon2.hash(passwordToHash, { type: argon2.argon2id })
       : null;
     const status = (params.status && typeof params.status === 'string'
       ? params.status
@@ -975,7 +975,7 @@ export class UsersService {
       inviteUrl,
       expiresInMinutes: expires,
       roleName: user.role?.role_name ?? null,
-      locale: user.locale,
+      locale: user.locale ?? undefined,
     });
 
     if (user.status === 'invited' || user.status === 'enabled') {

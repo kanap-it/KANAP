@@ -173,6 +173,8 @@ export class SuppliersService {
     const lifecycle = resolveLifecycleState({ nextStatus: statusInput, nextDisabledAt: disabled_at });
     const entity = repo.create({
       ...rest,
+      // NOT NULL on the entity while the DTO allows null
+      name: rest.name ?? undefined,
       status: lifecycle.status,
       disabled_at: lifecycle.disabled_at,
     });

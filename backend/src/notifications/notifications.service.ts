@@ -878,7 +878,7 @@ export class NotificationsService {
       itemUrl,
       role: params.role,
       branding,
-      locale: params.addedUser.locale,
+      locale: params.addedUser.locale ?? undefined,
     });
 
     this.sendNotification(params.addedUser.email, content);
@@ -950,7 +950,7 @@ export class NotificationsService {
       addedUserName: params.addedUserName,
       role: params.role,
       branding,
-      locale: itLeadRows[0].locale,
+      locale: itLeadRows[0].locale ?? undefined,
     });
 
     this.sendNotification(itLeadRows[0].email, content);
@@ -1136,7 +1136,7 @@ export class NotificationsService {
       assignerName: params.assignerName,
       dueDate: params.dueDate,
       branding,
-      locale: params.locale,
+      locale: params.locale ?? undefined,
     });
 
     this.sendNotification(params.assigneeEmail, content);

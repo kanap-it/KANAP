@@ -322,7 +322,7 @@ export class AssetsListService extends AssetsBaseService {
    */
   private buildFilterWhereConditions(
     rawFilters: any,
-    q: string,
+    q?: string,
     skipField?: string,
     tenantId?: string,
   ): { whereConditions: string; params: any[] } {

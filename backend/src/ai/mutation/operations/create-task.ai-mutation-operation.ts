@@ -439,7 +439,7 @@ export class CreateTaskAiMutationOperation implements AiMutationOperation<Create
         type: relation.type,
         id: relation.id,
         payload: {
-          title: textOrNull(mutation.title),
+          title: textOrNull(mutation.title) ?? undefined,
           description: textOrNull(mutation.description),
           status: 'open',
           assignee_user_id: (mutation.assignee_user_id as string | null | undefined) ?? null,

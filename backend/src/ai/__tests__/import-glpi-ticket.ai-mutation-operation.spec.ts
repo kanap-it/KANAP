@@ -206,7 +206,7 @@ async function testImportTicketPrepareRequiresExplicitProviderKeyAndStoresGeneri
     {} as any,
     {} as any,
     ticketingRegistryFromFixture({
-      onProviderKey: (providerKey) => {
+      onProviderKey: (providerKey: string) => {
         providerKeySeen = providerKey;
       },
       ticket: {

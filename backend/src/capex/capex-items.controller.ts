@@ -321,7 +321,7 @@ export class CapexItemsController {
     @Body() body: CreateCapexItemInput,
     @Tenant() ctx: TenantRequest,
   ) {
-    return this.svc.create(body as Record<string, unknown>, ctx.userId || null, { manager: ctx.manager });
+    return this.svc.create(body as Record<string, unknown>, ctx.userId || undefined, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
@@ -333,7 +333,7 @@ export class CapexItemsController {
     @Tenant() ctx: TenantRequest,
   ) {
     const id = await this.resolveId(idOrRef, ctx.manager as EntityManager);
-    return this.svc.update(id, body as Record<string, unknown>, ctx.userId || null, { manager: ctx.manager });
+    return this.svc.update(id, body as Record<string, unknown>, ctx.userId || undefined, { manager: ctx.manager });
   }
 
   @UseGuards(PermissionGuard)
