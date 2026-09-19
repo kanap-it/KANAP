@@ -1,5 +1,5 @@
 import { getAccessToken } from '../auth/accessTokenStore';
-import api from '../api';
+import api, { requestTokenRefresh } from '../api';
 import {
   ChatStreamEvent,
   AiApiKeyRecord,
@@ -1235,17 +1235,30 @@ export async function* streamChat(params: {
   signal?: AbortSignal;
 }): AsyncGenerator<ChatStreamEvent> {
   const { signal, ...body } = params;
-  const token = getAccessToken();
-  const response = await fetch(`${getBaseURL()}/ai/chat/stream`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-    credentials: 'include',
-    signal,
-  });
+
+  const send = () => {
+    const token = getAccessToken();
+    return fetch(`${getBaseURL()}/ai/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      credentials: 'include',
+      signal,
+    });
+  };
+
+  let response = await send();
+
+  // This streaming call uses raw fetch, so it bypasses the axios response interceptor that
+  // refreshes an expired access token and replays the request (api.ts). Without this, an
+  // expired token ended the stream with a hard 401 while every other call recovered.
+  if (response.status === 401) {
+    const refreshed = await requestTokenRefresh();
+    if (refreshed) response = await send();
+  }
 
   if (!response.ok) {
     const raw = await response.text().catch(() => '');
