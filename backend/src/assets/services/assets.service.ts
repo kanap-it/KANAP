@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { EntityManager } from 'typeorm';
 import { Asset } from '../asset.entity';
 import { AssetHardwareInfo } from '../asset-hardware-info.entity';
 import { AssetSupportInfo } from '../asset-support-info.entity';
@@ -11,14 +10,10 @@ import { AssetsHardwareService } from './assets-hardware.service';
 import { AssetsSupportService } from './assets-support.service';
 import { AssetsRelationsService } from './assets-relations.service';
 import { AssetsAttachmentsService } from './assets-attachments.service';
+import { ServiceOpts } from './assets-base.service';
 
-/**
- * Options for service methods.
- */
-export interface ServiceOpts {
-  manager?: EntityManager;
-  tenantId?: string;
-}
+// Same options the sub-services take (manager, tenant, audit attribution).
+export { ServiceOpts } from './assets-base.service';
 
 /**
  * Main facade service for assets that delegates to specialized sub-services.

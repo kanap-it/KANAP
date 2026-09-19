@@ -76,7 +76,7 @@ export class AssetsHardwareService extends AssetsBaseService {
 
     const saved = await repo.save(existing);
     await this.audit.log(
-      { table: 'asset_hardware_info', recordId: saved.id, action: before ? 'update' : 'create', before, after: saved, userId },
+      { table: 'asset_hardware_info', recordId: saved.id, action: before ? 'update' : 'create', before, after: saved, userId, ...this.auditSource(opts) },
       { manager: opts?.manager },
     );
     return saved;

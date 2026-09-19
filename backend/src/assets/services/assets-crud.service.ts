@@ -32,11 +32,49 @@ export class AssetsCrudService extends AssetsBaseService {
    * Get a single asset by ID.
    */
   async get(id: string, opts?: ServiceOpts) {
-    return this.ensureAsset(id, opts?.manager, opts?.tenantId);
+    return this.withExternalLinks(await this.ensureAsset(id, opts?.manager, opts?.tenantId), opts);
   }
 
   async getByReference(reference: string, opts?: ServiceOpts) {
-    return this.ensureAssetByReference(reference, opts?.manager, opts?.tenantId);
+    return this.withExternalLinks(await this.ensureAssetByReference(reference, opts?.manager, opts?.tenantId), opts);
+  }
+
+  /**
+   * Adds the external inventory objects this asset is linked to (Netbox today)
+   * so the workspace can show where the values come from. One tenant-filtered
+   * query; rows an administrator ignored or that failed are not shown here.
+   */
+  private async withExternalLinks(asset: Asset, opts?: ServiceOpts) {
+    const tenantId = this.normalizeNullable(opts?.tenantId ?? asset.tenant_id);
+    if (!tenantId) {
+      return { ...asset, external_links: [] };
+    }
+    const rows: Array<{
+      source: string;
+      external_type: string;
+      external_url: string | null;
+      state: string;
+      external_status: string | null;
+      last_synced_at: Date | null;
+    }> = await this.getManager(opts).query(
+      `SELECT source, external_type, external_url, state, external_status, last_synced_at
+       FROM asset_external_links
+       WHERE tenant_id = $1 AND asset_id = $2 AND state IN ('linked', 'missing')
+       ORDER BY source ASC, external_type ASC`,
+      [tenantId, asset.id],
+    );
+    return {
+      ...asset,
+      external_links: rows.map((row) => ({
+        source: row.source,
+        external_type: row.external_type,
+        external_url: row.external_url,
+        state: row.state,
+        // The status the inventory reports; the asset's own lifecycle is its own.
+        external_status: row.external_status ?? null,
+        last_synced_at: row.last_synced_at ? new Date(row.last_synced_at).toISOString() : null,
+      })),
+    };
   }
 
   async shareAsset(
@@ -163,7 +201,7 @@ export class AssetsCrudService extends AssetsBaseService {
 
     const saved = await repo.save(entity);
     await this.audit.log(
-      { table: 'assets', recordId: saved.id, action: 'create', before: null, after: saved, userId },
+      { table: 'assets', recordId: saved.id, action: 'create', before: null, after: saved, userId, ...this.auditSource(opts) },
       { manager: opts?.manager },
     );
     return saved;
@@ -294,7 +332,7 @@ export class AssetsCrudService extends AssetsBaseService {
     existing.updated_at = new Date();
     const saved = await repo.save(existing);
     await this.audit.log(
-      { table: 'assets', recordId: saved.id, action: 'update', before, after: saved, userId },
+      { table: 'assets', recordId: saved.id, action: 'update', before, after: saved, userId, ...this.auditSource(opts) },
       { manager: opts?.manager },
     );
     return saved;

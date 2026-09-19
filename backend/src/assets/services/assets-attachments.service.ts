@@ -66,7 +66,7 @@ export class AssetsAttachmentsService extends AssetsBaseService {
 
     const saved = await repo.save(entity);
     await this.audit.log(
-      { table: 'asset_links', recordId: saved.id, action: 'create', before: null, after: saved, userId },
+      { table: 'asset_links', recordId: saved.id, action: 'create', before: null, after: saved, userId, ...this.auditSource(opts) },
       { manager: mg },
     );
     return saved;

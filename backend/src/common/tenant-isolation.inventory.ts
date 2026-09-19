@@ -56,6 +56,7 @@ export const TENANT_SCOPED_TABLES = [
   'asset_capex_items',
   'asset_cluster_members',
   'asset_contracts',
+  'asset_external_links',
   'asset_hardware_info',
   'asset_links',
   'asset_projects',

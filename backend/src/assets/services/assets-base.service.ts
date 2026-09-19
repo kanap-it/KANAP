@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EntityManager, Repository } from 'typeorm';
 import { Asset } from '../asset.entity';
+import { AuditSourceOptions } from '../../audit/audit.service';
 
 /**
  * Environment values for assets.
@@ -10,8 +11,13 @@ export type EnvironmentValue = (typeof ENVIRONMENTS)[number];
 
 /**
  * Common options for service methods.
+ *
+ * `source` / `sourceRef` land on the audit entries these services write. A
+ * caller that omits them keeps the previous behaviour (AuditService infers
+ * 'user' or 'system' from the user id); background writers such as the Netbox
+ * sync pass source 'system' with their own reference.
  */
-export interface ServiceOpts {
+export interface ServiceOpts extends AuditSourceOptions {
   manager?: EntityManager;
   tenantId?: string;
 }
@@ -136,6 +142,11 @@ export abstract class AssetsBaseService {
       throw new BadRequestException('Invalid sub_location_id');
     }
     return normalized;
+  }
+
+  /** Audit attribution carried by the caller; both keys stay undefined for normal user writes. */
+  protected auditSource(opts?: ServiceOpts): AuditSourceOptions {
+    return { source: opts?.source, sourceRef: opts?.sourceRef };
   }
 
   protected getManager(opts?: ServiceOpts): EntityManager {
