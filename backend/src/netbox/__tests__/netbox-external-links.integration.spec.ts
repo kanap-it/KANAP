@@ -8,6 +8,8 @@ import { Asset } from '../../assets/asset.entity';
 import { AssetsHardwareService } from '../../assets/services/assets-hardware.service';
 import { AuditLog } from '../../audit/audit.entity';
 import { AuditService } from '../../audit/audit.service';
+import { Location } from '../../locations/location.entity';
+import { LocationsService } from '../../locations/locations.service';
 
 // asset_external_links against a real database: the table carries the standard
 // tenant isolation (RLS enabled, forced, one policy with USING and WITH CHECK),
@@ -41,6 +43,27 @@ async function seedAsset(runner: QueryRunner, tenantId: string, name: string): P
     [assetId, tenantId, name],
   );
   return assetId;
+}
+
+async function seedLocation(runner: QueryRunner, tenantId: string, name: string): Promise<string> {
+  const rows = await runner.query(
+    `INSERT INTO locations (tenant_id, name, hosting_type, location_reference)
+     VALUES ($1, $2, 'on_prem', 'LOC-TEST-' || floor(random() * 100000)::text)
+     RETURNING id`,
+    [tenantId, name],
+  );
+  return rows[0].id;
+}
+
+/** LocationsService needs four collaborators; sub-items only ever use the first two. */
+function locationsService(runner: QueryRunner): LocationsService {
+  const audit = new AuditService(runner.manager.getRepository(AuditLog));
+  return new LocationsService(
+    runner.manager.getRepository(Location) as any,
+    audit,
+    {} as any,
+    {} as any,
+  );
 }
 
 async function insertLink(
@@ -133,6 +156,37 @@ async function testTableIsTenantIsolated() {
   }
 }
 
+async function testSubLocationIdentitySchema() {
+  const columns = await dataSource.query(
+    `SELECT column_name, data_type, is_nullable FROM information_schema.columns
+     WHERE table_name = 'location_sub_items'
+       AND column_name IN ('external_source', 'external_id', 'external_url')
+     ORDER BY column_name`,
+  );
+  assert.deepEqual(
+    columns.map((row: any) => [row.column_name, row.data_type, row.is_nullable]),
+    [
+      ['external_id', 'text', 'YES'],
+      ['external_source', 'text', 'YES'],
+      ['external_url', 'text', 'YES'],
+    ],
+    'the three external identity columns must exist and be nullable — run the migrations first',
+  );
+
+  // The index is partial, and it includes location_id: the identity belongs to
+  // a sub-location INSIDE one KANAP location, so remapping a site creates a new
+  // row instead of dragging a shared one along with it.
+  const index = await dataSource.query(
+    `SELECT indexdef FROM pg_indexes
+     WHERE schemaname = 'public' AND indexname = 'idx_location_sub_items_external'`,
+  );
+  assert.equal(index.length, 1, 'the partial unique index is missing');
+  const definition = String(index[0].indexdef);
+  assert.match(definition, /UNIQUE/i);
+  assert.match(definition, /\(tenant_id, location_id, external_source, external_id\)/);
+  assert.match(definition, /WHERE \(external_id IS NOT NULL\)/i);
+}
+
 // ------------------------------------------------------------ isolation ----
 
 async function testRowsAreInvisibleToOtherTenants() {
@@ -216,6 +270,154 @@ async function testRowsAreInvisibleToOtherTenants() {
   }
 }
 
+async function testSubLocationIdentityIsPerTenantAndPerLocation() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+  try {
+    const tenantA = await seedTenant(runner, 'subloc-a');
+    const tenantB = await seedTenant(runner, 'subloc-b');
+    await setCurrentTenant(runner, tenantA);
+    const paris = await seedLocation(runner, tenantA, 'Paris DC');
+    const lyon = await seedLocation(runner, tenantA, 'Lyon Warehouse');
+    const service = locationsService(runner);
+    const opts = {
+      manager: runner.manager,
+      external: { source: 'netbox', id: '42', url: 'https://netbox.test/dcim/locations/42/' },
+      audit: { source: 'system', sourceRef: 'netbox' },
+    };
+
+    const created = await service.createSubItem(paris, { name: 'Salle serveurs' }, tenantA, null, opts);
+    assert.equal(created.external_source, 'netbox');
+    assert.equal(created.external_id, '42');
+
+    // Same Netbox id, same tenant, another KANAP location: allowed, and that is
+    // the whole point of putting location_id in the index.
+    await service.createSubItem(lyon, { name: 'Salle serveurs' }, tenantA, null, opts);
+    // Same Netbox id, same location: refused.
+    await expectRefused(runner, /duplicate key/i, () =>
+      service.createSubItem(paris, { name: 'Another name' }, tenantA, null, opts));
+
+    // Two rows with no identity at all are perfectly fine: the index is partial.
+    await service.createSubItem(paris, { name: 'Zone A' }, tenantA, null, { manager: runner.manager });
+    await service.createSubItem(paris, { name: 'Zone B' }, tenantA, null, { manager: runner.manager });
+
+    // Another tenant may use the very same Netbox id.
+    await setCurrentTenant(runner, tenantB);
+    const otherParis = await seedLocation(runner, tenantB, 'Paris DC');
+    const inB = await locationsService(runner)
+      .createSubItem(otherParis, { name: 'Salle serveurs' }, tenantB, null, opts);
+    assert.equal(inB.external_id, '42');
+
+    // And it cannot see tenant A's rows.
+    const visibleToB = await runner.query(`SELECT id FROM location_sub_items`);
+    assert.equal(visibleToB.length, 1);
+
+    // Writing an identity for another tenant is refused by the policy.
+    await setCurrentTenant(runner, tenantA);
+    await expectRefused(runner, /row-level security/i, () => runner.query(
+      `INSERT INTO location_sub_items (tenant_id, location_id, name) VALUES ($1, $2, 'stolen')`,
+      [tenantB, paris],
+    ));
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
+async function testForgedExternalIdentityIsIgnored() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+  try {
+    const tenantId = await seedTenant(runner, 'forged');
+    await setCurrentTenant(runner, tenantId);
+    const paris = await seedLocation(runner, tenantId, 'Paris DC');
+    const service = locationsService(runner);
+
+    // The controller hands the raw HTTP body straight to the service, so an
+    // identity read from there would let anyone with the locations permission
+    // forge the link between a Netbox object and a KANAP sub-location. It is
+    // read from `opts` and nowhere else.
+    const forged = await service.createSubItem(
+      paris,
+      { name: 'Salle serveurs', external_source: 'netbox', external_id: '999', external_url: 'https://evil.test/' },
+      tenantId,
+      null,
+      { manager: runner.manager },
+    );
+    const stored = await runner.query(
+      `SELECT external_source, external_id, external_url FROM location_sub_items WHERE id = $1`,
+      [forged.id],
+    );
+    assert.deepEqual(
+      [stored[0].external_source, stored[0].external_id, stored[0].external_url],
+      [null, null, null],
+    );
+
+    // A patch cannot smuggle one in either.
+    await service.updateSubItem(
+      paris, forged.id, { name: 'Salle serveurs', external_id: '999' }, tenantId, null,
+      { manager: runner.manager },
+    );
+    const afterPatch = await runner.query(
+      `SELECT external_source, external_id FROM location_sub_items WHERE id = $1`,
+      [forged.id],
+    );
+    assert.deepEqual([afterPatch[0].external_source, afterPatch[0].external_id], [null, null]);
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
+async function testSubLocationWritesAreAuditedAsSystem() {
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+  try {
+    const tenantId = await seedTenant(runner, 'subloc-audit');
+    await setCurrentTenant(runner, tenantId);
+    const paris = await seedLocation(runner, tenantId, 'Paris DC');
+    const service = locationsService(runner);
+    const opts = {
+      manager: runner.manager,
+      external: { source: 'netbox', id: '42', url: 'https://netbox.test/dcim/locations/42/' },
+      audit: { source: 'system', sourceRef: 'netbox' },
+    };
+
+    const created = await service.createSubItem(paris, { name: 'Salle serveurs' }, tenantId, null, opts);
+    // A rename through the same path: the equipment that carries the
+    // sub-location follows it, so the trail has to say who did it.
+    await service.updateSubItem(paris, created.id, { name: 'Salle serveurs A' }, tenantId, null, opts);
+
+    const entries: Array<{ action: string; source: string; source_ref: string | null; user_id: string | null }> =
+      await runner.query(
+        `SELECT action, source, source_ref, user_id FROM audit_log
+         WHERE tenant_id = $1 AND table_name = 'location_sub_items' ORDER BY action`,
+        [tenantId],
+      );
+    assert.equal(entries.length, 2);
+    assert.deepEqual(
+      entries.map((entry) => [entry.action, entry.source, entry.source_ref, entry.user_id]),
+      [['create', 'system', 'netbox', null], ['update', 'system', 'netbox', null]],
+    );
+
+    // A hand-made sub-location keeps the old behaviour exactly.
+    await service.createSubItem(paris, { name: 'Zone A' }, tenantId, null, { manager: runner.manager });
+    const manual = await runner.query(
+      `SELECT source, source_ref FROM audit_log
+       WHERE tenant_id = $1 AND table_name = 'location_sub_items' AND source_ref IS NULL`,
+      [tenantId],
+    );
+    assert.equal(manual.length, 1);
+    assert.equal(manual[0].source, 'system', 'no user id still means a system entry');
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+}
+
 // ---------------------------------------------------------------- audit ----
 
 async function testSystemAuditSourceIsRecorded() {
@@ -281,7 +483,11 @@ async function run() {
   await dataSource.initialize();
   try {
     await testTableIsTenantIsolated();
+    await testSubLocationIdentitySchema();
     await testRowsAreInvisibleToOtherTenants();
+    await testSubLocationIdentityIsPerTenantAndPerLocation();
+    await testForgedExternalIdentityIsIgnored();
+    await testSubLocationWritesAreAuditedAsSystem();
     await testSystemAuditSourceIsRecorded();
   } finally {
     await dataSource.destroy();

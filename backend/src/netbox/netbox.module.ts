@@ -5,6 +5,7 @@ import { AiProviderSupportModule } from '../ai/ai-provider-support.module';
 import { AiAdapterConfig } from '../ai/control-plane/providers/adapter-config.entity';
 import { AssetsModule } from '../assets/assets.module';
 import { ItOpsSettingsModule } from '../it-ops-settings/it-ops-settings.module';
+import { LocationsModule } from '../locations/locations.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { UsersModule } from '../users/users.module';
 import { AssetExternalLink } from './asset-external-link.entity';
@@ -23,6 +24,10 @@ import { NetboxSyncService } from './netbox-sync.service';
     AiProviderSupportModule,
     AssetsModule,
     ItOpsSettingsModule,
+    // Sub-locations are written through LocationsService only: uniqueness,
+    // display order and the audit trail stay in one place, and the netbox
+    // module never runs its own INSERT on location_sub_items.
+    LocationsModule,
     ScheduledTasksModule,
     // PermissionsModule brings PermissionGuard and StripeConfigService, which
     // the scheduled run uses to skip frozen tenants (a no-op on-premise).

@@ -27,6 +27,9 @@ export type NetboxNoticeCode =
   | 'ip_conflict_skipped'
   | 'subnet_not_in_catalog'
   | 'no_ip_address_type'
+  // --- values KANAP could not take over (locations) ---
+  | 'sub_location_name_taken'
+  | 'locations_unavailable'
   // --- run-level trouble ---
   | 'fetch_incomplete'
   | 'save_failed'
@@ -79,6 +82,10 @@ const TEXTS: Record<NetboxNoticeCode, (params: Record<string, string>) => string
     `The subnet of ${p.value} is not in the IT settings, so the address was imported without one.`,
   no_ip_address_type: () =>
     'No IP address type is set up in the IT settings, so the address was not imported.',
+  sub_location_name_taken: (p) =>
+    `A sub-location named "${p.value}" already exists at this location for another Netbox location, so the sub-location was left unchanged.`,
+  locations_unavailable: () =>
+    'Netbox did not return its locations, so sub-locations were left unchanged in this run.',
   fetch_incomplete: () =>
     'Netbox returned more pages than KANAP reads in one run, so the objects beyond them were not looked at.',
   save_failed: () =>
@@ -120,6 +127,8 @@ const NOTICE_PRIORITY: Record<NetboxNoticeCode, 1 | 2 | 3> = {
   ip_conflict_skipped: 1,
   subnet_not_in_catalog: 1,
   no_ip_address_type: 1,
+  sub_location_name_taken: 1,
+  locations_unavailable: 1,
   fetch_incomplete: 1,
 };
 

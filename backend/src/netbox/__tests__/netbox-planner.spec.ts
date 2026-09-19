@@ -6,10 +6,11 @@ import {
   mapNetboxObject,
   normalizeNetboxDevice,
   normalizeNetboxVirtualMachine,
+  rootNetboxLocation,
 } from '../netbox-mapper';
 import { ExistingAsset, buildMatcherIndex, matchNetboxObject } from '../netbox-matcher';
 import { primaryNotice } from '../netbox-notice';
-import { ExistingLink, NetboxDecision, NetboxPlanRow, planNetboxSync } from '../netbox-planner';
+import { ExistingLink, ExistingSubLocation, NetboxDecision, NetboxPlanRow, planNetboxSync } from '../netbox-planner';
 import { NetboxObject } from '../netbox.types';
 
 // Unit spec for the pure half of the Netbox sync: normalisation, mapping,
@@ -64,7 +65,24 @@ const MAP_OPTIONS = {
   siteMap: { paris: 'loc-paris', lyon: 'loc-lyon' },
   defaultEnvironment: 'prod',
   catalogs: CATALOGS,
+  // Locations unavailable by default: every case that does not opt in must
+  // behave exactly as the feature did before sub-locations existed.
+  locations: null,
 };
+
+/** A Netbox Location index, keyed by id, with the parents a walk needs. */
+function locationIndex(
+  entries: Array<{ id: string; name: string; parentId?: string | null; siteSlug?: string | null; description?: string | null }>,
+): Map<string, { id: string; name: string; description: string | null; parentId: string | null; siteSlug: string | null; url: string }> {
+  return new Map(entries.map((entry) => [entry.id, {
+    id: entry.id,
+    name: entry.name,
+    description: entry.description ?? null,
+    parentId: entry.parentId ?? null,
+    siteSlug: entry.siteSlug ?? 'paris',
+    url: `${BASE_URL}/dcim/locations/${entry.id}/`,
+  }]));
+}
 
 function device(overrides: Record<string, unknown> = {}): NetboxObject {
   return normalizeNetboxDevice({
@@ -91,6 +109,7 @@ function asset(overrides: Partial<ExistingAsset> = {}): ExistingAsset {
     status: 'active',
     kind: 'physical_server',
     location_id: 'loc-paris',
+    sub_location_id: null,
     hostname: 'par-esx-01',
     domain: 'fromage',
     fqdn: 'par-esx-01.fromage.lan',
@@ -111,8 +130,12 @@ function plan(input: {
   links?: ExistingLink[];
   fetchOk?: boolean;
   decisions?: NetboxDecision[];
+  subLocations?: ExistingSubLocation[];
+  locations?: ReturnType<typeof locationIndex> | null;
+  siteMap?: Record<string, string>;
 }) {
-  const mappings = input.objects.map((object) => mapNetboxObject(object, MAP_OPTIONS));
+  const locations = input.locations ?? null;
+  const mappings = input.objects.map((object) => mapNetboxObject(object, { ...MAP_OPTIONS, locations }));
   return planNetboxSync({
     mappings,
     links: input.links ?? [],
@@ -121,6 +144,9 @@ function plan(input: {
     fetchOk: input.fetchOk ?? true,
     totalObjects: input.objects.length,
     decisions: input.decisions,
+    subLocations: input.subLocations ?? [],
+    locationIndex: locations,
+    siteMap: input.siteMap ?? MAP_OPTIONS.siteMap,
   });
 }
 
@@ -892,6 +918,417 @@ function row(result: ReturnType<typeof plan>, externalId: string): NetboxPlanRow
   assert.equal(row(clash, '1').action, 'ambiguous');
   assert.equal(row(clash, '7').action, 'ambiguous');
   assert.equal(clash.writes.size, 0);
+}
+
+// --- sub-locations ---------------------------------------------------------
+
+/** A Netbox Location, as `rootNetboxLocation` walks it. */
+function deepDevice(id: number, name: string, locationId: number | null): NetboxObject {
+  return device({
+    id,
+    name,
+    location: locationId == null ? null : { id: locationId, name: `Location ${locationId}` },
+  });
+}
+
+function subLocation(overrides: Partial<ExistingSubLocation> = {}): ExistingSubLocation {
+  return {
+    id: 'sub-1',
+    location_id: 'loc-paris',
+    name: 'Salle serveurs',
+    description: null,
+    external_source: null,
+    external_id: null,
+    external_url: null,
+    ...overrides,
+  };
+}
+
+// The walk: only the top-level Location under the site becomes a sub-location,
+// whatever depth the equipment sits at.
+{
+  const index = locationIndex([
+    { id: '1', name: 'Building A' },
+    { id: '2', name: 'Floor 1', parentId: '1' },
+    { id: '3', name: 'Room 101', parentId: '2' },
+  ]);
+  assert.equal(rootNetboxLocation(index, '1')?.name, 'Building A');
+  assert.equal(rootNetboxLocation(index, '3')?.name, 'Building A');
+  assert.equal(rootNetboxLocation(index, '404'), null, 'an id Netbox did not return has no root');
+  assert.equal(rootNetboxLocation(index, null), null);
+  assert.equal(rootNetboxLocation(null, '1'), null);
+
+  // A parent chain that leaves the index is a broken chain, not a root.
+  const broken = locationIndex([{ id: '9', name: 'Orphan', parentId: '404' }]);
+  assert.equal(rootNetboxLocation(broken, '9'), null);
+
+  // A cycle must terminate rather than hang the run.
+  const cycle = locationIndex([
+    { id: 'a', name: 'A', parentId: 'b' },
+    { id: 'b', name: 'B', parentId: 'a' },
+  ]);
+  assert.equal(rootNetboxLocation(cycle, 'a'), null);
+}
+
+// A device parked three levels down is attached to the top level above it, and
+// that is not worth a warning: it is the documented behaviour.
+{
+  const index = locationIndex([
+    { id: '1', name: 'Building A' },
+    { id: '2', name: 'Floor 1', parentId: '1' },
+    { id: '3', name: 'Room 101', parentId: '2' },
+  ]);
+  const result = plan({ objects: [deepDevice(1, 'par-esx-01', 3)], locations: index });
+  assert.equal(result.subLocationsAvailable, true);
+  assert.equal(result.subLocations.length, 1);
+  assert.equal(result.subLocations[0].action, 'create');
+  assert.equal(result.subLocations[0].name, 'Building A');
+  assert.equal(result.subLocations[0].external_id, '1');
+  assert.equal(result.subLocations[0].asset_count, 1);
+  assert.equal(row(result, '1').warnings.length, 0);
+}
+
+// No Location on the device: nothing is written, and whatever the asset holds
+// stays. An empty Netbox value never blanks a KANAP value.
+{
+  const index = locationIndex([{ id: '1', name: 'Building A' }]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', null)],
+    assets: [asset({ sub_location_id: 'sub-1' })],
+    subLocations: [subLocation()],
+    locations: index,
+  });
+  assert.deepEqual(row(result, '1').diffs, []);
+  assert.equal(result.subLocations.length, 0);
+}
+
+// A virtual machine carries no Location in Netbox, so it never receives one.
+{
+  const vm = normalizeNetboxVirtualMachine({
+    id: 5,
+    name: 'par-vm-01',
+    site: { slug: 'paris', name: 'Paris DC' },
+      status: { value: 'active' },
+  }, BASE_URL);
+  assert.equal(vm.locationId, null);
+  const index = locationIndex([{ id: '1', name: 'Building A' }]);
+  const result = plan({
+    objects: [vm],
+    assets: [asset({ id: 'asset-vm', name: 'par-vm-01', kind: 'virtual_server', sub_location_id: 'sub-1' })],
+    subLocations: [subLocation()],
+    locations: index,
+  });
+  assert.equal(result.subLocations.length, 0);
+  assert.equal(row(result, '5').diffs.some((diff) => diff.field === 'sub_location'), false);
+}
+
+// Several devices in one Location create it once, and the change says how many
+// devices end up there.
+{
+  const index = locationIndex([{ id: '1', name: 'Salle serveurs' }]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', 1), deepDevice(2, 'par-esx-02', 1)],
+    locations: index,
+  });
+  const created = result.subLocations.filter((change) => change.action === 'create');
+  assert.equal(created.length, 1);
+  assert.equal(created[0].asset_count, 2);
+}
+
+// A Location only an ignored row points at is never created: the create/adopt
+// changes follow the rows that are really written.
+{
+  const index = locationIndex([{ id: '1', name: 'Salle serveurs' }]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', 1)],
+    locations: index,
+    decisions: [{ external_type: 'device', external_id: '1', action: 'ignore' }],
+  });
+  assert.equal(result.subLocations.length, 0);
+  assert.equal(row(result, '1').action, 'skipped');
+}
+
+// An ambiguous row writes nothing either.
+{
+  const index = locationIndex([{ id: '1', name: 'Salle serveurs' }]);
+  const result = plan({
+    objects: [deepDevice(1, 'dup', 1)],
+    assets: [asset({ id: 'a1', name: 'dup' }), asset({ id: 'a2', name: 'dup', asset_reference: 'AST-9' })],
+    locations: index,
+  });
+  assert.equal(row(result, '1').action, 'ambiguous');
+  assert.equal(result.subLocations.length, 0);
+}
+
+// A sub-location built by hand is adopted rather than duplicated, and the
+// change says what it was called before.
+{
+  const index = locationIndex([{ id: '1', name: 'Salle serveurs' }]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', 1)],
+    assets: [asset()],
+    subLocations: [subLocation({ name: 'salle SERVEURS' })],
+    locations: index,
+  });
+  const adopted = result.subLocations.filter((change) => change.action === 'adopt');
+  assert.equal(adopted.length, 1);
+  assert.equal(adopted[0].sub_item_id, 'sub-1');
+  assert.equal(adopted[0].name, 'Salle serveurs');
+  assert.equal(adopted[0].previous_name, 'salle SERVEURS', 'the Netbox spelling replaces the old one');
+  assert.equal(adopted[0].external_id, '1');
+  assert.equal(result.subLocations.some((change) => change.action === 'create'), false);
+
+  const diff = row(result, '1').diffs.find((entry) => entry.field === 'sub_location');
+  assert.ok(diff);
+  assert.equal(diff.before, null, 'the asset did not hold a sub-location yet');
+  assert.equal(diff.after, 'Salle serveurs');
+}
+
+// A hand-made sub-location the asset ALREADY holds is adopted without the
+// equipment row moving. The change has to be planned even though the row
+// carries no diff: the apply step's upkeep pass is what gives it its identity,
+// and nothing else would.
+{
+  const index = locationIndex([{ id: '1', name: 'Atelier' }]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', 1)],
+    assets: [asset({ sub_location_id: 'sub-1' })],
+    subLocations: [subLocation({ name: 'atelier' })],
+    locations: index,
+  });
+  const adopted = result.subLocations.filter((change) => change.action === 'adopt');
+  assert.equal(adopted.length, 1);
+  assert.equal(adopted[0].sub_item_id, 'sub-1');
+  assert.equal(row(result, '1').action, 'unchanged', 'the equipment itself does not move');
+  assert.deepEqual(row(result, '1').diffs, []);
+}
+
+// Two Netbox sites mapped to the SAME KANAP location, with Locations of the
+// same name: the first id wins, the second is a conflict. Nothing is written
+// for it, and the equipment still imports.
+{
+  const index = locationIndex([
+    { id: '7', name: 'Salle serveurs', siteSlug: 'paris' },
+    { id: '9', name: 'salle serveurs', siteSlug: 'lyon' },
+  ]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', 7), deepDevice(2, 'lyo-esx-01', 9)],
+    locations: index,
+    siteMap: { paris: 'loc-paris', lyon: 'loc-paris' },
+  });
+  const created = result.subLocations.filter((change) => change.action === 'create');
+  const conflicts = result.subLocations.filter((change) => change.action === 'conflict');
+  assert.equal(created.length, 1);
+  assert.equal(created[0].external_id, '7');
+  assert.equal(conflicts.length, 1);
+  assert.equal(conflicts[0].external_id, '9');
+  assert.equal(
+    primaryNotice(row(result, '2').warnings)?.code,
+    'sub_location_name_taken',
+  );
+  assert.equal(row(result, '1').warnings.length, 0);
+}
+
+// A rename in Netbox renames the shared row. It is NOT a move for every
+// equipment that carries it, so the equipment rows carry no diff at all.
+{
+  const index = locationIndex([{ id: '1', name: 'Salle serveurs A' }]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', 1)],
+    assets: [asset({ sub_location_id: 'sub-1' })],
+    subLocations: [subLocation({
+      name: 'Salle serveurs',
+      external_source: 'netbox',
+      external_id: '1',
+      external_url: `${BASE_URL}/dcim/locations/1/`,
+    })],
+    locations: index,
+  });
+  const renamed = result.subLocations.filter((change) => change.action === 'rename');
+  assert.equal(renamed.length, 1);
+  assert.equal(renamed[0].previous_name, 'Salle serveurs');
+  assert.equal(renamed[0].name, 'Salle serveurs A');
+  assert.equal(renamed[0].asset_count, 0);
+  assert.deepEqual(row(result, '1').diffs, []);
+  assert.equal(row(result, '1').action, 'unchanged');
+}
+
+// Renaming onto a name a person already used in that location is reported, not
+// forced: the identity is known, so the equipment keeps its sub-location.
+{
+  const index = locationIndex([{ id: '1', name: 'Atelier' }]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', 1)],
+    assets: [asset({ sub_location_id: 'sub-1' })],
+    subLocations: [
+      subLocation({
+        name: 'Zone technique',
+        external_source: 'netbox',
+        external_id: '1',
+        external_url: `${BASE_URL}/dcim/locations/1/`,
+      }),
+      subLocation({ id: 'sub-2', name: 'atelier' }),
+    ],
+    locations: index,
+  });
+  const conflicts = result.subLocations.filter((change) => change.action === 'conflict');
+  assert.equal(conflicts.length, 1);
+  assert.equal(conflicts[0].sub_item_id, 'sub-1');
+  assert.equal(result.subLocations.some((change) => change.action === 'rename'), false);
+  assert.deepEqual(row(result, '1').diffs, []);
+}
+
+// An empty Netbox description never blanks the KANAP one, and a description
+// that did not move produces no change at all.
+{
+  const index = locationIndex([{ id: '1', name: 'Salle serveurs', description: null }]);
+  const linked = subLocation({
+    name: 'Salle serveurs',
+    description: 'Écrit à la main',
+    external_source: 'netbox',
+    external_id: '1',
+    external_url: `${BASE_URL}/dcim/locations/1/`,
+  });
+  const result = plan({ objects: [deepDevice(1, 'par-esx-01', 1)], subLocations: [linked], locations: index });
+  assert.equal(result.subLocations.length, 0);
+
+  // A real description change is an update.
+  const withText = locationIndex([{ id: '1', name: 'Salle serveurs', description: 'Rangée A' }]);
+  const updated = plan({ objects: [deepDevice(1, 'par-esx-01', 1)], subLocations: [linked], locations: withText });
+  assert.equal(updated.subLocations.length, 1);
+  assert.equal(updated.subLocations[0].action, 'update');
+  assert.equal(updated.subLocations[0].description, 'Rangée A');
+}
+
+// A Location moved under a parent is no longer a top-level one: it is kept,
+// simply not maintained any more.
+{
+  const index = locationIndex([
+    { id: '1', name: 'Building A' },
+    { id: '2', name: 'Salle serveurs', parentId: '1' },
+  ]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', 2)],
+    subLocations: [subLocation({
+      name: 'Salle serveurs',
+      external_source: 'netbox',
+      external_id: '2',
+      external_url: `${BASE_URL}/dcim/locations/2/`,
+    })],
+    locations: index,
+  });
+  // The linked row is not maintained any more: no rename, no update, and it is
+  // not the target either. The device falls back to the top level above it.
+  assert.equal(result.subLocations.some((change) => change.sub_item_id === 'sub-1'), false);
+  const created = result.subLocations.filter((change) => change.action === 'create');
+  assert.equal(created.length, 1);
+  assert.equal(created[0].external_id, '1');
+  assert.equal(created[0].name, 'Building A');
+}
+
+// A site remapped to another KANAP location creates a new sub-location under
+// the new one. The old one keeps its assets and is left exactly as it was.
+{
+  const index = locationIndex([{ id: '1', name: 'Salle serveurs', siteSlug: 'paris' }]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', 1)],
+    assets: [asset({ location_id: 'loc-lyon', sub_location_id: 'sub-old' })],
+    subLocations: [subLocation({
+      id: 'sub-old',
+      location_id: 'loc-lyon',
+      name: 'Salle serveurs',
+      external_source: 'netbox',
+      external_id: '1',
+      external_url: `${BASE_URL}/dcim/locations/1/`,
+    })],
+    locations: index,
+    siteMap: { paris: 'loc-paris' },
+  });
+  const created = result.subLocations.filter((change) => change.action === 'create');
+  assert.equal(created.length, 1);
+  assert.equal(created[0].location_id, 'loc-paris');
+  // The linked row lives under loc-lyon, its site is now mapped to loc-paris,
+  // so the upkeep leaves it alone entirely.
+  assert.equal(result.subLocations.some((change) => change.sub_item_id === 'sub-old'), false);
+}
+
+// The KANAP location changes and no target resolves: the asset service clears
+// the sub-location, so the preview has to show it rather than let it happen
+// silently.
+{
+  const index = locationIndex([{ id: '1', name: 'Building A', siteSlug: 'lyon' }]);
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', null)],
+    assets: [asset({ location_id: 'loc-lyon', sub_location_id: 'sub-1' })],
+    subLocations: [subLocation({ location_id: 'loc-lyon' })],
+    locations: index,
+    siteMap: { paris: 'loc-paris' },
+  });
+  const diff = row(result, '1').diffs.find((entry) => entry.field === 'sub_location');
+  assert.ok(diff, 'a dropped sub-location is announced');
+  assert.equal(diff.before, 'Salle serveurs');
+  assert.equal(diff.after, null);
+}
+
+// Locations unavailable: the plan is exactly what it was before the feature,
+// and the caller is told so it can say why nothing moved.
+{
+  const result = plan({
+    objects: [deepDevice(1, 'par-esx-01', 1)],
+    assets: [asset({ sub_location_id: 'sub-1' })],
+    subLocations: [subLocation()],
+    locations: null,
+  });
+  assert.equal(result.subLocationsAvailable, false);
+  assert.deepEqual(result.subLocations, []);
+  assert.equal(row(result, '1').diffs.some((diff) => diff.field === 'sub_location'), false);
+}
+
+// Two Locations, same name, neither seen before: the lower Netbox id is
+// created, the other conflicts, whatever order the equipment rows arrived in.
+{
+  const index = locationIndex([
+    { id: '30', name: 'Atelier' },
+    { id: '12', name: 'atelier' },
+  ]);
+  const result = plan({
+    objects: [deepDevice(1, 'a-machine', 30), deepDevice(2, 'b-machine', 12)],
+    locations: index,
+  });
+  const created = result.subLocations.filter((change) => change.action === 'create');
+  const conflicts = result.subLocations.filter((change) => change.action === 'conflict');
+  assert.equal(created.length, 1);
+  assert.equal(created[0].external_id, '12', 'the lower id wins');
+  assert.equal(conflicts.length, 1);
+  assert.equal(conflicts[0].external_id, '30');
+}
+
+// Replaying the plan on the state it produced changes nothing at all.
+{
+  const index = locationIndex([{ id: '1', name: 'Salle serveurs', description: 'Rangée A' }]);
+  const first = plan({
+    objects: [deepDevice(1, 'par-esx-01', 1)],
+    assets: [asset({ sub_location_id: 'sub-1' })],
+    subLocations: [subLocation()],
+    locations: index,
+  });
+  const adopted = first.subLocations[0];
+  assert.equal(adopted.action, 'adopt');
+  const second = plan({
+    objects: [deepDevice(1, 'par-esx-01', 1)],
+    assets: [asset({ sub_location_id: 'sub-1' })],
+    subLocations: [subLocation({
+      name: adopted.name,
+      description: adopted.description,
+      external_source: 'netbox',
+      external_id: '1',
+      external_url: adopted.external_url,
+    })],
+    locations: index,
+  });
+  assert.deepEqual(second.subLocations, []);
+  assert.deepEqual(row(second, '1').diffs, []);
+  assert.equal(row(second, '1').action, 'unchanged');
 }
 
 console.log('netbox-planner.spec.ts OK');

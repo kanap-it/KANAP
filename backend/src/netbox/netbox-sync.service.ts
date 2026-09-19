@@ -27,6 +27,7 @@ import {
   NETBOX_VIRTUAL_MACHINES_SLUG,
   NetboxCatalogs,
   NetboxMapping,
+  NetboxSubLocationTarget,
   mapNetboxObject,
   matchCatalogOption,
 } from './netbox-mapper';
@@ -34,16 +35,21 @@ import { ExistingAsset } from './netbox-matcher';
 import { NetboxNotice, netboxNotice, netboxNoticeFromStore, primaryNotice } from './netbox-notice';
 import {
   ExistingLink,
+  ExistingSubLocation,
   NetboxDecision,
   NetboxPlan,
   NetboxPlanRow,
+  NetboxPlanWrite,
+  NetboxSubLocationChange,
   NetboxSyncCounts,
   claimedAssets,
   diffNetboxMapping,
   externalKey,
   planNetboxSync,
+  resolveSubLocation,
 } from './netbox-planner';
-import { NetboxApiError, NetboxObject, NetboxObjectType } from './netbox.types';
+import { NetboxApiError, NetboxLocation, NetboxLocationIndex, NetboxObject, NetboxObjectType } from './netbox.types';
+import { LocationsService, SubItemExternal } from '../locations/locations.service';
 
 // One engine for the three ways a synchronisation can be asked for: the
 // read-only preview, the manual run and the scheduled run. Fetch, map, match,
@@ -133,6 +139,11 @@ export type NetboxPreviewResult = {
   rows: NetboxPlanRow[];
   rows_truncated: boolean;
   missing: NetboxRecordRow[];
+  /** Changes to the shared sub-locations, listed once each. */
+  sub_locations: {
+    available: boolean;
+    changes: NetboxSubLocationChange[];
+  };
 };
 
 export type NetboxStatus = {
@@ -159,6 +170,7 @@ type LocalContext = {
   catalogs: NetboxCatalogs;
   assets: ExistingAsset[];
   links: ExistingLink[];
+  subLocations: ExistingSubLocation[];
   defaultEnvironment: string;
   roleMap: Record<string, string>;
   siteMap: Record<string, string>;
@@ -244,6 +256,22 @@ function isDuplicateIpRejection(error: unknown): boolean {
     && /ip address/i.test(httpExceptionMessage(error) ?? '');
 }
 
+/** Every Location by id, which is how the walk up to the top level finds a parent. */
+function indexNetboxLocations(locations: NetboxLocation[]): NetboxLocationIndex {
+  return new Map(locations.map((location) => [location.id, location]));
+}
+
+/**
+ * One read of Netbox, as every entry point uses it. `complete` covers devices
+ * and virtual machines only: a truncated location list disables sub-location
+ * handling but must never disarm the "missing" guard for equipment.
+ */
+type FetchedInventory = {
+  objects: NetboxObject[];
+  complete: boolean;
+  locations: NetboxLocationIndex | null;
+};
+
 @Injectable()
 export class NetboxSyncService {
   private readonly logger = new Logger(NetboxSyncService.name);
@@ -251,7 +279,7 @@ export class NetboxSyncService {
   private readonly previewInventory = new Map<string, {
     at: number;
     baseUrl: string;
-    fetched: { objects: NetboxObject[]; complete: boolean };
+    fetched: FetchedInventory;
   }>();
 
   constructor(
@@ -260,6 +288,7 @@ export class NetboxSyncService {
     private readonly client: NetboxClient,
     private readonly itOpsSettings: ItOpsSettingsService,
     private readonly assets: AssetsService,
+    private readonly locations: LocationsService,
   ) {}
 
   // ==========================================================================
@@ -509,12 +538,21 @@ export class NetboxSyncService {
       [tenantId],
     );
     const assets: ExistingAsset[] = await manager.query(
-      `SELECT a.id, a.name, a.asset_reference, a.status, a.kind, a.location_id, a.hostname, a.domain,
-              a.fqdn, a.operating_system, a.ip_addresses,
+      `SELECT a.id, a.name, a.asset_reference, a.status, a.kind, a.location_id, a.sub_location_id,
+              a.hostname, a.domain, a.fqdn, a.operating_system, a.ip_addresses,
               h.serial_number, h.manufacturer, h.model, h.rack_location, h.rack_unit
        FROM assets a
        LEFT JOIN asset_hardware_info h ON h.asset_id = a.id AND h.tenant_id = $1
        WHERE a.tenant_id = $1`,
+      [tenantId],
+    );
+    // One query for every sub-location of the tenant: the resolver needs the
+    // ones of the locations this run writes to, and grouping per location would
+    // cost a round trip per row.
+    const subLocations: ExistingSubLocation[] = await manager.query(
+      `SELECT id, location_id, name, description, external_source, external_id, external_url
+       FROM location_sub_items
+       WHERE tenant_id = $1`,
       [tenantId],
     );
     const links: ExistingLink[] = await manager.query(
@@ -539,6 +577,7 @@ export class NetboxSyncService {
       },
       assets,
       links,
+      subLocations,
       defaultEnvironment: view.default_environment,
       roleMap: mapping.role_map,
       siteMap: mapping.site_map,
@@ -549,22 +588,37 @@ export class NetboxSyncService {
    * Fetches every device and virtual machine in one go. `complete` is false
    * when either walk stopped on the page cap: the caller must then treat the
    * inventory as partial and leave the missing computation alone.
+   *
+   * Locations are fetched apart, and a failure there never fails the run:
+   * equipment still imports, nothing touches a sub-location, and the preview
+   * says why. A partial assignment would be worse than none.
    */
-  private async fetchObjects(local: LocalContext): Promise<{ objects: NetboxObject[]; complete: boolean }> {
+  private async fetchObjects(local: LocalContext): Promise<FetchedInventory> {
     const connection = this.config.buildConnection(local.config);
-    const [devices, virtualMachines] = await Promise.all([
+    const [devices, virtualMachines, locations] = await Promise.all([
       this.client.listDevices(connection),
       this.client.listVirtualMachines(connection),
+      this.client.listLocations(connection)
+        .then((page) => (page.complete ? indexNetboxLocations(page.locations) : null))
+        .catch((error) => {
+          this.logger.warn(
+            `Netbox locations could not be read for tenant ${local.config.tenant_id}: ${plainErrorMessage(error)}`,
+          );
+          return null;
+        }),
     ]);
     return {
       objects: [...devices.objects, ...virtualMachines.objects],
+      // Locations deliberately do not take part: a truncated location list must
+      // not disarm the "missing" guard for equipment.
       complete: devices.complete && virtualMachines.complete,
+      locations,
     };
   }
 
   private buildPlan(
     local: LocalContext,
-    fetched: { objects: NetboxObject[]; complete: boolean },
+    fetched: FetchedInventory,
     decisions: NetboxDecision[] = [],
   ): { plan: NetboxPlan; mappings: NetboxMapping[] } {
     const mappings = fetched.objects.map((object) => mapNetboxObject(object, {
@@ -572,6 +626,7 @@ export class NetboxSyncService {
       siteMap: local.siteMap,
       defaultEnvironment: local.defaultEnvironment,
       catalogs: local.catalogs,
+      locations: fetched.locations,
     }));
     const plan = planNetboxSync({
       mappings,
@@ -582,6 +637,9 @@ export class NetboxSyncService {
       fetchOk: fetched.complete,
       totalObjects: fetched.objects.length,
       decisions,
+      subLocations: local.subLocations,
+      locationIndex: fetched.locations,
+      siteMap: local.siteMap,
     });
     return { plan, mappings };
   }
@@ -623,7 +681,7 @@ export class NetboxSyncService {
   async preview(manager: EntityManager, tenantId: string, input: NetboxSyncInput = {}): Promise<NetboxPreviewResult> {
     const decisions = parseNetboxDecisions(input.decisions);
     const local = await this.loadLocalContext(manager, tenantId);
-    let fetched: { objects: NetboxObject[]; complete: boolean };
+    let fetched: FetchedInventory;
     try {
       const baseUrl = String(local.config.base_url ?? '');
       const kept = this.previewInventory.get(tenantId);
@@ -645,6 +703,8 @@ export class NetboxSyncService {
         rows: [],
         rows_truncated: false,
         missing: [],
+        // Nothing was read, so nothing is known about the sub-locations either.
+        sub_locations: { available: true, changes: [] },
       };
     }
     this.assertDecisionsApply(
@@ -685,6 +745,10 @@ export class NetboxSyncService {
       rows: shown.slice(0, PREVIEW_ROW_LIMIT),
       rows_truncated: shown.length > PREVIEW_ROW_LIMIT,
       missing: missingRows,
+      sub_locations: {
+        available: plan.subLocationsAvailable,
+        changes: plan.subLocations,
+      },
     };
   }
 
@@ -889,12 +953,34 @@ export class NetboxSyncService {
     if (!fetched.complete) {
       this.logger.warn(`Netbox returned more pages than KANAP reads for tenant ${tenantId}; the inventory is partial.`);
     }
+    if (plan.subLocationsAvailable === false) {
+      warnings.push(netboxNotice('locations_unavailable'));
+    }
 
     // Records whose object Netbox no longer lists are flagged first, so that a
     // device deleted and recreated under a new id finds its asset free and the
     // stale record is cleared away when the new one takes over, below.
     for (const link of plan.missing) {
       await this.markMissing(tenantId, link).catch((error) => this.logRecordFailure(link, error));
+    }
+
+    // Upkeep of the sub-locations already linked, before any equipment row is
+    // written. These are changes to a SHARED row: a rename or a description
+    // produces no diff on the equipment rows, so without this step it would
+    // never be written at all. Each change gets its own short transaction, and
+    // a failure is reported without stopping the run.
+    for (const change of plan.subLocations) {
+      if (change.action !== 'rename' && change.action !== 'update' && change.action !== 'adopt') continue;
+      try {
+        await this.reconcileSubLocation(tenantId, change);
+      } catch (error) {
+        this.logger.warn(
+          `Netbox location ${change.external_id} could not be kept in step: ${plainErrorMessage(error)}`,
+        );
+        if (change.action !== 'update') {
+          warnings.push(netboxNotice('sub_location_name_taken', { value: change.name }));
+        }
+      }
     }
 
     let consecutiveFailures = 0;
@@ -963,7 +1049,7 @@ export class NetboxSyncService {
   private async applyRow(
     tenantId: string,
     row: NetboxPlanRow,
-    write: { asset: MappedAssetFields; hardware: MappedHardwareFields; assetId: string | null },
+    write: NetboxPlanWrite,
     defaultEnvironment: string,
   ): Promise<ApplyOutcome> {
     try {
@@ -973,8 +1059,19 @@ export class NetboxSyncService {
         let assetId = write.assetId;
         let action: 'create' | 'update' | 'unchanged' = row.action === 'create' ? 'create' : 'unchanged';
 
+        // A brand-new asset always needs its sub-location; an existing one only
+        // when the plan found the sub-location moving. The database is read
+        // again inside this transaction rather than remembered from the plan:
+        // an earlier row that created the sub-location and then rolled back
+        // would leave a phantom id behind, and every later row would fail on it.
+        const subLocationId = write.subLocation
+          && (!assetId || row.diffs.some((diff) => diff.field === 'sub_location'))
+          ? await this.ensureSubLocation(manager, tenantId, write.asset.location_id, write.subLocation, warnings)
+          : null;
+
         if (!assetId) {
           const body = this.createBody(write.asset, defaultEnvironment);
+          if (subLocationId) body.sub_location_id = subLocationId;
           let created;
           try {
             created = await this.assets.create(body, tenantId, null, opts);
@@ -987,6 +1084,7 @@ export class NetboxSyncService {
           action = 'create';
         } else if (row.action === 'update') {
           const patch = this.updateBody(write.asset, row);
+          if (subLocationId) patch.sub_location_id = subLocationId;
           if (Object.keys(patch).length > 0) {
             try {
               await this.assets.update(assetId, patch, tenantId, null, opts);
@@ -1045,6 +1143,119 @@ export class NetboxSyncService {
       }).catch((linkError) => this.logRecordFailure(row, linkError));
       return { action: 'error', notice };
     }
+  }
+
+  /**
+   * Finds, adopts or creates the KANAP sub-location a Netbox Location stands
+   * for, and returns its id. Runs inside the equipment row's own transaction,
+   * so a failure takes the sub-location back with it and the next row starts
+   * from a clean slate.
+   *
+   * The row is re-read rather than remembered from the plan: the plan was built
+   * before any of this run's writes, and a sub-location created by an earlier
+   * row (or by hand a moment ago) has to be found, not duplicated. It costs one
+   * query, and only on a row whose sub-location actually moves — an idempotent
+   * run does none at all.
+   *
+   * The decision itself is `resolveSubLocation`, the same pure function the
+   * preview used, so the two cannot drift apart.
+   */
+  private async ensureSubLocation(
+    manager: EntityManager,
+    tenantId: string,
+    locationId: string,
+    target: NetboxSubLocationTarget,
+    warnings: NetboxNotice[],
+  ): Promise<string | null> {
+    const rows: ExistingSubLocation[] = await manager.query(
+      `SELECT id, location_id, name, description, external_source, external_id, external_url
+       FROM location_sub_items
+       WHERE tenant_id = $1 AND location_id = $2`,
+      [tenantId, locationId],
+    );
+    const resolution = resolveSubLocation(rows, locationId, target);
+    const external: SubItemExternal = {
+      source: NETBOX_LINK_SOURCE,
+      id: target.externalId,
+      url: target.url,
+    };
+    const opts = {
+      manager,
+      external,
+      audit: { source: 'system', sourceRef: NETBOX_LINK_SOURCE },
+    };
+
+    if (resolution.kind === 'existing') {
+      // The deep link follows the connection's base URL, which may have moved.
+      if (target.url !== resolution.subItem.external_url) {
+        await this.locations.updateSubItem(
+          locationId, resolution.subItem.id, {}, tenantId, null, opts,
+        ).catch((error) => this.logRecordFailure(target as unknown as NetboxPlanRow, error));
+      }
+      return resolution.subItem.id;
+    }
+
+    if (resolution.kind === 'adopt') {
+      // A list built by hand is taken over rather than duplicated, so the
+      // assets already filed there do not move.
+      const saved = await this.locations.updateSubItem(
+        locationId,
+        resolution.subItem.id,
+        { name: target.name, ...(target.description ? { description: target.description } : {}) },
+        tenantId,
+        null,
+        opts,
+      );
+      return saved.id;
+    }
+
+    if (resolution.kind === 'conflict') {
+      warnings.push(netboxNotice('sub_location_name_taken', { value: target.name }));
+      return null;
+    }
+
+    const created = await this.locations.createSubItem(
+      locationId,
+      { name: target.name, description: target.description },
+      tenantId,
+      null,
+      opts,
+    );
+    return created.id;
+  }
+
+  /**
+   * Keeps one already-linked sub-location in step with Netbox: a rename, a
+   * description, the deep link, or the identity an adoption gives it. Its own
+   * short transaction: a change that cannot be applied is reported and the run
+   * carries on, because the equipment that carries the sub-location has
+   * nothing to do with it.
+   */
+  private async reconcileSubLocation(tenantId: string, change: NetboxSubLocationChange): Promise<void> {
+    if (!change.sub_item_id) return;
+    await withTenantExecution(this.dataSource, tenantId, async (manager) => {
+      const body: Record<string, unknown> = {};
+      // An adoption takes the Netbox spelling over; where it is already the
+      // same, this writes the value it already holds, which costs nothing.
+      if (change.action === 'rename' || change.action === 'adopt') body.name = change.name;
+      if (change.description) body.description = change.description;
+      await this.locations.updateSubItem(
+        change.location_id,
+        change.sub_item_id as string,
+        body,
+        tenantId,
+        null,
+        {
+          manager,
+          external: {
+            source: NETBOX_LINK_SOURCE,
+            id: change.external_id,
+            url: change.external_url,
+          },
+          audit: { source: 'system', sourceRef: NETBOX_LINK_SOURCE },
+        },
+      );
+    });
   }
 
   /**
@@ -1311,6 +1522,7 @@ export class NetboxSyncService {
     const local = await this.loadLocalContext(manager, tenantId);
     const connection = this.config.buildConnection(local.config);
     let object: NetboxObject;
+    let locationIndex: NetboxLocationIndex | null = null;
     try {
       object = record.external_type === 'device'
         ? await this.client.getDevice(connection, record.external_id)
@@ -1318,12 +1530,23 @@ export class NetboxSyncService {
     } catch (error) {
       throw new BadRequestException(plainErrorMessage(error));
     }
+    // Same isolated read as a full run: resolving one object must place it in
+    // the same sub-location the next run would. Unavailable locations are not
+    // worth failing the action over — the object is still linked or created,
+    // and the following run fills the sub-location in.
+    try {
+      const page = await this.client.listLocations(connection);
+      locationIndex = page.complete ? indexNetboxLocations(page.locations) : null;
+    } catch (error) {
+      this.logger.warn(`Netbox locations could not be read while resolving one object: ${plainErrorMessage(error)}`);
+    }
     // The role and site matches still decide what the object may become.
     const mapping = mapNetboxObject(object, {
       roleMap: local.roleMap,
       siteMap: local.siteMap,
       defaultEnvironment: local.defaultEnvironment,
       catalogs: local.catalogs,
+      locations: locationIndex,
     });
     if (!mapping.asset || !mapping.hardware) {
       throw new BadRequestException(
@@ -1332,6 +1555,9 @@ export class NetboxSyncService {
     }
 
     const existingAsset = assetId ? local.assets.find((asset) => asset.id === assetId) : undefined;
+    const resolution = mapping.subLocation
+      ? resolveSubLocation(local.subLocations, mapping.asset.location_id, mapping.subLocation)
+      : null;
     const row: NetboxPlanRow = {
       external_type: record.external_type,
       external_id: record.external_id,
@@ -1342,7 +1568,15 @@ export class NetboxSyncService {
       asset: null,
       matched_by: null,
       candidates: [],
-      diffs: existingAsset ? diffNetboxMapping(mapping, existingAsset, local.catalogs) : [],
+      diffs: existingAsset
+        ? diffNetboxMapping(mapping, existingAsset, local.catalogs, {
+          resolution,
+          currentName: existingAsset.sub_location_id
+            ? local.subLocations.find((item) => item.id === existingAsset.sub_location_id)?.name ?? null
+            : null,
+          locationChanged: existingAsset.location_id !== mapping.asset.location_id,
+        })
+        : [],
       skip_reason: null,
       decision: null,
       warnings: mapping.warnings,
@@ -1350,7 +1584,12 @@ export class NetboxSyncService {
     const outcome = await this.applyRow(
       tenantId,
       row,
-      { asset: mapping.asset, hardware: mapping.hardware, assetId },
+      {
+        asset: mapping.asset,
+        hardware: mapping.hardware,
+        assetId,
+        subLocation: mapping.subLocation,
+      },
       local.defaultEnvironment,
     );
     if (outcome.action === 'error') {

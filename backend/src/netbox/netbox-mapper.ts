@@ -1,6 +1,6 @@
 import { CatalogOptionLike, findCatalogOption } from '../it-ops-settings/catalog-resolve';
 import { NetboxNotice, netboxNotice } from './netbox-notice';
-import { NetboxObject, NetboxObjectType } from './netbox.types';
+import { NetboxLocation, NetboxLocationIndex, NetboxObject, NetboxObjectType } from './netbox.types';
 import { isRecord } from '../common/object-guards';
 
 // Pure normalisation and mapping: Netbox JSON in, a KANAP asset/hardware patch
@@ -42,6 +42,12 @@ export type NetboxMapOptions = {
   /** Written once, when the asset is created; never rewritten afterwards. */
   defaultEnvironment: string;
   catalogs: NetboxCatalogs;
+  /**
+   * Every Netbox Location by id, or null when Netbox did not return them this
+   * run. Null disables sub-location handling entirely rather than attaching
+   * equipment to a guessed level.
+   */
+  locations: NetboxLocationIndex | null;
 };
 
 export type MappedIpAddress = { type: string; ip: string; subnet_cidr: string | null };
@@ -68,11 +74,25 @@ export type MappedHardwareFields = {
 
 export type NetboxSkipReason = 'unmapped_role' | 'unmapped_site' | 'unnamed';
 
+/**
+ * The Netbox Location a mapped object should end up in, once walked up to the
+ * top level. It carries no KANAP id: the sub-location may not exist yet, and
+ * creating it is the apply step's job, inside the row's own transaction.
+ */
+export type NetboxSubLocationTarget = {
+  externalId: string;
+  name: string;
+  description: string | null;
+  url: string;
+};
+
 export type NetboxMapping = {
   object: NetboxObject;
   skipReason: NetboxSkipReason | null;
   asset: MappedAssetFields | null;
   hardware: MappedHardwareFields | null;
+  /** The top-level Location this object belongs in; null when there is none. */
+  subLocation: NetboxSubLocationTarget | null;
   /** Display value per stable diff key, so the UI never shows a code or a UUID. */
   display: Record<string, string | null>;
   warnings: NetboxNotice[];
@@ -177,6 +197,65 @@ function netboxObjectUrl(baseUrl: string, type: NetboxObjectType, id: string): s
   return type === 'device' ? `${base}/dcim/devices/${id}/` : `${base}/virtualization/virtual-machines/${id}/`;
 }
 
+/** Deep link to a Location, used for the sub-location's external URL. */
+export function netboxLocationUrl(baseUrl: string, id: string): string {
+  const base = String(baseUrl || '').trim().replace(/\/+$/, '');
+  return `${base}/dcim/locations/${id}/`;
+}
+
+/**
+ * Flattens one Netbox Location. Only what the walk up to the top level needs:
+ * the parent link, the name shown in KANAP, the description and the deep link.
+ * `_depth` is deliberately not read — the parent chain answers the same
+ * question for every Netbox version that has locations at all.
+ */
+export function normalizeNetboxLocation(
+  raw: Record<string, unknown>,
+  baseUrl: string,
+): NetboxLocation {
+  const id = textOrNull(raw.id) ?? '';
+  return {
+    id,
+    name: textOrNull(raw.name) ?? textOrNull(raw.slug) ?? '',
+    description: textOrNull(raw.description),
+    parentId: nestedText(raw.parent, 'id'),
+    siteSlug: nestedText(raw.site, 'slug'),
+    url: netboxLocationUrl(baseUrl, id),
+  };
+}
+
+/** How deep a broken parent chain may go before we call it a cycle. */
+const MAX_LOCATION_DEPTH = 64;
+
+/**
+ * Walks up from a Location to the top-level one under its site, which is the
+ * only level KANAP models. KANAP does not try to place equipment precisely:
+ * site plus building is enough, so a device parked in "Building A > Floor 1 >
+ * Room 101" belongs to "Building A".
+ *
+ * Returns null when the id is unknown, when the chain is broken, or when it
+ * loops. All three mean the same thing to the caller: no target, nothing
+ * written.
+ */
+export function rootNetboxLocation(
+  index: NetboxLocationIndex | null,
+  locationId: string | null,
+): NetboxLocation | null {
+  if (!index || !locationId) return null;
+  const visited = new Set<string>();
+  let current = index.get(String(locationId)) ?? null;
+  let depth = 0;
+  while (current) {
+    if (visited.has(current.id) || depth >= MAX_LOCATION_DEPTH) return null;
+    visited.add(current.id);
+    if (!current.parentId) return current;
+    current = index.get(String(current.parentId)) ?? null;
+    depth += 1;
+  }
+  // The chain left the index: a parent Netbox did not return.
+  return null;
+}
+
 /**
  * Flattens a Netbox device record. Netbox 3.6 renamed `device_role` to `role`;
  * both are read so an older instance still works.
@@ -202,6 +281,7 @@ export function normalizeNetboxDevice(raw: Record<string, unknown>, baseUrl: str
     position: textOrNull(raw.position),
     primaryIp: nestedText(raw.primary_ip4, 'address') ?? nestedText(raw.primary_ip, 'address'),
     url: netboxObjectUrl(baseUrl, 'device', id),
+    locationId: nestedText(raw.location, 'id'),
   };
 }
 
@@ -247,6 +327,8 @@ export function normalizeNetboxVirtualMachine(raw: Record<string, unknown>, base
     position: null,
     primaryIp: nestedText(raw.primary_ip4, 'address') ?? nestedText(raw.primary_ip, 'address'),
     url: netboxObjectUrl(baseUrl, 'vm', id),
+    // A Netbox virtual machine carries no location of its own.
+    locationId: null,
   };
 }
 
@@ -331,6 +413,7 @@ export function mapNetboxObject(object: NetboxObject, options: NetboxMapOptions)
     skipReason,
     asset: null,
     hardware: null,
+    subLocation: null,
     display: {},
     warnings,
   });
@@ -393,11 +476,25 @@ export function mapNetboxObject(object: NetboxObject, options: NetboxMapOptions)
     rack_unit: object.position,
   };
 
+  // The only level KANAP keeps. A device parked deeper is attached to the
+  // top-level location above it, which is why the walk happens here and not on
+  // the raw `_depth`.
+  const root = rootNetboxLocation(options.locations, object.locationId);
+  const subLocation: NetboxSubLocationTarget | null = root
+    ? {
+      externalId: root.id,
+      name: root.name,
+      description: root.description,
+      url: root.url,
+    }
+    : null;
+
   return {
     object,
     skipReason: null,
     asset,
     hardware,
+    subLocation,
     display: {
       name,
       kind: optionLabel(kindCode, catalogs.assetKinds),

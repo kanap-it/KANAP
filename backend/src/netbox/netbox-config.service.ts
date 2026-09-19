@@ -28,7 +28,9 @@ import { NetboxConnection } from './netbox.types';
 export const NETBOX_PROVIDER_KIND = 'inventory';
 export const NETBOX_PROVIDER_KEY = 'netbox';
 export const NETBOX_IMPLEMENTATION = 'netbox';
-export const NETBOX_LINK_SOURCE = 'netbox';
+// Lives in netbox.types.ts so the pure planner can read it without pulling the
+// Nest/TypeORM layers in; re-exported here for the callers that already use it.
+export { NETBOX_LINK_SOURCE } from './netbox.types';
 
 // Same values the PRTG adapter writes for the two other NOT NULL columns.
 const NETBOX_ADAPTER_ENVIRONMENT = 'production';

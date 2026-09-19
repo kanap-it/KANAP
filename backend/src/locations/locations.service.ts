@@ -18,6 +18,16 @@ import { ShareItemDto } from '../notifications/dto/share-item.dto';
 
 type HostingCategory = 'on_prem' | 'cloud';
 
+/** Identity an inventory synchronisation gives a sub-location it manages. */
+export type SubItemExternal = { source: string; id: string; url: string | null };
+
+export type SubItemOpts = {
+  manager?: EntityManager;
+  /** Written to the three external columns; never read from a request body. */
+  external?: SubItemExternal;
+  audit?: AuditSourceOptions;
+};
+
 @Injectable()
 export class LocationsService {
   constructor(
@@ -915,6 +925,27 @@ export class LocationsService {
 
   // ── Sub-item CRUD ──────────────────────────────────────────────────
 
+  /**
+   * External identity of a sub-location, as an inventory synchronisation knows
+   * it. It is passed through `opts` and NEVER read from the request body: the
+   * controller hands the raw HTTP body straight to these methods, so reading it
+   * from there would let anyone with the locations permission forge the link
+   * between a Netbox object and a KANAP sub-location.
+   */
+  private subItemExternal(
+    external: SubItemExternal | undefined,
+  ): Pick<LocationSubItem, 'external_source' | 'external_id' | 'external_url'> | null {
+    if (!external) return null;
+    const source = String(external.source || '').trim();
+    const id = String(external.id || '').trim();
+    if (!source || !id) return null;
+    return {
+      external_source: source,
+      external_id: id,
+      external_url: this.normalizeNullable(external.url),
+    };
+  }
+
   async listSubItems(locationId: string, opts?: { manager?: EntityManager }) {
     await this.loadLocationOrThrow(locationId, opts?.manager);
     const mg = opts?.manager ?? this.repo.manager;
@@ -925,12 +956,15 @@ export class LocationsService {
       name: string;
       description: string | null;
       display_order: number;
+      external_source: string | null;
+      external_url: string | null;
       created_at: Date;
       updated_at: Date;
       usage_count: string | number;
     }> = await mg.query(
       `SELECT sl.id, sl.tenant_id, sl.location_id, sl.name, sl.description,
-              sl.display_order, sl.created_at, sl.updated_at,
+              sl.display_order, sl.external_source, sl.external_url,
+              sl.created_at, sl.updated_at,
               (SELECT COUNT(*)::int FROM assets a WHERE a.sub_location_id = sl.id) AS usage_count
        FROM location_sub_items sl
        WHERE sl.location_id = $1
@@ -948,7 +982,7 @@ export class LocationsService {
     body: any,
     tenantId: string,
     userId: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: SubItemOpts,
   ) {
     this.requireTenantId(tenantId);
     await this.loadLocationOrThrow(locationId, opts?.manager);
@@ -978,10 +1012,26 @@ export class LocationsService {
     const displayOrder = (maxResult?.max_order ?? -1) + 1;
 
     const description = this.normalizeNullable(body.description);
-    const entity = repo.create({ location_id: locationId, name, description, display_order: displayOrder });
+    const external = this.subItemExternal(opts?.external);
+    const entity = repo.create({
+      location_id: locationId,
+      name,
+      description,
+      display_order: displayOrder,
+      ...(external ?? {}),
+    });
     const saved = await repo.save(entity);
     await this.audit.log(
-      { table: 'location_sub_items', recordId: saved.id, action: 'create', before: null, after: saved, userId },
+      {
+        table: 'location_sub_items',
+        recordId: saved.id,
+        action: 'create',
+        before: null,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
       { manager: mg },
     );
     return saved;
@@ -993,7 +1043,7 @@ export class LocationsService {
     body: any,
     tenantId: string,
     userId: string | null,
-    opts?: { manager?: EntityManager },
+    opts?: SubItemOpts,
   ) {
     this.requireTenantId(tenantId);
     await this.loadLocationOrThrow(locationId, opts?.manager);
@@ -1025,10 +1075,29 @@ export class LocationsService {
       existing.description = this.normalizeNullable(body.description);
     }
 
+    // Identity travels through opts only. An adoption (a hand-made
+    // sub-location Netbox takes over) sets it for the first time; every later
+    // run refreshes the deep link.
+    const external = this.subItemExternal(opts?.external);
+    if (external) {
+      existing.external_source = external.external_source;
+      existing.external_id = external.external_id;
+      existing.external_url = external.external_url;
+    }
+
     existing.updated_at = new Date();
     const saved = await repo.save(existing);
     await this.audit.log(
-      { table: 'location_sub_items', recordId: saved.id, action: 'update', before, after: saved, userId },
+      {
+        table: 'location_sub_items',
+        recordId: saved.id,
+        action: 'update',
+        before,
+        after: saved,
+        userId,
+        source: opts?.audit?.source,
+        sourceRef: opts?.audit?.sourceRef ?? null,
+      },
       { manager: mg },
     );
     return saved;

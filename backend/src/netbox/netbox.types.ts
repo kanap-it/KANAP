@@ -38,6 +38,9 @@ export class NetboxApiError extends Error {
   }
 }
 
+/** Value of `external_source` / `asset_external_links.source` for this inventory. */
+export const NETBOX_LINK_SOURCE = 'netbox';
+
 /** Object families KANAP imports from Netbox. */
 export type NetboxObjectType = 'device' | 'vm';
 
@@ -63,7 +66,22 @@ export type NetboxObject = {
   primaryIp: string | null;
   /** Deep link into the Netbox web interface. */
   url: string;
+  /** The Location the device sits in, at any depth. Always null for a VM. */
+  locationId: string | null;
 };
+
+/** One Netbox Location, as the walk up to the top level needs it. */
+export type NetboxLocation = {
+  id: string;
+  name: string;
+  description: string | null;
+  parentId: string | null;
+  siteSlug: string | null;
+  url: string;
+};
+
+/** Every Netbox Location by id. `null` stands for "not available this run". */
+export type NetboxLocationIndex = Map<string, NetboxLocation>;
 
 /** A Netbox device role or site, with how many objects reference it. */
 export type NetboxReferenceOption = {
