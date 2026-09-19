@@ -587,7 +587,17 @@ export default function Layout() {
       <Box component="main" sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Toolbar />
         {config.features.billing && <SubscriptionBanner />}
-        <Outlet />
+        {/* Pages are code-split: this keeps the nav shell on screen while a route chunk
+            loads, instead of unmounting to the full-page spinner in App. */}
+        <React.Suspense
+          fallback={
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+              <CircularProgress size={28} />
+            </Box>
+          }
+        >
+          <Outlet />
+        </React.Suspense>
       </Box>
     </Box>
   );
