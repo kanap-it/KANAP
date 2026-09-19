@@ -1,0 +1,138 @@
+import * as assert from 'node:assert/strict';
+import { StripeWebhookService } from '../stripe-webhook.service';
+
+/**
+ * A Stripe event has to be attributed to a tenant. The customer id is the normal route.
+ * Its fallback used to search `subscriptions` by subscription id on a context-less
+ * connection: that table is under FORCE RLS, so the query returned zero rows whatever the
+ * data, and the fallback never worked.
+ *
+ * The mock reproduces that RLS semantic: subscription rows are only visible to a manager
+ * whose runner carries the owning tenant as `app.current_tenant`.
+ */
+
+const TENANT_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const TENANT_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+function createService(state: {
+  tenants: Array<{ id: string; stripe_customer_id: string | null }>;
+  subscriptions: Array<{ tenant_id: string; stripe_subscription_id: string }>;
+}) {
+  const stats = { contextlessSubscriptionReads: 0 };
+  const createQueryRunner = () => {
+    let context: string | null = null;
+    return {
+      isTransactionActive: false,
+      connect: async () => undefined,
+      startTransaction: async () => undefined,
+      commitTransaction: async () => undefined,
+      rollbackTransaction: async () => undefined,
+      release: async () => undefined,
+      query: async (sql: string, params?: any[]) => {
+        if (/set_config\('app\.current_tenant'/.test(sql)) context = params?.[0] ?? null;
+        return [];
+      },
+      manager: {
+        query: async (sql: string, params: any[] = []) => {
+          if (!/FROM subscriptions/.test(sql)) return [];
+          const [tenantId, subscriptionId] = params;
+          return state.subscriptions
+            .filter((row) => row.tenant_id === context) // RLS
+            .filter((row) => row.tenant_id === tenantId && row.stripe_subscription_id === subscriptionId)
+            .map(() => ({ '?column?': 1 }));
+        },
+      },
+    };
+  };
+  const dataSource = {
+    createQueryRunner,
+    query: async (sql: string) => {
+      if (/FROM subscriptions/.test(sql)) stats.contextlessSubscriptionReads += 1;
+      return []; // RLS: no context, no rows
+    },
+    getRepository: () => ({
+      findOne: async ({ where }: { where: Record<string, string> }) =>
+        state.tenants.find((t) =>
+          where.id ? t.id === where.id : t.stripe_customer_id === where.stripe_customer_id,
+        ) ?? null,
+    }),
+  };
+  const svc = new StripeWebhookService({} as any, {} as any, dataSource as any, {} as any);
+  const lookup = (identifiers: { customerId?: string; subscriptionId?: string }, event?: unknown) =>
+    (svc as any).lookupTenant(identifiers, event) as Promise<{ id: string } | null>;
+  return { lookup, stats };
+}
+
+const subscriptionEvent = (tenantId: string, subscriptionId: string, customer: string) => ({
+  type: 'customer.subscription.updated',
+  data: { object: { object: 'subscription', id: subscriptionId, customer, metadata: { tenant_id: tenantId } } },
+});
+
+async function testResolvesByCustomerFirst() {
+  const { lookup, stats } = createService({
+    tenants: [{ id: TENANT_A, stripe_customer_id: 'cus_live' }],
+    subscriptions: [],
+  });
+  const tenant = await lookup({ customerId: 'cus_live', subscriptionId: 'sub_1' });
+  assert.equal(tenant?.id, TENANT_A);
+  assert.equal(stats.contextlessSubscriptionReads, 0);
+}
+
+async function testFallsBackOnMetadataWhenTheStoredCustomerHasDrifted() {
+  // Billing recreated the customer: the tenant now stores cus_new, while its live
+  // subscription still belongs to cus_old and keeps sending events under that id.
+  const { lookup, stats } = createService({
+    tenants: [{ id: TENANT_A, stripe_customer_id: 'cus_new' }],
+    subscriptions: [{ tenant_id: TENANT_A, stripe_subscription_id: 'sub_live' }],
+  });
+  const event = subscriptionEvent(TENANT_A, 'sub_live', 'cus_old');
+  const tenant = await lookup({ customerId: 'cus_old', subscriptionId: 'sub_live' }, event);
+  assert.equal(tenant?.id, TENANT_A, 'the event of the live subscription reaches its tenant');
+  assert.equal(stats.contextlessSubscriptionReads, 0, 'subscriptions is never read without a tenant context');
+}
+
+async function testIgnoresASubscriptionTheTenantHasLeft() {
+  // Applying an event rewrites the tenant's subscription row and customer id. A late
+  // "deleted" event from an abandoned subscription must not overwrite the live one.
+  const { lookup } = createService({
+    tenants: [{ id: TENANT_A, stripe_customer_id: 'cus_new' }],
+    subscriptions: [{ tenant_id: TENANT_A, stripe_subscription_id: 'sub_live' }],
+  });
+  const event = subscriptionEvent(TENANT_A, 'sub_abandoned', 'cus_old');
+  assert.equal(await lookup({ customerId: 'cus_old', subscriptionId: 'sub_abandoned' }, event), null);
+}
+
+async function testMetadataCannotPointAtAnotherTenantsSubscription() {
+  const { lookup } = createService({
+    tenants: [{ id: TENANT_A, stripe_customer_id: null }, { id: TENANT_B, stripe_customer_id: null }],
+    subscriptions: [{ tenant_id: TENANT_B, stripe_subscription_id: 'sub_b' }],
+  });
+  const event = subscriptionEvent(TENANT_A, 'sub_b', 'cus_x');
+  assert.equal(await lookup({ customerId: 'cus_x', subscriptionId: 'sub_b' }, event), null);
+}
+
+async function testReadsTheHintFromAnInvoiceAndRejectsGarbage() {
+  const { lookup } = createService({
+    tenants: [{ id: TENANT_A, stripe_customer_id: null }],
+    subscriptions: [{ tenant_id: TENANT_A, stripe_subscription_id: 'sub_live' }],
+  });
+  const invoice = {
+    type: 'invoice.paid',
+    data: { object: { object: 'invoice', customer: 'cus_old', subscription: 'sub_live', subscription_details: { metadata: { tenant_id: TENANT_A } } } },
+  };
+  assert.equal((await lookup({ customerId: 'cus_old', subscriptionId: 'sub_live' }, invoice))?.id, TENANT_A);
+
+  const garbage = subscriptionEvent("x'; DROP TABLE tenants; --", 'sub_live', 'cus_old');
+  assert.equal(await lookup({ customerId: 'cus_old', subscriptionId: 'sub_live' }, garbage), null);
+  assert.equal(await lookup({ customerId: 'cus_old', subscriptionId: 'sub_live' }, undefined), null);
+}
+
+async function run() {
+  await testResolvesByCustomerFirst();
+  await testFallsBackOnMetadataWhenTheStoredCustomerHasDrifted();
+  await testIgnoresASubscriptionTheTenantHasLeft();
+  await testMetadataCannotPointAtAnotherTenantsSubscription();
+  await testReadsTheHintFromAnInvoiceAndRejectsGarbage();
+}
+
+void run();
