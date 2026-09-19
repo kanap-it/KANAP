@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import AdmZip = require('adm-zip');
 import { EntityManager } from 'typeorm';
+import { neutralizeCsvFormulaValue } from '../../common/csv/csv-export.service';
 
 export type WeeklyReportQuery = {
   tenantId: string;
@@ -135,8 +136,13 @@ const xmlEscape = (value: unknown): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 
+/**
+ * Escape a CSV field. Formula neutralisation comes first: this writer hand-rolls its CSV
+ * instead of going through CsvExportService, so nothing else would protect a value that a
+ * spreadsheet would otherwise evaluate (a leading =, +, - or @).
+ */
 const csvEscape = (value: unknown): string => {
-  const raw = String(value ?? '');
+  const raw = neutralizeCsvFormulaValue(String(value ?? ''));
   if (!raw.includes(';') && !raw.includes('"') && !raw.includes('\n') && !raw.includes('\r')) {
     return raw;
   }

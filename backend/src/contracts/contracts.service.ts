@@ -30,6 +30,7 @@ import {
   createParamNameGenerator,
   FilterTargetConfig,
 } from '../common/ag-grid-filtering';
+import { neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 type ListItem = Contract & {
   supplier?: { id: string; name: string } | null;
@@ -696,7 +697,7 @@ export class ContractsService {
     const filename = scope === 'template' ? 'contracts_template.csv' : 'contracts.csv';
     const chunks: string[] = [];
     await new Promise<void>((resolve, reject) => {
-      const stream = format({ headers, delimiter });
+      const stream = format({ headers, delimiter, transform: neutralizeCsvRow });
       stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
       stream.on('end', () => resolve());
       stream.on('error', (err) => reject(err));

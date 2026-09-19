@@ -19,6 +19,7 @@ import {
 import { applyStatusFilter, extractStatusFilterFromAgModel } from '../common/status-filter';
 import { StatusState, STATUS_STATES, resolveLifecycleState } from '../common/status';
 import { DepartmentUpsertDto } from './dto/department.dto';
+import { neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 type DepartmentLookupItem = { id: string; name: string; company_id: string };
 
@@ -557,7 +558,7 @@ export class DepartmentsService {
     const filename = scope === 'template' ? 'departments_template.csv' : 'departments.csv';
     const chunks: string[] = [];
     await new Promise<void>((resolve, reject) => {
-      const stream = format({ headers, delimiter });
+      const stream = format({ headers, delimiter, transform: neutralizeCsvRow });
       stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
       stream.on('end', () => resolve());
       stream.on('error', (err) => reject(err));

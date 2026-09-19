@@ -21,6 +21,33 @@ export function neutralizeCsvFormulaValue(value: string): string {
 }
 
 /**
+ * fast-csv `transform` that neutralises every string field of a row.
+ *
+ * Pass it to `format({ headers, delimiter, transform: neutralizeCsvRow })`. Neutralising
+ * the whole row rather than hand-picked columns means a field added later to an export is
+ * protected by default — picking columns per export is how the raw exporters came to be
+ * unprotected while others were not.
+ *
+ * Non-string values (numbers, booleans, null, dates) pass through untouched, and array
+ * rows are handled too, so it is safe to attach to any formatter.
+ */
+export function neutralizeCsvRow<T>(row: T): T {
+  if (Array.isArray(row)) {
+    return row.map((value) =>
+      typeof value === 'string' ? neutralizeCsvFormulaValue(value) : value,
+    ) as unknown as T;
+  }
+  if (row && typeof row === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
+      out[key] = typeof value === 'string' ? neutralizeCsvFormulaValue(value) : value;
+    }
+    return out as unknown as T;
+  }
+  return row;
+}
+
+/**
  * Reverse of neutralizeCsvFormulaValue: strips the protective apostrophe an
  * export added in front of a formula-like value, so export -> import
  * round-trips cleanly. Only strips when the remainder would be re-neutralized

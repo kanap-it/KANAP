@@ -21,6 +21,7 @@ import { spreadAnnualToMonths } from './spread.util';
 import { resolveLifecycleState, StatusState } from '../common/status';
 import { SpendItemUpsertDto } from './dto/spend-item.dto';
 import { ItemNumberService } from '../common/item-number.service';
+import { neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 @Injectable()
 export class SpendItemsCsvService {
@@ -127,7 +128,7 @@ export class SpendItemsCsvService {
     }
 
     await new Promise<void>((resolve, reject) => {
-      const stream = format({ headers, delimiter });
+      const stream = format({ headers, delimiter, transform: neutralizeCsvRow });
       stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
       stream.on('end', () => resolve());
       stream.on('error', (err) => reject(err));

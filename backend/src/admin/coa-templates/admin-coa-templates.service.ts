@@ -5,6 +5,7 @@ import { CoaTemplate } from './coa-template.entity';
 import { parseString } from '@fast-csv/parse';
 import { format } from '@fast-csv/format';
 import { AuditService } from '../../audit/audit.service';
+import { neutralizeCsvRow } from '../../common/csv/csv-export.service';
 
 @Injectable()
 export class AdminCoaTemplatesService {
@@ -75,7 +76,7 @@ export class AdminCoaTemplatesService {
     const chunks: string[] = [];
     return await new Promise<string>((resolve, reject) => {
       try {
-        const stream = format({ headers, delimiter });
+        const stream = format({ headers, delimiter, transform: neutralizeCsvRow });
         stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
         stream.on('end', () => resolve('\ufeff' + chunks.join('')));
         for (const r of sorted) {
