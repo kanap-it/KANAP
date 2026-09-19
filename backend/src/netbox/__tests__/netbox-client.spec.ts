@@ -151,6 +151,74 @@ assert.equal(netboxAuthorizationHeader('  padded  '), 'Token padded');
   }
 
   {
+    // Locations are read whole, with the parent link the walk up to the top
+    // level needs, and the deep link the sub-location carries.
+    const { client, connection, requests } = createClient(() => ({
+      json: {
+        count: 2,
+        next: null,
+        results: [
+          { id: 1, name: 'Building A', description: 'North wing', parent: null, site: { slug: 'paris' } },
+          { id: 2, name: 'Floor 1', description: '', parent: { id: 1 }, site: { slug: 'paris' } },
+        ],
+      },
+    }));
+    const { locations, complete } = await client.listLocations(connection);
+    assert.equal(complete, true);
+    assert.equal(requests[0].url.pathname, '/api/dcim/locations/');
+    assert.deepEqual(locations, [
+      {
+        id: '1',
+        name: 'Building A',
+        description: 'North wing',
+        parentId: null,
+        siteSlug: 'paris',
+        url: 'https://netbox.example.test/dcim/locations/1/',
+      },
+      {
+        id: '2',
+        name: 'Floor 1',
+        description: null,
+        parentId: '1',
+        siteSlug: 'paris',
+        url: 'https://netbox.example.test/dcim/locations/2/',
+      },
+    ]);
+  }
+
+  {
+    // A truncated walk must not be mistaken for the whole tree: the caller only
+    // attaches equipment from a list it knows is complete.
+    let call = 0;
+    const { client, connection } = createClient(() => {
+      call += 1;
+      return {
+        json: {
+          count: 100000,
+          next: 'https://netbox.example.test/api/dcim/locations/?offset=200',
+          results: [{ id: call, name: `Location ${call}`, parent: null, site: { slug: 'paris' } }],
+        },
+      };
+    });
+    const { complete } = await client.listLocations(connection);
+    assert.equal(complete, false);
+  }
+
+  {
+    // The device's own Location is read from the brief object Netbox nests in
+    // the device payload; a virtual machine has none.
+    const { client, connection } = createClient((url) => (
+      url.pathname === '/api/dcim/devices/'
+        ? { json: { count: 1, next: null, results: [{ id: 7, name: 'par-esx-01', site: { slug: 'paris' }, location: { id: 4, name: 'Room 101' } }] } }
+        : { json: { count: 1, next: null, results: [{ id: 8, name: 'par-vm-01', site: { slug: 'paris' }, location: { id: 4, name: 'Room 101' } }] } }
+    ));
+    const { objects: devices } = await client.listDevices(connection);
+    assert.equal(devices[0].locationId, '4');
+    const { objects: vms } = await client.listVirtualMachines(connection);
+    assert.equal(vms[0].locationId, null, 'a Netbox VM carries no location');
+  }
+
+  {
     // The virtual-machine total is read from `count`, without fetching any.
     const { client, connection, requests } = createClient(() => ({
       json: { count: 12, next: null, results: [{ id: 1, name: 'par-app-01' }] },

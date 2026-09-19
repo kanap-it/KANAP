@@ -5,6 +5,7 @@ import {
   MappedHardwareFields,
   NetboxCatalogs,
   NetboxMapping,
+  NetboxSubLocationTarget,
 } from './netbox-mapper';
 import { NetboxNotice, netboxNotice } from './netbox-notice';
 import {
@@ -13,7 +14,7 @@ import {
   buildMatcherIndex,
   matchNetboxObject,
 } from './netbox-matcher';
-import { NetboxObjectType } from './netbox.types';
+import { NETBOX_LINK_SOURCE, NetboxLocationIndex, NetboxObjectType } from './netbox.types';
 
 // Pure planner: mapped objects + the tenant's assets and existing links in,
 // one decision per Netbox object out. It diffs against the CURRENT asset
@@ -73,6 +74,43 @@ export type ExistingLink = {
   state: AssetExternalLinkState;
 };
 
+/** A sub-location of the tenant, with whatever external identity it carries. */
+export type ExistingSubLocation = {
+  id: string;
+  location_id: string;
+  name: string;
+  description: string | null;
+  external_source: string | null;
+  external_id: string | null;
+  external_url: string | null;
+};
+
+export type NetboxSubLocationAction = 'create' | 'adopt' | 'rename' | 'update' | 'conflict';
+
+export type NetboxSubLocationChange = {
+  action: NetboxSubLocationAction;
+  /** Set for every action but 'create', which has no row yet. */
+  sub_item_id: string | null;
+  location_id: string;
+  location_name: string;
+  external_id: string;
+  external_url: string;
+  name: string;
+  /** Empty means "leave the KANAP description alone". */
+  description: string | null;
+  /** Set for 'rename', and for 'adopt' when only the spelling changes. */
+  previous_name: string | null;
+  /** Objects of this run that end up in it. 0 is possible for rename/update. */
+  asset_count: number;
+};
+
+/** What resolving one Netbox Location against the tenant's sub-locations gives. */
+export type SubLocationResolution =
+  | { kind: 'existing'; subItem: ExistingSubLocation }
+  | { kind: 'adopt'; subItem: ExistingSubLocation }
+  | { kind: 'conflict'; subItem: ExistingSubLocation | null }
+  | { kind: 'create' };
+
 export type NetboxPlan = {
   rows: NetboxPlanRow[];
   /** Links whose Netbox object was not seen this run; empty when the guard trips. */
@@ -80,12 +118,18 @@ export type NetboxPlan = {
   counts: NetboxSyncCounts;
   /** Per-row map from the plan row to what the apply step has to write. */
   writes: Map<string, NetboxPlanWrite>;
+  /** Shared-object changes, listed once each rather than once per asset. */
+  subLocations: NetboxSubLocationChange[];
+  /** False when Netbox did not return its locations this run. */
+  subLocationsAvailable: boolean;
 };
 
 export type NetboxPlanWrite = {
   asset: MappedAssetFields;
   hardware: MappedHardwareFields;
   assetId: string | null;
+  /** The top-level Location this object belongs in, resolved at apply time. */
+  subLocation: NetboxSubLocationTarget | null;
 };
 
 export function externalKey(type: string, id: string): string {
@@ -147,6 +191,57 @@ function firstIp(asset: ExistingAsset): string | null {
   return entries.length > 0 ? entries[0].ip : null;
 }
 
+function sameSubLocationName(left: string, right: string): boolean {
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+/**
+ * Resolves one Netbox Location against the sub-locations of one KANAP location,
+ * in this order:
+ *
+ *  1. a sub-location that already carries this Netbox id is it;
+ *  2. otherwise a sub-location of the same name with no external identity is
+ *     adopted, so a list built by hand is not duplicated by the first import;
+ *  3. a sub-location of the same name that belongs to ANOTHER Netbox location
+ *     is a conflict: nothing is written for it, and the equipment is imported
+ *     without a sub-location rather than silently landing in the wrong one;
+ *  4. otherwise it has to be created.
+ *
+ * The apply step calls this same function against a fresh read of the database,
+ * so the preview and the write cannot drift apart.
+ */
+export function resolveSubLocation(
+  existing: ExistingSubLocation[],
+  locationId: string,
+  target: NetboxSubLocationTarget,
+): SubLocationResolution {
+  const scoped = existing.filter((item) => item.location_id === locationId);
+
+  const byIdentity = scoped.find(
+    (item) => item.external_source === NETBOX_LINK_SOURCE && item.external_id === target.externalId,
+  );
+  if (byIdentity) return { kind: 'existing', subItem: byIdentity };
+
+  const byName = scoped.find((item) => sameSubLocationName(item.name, target.name));
+  if (!byName) return { kind: 'create' };
+  if (!byName.external_source && !byName.external_id) return { kind: 'adopt', subItem: byName };
+  return { kind: 'conflict', subItem: byName };
+}
+
+/**
+ * Everything the sub-location diff needs, all of it already resolved by the
+ * planner: what the object's top-level Netbox Location resolves to, the name
+ * the asset currently carries, and whether its KANAP location changes in this
+ * very run.
+ */
+export type SubLocationDiffContext = {
+  resolution: SubLocationResolution | null;
+  /** Name of the sub-location the asset holds today, when it holds one. */
+  currentName: string | null;
+  /** The asset's KANAP location changes: an unresolved sub-location is dropped. */
+  locationChanged: boolean;
+};
+
 /**
  * Field-by-field difference between what Netbox reports and what the asset
  * currently holds. An empty Netbox value produces no difference: it must never
@@ -156,6 +251,7 @@ export function diffNetboxMapping(
   mapping: NetboxMapping,
   asset: ExistingAsset,
   catalogs: NetboxCatalogs,
+  subLocation?: SubLocationDiffContext,
 ): NetboxFieldDiff[] {
   const mapped = mapping.asset;
   const hardware = mapping.hardware;
@@ -172,7 +268,33 @@ export function diffNetboxMapping(
 
   const beforeLocation = catalogs.locations.find((entry) => entry.id === asset.location_id)?.name ?? null;
   const afterLocation = catalogs.locations.find((entry) => entry.id === mapped.location_id)?.name ?? null;
-  add('location', asset.location_id !== mapped.location_id, beforeLocation, afterLocation);
+  const locationChanged = asset.location_id !== mapped.location_id;
+  add('location', locationChanged, beforeLocation, afterLocation);
+
+  // The sub-location only moves when its resolved row is a different one. A
+  // rename touches the shared row, not the asset, and so produces no diff
+  // here: an equipment list would otherwise read as N moves for one rename.
+  //
+  // The one case that has to be announced even without a target is a change of
+  // KANAP location: the asset service clears a sub-location that belongs to the
+  // location the asset is leaving, and the preview must not let that happen
+  // quietly.
+  const target = mapping.subLocation;
+  const dropped = Boolean(subLocation?.locationChanged && asset.sub_location_id);
+  const resolvedId = subLocation?.resolution
+    && subLocation.resolution.kind !== 'create'
+    && subLocation.resolution.kind !== 'conflict'
+    ? subLocation.resolution.subItem.id
+    : null;
+  if (subLocation) {
+    if (target && subLocation.resolution?.kind === 'create') {
+      add('sub_location', true, subLocation.currentName, target.name);
+    } else if (target && resolvedId && resolvedId !== asset.sub_location_id) {
+      add('sub_location', true, subLocation.currentName, target.name);
+    } else if (dropped && (!target || subLocation.resolution?.kind === 'conflict')) {
+      add('sub_location', true, subLocation.currentName, null);
+    }
+  }
 
   if (mapped.status) {
     add('status', asset.status !== mapped.status,
@@ -225,8 +347,18 @@ export function planNetboxSync(input: {
   totalObjects: number;
   /** Choices made in the preview. An object out of scope ignores its own. */
   decisions?: NetboxDecision[];
+  /** Every sub-location of the tenant, with whatever identity it carries. */
+  subLocations?: ExistingSubLocation[];
+  /** Netbox's Locations, or null when it did not return them. */
+  locationIndex?: NetboxLocationIndex | null;
+  /** Netbox site slug -> KANAP location id, for the upkeep of linked rows. */
+  siteMap?: Record<string, string>;
 }): NetboxPlan {
   const { mappings, links, assets, catalogs } = input;
+  const existingSubLocations = input.subLocations ?? [];
+  const locationIndex = input.locationIndex ?? null;
+  const siteMap = input.siteMap ?? {};
+  const subLocationsAvailable = locationIndex != null;
   const decisionsByKey = new Map(
     (input.decisions ?? []).map((decision) => [externalKey(decision.external_type, decision.external_id), decision]),
   );
@@ -348,6 +480,18 @@ export function planNetboxSync(input: {
   const writes = new Map<string, NetboxPlanWrite>();
   const counts = emptyCounts();
 
+  // Rows are decided in two beats because a sub-location is a SHARED object:
+  // one Netbox Location can be the target of several equipment rows, and two
+  // Netbox Locations can want the same name. Building every write first, then
+  // resolving the distinct targets once, is what makes "one row created, the
+  // other in conflict" deterministic instead of a matter of row order.
+  const pending: Array<{
+    key: string;
+    mapping: NetboxMapping;
+    base: NetboxPlanRow;
+    matcher: NonNullable<ReturnType<typeof matchNetboxObject>>;
+  }> = [];
+
   for (const { key, mapping, base, skip, match, heldElsewhere } of decisions) {
     if (skip || !match) {
       rows.push({ ...base, skip_reason: skip });
@@ -383,23 +527,56 @@ export function planNetboxSync(input: {
       continue;
     }
 
-    const write: NetboxPlanWrite = {
+    writes.set(key, {
       asset: mapping.asset as MappedAssetFields,
       hardware: mapping.hardware as MappedHardwareFields,
       assetId: match.assetId,
-    };
-    writes.set(key, write);
+      subLocation: mapping.subLocation,
+    });
+    pending.push({ key, mapping, base, matcher: match });
+  }
 
-    if (!match.assetId) {
-      rows.push({ ...base, action: 'create' });
+  const { resolutions, changes } = resolveSubLocationTargets(pending, {
+    existing: existingSubLocations,
+    catalogs,
+    locationIndex,
+    siteMap,
+    subLocationsAvailable,
+  });
+
+  for (const { key, mapping, base, matcher } of pending) {
+    const write = writes.get(key) as NetboxPlanWrite;
+    const resolution = resolutions.get(key) ?? null;
+    const asset = write.assetId ? assetsById.get(write.assetId) : undefined;
+    // The equipment is imported either way; only the sub-location is left
+    // alone, and the person has to know why.
+    const warnings = resolution?.kind === 'conflict'
+      ? [...base.warnings, netboxNotice('sub_location_name_taken', { value: mapping.subLocation?.name ?? '' })]
+      : base.warnings;
+
+    if (!write.assetId) {
+      rows.push({ ...base, action: 'create', warnings });
       counts.create += 1;
       continue;
     }
 
-    const asset = assetsById.get(match.assetId);
-    const diffs = asset ? diffNetboxMapping(mapping, asset, catalogs) : [];
+    const subLocationContext: SubLocationDiffContext = {
+      resolution,
+      currentName: asset?.sub_location_id
+        ? existingSubLocations.find((item) => item.id === asset.sub_location_id)?.name ?? null
+        : null,
+      locationChanged: Boolean(asset && asset.location_id !== write.asset.location_id),
+    };
+    const diffs = asset ? diffNetboxMapping(mapping, asset, catalogs, subLocationContext) : [];
     const action: NetboxPlanAction = diffs.length > 0 ? 'update' : 'unchanged';
-    rows.push({ ...base, action, asset: assetRef(asset), matched_by: match.matchedBy, diffs });
+    rows.push({
+      ...base,
+      action,
+      asset: assetRef(asset),
+      matched_by: matcher.matchedBy,
+      diffs,
+      warnings,
+    });
     counts[action] += 1;
   }
 
@@ -413,5 +590,238 @@ export function planNetboxSync(input: {
     : [];
   counts.missing = missing.length;
 
-  return { rows, missing, counts, writes };
+  return {
+    rows,
+    missing,
+    counts,
+    writes,
+    subLocations: changes,
+    subLocationsAvailable,
+  };
+}
+
+/**
+ * Resolves every distinct Netbox Location this run has to write into, and
+ * works out the upkeep of the ones already linked.
+ *
+ * Two things happen here, and they are deliberately different:
+ *
+ *  - the targets of this run, resolved against a working copy that grows as we
+ *    go. Targets are sorted by Netbox id, so when two Locations want the same
+ *    name the lower id wins and the other comes out as a conflict, whatever
+ *    order the equipment rows arrived in. The apply step re-reads the database
+ *    and lands on the same answer without any of this;
+ *  - the upkeep of sub-locations already linked: a Location renamed in Netbox
+ *    is renamed in place, whatever the equipment rows do. Without this step a
+ *    rename would never happen at all, because a row whose only change is the
+ *    shared name has no diff and is never written.
+ *
+ * One sub-location produces at most one change per run, carrying everything
+ * that has to be written: a rename also refreshes the description and the deep
+ * link, so the apply step never has to guess.
+ */
+function resolveSubLocationTargets(
+  pending: Array<{ key: string; mapping: NetboxMapping; base: NetboxPlanRow }>,
+  context: {
+    existing: ExistingSubLocation[];
+    catalogs: NetboxCatalogs;
+    locationIndex: NetboxLocationIndex | null;
+    siteMap: Record<string, string>;
+    subLocationsAvailable: boolean;
+  },
+): { resolutions: Map<string, SubLocationResolution>; changes: NetboxSubLocationChange[] } {
+  const resolutions = new Map<string, SubLocationResolution>();
+  const changes: NetboxSubLocationChange[] = [];
+  const { existing, catalogs, locationIndex, siteMap, subLocationsAvailable } = context;
+
+  const locationName = (locationId: string) =>
+    catalogs.locations.find((entry) => entry.id === locationId)?.name ?? '';
+
+  // A working copy: a creation or an adoption planned for one target must be
+  // visible to the next, or two Netbox Locations with the same name would both
+  // be created and the unique index would refuse the second one mid-run.
+  const working: ExistingSubLocation[] = existing.map((item) => ({ ...item }));
+
+  if (subLocationsAvailable) {
+    changes.push(...reconcileLinkedSubLocations(
+      working,
+      locationIndex as NetboxLocationIndex,
+      siteMap,
+      locationName,
+    ));
+  }
+
+  // One entry per distinct Netbox Location, holding the rows that want it.
+  const wanted = new Map<string, { target: NetboxSubLocationTarget; rows: typeof pending }>();
+  for (const entry of pending) {
+    const target = entry.mapping.subLocation;
+    if (!target) continue;
+    const bucket = wanted.get(target.externalId);
+    if (bucket) bucket.rows.push(entry);
+    else wanted.set(target.externalId, { target, rows: [entry] });
+  }
+
+  const ordered = [...wanted.entries()].sort(([left], [right]) => compareExternalIds(left, right));
+
+  for (const [externalId, bucket] of ordered) {
+    const { target, rows: bucketRows } = bucket;
+    const locationId = bucketRows[0].mapping.asset?.location_id ?? '';
+    if (!locationId) continue;
+    const resolution = resolveSubLocation(working, locationId, target);
+    for (const row of bucketRows) resolutions.set(row.key, resolution);
+
+    const assetCount = bucketRows.length;
+    const base = {
+      location_id: locationId,
+      location_name: locationName(locationId),
+      external_id: externalId,
+      asset_count: assetCount,
+    };
+
+    if (resolution.kind === 'create') {
+      changes.push({
+        ...base,
+        action: 'create',
+        sub_item_id: null,
+        external_url: target.url,
+        name: target.name,
+        description: target.description,
+        previous_name: null,
+      });
+      // Reserve the name so a later target cannot claim it too.
+      working.push({
+        id: `${PENDING_SUB_ITEM_PREFIX}${externalId}`,
+        location_id: locationId,
+        name: target.name,
+        description: target.description,
+        external_source: NETBOX_LINK_SOURCE,
+        external_id: externalId,
+        external_url: target.url,
+      });
+      continue;
+    }
+
+    if (resolution.kind === 'conflict') {
+      changes.push({
+        ...base,
+        action: 'conflict',
+        // A conflict can be against a row this very run is about to create.
+        // That placeholder is not an id anyone can use, so it is reported as
+        // "no row yet" rather than leaking the working copy's bookkeeping.
+        sub_item_id: realSubItemId(resolution.subItem),
+        external_url: target.url,
+        name: target.name,
+        description: target.description,
+        previous_name: resolution.subItem?.name ?? null,
+      });
+      continue;
+    }
+
+    const subItem = resolution.subItem;
+    if (resolution.kind === 'adopt') {
+      // A list built by hand is taken over, never duplicated. The row keeps its
+      // id, so the assets already filed there do not move.
+      const spellingChanged = subItem.name !== target.name;
+      changes.push({
+        ...base,
+        action: 'adopt',
+        sub_item_id: subItem.id,
+        external_url: target.url,
+        name: target.name,
+        description: target.description,
+        previous_name: spellingChanged ? subItem.name : null,
+      });
+      subItem.external_source = NETBOX_LINK_SOURCE;
+      subItem.external_id = externalId;
+      subItem.external_url = target.url;
+      subItem.name = target.name;
+      if (target.description) subItem.description = target.description;
+    }
+  }
+
+  return { resolutions, changes };
+}
+
+/**
+ * The id of a real row, or null. The planner's working copy holds placeholder
+ * entries for the sub-locations it is about to create, so that a second target
+ * cannot claim their name; their id is bookkeeping, never something to store.
+ */
+const PENDING_SUB_ITEM_PREFIX = 'pending:';
+
+function realSubItemId(subItem: ExistingSubLocation | null | undefined): string | null {
+  if (!subItem) return null;
+  return subItem.id.startsWith(PENDING_SUB_ITEM_PREFIX) ? null : subItem.id;
+}
+
+/** Numeric-aware ordering so "10" sorts after "9" and ties stay stable. */
+function compareExternalIds(left: string, right: string): number {
+  const leftNumber = Number(left);
+  const rightNumber = Number(right);
+  const leftNumeric = left.trim() !== '' && Number.isFinite(leftNumber);
+  const rightNumeric = right.trim() !== '' && Number.isFinite(rightNumber);
+  if (leftNumeric && rightNumeric && leftNumber !== rightNumber) return leftNumber - rightNumber;
+  if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
+  return left.localeCompare(right);
+}
+
+/**
+ * Upkeep of the sub-locations a previous run linked. A Location renamed in
+ * Netbox is renamed in place: every asset that carries it, including the ones a
+ * person filed there by hand, follows. Nothing here touches an asset.
+ *
+ * A row is left alone when its Netbox Location is gone, when it moved under a
+ * parent (it is no longer a top-level one) or when its site is mapped
+ * elsewhere. A rename onto a name already taken in the KANAP location is
+ * reported, never forced: the identity is still known, so the equipment keeps
+ * its sub-location.
+ */
+function reconcileLinkedSubLocations(
+  working: ExistingSubLocation[],
+  locationIndex: NetboxLocationIndex,
+  siteMap: Record<string, string>,
+  locationName: (locationId: string) => string,
+): NetboxSubLocationChange[] {
+  const changes: NetboxSubLocationChange[] = [];
+  for (const subItem of working) {
+    if (subItem.external_source !== NETBOX_LINK_SOURCE || !subItem.external_id) continue;
+    const location = locationIndex.get(subItem.external_id);
+    if (!location || location.parentId || !location.siteSlug) continue;
+    if (siteMap[location.siteSlug] !== subItem.location_id) continue;
+
+    const nameChanged = location.name !== subItem.name;
+    const urlChanged = location.url !== subItem.external_url;
+    // An empty Netbox description never blanks the KANAP one.
+    const descriptionChanged = Boolean(location.description) && location.description !== subItem.description;
+    if (!nameChanged && !urlChanged && !descriptionChanged) continue;
+
+    const base = {
+      sub_item_id: subItem.id,
+      location_id: subItem.location_id,
+      location_name: locationName(subItem.location_id),
+      external_id: subItem.external_id,
+      external_url: location.url,
+      description: location.description,
+      asset_count: 0,
+    };
+
+    if (nameChanged) {
+      const taken = working.some((other) =>
+        other.id !== subItem.id
+        && other.location_id === subItem.location_id
+        && sameSubLocationName(other.name, location.name));
+      if (taken) {
+        changes.push({ ...base, action: 'conflict', name: location.name, previous_name: subItem.name });
+        continue;
+      }
+      changes.push({ ...base, action: 'rename', name: location.name, previous_name: subItem.name });
+      subItem.name = location.name;
+    } else {
+      changes.push({ ...base, action: 'update', name: subItem.name, previous_name: null });
+    }
+
+    subItem.external_url = location.url;
+    if (location.description) subItem.description = location.description;
+  }
+  return changes;
 }

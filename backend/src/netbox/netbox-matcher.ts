@@ -19,6 +19,7 @@ export type ExistingAsset = {
   status: string;
   kind: string;
   location_id: string | null;
+  sub_location_id: string | null;
   hostname: string | null;
   domain: string | null;
   fqdn: string | null;

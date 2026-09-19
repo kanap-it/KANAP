@@ -2,10 +2,15 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import * as http from 'node:http';
 import * as https from 'node:https';
 import { assertPublicHttpTarget } from '../common/ssrf-guard';
-import { normalizeNetboxDevice, normalizeNetboxVirtualMachine } from './netbox-mapper';
+import {
+  normalizeNetboxDevice,
+  normalizeNetboxLocation,
+  normalizeNetboxVirtualMachine,
+} from './netbox-mapper';
 import {
   NetboxApiError,
   NetboxConnection,
+  NetboxLocation,
   NetboxObject,
   NetboxReferenceOption,
 } from './netbox.types';
@@ -259,6 +264,22 @@ export class NetboxClient {
   async listSites(connection: NetboxConnection): Promise<NetboxReferenceOption[]> {
     const { rows } = await this.listAll(connection, '/api/dcim/sites/', {});
     return rows.map((row) => this.toReferenceOption(row));
+  }
+
+  /**
+   * GET /api/dcim/locations/ — the Location tree under each site. `complete`
+   * matters as much as the rows: the caller only imports sub-locations from a
+   * list it knows is whole, and a truncated tree would attach equipment to the
+   * wrong level.
+   */
+  async listLocations(
+    connection: NetboxConnection,
+  ): Promise<{ locations: NetboxLocation[]; complete: boolean }> {
+    const { rows, complete } = await this.listAll(connection, '/api/dcim/locations/', {});
+    return {
+      locations: rows.map((row) => normalizeNetboxLocation(row, connection.baseUrl)),
+      complete,
+    };
   }
 
   /** How many virtual machines Netbox holds, without fetching any of them. */

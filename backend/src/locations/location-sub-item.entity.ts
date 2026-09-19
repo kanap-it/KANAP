@@ -21,6 +21,20 @@ export class LocationSubItem {
   @Column('int', { default: 0 })
   display_order!: number;
 
+  /**
+   * External identity, written only by an inventory synchronisation (Netbox
+   * today). NULL on every sub-location a person created by hand. The partial
+   * unique index that backs the triplet lives in migration 1853590000000.
+   */
+  @Column('text', { nullable: true })
+  external_source!: string | null;
+
+  @Column('text', { nullable: true })
+  external_id!: string | null;
+
+  @Column('text', { nullable: true })
+  external_url!: string | null;
+
   @Column('timestamptz', { default: () => 'now()' })
   created_at!: Date;
 
