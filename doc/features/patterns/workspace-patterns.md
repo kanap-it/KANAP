@@ -8,7 +8,7 @@
 
 **Related Documentation**:
 - [backend-patterns.md](backend-patterns.md) - Backend patterns & abstractions (BaseDeleteService, TenancyManager, service decomposition)
-- [../frontend-architecture.md](../frontend-architecture.md) - Frontend hooks and components (useModuleNavigation, WorkspaceLayout)
+- [../frontend-architecture.md](../frontend-architecture.md) - Frontend hooks and components (useModuleItemNav, WorkspaceLayout)
 
 ---
 

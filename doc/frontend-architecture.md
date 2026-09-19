@@ -290,53 +290,6 @@ The frontend implements automatic session management with sliding expiration:
 
 ## Shared Hooks
 
-### useModuleNavigation
-Generic navigation hook for list-to-workspace navigation with filter preservation.
-
-**Location:** `frontend/src/hooks/useModuleNavigation.ts`
-
-```typescript
-interface NavigationConfig<TFilters> {
-  basePath: string;
-  defaultFilters?: Partial<TFilters>;
-  paramNames?: { id?: string; tab?: string };
-}
-
-interface ModuleNavigation<TFilters> {
-  // Current state
-  currentId: string | null;
-  currentTab: string | null;
-  filters: TFilters;
-
-  // Navigation methods
-  goToList: () => void;
-  goToItem: (id: string, tab?: string) => void;
-  goToTab: (tab: string) => void;
-  goToCreate: () => void;
-
-  // Filter methods
-  setFilters: (filters: Partial<TFilters>) => void;
-  clearFilters: () => void;
-
-  // URL helpers
-  getItemUrl: (id: string, tab?: string) => string;
-  getListUrl: (filters?: Partial<TFilters>) => string;
-}
-
-function useModuleNavigation<TFilters>(config: NavigationConfig<TFilters>): ModuleNavigation<TFilters>
-```
-
-**Usage:**
-```typescript
-// Module-specific hook as thin wrapper
-export function useSpendNav() {
-  return useModuleNavigation<SpendFilters>({
-    basePath: '/ops/opex',
-    defaultFilters: { year: new Date().getFullYear() },
-  });
-}
-```
-
 ### useModuleItemNav
 Generic hook for prev/next navigation within a workspace, fetching ordered IDs from the server.
 
@@ -356,6 +309,7 @@ interface ModuleItemNavParams {
   q?: string | null;          // Search query from URL
   filters?: string | null;    // AG Grid filterModel JSON from URL
   year?: number | string | null;  // Optional year param
+  statusScope?: string | null;    // Grid status scope (enabled | disabled | all), so prev/next walks the set on screen
   extraParams?: Record<string, string | number | undefined>;  // Dynamic params per invocation
 }
 
