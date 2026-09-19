@@ -29,6 +29,7 @@ export type NetboxNoticeCode =
   | 'lifecycle_not_in_catalog'
   | 'ipv6_skipped'
   | 'ip_conflict_skipped'
+  | 'ip_match_candidates'
   | 'subnet_not_in_catalog'
   | 'no_ip_address_type'
   | 'fetch_incomplete'
@@ -67,6 +68,8 @@ export interface NetboxIntegrationView {
   request_timeout_seconds: number | null;
   insecure_tls: boolean;
   auto_sync: boolean;
+  /** A synchronisation was applied by hand at least once; the hourly run waits for it. */
+  manual_sync_done?: boolean;
   default_environment: NetboxEnvironment;
   secret_writable: boolean;
   updated_at: string | null;
@@ -137,6 +140,27 @@ export interface NetboxFieldDiff {
   after: string | null;
 }
 
+/** What a person decided about one Netbox object, from inside the preview. */
+export type NetboxDecisionAction = 'link' | 'create' | 'ignore';
+
+export interface NetboxDecision {
+  external_type: NetboxObjectType;
+  external_id: string;
+  action: NetboxDecisionAction;
+  /** Required for `link`. */
+  asset_id?: string;
+}
+
+/**
+ * Body of both the preview and the run. Decisions are written only when the run
+ * is applied; `reuse_inventory` lets a re-preview reuse the inventory read a
+ * moment ago, and is never set on the first preview of a dialog.
+ */
+export interface NetboxSyncInput {
+  decisions?: NetboxDecision[];
+  reuse_inventory?: boolean;
+}
+
 export interface NetboxPlanRow {
   external_type: NetboxObjectType;
   external_id: string;
@@ -144,13 +168,15 @@ export interface NetboxPlanRow {
   external_url: string;
   action: 'create' | 'update' | 'unchanged' | 'ambiguous' | 'skipped';
   asset: NetboxAssetRef | null;
-  matched_by: 'link' | 'serial' | 'fqdn' | 'name' | null;
+  matched_by: 'link' | 'serial' | 'fqdn' | 'name' | 'manual' | null;
   candidates: NetboxAssetRef[];
   diffs: NetboxFieldDiff[];
   skip_reason: 'unmapped_role' | 'unmapped_site' | 'unnamed' | 'ignored' | null;
   warnings: NetboxNotice[];
   /** Raw Netbox status; absent on payloads from an older backend. */
   external_status?: string | null;
+  /** The decision that shaped this row, if any. Absent on payloads from an older backend. */
+  decision?: NetboxDecisionAction | null;
 }
 
 export interface NetboxSyncCounts {
@@ -230,10 +256,11 @@ export const netboxApi = {
   saveMapping: (data: NetboxMappingSaveInput): Promise<NetboxMappingSaveInput> =>
     api.put<NetboxMappingSaveInput, NetboxMappingSaveInput>('/netbox/mapping', data),
 
-  previewSync: (): Promise<NetboxPreviewResult> =>
-    api.post<NetboxPreviewResult>('/netbox/sync/preview'),
+  previewSync: (input?: NetboxSyncInput): Promise<NetboxPreviewResult> =>
+    api.post<NetboxPreviewResult, NetboxSyncInput>('/netbox/sync/preview', input ?? {}),
 
-  startSync: (): Promise<NetboxStatus> => api.post<NetboxStatus>('/netbox/sync'),
+  startSync: (input?: NetboxSyncInput): Promise<NetboxStatus> =>
+    api.post<NetboxStatus, NetboxSyncInput>('/netbox/sync', input ?? {}),
 
   getStatus: (): Promise<NetboxStatus> => api.get<NetboxStatus>('/netbox/status'),
 

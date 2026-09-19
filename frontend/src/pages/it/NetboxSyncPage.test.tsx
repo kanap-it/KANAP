@@ -9,15 +9,20 @@ import NetboxSyncPage from './NetboxSyncPage';
 import { createAppTheme } from '../../config/ThemeContext';
 import { api as apiClient } from '../../api/client';
 
-vi.mock('../../api/client', () => ({
-  api: {
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn(),
-  },
-}));
+vi.mock('../../api/client', () => {
+  const get = vi.fn();
+  return {
+    api: {
+      get,
+      // The asset picker goes through `assetsApi.list`, which delegates to `get`.
+      paginated: (url: string, params?: unknown) => get(url, { params }),
+      post: vi.fn(),
+      put: vi.fn(),
+      patch: vi.fn(),
+      delete: vi.fn(),
+    },
+  };
+});
 
 vi.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({ hasLevel: () => true }),
@@ -95,6 +100,22 @@ const PREVIEW = {
       action: 'skipped', asset: null, matched_by: null, candidates: [], diffs: [],
       skip_reason: 'unmapped_role', warnings: [],
     },
+    // Two objects with exactly one suggestion each: the bulk action settles both.
+    {
+      external_type: 'device', external_id: '15', external_name: 'par-esx-03',
+      external_url: 'https://netbox.internal/dcim/devices/15/',
+      action: 'ambiguous', asset: null, matched_by: null,
+      candidates: [{ id: 'asset-5', name: 'PAR-ESX-03', asset_reference: 'AST-11' }],
+      diffs: [], skip_reason: null,
+      warnings: [{ code: 'ip_match_candidates', params: { value: '10.1.2.3' }, text: 'ip fallback' }],
+    },
+    {
+      external_type: 'device', external_id: '16', external_name: 'par-esx-04',
+      external_url: 'https://netbox.internal/dcim/devices/16/',
+      action: 'ambiguous', asset: null, matched_by: null,
+      candidates: [{ id: 'asset-6', name: 'PAR-ESX-04', asset_reference: 'AST-12' }],
+      diffs: [], skip_reason: null, warnings: [],
+    },
   ],
   rows_truncated: false,
   missing: [],
@@ -145,9 +166,21 @@ describe('NetboxSyncPage', () => {
     });
     (apiClient.post as any).mockImplementation((url: string) => {
       if (url === '/netbox/sync/preview') return Promise.resolve(PREVIEW);
+      if (url === '/netbox/sync') return Promise.resolve(STATUS);
       throw new Error(`Unexpected POST ${url}`);
     });
   });
+
+  /** Opens the preview dialog and waits for its first plan. */
+  async function openPreview() {
+    renderPage();
+    await screen.findByText('par-esx-01');
+    fireEvent.click(screen.getByText('Synchronise now'));
+    await screen.findByText('Review before applying');
+  }
+
+  const previewCalls = () =>
+    (apiClient.post as any).mock.calls.filter((call: unknown[]) => call[0] === '/netbox/sync/preview');
 
   it('shows a compact line and a settings link when Netbox is not configured', async () => {
     (apiClient.get as any).mockResolvedValue({ ...STATUS, configured: false });
@@ -206,14 +239,41 @@ describe('NetboxSyncPage', () => {
     fireEvent.click(screen.getByText('Synchronise now'));
 
     await waitFor(() => expect(screen.getByText('Review before applying')).toBeInTheDocument());
-    expect(screen.getByText('New assets (1)')).toBeInTheDocument();
-    expect(screen.getByText('Updated assets (1)')).toBeInTheDocument();
+    expect(screen.getByText('To create (1)')).toBeInTheDocument();
+    expect(screen.getByText('To update (1)')).toBeInTheDocument();
     expect(screen.getByText('Skipped (1)')).toBeInTheDocument();
     expect(screen.getByText('Serial number: OLD1 → NEW1')).toBeInTheDocument();
     expect(screen.getByText('Role not mapped · 1')).toBeInTheDocument();
     expect(screen.getByText('Warnings')).toBeInTheDocument();
     // Notice translated by code, with its params interpolated.
     expect(screen.getByText('The operating system "Photon OS" is not in your catalogue, so it was left unchanged.')).toBeInTheDocument();
+  });
+
+  it('offers no choice on an object an earlier run already linked, and says how a first match was made', async () => {
+    const linkedRow = {
+      ...PREVIEW.rows[1],
+      external_id: '99', external_name: 'par-web-01',
+      asset: { id: 'asset-9', name: 'PAR-WEB-01', asset_reference: 'AST-11' },
+      matched_by: 'link',
+      diffs: [{ field: 'operating_system', before: 'Ubuntu 22.04 LTS', after: 'NixOS 25.05' }],
+      warnings: [],
+    };
+    (apiClient.post as any).mockImplementation((url: string) => {
+      if (url === '/netbox/sync/preview') return Promise.resolve({ ...PREVIEW, rows: [...PREVIEW.rows, linkedRow] });
+      return Promise.resolve({});
+    });
+    renderPage();
+    await screen.findByText('par-esx-01');
+    fireEvent.click(screen.getByText('Synchronise now'));
+    await waitFor(() => expect(screen.getByText('Review before applying')).toBeInTheDocument());
+
+    // Already linked: the change is shown, nothing to decide.
+    expect(screen.getByText('Operating system: Ubuntu 22.04 LTS → NixOS 25.05')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Correct the proposal for par-web-01')).not.toBeInTheDocument();
+    // First match by serial number: said so, and open to correction.
+    expect(screen.getByText('Recognised by its serial number.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Correct the proposal for par-esx-02')).toBeInTheDocument();
+    expect(screen.getByText('Nothing is changed yet. These values are written when you press Apply.')).toBeInTheDocument();
   });
 
   it('renders the Netbox status notice with the status translated, not the raw value', async () => {
@@ -264,5 +324,134 @@ describe('NetboxSyncPage', () => {
     renderPage();
 
     expect(await screen.findByText('A newer server explained this.')).toBeInTheDocument();
+  });
+
+  it('shows the first preview without reuse_inventory and puts the decision notice on the row', async () => {
+    await openPreview();
+
+    expect(previewCalls()[0][1]).toEqual({});
+    // Decision-tier notice sits next to the candidates it is about.
+    expect(screen.getByText('An asset already uses the address 10.1.2.3. Choose whether it is the same equipment.'))
+      .toBeInTheDocument();
+    expect(screen.getByText('Suggested: PAR-ESX-03 AST-11')).toBeInTheDocument();
+  });
+
+  it('sends the decision taken on a new object in the next preview', async () => {
+    await openPreview();
+
+    fireEvent.click(screen.getByLabelText('Correct the proposal for par-sw-02'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Do not import this object/ }));
+
+    // Shown at once, before the new plan comes back.
+    expect(screen.getByText('Will not be imported')).toBeInTheDocument();
+
+    await waitFor(() => expect(previewCalls()).toHaveLength(2), { timeout: 3000 });
+    expect(previewCalls()[1][1]).toEqual({
+      decisions: [{ external_type: 'device', external_id: '12', action: 'ignore' }],
+      reuse_inventory: true,
+    });
+  });
+
+  it('links every object that has a single suggestion in one go', async () => {
+    await openPreview();
+
+    fireEvent.click(screen.getByText('Link the 2 objects that have a single suggestion'));
+
+    await waitFor(() => expect(previewCalls()).toHaveLength(2), { timeout: 3000 });
+    expect(previewCalls()[1][1]).toEqual({
+      decisions: [
+        { external_type: 'device', external_id: '15', action: 'link', asset_id: 'asset-5' },
+        { external_type: 'device', external_id: '16', action: 'link', asset_id: 'asset-6' },
+      ],
+      reuse_inventory: true,
+    });
+  });
+
+  it('undoing a decision takes it out of the next preview', async () => {
+    await openPreview();
+
+    fireEvent.click(screen.getByLabelText('Correct the proposal for par-sw-02'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Do not import this object/ }));
+    await waitFor(() => expect(previewCalls()).toHaveLength(2), { timeout: 3000 });
+
+    fireEvent.click(screen.getByLabelText('Undo the choice for par-sw-02'));
+    expect(screen.queryByText('Will not be imported')).not.toBeInTheDocument();
+
+    await waitFor(() => expect(previewCalls()).toHaveLength(3), { timeout: 3000 });
+    expect(previewCalls()[2][1]).toEqual({ decisions: [], reuse_inventory: true });
+  });
+
+  it('applies the run with the decisions taken in the dialog', async () => {
+    await openPreview();
+
+    fireEvent.click(screen.getByLabelText('Correct the proposal for par-sw-02'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Do not import this object/ }));
+    await waitFor(() => expect(previewCalls()).toHaveLength(2), { timeout: 3000 });
+
+    fireEvent.click(screen.getByText('Apply'));
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/netbox/sync', {
+      decisions: [{ external_type: 'device', external_id: '12', action: 'ignore' }],
+    }));
+  });
+
+  it('links an object to an existing asset through the shared picker', async () => {
+    (apiClient.get as any).mockImplementation((url: string, config?: any) => {
+      if (url === '/netbox/status') return Promise.resolve(STATUS);
+      if (url === '/netbox/records') {
+        const state = config?.params?.state;
+        const items = state === 'ambiguous' ? [AMBIGUOUS_ROW] : [];
+        return Promise.resolve({ items, total: items.length });
+      }
+      if (url === '/assets') {
+        return Promise.resolve({
+          items: [{ id: 'asset-9', name: 'PAR-SW-02', asset_reference: 'AST-20' }],
+          total: 1,
+        });
+      }
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    await openPreview();
+
+    fireEvent.click(screen.getByLabelText('Correct the proposal for par-sw-02'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Link to an existing asset/ }));
+
+    const search = await screen.findByLabelText('Search for an asset');
+    fireEvent.change(search, { target: { value: 'par' } });
+    fireEvent.click(await screen.findByText('PAR-SW-02', undefined, { timeout: 3000 }));
+
+    expect(screen.getByText('Linked by you to PAR-SW-02')).toBeInTheDocument();
+    await waitFor(() => expect(previewCalls()).toHaveLength(2), { timeout: 3000 });
+    expect(previewCalls()[1][1]).toEqual({
+      decisions: [{ external_type: 'device', external_id: '12', action: 'link', asset_id: 'asset-9' }],
+      reuse_inventory: true,
+    });
+  });
+
+  it('drops the refused decision and shows what the backend said', async () => {
+    (apiClient.post as any).mockImplementation((url: string, body?: any) => {
+      if (url === '/netbox/sync/preview') {
+        if (body?.decisions?.length) {
+          return Promise.reject({
+            response: { data: { statusCode: 409, code: 'NETBOX_ASSET_ALREADY_LINKED', message: 'PAR-ESX-03 is already linked to par-esx-99.' } },
+          });
+        }
+        return Promise.resolve(PREVIEW);
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
+
+    await openPreview();
+
+    fireEvent.click(screen.getByLabelText('Decide about par-esx-03'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Link to PAR-ESX-03/ }));
+
+    expect(await screen.findByText('PAR-ESX-03 is already linked to par-esx-99.', undefined, { timeout: 3000 }))
+      .toBeInTheDocument();
+    // The refused decision is gone, and no further preview is asked for.
+    await waitFor(() => expect(screen.getByLabelText('Decide about par-esx-03')).toBeInTheDocument());
+    await new Promise((resolve) => { setTimeout(resolve, 900); });
+    expect(previewCalls()).toHaveLength(2);
   });
 });

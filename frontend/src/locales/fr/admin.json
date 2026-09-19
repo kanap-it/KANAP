@@ -1192,7 +1192,7 @@
         "apiTokenExisting": "Un jeton est déjà enregistré. Laissez ce champ vide pour le conserver.",
         "requestTimeout": "Temps d'attente avant d'abandonner, entre 5 et 120 secondes. Laissez vide pour utiliser 30.",
         "insecureTls": "À utiliser uniquement avec un certificat auto-signé ou interne auquel vous faites confiance. La connexion reste chiffrée, mais le certificat n'est plus vérifié.",
-        "autoSync": "S'exécute toutes les heures et applique les changements automatiquement.",
+        "autoSync": "S'exécute toutes les heures et applique les changements automatiquement. Elle démarre après la première synchronisation que vous appliquez vous-même.",
         "defaultEnvironment": "Appliqué aux actifs créés par l'import. Il n'est jamais modifié ensuite."
       },
       "messages": {
