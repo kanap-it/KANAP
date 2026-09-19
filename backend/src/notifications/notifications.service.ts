@@ -45,6 +45,25 @@ interface AttachmentMeta {
 
 type CommentItemType = 'request' | 'project' | 'task';
 
+/**
+ * Most callers fire these notifications without awaiting them, so that an email never
+ * delays or fails a save. A rejection would then be unhandled, and Node ends the process
+ * on an unhandled rejection. The decorated methods log and resolve instead.
+ */
+function NeverRejects(): MethodDecorator {
+  return (_target, propertyKey, descriptor: PropertyDescriptor) => {
+    const original = descriptor.value;
+    descriptor.value = async function (this: { logger: Logger }, ...args: unknown[]) {
+      try {
+        return await original.apply(this, args);
+      } catch (error) {
+        this.logger.warn(`${String(propertyKey)} failed: ${error instanceof Error ? error.message : error}`);
+      }
+    };
+    return descriptor;
+  };
+}
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
@@ -608,6 +627,7 @@ export class NotificationsService {
   /**
    * Notify about status change on an item.
    */
+  @NeverRejects()
   async notifyStatusChange(params: {
     itemType: Exclude<ItemType, 'asset' | 'application' | 'location' | 'connection' | 'interface' | 'document'>;
     itemId: string;
@@ -673,6 +693,7 @@ export class NotificationsService {
    * Notify task recipients about a unified action (comment + status change in one flow).
    * Delivers merged or split emails per recipient preferences.
    */
+  @NeverRejects()
   async notifyUnifiedAction(params: {
     taskId: string;
     taskTitle: string;
@@ -850,6 +871,7 @@ export class NotificationsService {
   /**
    * Notify user they were added to a team.
    */
+  @NeverRejects()
   async notifyTeamAdded(params: {
     itemType: 'request' | 'project';
     itemId: string;
@@ -891,6 +913,7 @@ export class NotificationsService {
    * - IT Lead is the actor (person making the change)
    * - IT Lead is the user being added (they already get notifyTeamAdded)
    */
+  @NeverRejects()
   async notifyItLeadOfTeamChange(params: {
     itemType: 'request' | 'project';
     itemId: string;
@@ -928,20 +951,26 @@ export class NotificationsService {
     // The read runs inside a tenant-scoped transaction: the request's tenant context is
     // set transaction-locally on its own QueryRunner, so a bare `dataSource.query` would
     // take another pooled connection and be filtered down to zero rows by RLS.
-    const itLeadRows: Array<{ id: string; email: string; locale: string | null }> =
-      await withTenant(this.dataSource, params.tenantId, (manager) =>
-        manager.query(
-          `SELECT u.id, u.email, u.locale FROM users u
-           JOIN roles ro ON ro.id = u.role_id
-           WHERE u.id = $1 AND u.status = 'enabled'
-             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
-          [params.itLeadId],
-        ),
+    // The item URL is built on the same connection, so it carries the business reference
+    // (PRJ-3, REQ-7) instead of the raw id. The request's own manager is not used: this
+    // method is not awaited, and that manager may be released before it runs.
+    const lookup = await withTenant(this.dataSource, params.tenantId, async (manager) => {
+      const rows: Array<{ id: string; email: string; locale: string | null }> = await manager.query(
+        `SELECT u.id, u.email, u.locale FROM users u
+         JOIN roles ro ON ro.id = u.role_id AND ro.tenant_id = u.tenant_id
+         WHERE u.id = $1 AND u.tenant_id = $2 AND u.status = 'enabled'
+           AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
+        [params.itLeadId, params.tenantId],
       );
+      if (rows.length === 0) return null;
+      const url = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId, manager);
+      return { rows, url };
+    });
 
-    if (itLeadRows.length === 0) return;
+    if (!lookup) return;
 
-    const itemUrl = await this.buildItemUrl(params.itemType, params.itemId, params.tenantId);
+    const itLeadRows = lookup.rows;
+    const itemUrl = lookup.url;
     const branding = await this.resolveBranding(params.tenantId);
     const content = buildTeamMemberAddedEmail({
       itemType: params.itemType,
@@ -1031,6 +1060,7 @@ export class NotificationsService {
   /**
    * Notify about a new comment.
    */
+  @NeverRejects()
   async notifyComment(params: {
     itemType: 'request' | 'project' | 'task';
     itemId: string;
@@ -1106,6 +1136,7 @@ export class NotificationsService {
   /**
    * Notify about task assignment.
    */
+  @NeverRejects()
   async notifyTaskAssigned(params: {
     taskId: string;
     taskTitle: string;
@@ -1211,6 +1242,7 @@ export class NotificationsService {
   /**
    * Notify recipients about a shared item (fire-and-forget, no dedupe).
    */
+  @NeverRejects()
   async notifyShare(params: {
     itemType: 'request' | 'project' | 'task' | 'opex' | 'capex' | 'asset' | 'application' | 'location' | 'connection' | 'interface' | 'document';
     itemId: string;
