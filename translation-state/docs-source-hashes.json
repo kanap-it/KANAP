@@ -31,7 +31,7 @@
     "fast-track/task-types.md": "690f125054d14a2fdb09be9ff524911c",
     "incidents.md": "f24bc0d1e519918ff814802b24176fd9",
     "index.md": "5ee3cc4b8c1d27234296e8f81e537ddf",
-    "integrations.md": "217d694111a42092b31d453c53a9f863",
+    "integrations.md": "d3eae2fff1055b55dc86d3272b7d28ac",
     "interface-map.md": "6caaf67bd4de7106e22bc4ab1f7e0278",
     "interfaces.md": "327009d8ae0e405a497a53c9f46037d9",
     "it-ops-settings.md": "8d6edb18ba0567cfa6ecdbc81e2b5184",
@@ -57,12 +57,13 @@
     "reports.md": "f0c08df9783ac3443eab6893b64670b5",
     "scheduled-tasks.md": "e72da539219d2c403fa7af6b2af003f7",
     "suppliers.md": "d890ad4350871341aa24ba637796c787",
-    "tasks.md": "ade2e94a56b8aa694f9dc9e537e038f7"
+    "tasks.md": "ade2e94a56b8aa694f9dc9e537e038f7",
+    "netbox.md": "8fcd286c8000c2aa7f7d07ab2c69cb56"
   },
   "glossary_hash": "981506c36ae03055093db384b046315e",
   "nav_hashes": {
-    "fr": "2d2e2647db3c0f8facb3943aab444c41",
-    "de": "07fb962a646219f313f725193e4d43d1",
-    "es": "9c72332508432bcfa18ee5a52bec2c8d"
+    "fr": "e5ea958e42928b370c15af17679a38bf",
+    "de": "7f5e1e9f32f139fc605a61454f181afc",
+    "es": "28566a5e9a89175433b96728ba773a28"
   }
 }

@@ -10,7 +10,7 @@ This document tracks documentation coverage for the KANAP user manual.
 |----------|-------------|------------|-----|
 | Home | 1 | 1 | 0 |
 | Budget Management | 9 | 9 | 0 |
-| IT Landscape | 8 | 8 | 0 |
+| IT Landscape | 9 | 9 | 0 |
 | Knowledge | 1 | 1 | 0 |
 | Master Data | 8 | 8 | 0 |
 | Admin & Settings | 15 | 15 | 0 |
@@ -18,7 +18,7 @@ This document tracks documentation coverage for the KANAP user manual.
 | AI Agents | 5 | 5 | 0 |
 | Reports | 10 | 10 | 0 |
 | Portfolio | 10 | 10 | 0 |
-| **TOTAL** | **68** | **68** | **0** |
+| **TOTAL** | **69** | **69** | **0** |
 
 _Note: Supplemental Fast Track guides are excluded from these route-based counts. All tenant-facing routes have a manual. The classic product (through the 2026-05-10 sweep) is available in en/fr/de/es; the AI Agents section (added 2026-07-05) is also available in en/fr/de/es. The two AI model registry pages (added 2026-08-10) are available in en/fr/de/es._
 
@@ -143,6 +143,12 @@ _Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect t
 | `/it/applications` | ApplicationsPage + ApplicationWorkspacePage | **DOCUMENTED** | `applications.md` |
 | `/it/interfaces` | InterfacesPage + InterfaceWorkspacePage | **DOCUMENTED** | `interfaces.md` |
 | `/it/interface-map` | InterfaceMapPage | **DOCUMENTED** | `interface-map.md` |
+
+**Operations**
+
+| Route | Component | Status | Doc File |
+|-------|-----------|--------|----------|
+| `/it/netbox` | NetboxSyncPage | **DOCUMENTED** | `netbox.md` |
 
 **Settings**
 

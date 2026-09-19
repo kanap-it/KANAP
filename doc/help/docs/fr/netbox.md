@@ -1,0 +1,213 @@
+# Synchronisation Netbox
+
+[Netbox](https://netboxlabs.com/docs/netbox/) décrit votre infrastructure physique et virtuelle : équipements, machines virtuelles, baies, sites, adresses. KANAP lit cet inventaire et maintient ses actifs en phase avec lui.
+
+Le partage des rôles est volontaire. Netbox reste la référence pour les équipements qu'il décrit : le nom, le numéro de série, la position en baie ou l'adresse principale viennent toujours de là. KANAP conserve la couche métier autour de chaque actif : environnement, applications, contrats et coûts, support, dates, relations, notes. Vous arrêtez de ressaisir l'inventaire, et vous gardez tout ce que Netbox ne connaît pas.
+
+## Où le trouver
+
+- Espace : **Cartographie SI**
+- Chemin : **Cartographie SI > Netbox**
+- Route : `/it/netbox`
+- Paramètres de connexion : **Administration > Intégrations**
+- Permission : `infrastructure:admin`, pour la carte de connexion comme pour la page de synchronisation
+- Disponible dans l'édition cloud et dans l'édition on-premise. Aucun indicateur de fonctionnalité à activer.
+
+---
+
+## Avant de commencer
+
+**Une instance Netbox joignable par KANAP.** KANAP appelle Netbox depuis le serveur, pas depuis votre navigateur. L'adresse que vous saisissez doit être résolue et répondre depuis l'endroit où KANAP s'exécute. Dans l'édition cloud, cette adresse doit être publique : une adresse privée ou interne est refusée à l'enregistrement de la connexion, puis avant chaque appel. Dans l'édition on-premise, une adresse sur votre propre réseau est précisément ce qui est attendu.
+
+**Un jeton d'API en lecture.** Dans Netbox, ouvrez le menu utilisateur en haut à droite, puis **API tokens**, et créez-en un. Un jeton en lecture seule suffit : KANAP n'écrit jamais rien dans Netbox. Donnez-lui une description pour le reconnaître plus tard, et renouvelez-le comme n'importe quel autre secret de service.
+
+**Une décision sur le certificat.** Si votre Netbox présente un certificat auquel KANAP ne fait pas confiance, typiquement un certificat auto-signé ou interne, vous pouvez activer **Ignorer les erreurs de certificat**. La connexion reste chiffrée, mais le certificat n'est plus vérifié : réservez cette option à un certificat que vous connaissez, sur un réseau que vous maîtrisez. Sur un Netbox exposé publiquement, installez plutôt un certificat reconnu.
+
+---
+
+## Connecter KANAP à Netbox
+
+Ouvrez **Administration > Intégrations**, puis la carte **Inventaire Netbox**.
+
+| Champ | Ce qu'il faut saisir |
+|-------|----------------------|
+| **Activer la synchronisation Netbox** | L'interrupteur principal. Désactivé, KANAP n'appelle jamais Netbox, ni à la main ni automatiquement. |
+| **Adresse Netbox** | L'adresse que vous utilisez pour ouvrir Netbox dans un navigateur, par exemple `https://netbox.example.com`. |
+| **Jeton d'API** | Le jeton créé dans Netbox. Il est stocké chiffré et n'est jamais réaffiché. Laissez le champ vide à l'enregistrement pour conserver le jeton déjà en place. |
+| **Délai d'attente (secondes)** | Temps d'attente avant d'abandonner, entre 5 et 120. Laissez vide pour utiliser 30. |
+| **Ignorer les erreurs de certificat** | Désactivé par défaut. Voir ci-dessus. |
+| **Synchronisation automatique** | S'exécute toutes les heures et applique les changements automatiquement. Laissez-la désactivée tant que votre première exécution ne vous convient pas. |
+| **Environnement des nouveaux actifs** | Appliqué aux actifs créés par cette intégration. Il n'est jamais modifié ensuite. |
+
+**Tester la connexion** effectue un appel en lecture seule et indique la version de Netbox trouvée, ou la raison de l'échec. Lancez-le après chaque changement d'adresse ou de jeton. Une fois les paramètres enregistrés, la carte propose un lien **Configurer la synchronisation**, qui mène à **Cartographie SI > Netbox**.
+
+---
+
+## Choisir ce qui est importé
+
+Ouvrez l'onglet **Correspondances** de la page Netbox. Deux tableaux déterminent tout le périmètre de l'import.
+
+- **Rôles Netbox > Type d'actif KANAP**. Chaque rôle d'équipement connu de Netbox reçoit un type d'actif, ou **Ne pas importer**.
+- **Sites Netbox > Site KANAP**. Chaque site Netbox reçoit l'un de vos sites, ou **Ne pas importer**.
+
+Tout ce qui reste sur **Ne pas importer** est laissé de côté : ces objets ne sont jamais créés, jamais mis à jour, jamais signalés comme absents. C'est ainsi que vous gardez les bandeaux de prises, les panneaux de brassage ou un site de laboratoire hors de KANAP tout en important les serveurs qui les entourent.
+
+Une ligne supplémentaire figure parmi les rôles : **Machines virtuelles**. Toutes les machines virtuelles de Netbox passent par cette seule ligne, quel que soit le rôle que Netbox leur donne : une décision couvre l'ensemble. Une machine virtuelle prend le site de son cluster lorsqu'elle n'en porte pas elle-même.
+
+Chaque ligne indique combien d'équipements et de machines virtuelles elle représente, ce qui vous montre la portée réelle d'un choix. Quand un nom Netbox correspond clairement à l'un des vôtres, la ligne est préremplie et marquée **Suggéré**. Une suggestion n'est qu'une proposition : rien n'est pris en compte avant **Enregistrer les correspondances**.
+
+---
+
+## La première synchronisation
+
+Cliquez sur **Synchroniser maintenant**. KANAP lit Netbox et affiche **Vérifier avant d'appliquer** avant la moindre écriture.
+
+L'aperçu est regroupé ainsi :
+
+- **Nouveaux actifs** : les objets sans équivalent dans KANAP. Ils seront créés.
+- **Actifs mis à jour** : les objets rapprochés d'un actif existant qui diffère. Chacun liste les champs qui changent, champ par champ, sous la forme `avant → après`.
+- **À décider** : les objets que KANAP ne tranchera pas seul. Rien ne leur arrive tant que vous ne les traitez pas sur la page.
+- **Ignorés** : les objets hors périmètre, comptés par raison (rôle sans correspondance, site sans correspondance, sans nom dans Netbox, ignoré par vous).
+- **Absents de Netbox** : les actifs liés lors d'une exécution précédente dont l'objet Netbox a disparu.
+- **Avertissements** : les valeurs signalées par Netbox que KANAP n'a pas pu reprendre, par exemple un système d'exploitation absent de votre catalogue. Un objet sans changement mais avec quelque chose à signaler y figure également.
+
+Lisez l'aperçu, puis cliquez sur **Appliquer**. Les objets déjà identiques sont comptés comme sans changement et ne sont pas touchés. Sur un gros inventaire, l'aperçu ne liste que les 500 premières lignes ; l'exécution, elle, applique tout.
+
+L'application se déroule en arrière-plan. La page la suit et se rafraîchit d'elle-même à la fin.
+
+---
+
+## Comment les objets sont rapprochés des actifs existants
+
+Un premier import dans un KANAP déjà rempli doit retrouver les actifs que vous avez, au lieu de les dupliquer. KANAP essaie quatre pistes, dans cet ordre, et s'arrête à la première qui donne un résultat :
+
+1. **Un lien existant**. L'objet avait déjà été rapproché d'un actif lors d'une exécution précédente.
+2. **Le numéro de série**. Il résiste à un renommage de part et d'autre.
+3. **Le nom d'hôte**. Un nom court et un nom complet désignent la même machine : `par-esx-01` dans KANAP correspond à `par-esx-01.example.com` dans Netbox.
+4. **Le nom de l'actif**, sans tenir compte de la casse ni du suffixe de domaine.
+
+Si une piste trouve exactement un actif, c'est le bon. Si elle en trouve plusieurs, KANAP s'arrête là et classe l'objet dans **À décider**, avec la liste des candidats. Il ne fusionne jamais sur une supposition.
+
+Deux règles complètent le dispositif :
+
+- **Un actif appartient à un seul objet Netbox**, et réciproquement. La base de données le garantit. Un actif déjà détenu par un autre objet est hors de portée pour tous les autres, et lier un actif déjà pris est refusé par un message qui nomme l'objet qui le détient. Si deux objets Netbox atteignent le même actif libre, les deux vous sont soumis.
+- **Un équipement supprimé puis recréé dans Netbox est repris.** Il revient avec un nouvel identifiant Netbox : l'ancienne fiche passe en absente, libère son actif, et le nouvel objet le reprend par son nom d'hôte dans la même exécution. Si un autre objet a pris cet actif entre-temps, l'équipement de retour est traité comme un nouvel objet.
+
+---
+
+## Les champs gérés par Netbox
+
+| Gérés par Netbox | Qui restent à vous dans KANAP |
+|------------------|-------------------------------|
+| Nom | Environnement |
+| Nom d'hôte et domaine | Notes et description |
+| Numéro de série | Dates, support et garantie |
+| Fabricant et modèle | Contrats et coûts |
+| Baie et unité de baie | Applications hébergées sur l'actif |
+| Adresse IP principale | Connexions et autres relations |
+| Système d'exploitation | Pièces jointes, tâches, incidents |
+| Cycle de vie | Tout le reste de la fiche |
+| Site | |
+
+Sur un actif lié à Netbox, les champs gérés portent la mention **Géré par Netbox** et ne sont pas modifiables dans KANAP. Modifiez-les dans Netbox : l'exécution suivante les reprend. Tout le reste de la fiche reste modifiable comme d'habitude.
+
+La fiche de l'actif porte aussi une ligne **Source** : la date de la dernière synchronisation, un lien **Ouvrir dans Netbox**, et un avertissement quand l'objet n'y est plus.
+
+### Règles à connaître
+
+**Une valeur vide dans Netbox n'efface jamais une valeur KANAP.** Si Netbox n'a pas de numéro de série et que KANAP en a un, le numéro de série est conservé. Seule une valeur réellement présente dans Netbox est écrite.
+
+**Les modifications manuelles sont corrigées.** Chaque exécution compare aux valeurs réelles de l'actif : un champ géré modifié autrement dans KANAP est remis en ligne à l'exécution suivante.
+
+**Le renommage est compris.** Une différence de casse ou un suffixe de domaine n'est pas un renommage. `PAR-ESX-01` et `par-esx-01.example.com` désignent la même machine que `par-esx-01`.
+
+**Le cycle de vie suit un tableau fixe.**
+
+| Statut Netbox | Cycle de vie KANAP |
+|---------------|--------------------|
+| Planned, Staged, Inventory | Proposé |
+| Active, Offline, Failed, Paused | Actif |
+| Decommissioning | Déprécié |
+| Tout autre statut | Inchangé, avec un avertissement |
+
+Une synchronisation ne passe jamais un actif en **Retiré**. Retirer un équipement est une décision qui vous revient, depuis la liste **Absents de Netbox**.
+
+**L'environnement est posé une seule fois.** Les nouveaux actifs reçoivent l'environnement choisi sur la carte d'intégration. Les exécutions suivantes n'y touchent plus : vous pouvez le corriger dans KANAP, il reste corrigé.
+
+**Les valeurs inconnues de KANAP sont ignorées, jamais inventées.** Un système d'exploitation, un suffixe de domaine ou un cycle de vie sans entrée dans **Cartographie SI > Paramètres** reste inchangé et fait l'objet d'un avertissement. Ajoutez l'entrée, puis relancez. Une adresse principale en IPv6 est laissée de côté de la même manière, avec le message « L'adresse principale est une adresse IPv6, qui n'est pas encore importée. »
+
+**Un nouvel actif reprend le fournisseur de son site** quand ce fournisseur existe dans vos paramètres IT, et « Autre » sinon. Netbox n'a pas la notion de fournisseur d'hébergement.
+
+**Une exécution qui échoue en série s'arrête.** Après 10 objets consécutifs impossibles à enregistrer, l'exécution s'arrête et est signalée en échec, plutôt que de remplir la liste d'erreurs puis d'annoncer une réussite.
+
+**Une lecture partielle ne déclare jamais d'absent.** Si Netbox contient plus de pages que KANAP n'en lit en une exécution, rien n'est signalé comme absent et un message accompagne le résultat.
+
+**Un redémarrage du serveur ne bloque pas la page.** **Synchroniser maintenant** redevient disponible aussitôt ; une exécution interrompue par le redémarrage est signalée comme arrêtée avant la fin.
+
+---
+
+## Synchronisation automatique
+
+Activez **Synchronisation automatique** sur la carte d'intégration : KANAP exécute le même traitement toutes les heures et applique les changements sans aperçu. L'interrupteur est propre à chaque organisation, et seules celles qui l'ont activé sont traitées.
+
+Les objets qui demandent une décision ne sont jamais tranchés automatiquement. Ils s'accumulent dans **À décider** et vous attendent.
+
+Une exécution manuelle et une exécution automatique ne se chevauchent pas : si l'une est déjà en cours, l'autre ne fait rien et réessaie plus tard. Dans l'édition cloud, une organisation dont l'abonnement est suspendu ou dont la période d'essai est terminée est laissée de côté jusqu'à régularisation. Les installations on-premise ne sont pas concernées.
+
+---
+
+## La page de gestion
+
+**Cartographie SI > Netbox** est l'endroit où tout se passe une fois la connexion établie. Le bandeau du haut résume la dernière exécution : quand elle a eu lieu, si elle a été lancée à la main ou automatiquement, sa durée, son résultat, et le nombre d'objets liés ou à regarder.
+
+En dessous, l'onglet **Objets** liste tous les objets Netbox du périmètre, filtrés par état.
+
+| État | Ce que cela signifie | Ce que vous pouvez faire |
+|------|----------------------|--------------------------|
+| **À décider** | Plusieurs actifs pourraient être cet objet, ou deux objets ont atteint le même actif. | **Lier à...** l'un des candidats, **Créer un actif**, ou **Ignorer**. |
+| **Absents de Netbox** | L'objet a disparu de Netbox. L'actif n'est pas touché. | **Passer l'actif en retiré**, **Ignorer**, ou ne rien faire. |
+| **Erreurs** | L'objet n'a pas pu être écrit, la raison figure dans la colonne Message. | Corrigez la cause et relancez, ou **Ignorer** l'objet. |
+| **Ignorés** | Vous avez demandé à KANAP de laisser cet objet de côté. Chaque exécution le saute. | **Ne plus ignorer** le remet dans la liste. Quand la fiche ne contient rien à décider, elle est supprimée et l'objet est réexaminé à la prochaine synchronisation. |
+| **Liés** | L'objet et l'actif sont rapprochés et à jour. | Ouvrez l'un ou l'autre depuis la ligne. |
+
+Chaque ligne renvoie à l'objet dans Netbox et à l'actif dans KANAP, avec sa référence `AST-`.
+
+Lier ou créer depuis cette page applique aussitôt les valeurs Netbox. Seul cet objet est relu dans Netbox, l'action reste donc rapide sur un gros inventaire. Les messages et les avertissements s'affichent dans votre langue.
+
+### Absents de Netbox
+
+**KANAP ne supprime jamais un actif.** Quand un objet disparaît de Netbox, l'actif, ses liens et son historique restent exactement tels quels, et l'objet est listé comme absent pour que vous décidiez. **Passer l'actif en retiré** met le cycle de vie à Retiré et conserve tout le reste.
+
+Deux garde-fous s'appliquent. Rien n'est signalé comme absent si l'appel à Netbox a échoué, ou si Netbox a renvoyé un inventaire vide : une panne n'est pas une mise hors service. Et un actif dont l'objet Netbox a disparu redevient libre, si bien que la même machine recréée dans Netbox s'y rattache au lieu de créer un doublon.
+
+---
+
+## La tuile du tableau de bord
+
+Une tuile **Synchronisation Netbox** est disponible sur votre tableau de bord personnel. Elle est désactivée par défaut. Activez-la depuis les paramètres du tableau de bord, l'icône en forme d'engrenage sur **Tableau de bord**, en cochant **Synchronisation Netbox**. La tuile demande `infrastructure:admin`, comme le reste de l'intégration.
+
+La tuile reste discrète quand il n'y a rien à faire : une ligne indiquant que la synchronisation est à jour, avec l'heure de la dernière exécution. Quand quelque chose demande votre attention, elle ne liste que cela, objets à décider, actifs absents de Netbox, erreurs ou exécution échouée, et chaque ligne ouvre la liste filtrée correspondante.
+
+---
+
+## Résolution des problèmes
+
+| Ce que vous voyez | Ce que cela signifie en général |
+|-------------------|----------------------------------|
+| Netbox a refusé le jeton d'API | Le jeton a été tronqué au collage, a expiré, ou est restreint à une autre adresse. Créez-en un nouveau dans Netbox et enregistrez-le. |
+| Les hôtes privés ou internes ne sont pas autorisés | L'édition cloud ne joint que des adresses publiques. Publiez Netbox à une adresse joignable par KANAP, ou installez KANAP on-premise à côté de lui. |
+| Le certificat n'a pas pu être vérifié | Netbox présente un certificat auquel KANAP ne fait pas confiance. Installez un certificat reconnu, ou activez **Ignorer les erreurs de certificat** s'il s'agit d'un de vos certificats. |
+| Le serveur Netbox n'a pas répondu à temps | Netbox est lent, injoignable, ou derrière un pare-feu qui bloque l'appel. Vérifiez depuis le serveur KANAP, puis augmentez le délai d'attente si l'instance est simplement volumineuse. |
+| Des objets apparaissent en « Rôle sans correspondance » ou « Site sans correspondance » | C'est attendu pour tout ce que vous avez laissé sur **Ne pas importer**. Si ce n'était pas voulu, mettez le rôle ou le site en correspondance et relancez. |
+| Un avertissement signale un système d'exploitation absent de votre catalogue | La plateforme Netbox n'a pas d'entrée correspondante dans **Cartographie SI > Paramètres**. Ajoutez-la puis relancez ; d'ici là, le champ reste inchangé. |
+| L'exécution a échoué après quelques objets | Dix objets consécutifs n'ont pas pu être enregistrés, l'exécution s'est donc arrêtée. La cause est en général la même pour tous, et les détails figurent dans le journal du serveur. |
+| « Netbox a renvoyé plus de pages que prévu. Certains objets n'ont pas été examinés. » | L'inventaire est plus grand que ce qu'une exécution lit. Ce qui a été lu est appliqué, et rien n'est marqué absent. Restreignez le périmètre dans **Correspondances** pour que l'exécution couvre ce qui compte pour vous. |
+
+---
+
+## Conseils
+
+- **Les correspondances d'abord, la synchronisation ensuite.** Les correspondances définissent le périmètre. Commencez par les rôles et les sites dont vous êtes sûr, lancez une exécution, puis élargissez.
+- **Lisez l'aperçu de la première exécution.** C'est la seule où tous les rapprochements sont nouveaux, donc la seule qui mérite une lecture ligne à ligne.
+- **Renseignez les numéros de série.** C'est le rapprochement le plus solide. Les actifs qui portent un numéro de série survivent aux renommages des deux côtés sans jamais atterrir dans **À décider**.
+- **Attendez avant d'activer l'exécution horaire.** Deux exécutions manuelles propres d'affilée, la seconde n'annonçant aucun changement, signifient que les correspondances et les rapprochements sont justes.

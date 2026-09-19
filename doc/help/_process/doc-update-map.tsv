@@ -72,6 +72,10 @@ ai-models.md	frontend/src/pages/admin/AdminAiModelsPage.tsx
 ai-usage.md	frontend/src/pages/admin/AdminAiUsagePage.tsx
 integrations.md	frontend/src/pages/admin/AdminIntegrationsPage.tsx
 scheduled-tasks.md	frontend/src/pages/admin/ScheduledTasksPage.tsx
+netbox.md	frontend/src/pages/it/NetboxSyncPage.tsx
+netbox.md	frontend/src/components/admin/NetboxIntegrationCard.tsx
+netbox.md	frontend/src/pages/workspace/tiles/NetboxSyncTile.tsx
+netbox.md	backend/src/netbox/**/*.ts
 agents-overview.md	frontend/src/pages/agents/AgentsOverviewPage.tsx
 agents-overview.md	frontend/src/components/agents/**/*.tsx
 agents-workspace.md	frontend/src/pages/agents/AgentWorkspacePage.tsx

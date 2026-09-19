@@ -335,6 +335,28 @@ Optional in both modes: true when `ENTRA_CLIENT_ID` is configured. Per-tenant ac
 | `frontend/src/pages/ai/AiWorkspacePage.tsx` | 1 | Plaid workspace route | Hides native AI chat UI when `aiChat` is false |
 | `frontend/src/pages/admin/AdminAiPage.tsx` | 1 | Admin AI settings page | Hides AI settings and web search controls when the corresponding flags are false |
 
+#### Outbound target guard (`backend/src/common/ssrf-guard.ts`)
+
+Shared by every tenant-supplied outbound URL: Netbox, PRTG and GLPI. Not a `Features` flag of its own, but mode-dependent.
+
+| File | Line | What | Behavior |
+|------|------|------|----------|
+| `common/ssrf-guard.ts` | 44 | `shouldEnforce()` (`assertPublicHttpUrl`, `assertPublicHttpTarget`) | Multi-tenant: private / loopback / link-local / CGNAT / metadata ranges are refused. Single-tenant: no-op, since RFC1918 and internal-DNS targets are the normal case on-prem. Callers can force either way with `enforcePrivateBlock`. |
+| `common/ssrf-guard.ts` | 56 | `SSRF_ALLOWED_HOSTS` | Operator escape hatch, comma-separated hosts/IPs allowed even when private. Empty by default, so cloud behavior is unchanged. Read per call. |
+
+#### Netbox inventory (`backend/src/netbox/`)
+
+No feature flag. The module is registered and the API is reachable in both modes; access is a permission check (`infrastructure:admin`), not a mode check. Mode-dependent behavior is limited to the rows below.
+
+| File | Line | What | Behavior |
+|------|------|------|----------|
+| `netbox-sync.service.ts`, `netbox-config.service.ts` | `assertPublicHttpUrl` / `assertPublicHttpTarget` calls | Netbox address validation and every outbound call | Inherits the guard above: a private Netbox address is refused in multi-tenant, accepted in single-tenant. On-prem installs reaching an internal Netbox need nothing extra; a dev/cloud install does via `SSRF_ALLOWED_HOSTS`. |
+| `ai/ai-secret-cipher.service.ts` | 10, 61 | Netbox API token storage | The token is encrypted with `AI_SETTINGS_ENCRYPTION_SECRET`. That variable is therefore required to configure Netbox even when all AI features are off. Without it, `secret_writable` is false and the card warns that the token cannot be stored. |
+| `netbox-scheduled-sync.service.ts` | 99 | `netbox-inventory-sync` hourly task | Registered in both modes. Per-tenant `auto_sync` switch. Frozen or trial-expired tenants are skipped via `evaluateSubscriptionAccess`; the check is short-circuited when `StripeConfigService.isConfigured()` is false, so it is a no-op on-prem. |
+| `frontend/src/components/ProtectedRoute.tsx` | 130 | `/admin/integrations` route gating | Now admitted by `ai_settings:admin` **or** `infrastructure:admin`. Mode-agnostic. |
+| `frontend/src/components/Layout.tsx` | 100 | Admin nav entry for Integrations | Same widened condition; the Integrations entry alone can justify showing the Admin workspace. |
+| `frontend/src/pages/admin/AdminIntegrationsPage.tsx` | 120, 122, 307, 309 | Card visibility | GLPI and monitoring cards require the `ai_settings` surface; the Netbox card requires `infrastructure:admin`. |
+
 #### URL resolution
 
 | File | Line | What | Behavior |

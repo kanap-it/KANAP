@@ -116,6 +116,7 @@ plugins:
             Interfaces: Interfaces
             Interface Map: Carte des interfaces
             Incidents: Incidents
+            "Netbox synchronisation": "Synchronisation Netbox"
             Settings: Paramètres
             Knowledge: Base de connaissances
             Budget Management: Gestion budgétaire
@@ -190,6 +191,7 @@ plugins:
             Interfaces: Schnittstellen
             Interface Map: Schnittstellenkarte
             Incidents: Vorfälle
+            "Netbox synchronisation": "Netbox-Synchronisierung"
             Settings: Einstellungen
             Knowledge: Wissensdatenbank
             Budget Management: Budgetverwaltung
@@ -264,6 +266,7 @@ plugins:
             Interfaces: Interfaces
             Interface Map: Mapa de interfaces
             Incidents: Incidentes
+            "Netbox synchronisation": "Sincronización con Netbox"
             Settings: Configuración
             Knowledge: Base de conocimiento
             Budget Management: Gestión presupuestaria
@@ -341,6 +344,7 @@ nav:
       - Interfaces: interfaces.md
       - Interface Map: interface-map.md
     - Incidents: incidents.md
+    - "Netbox synchronisation": netbox.md
     - Settings: it-ops-settings.md
 
   - Knowledge:
