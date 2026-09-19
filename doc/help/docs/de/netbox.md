@@ -130,6 +130,8 @@ Die Asset-Seite trägt außerdem eine Zeile **Quelle**: wann die letzte Synchron
 | Decommissioning | Veraltet |
 | Alles andere | Bleibt unverändert, mit einer Warnung |
 
+**Offline, Failed und Paused bleiben sichtbar.** Der Lebenszyklus bleibt Aktiv, denn das Gerät ist formal weiter in Betrieb. KANAP merkt sich den Netbox-Status und zeigt ihn als Hinweis an: am Asset neben der Quelle („Netbox-Status: Ausgefallen“), in der Liste der verknüpften Objekte und unter den Warnungen in der Vorschau. Ändert sich in Netbox nur dieser Status, wird das Asset nicht neu geschrieben.
+
 Eine Synchronisierung setzt ein Asset nie auf **Außer Betrieb**. Geräte außer Betrieb zu nehmen ist eine Entscheidung, die Sie treffen, aus der Liste **Fehlt in Netbox**.
 
 **Die Umgebung wird einmal gesetzt.** Neue Assets erhalten die auf der Integrationskarte gewählte Umgebung. Spätere Läufe fassen sie nie an, Sie können sie also in KANAP korrigieren, und die Korrektur bleibt bestehen.

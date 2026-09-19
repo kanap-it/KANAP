@@ -130,6 +130,8 @@ The asset page also carries a **Source** line: when the last synchronisation hap
 | Decommissioning | Deprecated |
 | Anything else | Left unchanged, with a warning |
 
+**Offline, Failed and Paused stay visible.** The lifecycle remains Active, because the equipment is still in service on paper. KANAP keeps the Netbox status and shows it as a notice: on the asset, next to its source ("Netbox status: Failed"), in the **Linked** list, and under **Warnings** in the preview. Changing only this status in Netbox never rewrites the asset.
+
 A synchronisation never sets an asset to **Retired**. Retiring equipment is a decision you take, from the **Missing from Netbox** list.
 
 **Environment is set once.** New assets get the environment chosen on the integration card. Later runs never touch it, so you can correct it in KANAP and it stays corrected.

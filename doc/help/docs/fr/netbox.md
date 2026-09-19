@@ -130,6 +130,8 @@ La fiche de l'actif porte aussi une ligne **Source** : la date de la dernière s
 | Decommissioning | Déprécié |
 | Tout autre statut | Inchangé, avec un avertissement |
 
+**Offline, Failed et Paused restent visibles.** Le cycle de vie reste Actif, car l'équipement est toujours en service sur le papier. KANAP conserve le statut Netbox et l'affiche comme un avis : sur l'actif, à côté de sa source (« Statut Netbox : En panne »), dans la liste **Liés**, et sous **Avertissements** dans l'aperçu. Un changement de ce seul statut dans Netbox ne réécrit jamais l'actif.
+
 Une synchronisation ne passe jamais un actif en **Retiré**. Retirer un équipement est une décision qui vous revient, depuis la liste **Absents de Netbox**.
 
 **L'environnement est posé une seule fois.** Les nouveaux actifs reçoivent l'environnement choisi sur la carte d'intégration. Les exécutions suivantes n'y touchent plus : vous pouvez le corriger dans KANAP, il reste corrigé.

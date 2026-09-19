@@ -130,6 +130,8 @@ La página del activo lleva además una línea **Origen**: cuándo se hizo la ú
 | Decommissioning | Obsoleto |
 | Cualquier otro | Se deja sin cambios, con un aviso |
 
+**Offline, Failed y Paused siguen a la vista.** El ciclo de vida se mantiene en Activo, porque el equipo sigue en servicio sobre el papel. KANAP conserva el estado de Netbox y lo muestra como un aviso: en el activo, junto a su origen («Estado en Netbox: Averiado»), en la lista de objetos vinculados y entre las advertencias de la vista previa. Si en Netbox solo cambia este estado, el activo no se reescribe.
+
 Una sincronización nunca pone un activo en **Retirado**. Retirar un equipo es una decisión que toma usted, desde la lista **Ausentes de Netbox**.
 
 **El entorno se establece una sola vez.** Los activos nuevos reciben el entorno elegido en la tarjeta de la integración. Las ejecuciones posteriores no lo tocan nunca, así que puede corregirlo en KANAP y se queda corregido.
