@@ -1,117 +1,120 @@
+import React, { Suspense } from 'react';
 import { Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from './auth/AuthContext';
-import DashboardPage from './pages/DashboardPage';
-import ForbiddenPage from './pages/ForbiddenPage';
-import LoginPage from './pages/LoginPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import AcceptInvitePage from './pages/AcceptInvitePage';
-import OpexListPage from './pages/OpexListPage';
-import SpendItemPage from './pages/opex/SpendItemPage';
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
+const ForbiddenPage = React.lazy(() => import('./pages/ForbiddenPage'));
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const ForgotPasswordPage = React.lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = React.lazy(() => import('./pages/ResetPasswordPage'));
+const AcceptInvitePage = React.lazy(() => import('./pages/AcceptInvitePage'));
+const OpexListPage = React.lazy(() => import('./pages/OpexListPage'));
+const SpendItemPage = React.lazy(() => import('./pages/opex/SpendItemPage'));
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
-import CompaniesPage from './pages/CompaniesPage';
-import CompanyWorkspacePage from './pages/companies/CompanyWorkspacePage';
-import DepartmentsPage from './pages/DepartmentsPage';
-import DepartmentWorkspacePage from './pages/departments/DepartmentWorkspacePage';
-import SuppliersPage from './pages/SuppliersPage';
-import SupplierWorkspacePage from './pages/suppliers/SupplierWorkspacePage';
-import AccountWorkspacePage from './pages/accounts/AccountWorkspacePage';
-import UsersPage from './pages/UsersPage';
-import CapexPage from './pages/CapexPage';
-import ProjectsPage from './pages/ProjectsPage';
-import CapexItemPage from './pages/capex/CapexItemPage';
-import AnalyticsCategoriesPage from './pages/AnalyticsCategoriesPage';
-import AnalyticsWorkspacePage from './pages/analytics/AnalyticsWorkspacePage';
-import ReportsLandingPage from './pages/reports/ReportsLandingPage';
-import TopOpexReport from './pages/reports/TopOpexReport';
-import OpexDeltaReport from './pages/reports/OpexDeltaReport';
-import ComparisonReport from './pages/reports/ComparisonReport';
-import CapexBudgetTrendReport from './pages/reports/CapexBudgetTrendReport';
-import BudgetColumnsCompareReport from './pages/reports/BudgetColumnsCompareReport';
-import ConsolidationReport from './pages/reports/ConsolidationReport';
-import AnalyticsCategoryReport from './pages/reports/AnalyticsCategoryReport';
-import GlobalChargebackReport from './pages/reports/GlobalChargebackReport';
-import CompanyChargebackReport from './pages/reports/CompanyChargebackReport';
-import ContractsPage from './pages/ContractsPage';
-import ContractWorkspacePage from './pages/contracts/ContractWorkspacePage';
-import BudgetOperationsLandingPage from './pages/operations/BudgetOperationsLandingPage';
-import CopyBudgetColumnsPage from './pages/operations/CopyBudgetColumnsPage';
-import BudgetColumnResetPage from './pages/operations/BudgetColumnResetPage';
-import BudgetFreezePage from './pages/operations/BudgetFreezePage';
-import CopyAllocationsPage from './pages/operations/CopyAllocationsPage';
-import AllocationDefaultPage from './pages/operations/AllocationDefaultPage';
-import CurrencySettingsPage from './pages/operations/CurrencySettingsPage';
-import TasksPage from './pages/TasksPage';
-import TaskWorkspacePage from './pages/tasks/TaskWorkspacePage';
-import ContactsPage from './pages/ContactsPage';
-import ContactWorkspacePage from './pages/contacts/ContactWorkspacePage';
-import BillingCenter from './pages/admin/BillingCenter';
-import AdminLanding from './pages/admin/AdminLanding';
-import RolesPage from './pages/admin/RolesPage';
-import AuditLogsPage from './pages/admin/AuditLogsPage';
-import AdminTenantsPage from './pages/admin/AdminTenantsPage';
-import AdminCoaTemplatesPage from './pages/admin/AdminCoaTemplatesPage';
-import AdminStandardAccountsPage from './pages/admin/AdminStandardAccountsPage';
-import AdminStandardAccountWorkspacePage from './pages/admin/AdminStandardAccountWorkspacePage';
-import MasterDataOperationsPage from './pages/admin/MasterDataOperationsPage';
-import MasterDataFreezePage from './pages/admin/master-data/MasterDataFreezePage';
-import MasterDataCopyPage from './pages/admin/master-data/MasterDataCopyPage';
-import MasterDataHomePage from './pages/admin/MasterDataHomePage';
+const CompaniesPage = React.lazy(() => import('./pages/CompaniesPage'));
+const CompanyWorkspacePage = React.lazy(() => import('./pages/companies/CompanyWorkspacePage'));
+const DepartmentsPage = React.lazy(() => import('./pages/DepartmentsPage'));
+const DepartmentWorkspacePage = React.lazy(() => import('./pages/departments/DepartmentWorkspacePage'));
+const SuppliersPage = React.lazy(() => import('./pages/SuppliersPage'));
+const SupplierWorkspacePage = React.lazy(() => import('./pages/suppliers/SupplierWorkspacePage'));
+const AccountWorkspacePage = React.lazy(() => import('./pages/accounts/AccountWorkspacePage'));
+const UsersPage = React.lazy(() => import('./pages/UsersPage'));
+const CapexPage = React.lazy(() => import('./pages/CapexPage'));
+const ProjectsPage = React.lazy(() => import('./pages/ProjectsPage'));
+const CapexItemPage = React.lazy(() => import('./pages/capex/CapexItemPage'));
+const AnalyticsCategoriesPage = React.lazy(() => import('./pages/AnalyticsCategoriesPage'));
+const AnalyticsWorkspacePage = React.lazy(() => import('./pages/analytics/AnalyticsWorkspacePage'));
+const ReportsLandingPage = React.lazy(() => import('./pages/reports/ReportsLandingPage'));
+const TopOpexReport = React.lazy(() => import('./pages/reports/TopOpexReport'));
+const OpexDeltaReport = React.lazy(() => import('./pages/reports/OpexDeltaReport'));
+const ComparisonReport = React.lazy(() => import('./pages/reports/ComparisonReport'));
+const CapexBudgetTrendReport = React.lazy(() => import('./pages/reports/CapexBudgetTrendReport'));
+const BudgetColumnsCompareReport = React.lazy(() => import('./pages/reports/BudgetColumnsCompareReport'));
+const ConsolidationReport = React.lazy(() => import('./pages/reports/ConsolidationReport'));
+const AnalyticsCategoryReport = React.lazy(() => import('./pages/reports/AnalyticsCategoryReport'));
+const GlobalChargebackReport = React.lazy(() => import('./pages/reports/GlobalChargebackReport'));
+const CompanyChargebackReport = React.lazy(() => import('./pages/reports/CompanyChargebackReport'));
+const ContractsPage = React.lazy(() => import('./pages/ContractsPage'));
+const ContractWorkspacePage = React.lazy(() => import('./pages/contracts/ContractWorkspacePage'));
+const BudgetOperationsLandingPage = React.lazy(() => import('./pages/operations/BudgetOperationsLandingPage'));
+const CopyBudgetColumnsPage = React.lazy(() => import('./pages/operations/CopyBudgetColumnsPage'));
+const BudgetColumnResetPage = React.lazy(() => import('./pages/operations/BudgetColumnResetPage'));
+const BudgetFreezePage = React.lazy(() => import('./pages/operations/BudgetFreezePage'));
+const CopyAllocationsPage = React.lazy(() => import('./pages/operations/CopyAllocationsPage'));
+const AllocationDefaultPage = React.lazy(() => import('./pages/operations/AllocationDefaultPage'));
+const CurrencySettingsPage = React.lazy(() => import('./pages/operations/CurrencySettingsPage'));
+const TasksPage = React.lazy(() => import('./pages/TasksPage'));
+const TaskWorkspacePage = React.lazy(() => import('./pages/tasks/TaskWorkspacePage'));
+const ContactsPage = React.lazy(() => import('./pages/ContactsPage'));
+const ContactWorkspacePage = React.lazy(() => import('./pages/contacts/ContactWorkspacePage'));
+const BillingCenter = React.lazy(() => import('./pages/admin/BillingCenter'));
+const AdminLanding = React.lazy(() => import('./pages/admin/AdminLanding'));
+const RolesPage = React.lazy(() => import('./pages/admin/RolesPage'));
+const AuditLogsPage = React.lazy(() => import('./pages/admin/AuditLogsPage'));
+const AdminTenantsPage = React.lazy(() => import('./pages/admin/AdminTenantsPage'));
+const AdminCoaTemplatesPage = React.lazy(() => import('./pages/admin/AdminCoaTemplatesPage'));
+const AdminStandardAccountsPage = React.lazy(() => import('./pages/admin/AdminStandardAccountsPage'));
+const AdminStandardAccountWorkspacePage = React.lazy(() => import('./pages/admin/AdminStandardAccountWorkspacePage'));
+const MasterDataOperationsPage = React.lazy(() => import('./pages/admin/MasterDataOperationsPage'));
+const MasterDataFreezePage = React.lazy(() => import('./pages/admin/master-data/MasterDataFreezePage'));
+const MasterDataCopyPage = React.lazy(() => import('./pages/admin/master-data/MasterDataCopyPage'));
+const MasterDataHomePage = React.lazy(() => import('./pages/admin/MasterDataHomePage'));
 import { useTenant } from './tenant/TenantContext';
 import { FeaturesProvider, useFeatures } from './config/FeaturesContext';
-import CoaPage from './pages/coa/CoaPage';
-import ApplicationsPage from './pages/it/ApplicationsPage';
-import ApplicationWorkspacePage from './pages/it/ApplicationWorkspacePage';
-import InterfacesPage from './pages/it/InterfacesPage';
-import InterfaceWorkspacePage from './pages/it/InterfaceWorkspacePage';
-import InterfaceMapPage from './pages/it/InterfaceMapPage';
-import ConnectionMapPage from './pages/it/ConnectionMapPage';
-import ItOperationsSettingsPage from './pages/it/ItOperationsSettingsPage';
-import ConnectionsPage from './pages/it/ConnectionsPage';
-import ConnectionWorkspacePage from './pages/it/ConnectionWorkspacePage';
-import LocationsPage from './pages/it/LocationsPage';
-import LocationWorkspacePage from './pages/it/LocationWorkspacePage';
-import AssetsPage from './pages/it/AssetsPage';
-import AssetWorkspacePage from './pages/it/AssetWorkspacePage';
-import IncidentsPage from './pages/it/IncidentsPage';
-import NetboxSyncPage from './pages/it/NetboxSyncPage';
-import IncidentWorkspacePage from './pages/it/IncidentWorkspacePage';
-import BusinessProcessesPage from './pages/BusinessProcessesPage';
-import BusinessProcessWorkspacePage from './pages/business-processes/BusinessProcessWorkspacePage';
-import LoginCallbackPage from './pages/LoginCallbackPage';
-import AdminAuthPage from './pages/admin/AdminAuthPage';
-import OpsDashboardPage from './pages/admin/OpsDashboardPage';
-import PortfolioRequestsPage from './pages/portfolio/RequestsPage';
-import PortfolioRequestWorkspacePage from './pages/portfolio/RequestWorkspacePage';
-import PortfolioProjectsPage from './pages/portfolio/ProjectsPage';
-import PortfolioProjectWorkspacePage from './pages/portfolio/ProjectWorkspacePage';
-import PortfolioPlanningPage from './pages/portfolio/PlanningPage';
-import PortfolioReportsPage from './pages/portfolio/ReportsPage';
-import CapacityHeatmapReport from './pages/portfolio/CapacityHeatmapReport';
-import StatusChangeReport from './pages/portfolio/StatusChangeReport';
-import WeeklyReport from './pages/portfolio/WeeklyReport';
-import PortfolioSettingsPage from './pages/portfolio/SettingsPage';
-import PortfolioContributorsPage from './pages/portfolio/ContributorsPage';
-import PortfolioContributorWorkspacePage from './pages/portfolio/ContributorWorkspacePage';
-import { WorkspaceDashboardPage } from './pages/workspace';
-import SettingsPage from './pages/settings/SettingsPage';
-import AdminBrandingPage from './pages/admin/AdminBrandingPage';
-import KnowledgePage from './pages/knowledge/KnowledgePage';
-import KnowledgeWorkspacePage from './pages/knowledge/KnowledgeWorkspacePage';
-import AiWorkspacePage from './pages/ai/AiWorkspacePage';
-import AgentsOverviewPage from './pages/agents/AgentsOverviewPage';
-import AgentsApprovalsPage from './pages/agents/AgentsApprovalsPage';
-import AgentsActivityPage from './pages/agents/AgentsActivityPage';
-import AgentWorkspacePage from './pages/agents/AgentWorkspacePage';
-import SharedContextProfilesPage from './pages/agents/SharedContextProfilesPage';
-import AdminAiPage from './pages/admin/AdminAiPage';
-import AdminAiModelsPage from './pages/admin/AdminAiModelsPage';
-import AdminAiUsagePage from './pages/admin/AdminAiUsagePage';
-import AdminIntegrationsPage from './pages/admin/AdminIntegrationsPage';
-import AdminPlatformAiPage from './pages/admin/AdminPlatformAiPage';
-import ScheduledTasksPage from './pages/admin/ScheduledTasksPage';
+const CoaPage = React.lazy(() => import('./pages/coa/CoaPage'));
+const ApplicationsPage = React.lazy(() => import('./pages/it/ApplicationsPage'));
+const ApplicationWorkspacePage = React.lazy(() => import('./pages/it/ApplicationWorkspacePage'));
+const InterfacesPage = React.lazy(() => import('./pages/it/InterfacesPage'));
+const InterfaceWorkspacePage = React.lazy(() => import('./pages/it/InterfaceWorkspacePage'));
+const InterfaceMapPage = React.lazy(() => import('./pages/it/InterfaceMapPage'));
+const ConnectionMapPage = React.lazy(() => import('./pages/it/ConnectionMapPage'));
+const ItOperationsSettingsPage = React.lazy(() => import('./pages/it/ItOperationsSettingsPage'));
+const ConnectionsPage = React.lazy(() => import('./pages/it/ConnectionsPage'));
+const ConnectionWorkspacePage = React.lazy(() => import('./pages/it/ConnectionWorkspacePage'));
+const LocationsPage = React.lazy(() => import('./pages/it/LocationsPage'));
+const LocationWorkspacePage = React.lazy(() => import('./pages/it/LocationWorkspacePage'));
+const AssetsPage = React.lazy(() => import('./pages/it/AssetsPage'));
+const AssetWorkspacePage = React.lazy(() => import('./pages/it/AssetWorkspacePage'));
+const IncidentsPage = React.lazy(() => import('./pages/it/IncidentsPage'));
+const NetboxSyncPage = React.lazy(() => import('./pages/it/NetboxSyncPage'));
+const IncidentWorkspacePage = React.lazy(() => import('./pages/it/IncidentWorkspacePage'));
+const BusinessProcessesPage = React.lazy(() => import('./pages/BusinessProcessesPage'));
+const BusinessProcessWorkspacePage = React.lazy(() => import('./pages/business-processes/BusinessProcessWorkspacePage'));
+const LoginCallbackPage = React.lazy(() => import('./pages/LoginCallbackPage'));
+const AdminAuthPage = React.lazy(() => import('./pages/admin/AdminAuthPage'));
+const OpsDashboardPage = React.lazy(() => import('./pages/admin/OpsDashboardPage'));
+const PortfolioRequestsPage = React.lazy(() => import('./pages/portfolio/RequestsPage'));
+const PortfolioRequestWorkspacePage = React.lazy(() => import('./pages/portfolio/RequestWorkspacePage'));
+const PortfolioProjectsPage = React.lazy(() => import('./pages/portfolio/ProjectsPage'));
+const PortfolioProjectWorkspacePage = React.lazy(() => import('./pages/portfolio/ProjectWorkspacePage'));
+const PortfolioPlanningPage = React.lazy(() => import('./pages/portfolio/PlanningPage'));
+const PortfolioReportsPage = React.lazy(() => import('./pages/portfolio/ReportsPage'));
+const CapacityHeatmapReport = React.lazy(() => import('./pages/portfolio/CapacityHeatmapReport'));
+const StatusChangeReport = React.lazy(() => import('./pages/portfolio/StatusChangeReport'));
+const WeeklyReport = React.lazy(() => import('./pages/portfolio/WeeklyReport'));
+const PortfolioSettingsPage = React.lazy(() => import('./pages/portfolio/SettingsPage'));
+const PortfolioContributorsPage = React.lazy(() => import('./pages/portfolio/ContributorsPage'));
+const PortfolioContributorWorkspacePage = React.lazy(() => import('./pages/portfolio/ContributorWorkspacePage'));
+const WorkspaceDashboardPage = React.lazy(() =>
+  import('./pages/workspace').then((m) => ({ default: m.WorkspaceDashboardPage })),
+);
+const SettingsPage = React.lazy(() => import('./pages/settings/SettingsPage'));
+const AdminBrandingPage = React.lazy(() => import('./pages/admin/AdminBrandingPage'));
+const KnowledgePage = React.lazy(() => import('./pages/knowledge/KnowledgePage'));
+const KnowledgeWorkspacePage = React.lazy(() => import('./pages/knowledge/KnowledgeWorkspacePage'));
+const AiWorkspacePage = React.lazy(() => import('./pages/ai/AiWorkspacePage'));
+const AgentsOverviewPage = React.lazy(() => import('./pages/agents/AgentsOverviewPage'));
+const AgentsApprovalsPage = React.lazy(() => import('./pages/agents/AgentsApprovalsPage'));
+const AgentsActivityPage = React.lazy(() => import('./pages/agents/AgentsActivityPage'));
+const AgentWorkspacePage = React.lazy(() => import('./pages/agents/AgentWorkspacePage'));
+const SharedContextProfilesPage = React.lazy(() => import('./pages/agents/SharedContextProfilesPage'));
+const AdminAiPage = React.lazy(() => import('./pages/admin/AdminAiPage'));
+const AdminAiModelsPage = React.lazy(() => import('./pages/admin/AdminAiModelsPage'));
+const AdminAiUsagePage = React.lazy(() => import('./pages/admin/AdminAiUsagePage'));
+const AdminIntegrationsPage = React.lazy(() => import('./pages/admin/AdminIntegrationsPage'));
+const AdminPlatformAiPage = React.lazy(() => import('./pages/admin/AdminPlatformAiPage'));
+const ScheduledTasksPage = React.lazy(() => import('./pages/admin/ScheduledTasksPage'));
 import { useAiCapabilities } from './ai/useAiCapabilities';
 import { useBusinessContributorApplicationVisibility } from './hooks/useBusinessContributorApplicationVisibility';
 
@@ -201,18 +204,27 @@ function LegacyAccountsRedirect() {
   return <Navigate to={`/master-data/coa${qs ? `?${qs}` : ''}`} replace />;
 }
 
+/** Full-page fallback while a route chunk loads or the feature config is fetched. */
+function RouteLoadingFallback() {
+  return (
+    <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+      <CircularProgress />
+    </Box>
+  );
+}
+
 function AppRoutes() {
   const { token } = useAuth();
   const { config, isLoading: featuresLoading } = useFeatures();
   const isSingleTenant = config.deploymentMode === 'single-tenant';
   if (featuresLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress />
-      </Box>
-    );
+    return <RouteLoadingFallback />;
   }
   return (
+    // Pages are code-split, so the public routes (which render outside Layout) need a
+    // boundary. The authenticated ones get a second, inner one around Layout's <Outlet />,
+    // so navigating between them keeps the shell on screen instead of flashing this.
+    <Suspense fallback={<RouteLoadingFallback />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/login/callback" element={<LoginCallbackPage />} />
@@ -380,6 +392,7 @@ function AppRoutes() {
       <Route path="/403" element={<ForbiddenPage />} />
       <Route path="*" element={<Navigate to={token ? '/' : '/login'} replace />} />
       </Routes>
+    </Suspense>
   );
 }
 
