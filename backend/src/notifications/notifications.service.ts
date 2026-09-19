@@ -5,6 +5,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { EmailAttachment, EmailService } from '../email/email.service';
 import { StorageService } from '../common/storage/storage.service';
 import { resolveNotificationBaseUrl } from '../common/url';
+import { withTenant } from '../common/tenant-runner';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { NotificationPreferencesData, WorkspaceSettings } from './notifications.constants';
 import {
@@ -923,14 +924,20 @@ export class NotificationsService {
 
     if (!this.checkPreferences(prefs, 'portfolio', 'team_change_as_lead')) return;
 
-    // Get IT Lead's email (and verify they're eligible to receive notifications)
-    const itLeadRows = await this.dataSource.query(
-      `SELECT u.id, u.email, u.locale FROM users u
-       JOIN roles ro ON ro.id = u.role_id
-       WHERE u.id = $1 AND u.status = 'enabled'
-         AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
-      [params.itLeadId],
-    );
+    // Get IT Lead's email (and verify they're eligible to receive notifications).
+    // The read runs inside a tenant-scoped transaction: the request's tenant context is
+    // set transaction-locally on its own QueryRunner, so a bare `dataSource.query` would
+    // take another pooled connection and be filtered down to zero rows by RLS.
+    const itLeadRows: Array<{ id: string; email: string; locale: string | null }> =
+      await withTenant(this.dataSource, params.tenantId, (manager) =>
+        manager.query(
+          `SELECT u.id, u.email, u.locale FROM users u
+           JOIN roles ro ON ro.id = u.role_id
+           WHERE u.id = $1 AND u.status = 'enabled'
+             AND (ro.is_system = false OR LOWER(ro.role_name) = 'administrator')`,
+          [params.itLeadId],
+        ),
+      );
 
     if (itLeadRows.length === 0) return;
 
@@ -963,8 +970,12 @@ export class NotificationsService {
 
     // Recipients: users holding admin on the 'users' resource (legacy role
     // column or multi-role table) plus Administrator role holders.
-    const admins: Array<{ id: string; email: string; locale: string | null }> = await this.dataSource.query(
-      `SELECT DISTINCT u.id, u.email, u.locale
+    // Tenant-scoped transaction for the same reason as notifyItLeadOfTeamChange:
+    // `users` is under FORCE RLS, so a context-less connection reads zero rows.
+    const admins: Array<{ id: string; email: string; locale: string | null }> =
+      await withTenant(this.dataSource, params.tenantId, (manager) =>
+        manager.query(
+          `SELECT DISTINCT u.id, u.email, u.locale
        FROM users u
        WHERE u.tenant_id = $1
          AND u.status = 'enabled'
@@ -994,8 +1005,9 @@ export class NotificationsService {
                )
            )
          )`,
-      [params.tenantId, params.userEmail],
-    );
+          [params.tenantId, params.userEmail],
+        ),
+      );
     if (admins.length === 0) return;
 
     const slug = await this.getTenantSlug(params.tenantId);
