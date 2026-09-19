@@ -11,10 +11,15 @@ import {
 } from './csv-field.types';
 import { CsvResolverService } from './csv-resolver.service';
 
+const CSV_FORMULA_TRIGGER = /^[=+\-@\t\r\n]|^\s+[=+\-@]/;
+// A plain negative amount ("-1200.50", "-1200,5") is a number, not a formula. Prefixing it
+// turns the cell into text, so a spreadsheet stops summing the column.
+const CSV_PLAIN_NEGATIVE_NUMBER = /^-\d+(?:[.,]\d+)?$/;
+
 export function neutralizeCsvFormulaValue(value: string): string {
   const text = String(value ?? '');
   if (!text) return '';
-  if (/^[=+\-@\t\r\n]/.test(text) || /^\s+[=+\-@]/.test(text)) {
+  if (CSV_FORMULA_TRIGGER.test(text) && !CSV_PLAIN_NEGATIVE_NUMBER.test(text)) {
     return `'${text}`;
   }
   return text;
@@ -50,15 +55,31 @@ export function neutralizeCsvRow<T>(row: T): T {
 /**
  * Reverse of neutralizeCsvFormulaValue: strips the protective apostrophe an
  * export added in front of a formula-like value, so export -> import
- * round-trips cleanly. Only strips when the remainder would be re-neutralized
- * to the exact same string (i.e. the apostrophe is ours, not user data).
+ * round-trips cleanly. Only strips when the remainder is formula-like
+ * (i.e. the apostrophe is ours, not user data).
  */
 export function denormalizeCsvFormulaValue(value: string): string {
   const text = String(value ?? '');
-  if (text.startsWith("'") && neutralizeCsvFormulaValue(text.slice(1)) === text) {
+  if (text.startsWith("'") && CSV_FORMULA_TRIGGER.test(text.slice(1))) {
     return text.slice(1);
   }
   return text;
+}
+
+/**
+ * Row counterpart of denormalizeCsvFormulaValue, for the importers that parse their file
+ * with fast-csv directly. Every exporter that carries `transform: neutralizeCsvRow` needs
+ * it on its import side, otherwise re-importing an unmodified export stores the apostrophe.
+ */
+export function denormalizeCsvRow<T>(row: T): T {
+  if (row && typeof row === 'object' && !Array.isArray(row)) {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
+      out[key] = typeof value === 'string' ? denormalizeCsvFormulaValue(value) : value;
+    }
+    return out as unknown as T;
+  }
+  return row;
 }
 
 /**

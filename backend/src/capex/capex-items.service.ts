@@ -40,7 +40,7 @@ import { ItemNumberService } from '../common/item-number.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { resolveToUuid } from '../common/resolve-item-id';
-import { neutralizeCsvRow } from '../common/csv/csv-export.service';
+import { denormalizeCsvRow, neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 const activeDisabledAtCondition = () => Raw((alias) => `${alias} IS NULL OR ${alias} > NOW()`);
 const inactiveDisabledAtCondition = () => Raw((alias) => `${alias} IS NOT NULL AND ${alias} <= NOW()`);
@@ -1293,7 +1293,7 @@ export class CapexItemsService {
           if (!headerOk) errors.push({ row: 0, message: `Header mismatch. Missing: ${missing.join(', ') || '-'}, Extra: ${extras.join(', ') || '-'}` });
         })
         .on('error', (err) => reject(err))
-        .on('data', (row: Row) => rows.push(row))
+        .on('data', (row: Row) => rows.push(denormalizeCsvRow(row)))
         .on('end', () => resolve());
     });
     if (!headerOk) return { ok: false, dryRun, total: 0, inserted: 0, updated: 0, errors };

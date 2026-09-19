@@ -30,7 +30,7 @@ import {
   createParamNameGenerator,
   FilterTargetConfig,
 } from '../common/ag-grid-filtering';
-import { neutralizeCsvRow } from '../common/csv/csv-export.service';
+import { denormalizeCsvRow, neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 type ListItem = Contract & {
   supplier?: { id: string; name: string } | null;
@@ -742,7 +742,7 @@ export class ContractsService {
           }
         })
         .on('error', (e) => reject(e))
-        .on('data', (r) => out.push(r))
+        .on('data', (r) => out.push(denormalizeCsvRow(r)))
         .on('end', () => resolve(out));
     });
     if (!headerOk) return { ok: false, dryRun, total: 0, inserted: 0, updated: 0, errors };
