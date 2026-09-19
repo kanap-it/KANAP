@@ -30,6 +30,7 @@ import type {
 } from '../../components/settings';
 import useItOpsSettings from '../../hooks/useItOpsSettings';
 import { useVirtualRows } from '../../hooks/useVirtualRows';
+import { useLocationOptions, type LocationOption } from '../../hooks/useLocationOptions';
 import { useCatalogRemoval } from '../../components/settings/useCatalogRemoval';
 import { useCatalogTranslations } from '../../components/settings/CatalogTranslationsDialog';
 import TranslateIcon from '@mui/icons-material/Translate';
@@ -47,8 +48,6 @@ import {
 } from '../../services/itOpsSettings';
 import { useTranslation } from 'react-i18next';
 import ClassificationCatalogSettings from './components/ClassificationCatalogSettings';
-
-type LocationOption = { id: string; location_reference: string; name: string };
 
 // ============================================================================
 // Utility Functions
@@ -880,13 +879,7 @@ export default function ItOperationsSettingsPage() {
   const { data, isError } = useItOpsSettings();
   const [state, dispatch] = React.useReducer(reducer, initialState);
 
-  const { data: locations } = useQuery({
-    queryKey: ['locations', 'options'],
-    queryFn: async () => {
-      const res = await api.get<{ items: LocationOption[] }>('/locations', { params: { limit: 500, sort: 'location_reference:ASC' } });
-      return (res.data?.items || []) as LocationOption[];
-    },
-  });
+  const { data: locations } = useLocationOptions();
 
   // Hydrate from the query on first load, or when nothing is being edited: a refetch must never replace a draft.
   const hasDrafts = Object.values(state.dirty).some(Boolean) || state.pending !== null;

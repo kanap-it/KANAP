@@ -7,8 +7,7 @@ import api from '../../api';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
 import { FieldLabel } from '../design';
 import { drawerAutocompleteListboxSx } from '../../theme/formSx';
-
-type LocationOption = { id: string; location_reference: string; name: string };
+import { useLocationOptions, type LocationOption } from '../../hooks/useLocationOptions';
 
 type Props = {
   label?: string;
@@ -40,15 +39,7 @@ export default function LocationSelect({
   const { t } = useTranslation('common');
   const label = labelProp ?? t('selects.location');
   const naked = hideLabel || label === '';
-  const { data: locations, isLoading } = useQuery({
-    queryKey: ['locations', 'options'],
-    queryFn: async () => {
-      const res = await api.get<{ items: LocationOption[] }>('/locations', {
-        params: { limit: 200, sort: 'location_reference:ASC' },
-      });
-      return (res.data?.items || []) as LocationOption[];
-    },
-  });
+  const { data: locations, isLoading } = useLocationOptions();
 
   const sorted = React.useMemo(() => {
     const list = locations ? [...locations] : [];
