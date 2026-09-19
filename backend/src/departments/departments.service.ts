@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, EntityManager, Repository } from 'typeorm';
 import { Department } from './department.entity';
-import { parsePagination } from '../common/pagination';
+import { parseExportPagination, parsePagination } from '../common/pagination';
 import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { Company } from '../companies/company.entity';
 import { format } from '@fast-csv/format';
@@ -38,9 +38,11 @@ export class DepartmentsService {
     return manager ? manager.getRepository(Company) : this.companies;
   }
 
-  async list(query: any, opts?: { manager?: EntityManager }) {
+  async list(query: any, opts?: { manager?: EntityManager; exportAll?: boolean }) {
     const repo = this.getRepo(opts?.manager);
-    const { page, limit, skip, sort, status, q, filters } = parsePagination(query);
+    const { page, limit, skip, sort, status, q, filters } = opts?.exportAll
+      ? parseExportPagination(query)
+      : parsePagination(query);
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const effectiveStatus = status ?? statusFromAg;
@@ -513,7 +515,7 @@ export class DepartmentsService {
       delete filtersForField[field];
       const result = await this.list(
         { ...query, page: 1, limit: 10000, filters: filtersForField, sort: 'name:ASC' },
-        opts,
+        { ...opts, exportAll: true },
       );
       const values = new Set<string | null>();
       for (const item of result.items || []) {

@@ -6,7 +6,7 @@ import { ContractSpendItem } from './contract-spend-item.entity';
 import { ContractLink } from './contract-link.entity';
 import { ContractAttachment } from './contract-attachment.entity';
 import { AuditService } from '../audit/audit.service';
-import { parsePagination } from '../common/pagination';
+import { parseExportPagination, parsePagination } from '../common/pagination';
 import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
 import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
@@ -119,10 +119,12 @@ export class ContractsService {
     };
   }
 
-  async list(query: any, opts?: { manager?: EntityManager }) {
+  async list(query: any, opts?: { manager?: EntityManager; exportAll?: boolean }) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(Contract);
-    const { page, limit, skip, sort, status, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
+    const { page, limit, skip, sort, status, q, filters } = opts?.exportAll
+      ? parseExportPagination(query, { field: 'created_at', direction: 'DESC' })
+      : parsePagination(query, { field: 'created_at', direction: 'DESC' });
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const filterTargets = this.contractFilterTargets();
@@ -560,7 +562,7 @@ export class ContractsService {
       delete filtersForField[field];
       const result = await this.list(
         { ...query, page: 1, limit: 10000, filters: filtersForField, sort: 'name:ASC' },
-        opts,
+        { ...opts, exportAll: true },
       );
       const values = new Set<string | null>();
       for (const item of result.items || []) {

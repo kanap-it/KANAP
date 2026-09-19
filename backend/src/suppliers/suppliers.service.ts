@@ -4,7 +4,7 @@ import { EntityManager, ILike, Raw, Repository } from 'typeorm';
 import { Supplier } from './supplier.entity';
 import { ExternalContact } from '../contacts/external-contact.entity';
 import { SupplierContactLink, SupplierContactRole } from '../contacts/supplier-contact.entity';
-import { buildWhereFromAgFilters, parsePagination } from '../common/pagination';
+import { buildWhereFromAgFilters, parseExportPagination, parsePagination } from '../common/pagination';
 import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
@@ -26,9 +26,11 @@ export class SuppliersService {
     return manager ? manager.getRepository(Supplier) : this.repo;
   }
 
-  async list(query: any, opts?: { manager?: EntityManager }) {
+  async list(query: any, opts?: { manager?: EntityManager; exportAll?: boolean }) {
     const repo = this.getRepo(opts?.manager);
-    const { page, limit, skip, sort, status, q, filters } = parsePagination(query);
+    const { page, limit, skip, sort, status, q, filters } = opts?.exportAll
+      ? parseExportPagination(query)
+      : parsePagination(query);
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const where: any = {};
@@ -148,7 +150,7 @@ export class SuppliersService {
       delete filtersForField[field];
       const result = await this.list(
         { ...query, page: 1, limit: 10000, filters: filtersForField, sort: 'name:ASC' },
-        opts,
+        { ...opts, exportAll: true },
       );
       const values = new Set<string | null>();
       for (const item of result.items || []) {

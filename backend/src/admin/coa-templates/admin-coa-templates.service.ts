@@ -307,12 +307,15 @@ export class AdminCoaTemplatesService {
   }
 
   // Accounts within a template
-  async listAccounts(id: string, query: any, opts?: { manager?: EntityManager }) {
+  async listAccounts(id: string, query: any, opts?: { manager?: EntityManager; exportAll?: boolean }) {
     const csv = await this.getTemplateCsv(id, opts);
     const rows = await this.parseTemplateRows(csv);
     // Basic search/sort/pagination
     const page = Math.max(1, parseInt(query.page ?? '1', 10) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(query.limit ?? '20', 10) || 20));
+    // 100 is the browsing page size. The "select all" path asks for every account, and this
+    // inline cap used to truncate it to 100 rows without saying so.
+    const maxLimit = opts?.exportAll ? 50_000 : 100;
+    const limit = Math.min(maxLimit, Math.max(1, parseInt(query.limit ?? '20', 10) || 20));
     const sortParam: string = query.sort ?? 'account_number:ASC';
     const [field, dirRaw] = String(sortParam).split(':');
     const direction = (dirRaw || 'ASC').toUpperCase() === 'DESC' ? -1 : 1;
@@ -339,7 +342,7 @@ export class AdminCoaTemplatesService {
   }
 
   async listAccountIds(id: string, query: any, opts?: { manager?: EntityManager }) {
-    const { items } = await this.listAccounts(id, { ...query, page: 1, limit: 100000 }, opts);
+    const { items } = await this.listAccounts(id, { ...query, page: 1, limit: 100000 }, { ...opts, exportAll: true });
     return { ids: items.map((r) => String(r.account_number)) };
   }
 
