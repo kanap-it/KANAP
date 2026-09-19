@@ -184,7 +184,7 @@ Shared abstractions for consistency and maintainability:
 
 ### Frontend Patterns
 Shared hooks and components for consistency:
-- **useModuleNavigation**: Generic navigation hook replacing module-specific hooks
+- **useModuleItemNav**: Generic prev/next navigation inside a workspace, behind the module-specific `use*Nav` hooks
 - **useVirtualRows**: Virtual scrolling for large lists
 - **WorkspaceLayout**: Reusable workspace page layout with tabs
 - **EnumEditor**: Generic settings editor with virtual scrolling
