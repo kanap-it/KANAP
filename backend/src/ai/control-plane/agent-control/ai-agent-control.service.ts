@@ -3347,6 +3347,25 @@ function serializeAgentAuditEvent(event: AiAgentAuditEvent) {
   };
 }
 
+/**
+ * Stage identity for the run-step and usage telemetry writers.
+ *
+ * Four run-step writers and six usage writers used to be ten near-identical methods that
+ * differed only in these values and in one JSON key, so adding a stage meant adding a copy.
+ * Call sites keep their original order: `chargeRunLlmUsage` must stay after the usage mirror
+ * for the same stage, because it charges the run-scoped ledger.
+ *
+ * `diagnosticBrief` deliberately shares the `synthesis` run-step kind, so the run detail view
+ * renders it alongside the ticketing synthesis steps; its capability name is what identifies
+ * the monitoring stage.
+ */
+export const RUN_STEP_STAGES = {
+  synthesis: { kind: 'synthesis', capabilityName: 'answer_synthesis' },
+  diagnosticBrief: { kind: 'synthesis', capabilityName: 'diagnostic_brief_synthesis' },
+  needRepresentation: { kind: 'need_representation', capabilityName: 'ticket_need_representation' },
+  evidenceExtraction: { kind: 'evidence_extraction', capabilityName: 'ticket_image_evidence_extraction' },
+} as const;
+
 @Injectable()
 export class AiAgentControlService {
   private readonly logger = new Logger(AiAgentControlService.name);
@@ -3476,331 +3495,6 @@ export class AiAgentControlService {
     return rows.map((row) => row.id);
   }
 
-  private async recordSynthesisRunStep(
-    context: AiExecutionContextWithManager,
-    input: {
-      runId: string;
-      stepIndex: number;
-      status: 'completed' | 'skipped' | 'failed';
-      inputSummary: Record<string, unknown>;
-      outputSummary: Record<string, unknown>;
-      errorMessage?: string | null;
-    },
-  ): Promise<void> {
-    const now = new Date();
-    await context.manager.getRepository(AiRunStep).save(context.manager.getRepository(AiRunStep).create({
-      tenant_id: context.tenantId,
-      run_id: input.runId,
-      step_index: input.stepIndex,
-      kind: 'synthesis',
-      status: input.status,
-      capability_name: 'answer_synthesis',
-      capability_version: '1.0.0',
-      input_summary: input.inputSummary,
-      output_summary: input.outputSummary,
-      error_message: input.errorMessage ?? null,
-      started_at: now,
-      completed_at: now,
-      created_at: now,
-    }));
-  }
-
-  // Diagnostic-brief sibling of recordSynthesisRunStep: same run-step kind so
-  // the run detail view renders it alongside ticketing synthesis steps, with a
-  // capability name that identifies the monitoring stage.
-  private async recordDiagnosticBriefRunStep(
-    context: AiExecutionContextWithManager,
-    input: {
-      runId: string;
-      stepIndex: number;
-      status: 'completed' | 'skipped' | 'failed';
-      inputSummary: Record<string, unknown>;
-      outputSummary: Record<string, unknown>;
-      errorMessage?: string | null;
-    },
-  ): Promise<void> {
-    const now = new Date();
-    await context.manager.getRepository(AiRunStep).save(context.manager.getRepository(AiRunStep).create({
-      tenant_id: context.tenantId,
-      run_id: input.runId,
-      step_index: input.stepIndex,
-      kind: 'synthesis',
-      status: input.status,
-      capability_name: 'diagnostic_brief_synthesis',
-      capability_version: '1.0.0',
-      input_summary: input.inputSummary,
-      output_summary: input.outputSummary,
-      error_message: input.errorMessage ?? null,
-      started_at: now,
-      completed_at: now,
-      created_at: now,
-    }));
-  }
-
-  private async recordNeedRepresentationRunStep(
-    context: AiExecutionContextWithManager,
-    input: {
-      runId: string;
-      stepIndex: number;
-      status: 'completed' | 'skipped' | 'failed';
-      inputSummary: Record<string, unknown>;
-      outputSummary: Record<string, unknown>;
-      errorMessage?: string | null;
-    },
-  ): Promise<void> {
-    const now = new Date();
-    await context.manager.getRepository(AiRunStep).save(context.manager.getRepository(AiRunStep).create({
-      tenant_id: context.tenantId,
-      run_id: input.runId,
-      step_index: input.stepIndex,
-      kind: 'need_representation',
-      status: input.status,
-      capability_name: 'ticket_need_representation',
-      capability_version: '1.0.0',
-      input_summary: input.inputSummary,
-      output_summary: input.outputSummary,
-      error_message: input.errorMessage ?? null,
-      started_at: now,
-      completed_at: now,
-      created_at: now,
-    }));
-  }
-
-  private async recordEvidenceExtractionRunStep(
-    context: AiExecutionContextWithManager,
-    input: {
-      runId: string;
-      stepIndex: number;
-      status: 'completed' | 'skipped' | 'failed';
-      inputSummary: Record<string, unknown>;
-      outputSummary: Record<string, unknown>;
-      errorMessage?: string | null;
-    },
-  ): Promise<void> {
-    const now = new Date();
-    await context.manager.getRepository(AiRunStep).save(context.manager.getRepository(AiRunStep).create({
-      tenant_id: context.tenantId,
-      run_id: input.runId,
-      step_index: input.stepIndex,
-      kind: 'evidence_extraction',
-      status: input.status,
-      capability_name: 'ticket_image_evidence_extraction',
-      capability_version: '1.0.0',
-      input_summary: input.inputSummary,
-      output_summary: input.outputSummary,
-      error_message: input.errorMessage ?? null,
-      started_at: now,
-      completed_at: now,
-      created_at: now,
-    }));
-  }
-
-  private async recordSynthesisUsage(
-    context: AiExecutionContextWithManager,
-    input: {
-      runId: string;
-      synthesis: ReplySynthesisResult;
-    },
-  ): Promise<void> {
-    const repo = context.manager.getRepository(AiRun);
-    const run = await repo.findOne({
-      where: {
-        id: input.runId,
-        tenant_id: context.tenantId,
-      },
-    });
-    if (!run) return;
-    run.usage_json = {
-      ...(isRecord(run.usage_json) ? run.usage_json : {}),
-      synthesis: {
-        input_tokens: input.synthesis.usage?.input_tokens ?? null,
-        output_tokens: input.synthesis.usage?.output_tokens ?? null,
-        estimated_tokens: input.synthesis.estimated_tokens,
-      },
-    };
-    run.cost_json = {
-      ...(isRecord(run.cost_json) ? run.cost_json : {}),
-      synthesis: {
-        estimated_cost_eur: input.synthesis.estimated_cost_eur,
-        model: input.synthesis.model ?? null,
-      },
-    };
-    run.updated_at = new Date();
-    await repo.save(run);
-  }
-
-  // Per-stage usage mirror for the diagnostic brief (D11): actual usage under
-  // run.usage_json.diagnostic_brief, charged to the run-scoped ledger by the caller.
-  private async recordDiagnosticBriefUsage(
-    context: AiExecutionContextWithManager,
-    input: {
-      runId: string;
-      brief: DiagnosticBriefResult;
-    },
-  ): Promise<void> {
-    const repo = context.manager.getRepository(AiRun);
-    const run = await repo.findOne({
-      where: {
-        id: input.runId,
-        tenant_id: context.tenantId,
-      },
-    });
-    if (!run) return;
-    run.usage_json = {
-      ...(isRecord(run.usage_json) ? run.usage_json : {}),
-      diagnostic_brief: {
-        input_tokens: input.brief.usage?.input_tokens ?? null,
-        output_tokens: input.brief.usage?.output_tokens ?? null,
-        estimated_tokens: input.brief.estimated_tokens,
-      },
-    };
-    run.cost_json = {
-      ...(isRecord(run.cost_json) ? run.cost_json : {}),
-      diagnostic_brief: {
-        estimated_cost_eur: input.brief.estimated_cost_eur,
-        model: input.brief.model ?? null,
-      },
-    };
-    run.updated_at = new Date();
-    await repo.save(run);
-  }
-
-  private async recordNeedRepresentationUsage(
-    context: AiExecutionContextWithManager,
-    input: {
-      runId: string;
-      needRepresentation: TicketNeedRepresentationBuildResult;
-    },
-  ): Promise<void> {
-    const repo = context.manager.getRepository(AiRun);
-    const run = await repo.findOne({
-      where: {
-        id: input.runId,
-        tenant_id: context.tenantId,
-      },
-    });
-    if (!run) return;
-    run.usage_json = {
-      ...(isRecord(run.usage_json) ? run.usage_json : {}),
-      need_representation: {
-        input_tokens: input.needRepresentation.usage?.input_tokens ?? null,
-        output_tokens: input.needRepresentation.usage?.output_tokens ?? null,
-        estimated_tokens: input.needRepresentation.estimated_tokens,
-      },
-    };
-    run.cost_json = {
-      ...(isRecord(run.cost_json) ? run.cost_json : {}),
-      need_representation: {
-        estimated_cost_eur: input.needRepresentation.estimated_cost_eur,
-        model: input.needRepresentation.model ?? null,
-      },
-    };
-    run.updated_at = new Date();
-    await repo.save(run);
-  }
-
-  private async recordKnowledgeInterpretationUsage(
-    context: AiExecutionContextWithManager,
-    input: {
-      runId: string;
-      interpretation: KnowledgeResultInterpretation;
-    },
-  ): Promise<void> {
-    const repo = context.manager.getRepository(AiRun);
-    const run = await repo.findOne({
-      where: {
-        id: input.runId,
-        tenant_id: context.tenantId,
-      },
-    });
-    if (!run) return;
-    run.usage_json = {
-      ...(isRecord(run.usage_json) ? run.usage_json : {}),
-      knowledge_interpretation: {
-        input_tokens: input.interpretation.usage?.input_tokens ?? null,
-        output_tokens: input.interpretation.usage?.output_tokens ?? null,
-        estimated_tokens: input.interpretation.estimated_tokens,
-      },
-    };
-    run.cost_json = {
-      ...(isRecord(run.cost_json) ? run.cost_json : {}),
-      knowledge_interpretation: {
-        estimated_cost_eur: input.interpretation.estimated_cost_eur,
-        model: input.interpretation.model ?? null,
-      },
-    };
-    run.updated_at = new Date();
-    await repo.save(run);
-  }
-
-  private async recordEvidenceExtractionUsage(
-    context: AiExecutionContextWithManager,
-    input: {
-      runId: string;
-      evidenceExtraction: TicketEvidenceExtractionResult;
-    },
-  ): Promise<void> {
-    const repo = context.manager.getRepository(AiRun);
-    const run = await repo.findOne({
-      where: {
-        id: input.runId,
-        tenant_id: context.tenantId,
-      },
-    });
-    if (!run) return;
-    run.usage_json = {
-      ...(isRecord(run.usage_json) ? run.usage_json : {}),
-      evidence_extraction: {
-        input_tokens: input.evidenceExtraction.usage?.input_tokens ?? null,
-        output_tokens: input.evidenceExtraction.usage?.output_tokens ?? null,
-        estimated_tokens: input.evidenceExtraction.estimated_tokens,
-      },
-    };
-    run.cost_json = {
-      ...(isRecord(run.cost_json) ? run.cost_json : {}),
-      evidence_extraction: {
-        estimated_cost_eur: input.evidenceExtraction.estimated_cost_eur,
-        model: input.evidenceExtraction.model ?? null,
-      },
-    };
-    run.updated_at = new Date();
-    await repo.save(run);
-  }
-
-  private async recordActionPlannerUsage(
-    context: AiExecutionContextWithManager,
-    input: {
-      runId: string;
-      planner: ActionPlannerResult;
-    },
-  ): Promise<void> {
-    const repo = context.manager.getRepository(AiRun);
-    const run = await repo.findOne({
-      where: {
-        id: input.runId,
-        tenant_id: context.tenantId,
-      },
-    });
-    if (!run) return;
-    run.usage_json = {
-      ...(isRecord(run.usage_json) ? run.usage_json : {}),
-      action_planner: {
-        input_tokens: input.planner.usage?.input_tokens ?? null,
-        output_tokens: input.planner.usage?.output_tokens ?? null,
-        estimated_tokens: input.planner.estimated_tokens,
-      },
-    };
-    run.cost_json = {
-      ...(isRecord(run.cost_json) ? run.cost_json : {}),
-      action_planner: {
-        estimated_cost_eur: input.planner.estimated_cost_eur,
-        model: input.planner.model ?? null,
-      },
-    };
-    run.updated_at = new Date();
-    await repo.save(run);
-  }
-
   private async ticketTargetingEligibility(
     context: AiExecutionContextWithManager,
     definition: AiAgentDefinition,
@@ -3836,6 +3530,78 @@ export class AiAgentControlService {
       matched: ticketMatchesServiceDeskTargeting(ticket, targeting, { agentTouched }),
       hasInactivityAge,
     };
+  }
+
+  private async recordStageRunStep(
+    context: AiExecutionContextWithManager,
+    stage: { kind: string; capabilityName: string; capabilityVersion?: string },
+    input: {
+      runId: string;
+      stepIndex: number;
+      status: 'completed' | 'skipped' | 'failed';
+      inputSummary: Record<string, unknown>;
+      outputSummary: Record<string, unknown>;
+      errorMessage?: string | null;
+    },
+  ): Promise<void> {
+    const now = new Date();
+    await context.manager.getRepository(AiRunStep).save(context.manager.getRepository(AiRunStep).create({
+      tenant_id: context.tenantId,
+      run_id: input.runId,
+      step_index: input.stepIndex,
+      kind: stage.kind,
+      status: input.status,
+      capability_name: stage.capabilityName,
+      capability_version: stage.capabilityVersion ?? '1.0.0',
+      input_summary: input.inputSummary,
+      output_summary: input.outputSummary,
+      error_message: input.errorMessage ?? null,
+      started_at: now,
+      completed_at: now,
+      created_at: now,
+    }));
+  }
+
+  /**
+   * Per-stage usage mirror, written under run.usage_json[stageKey] and run.cost_json[stageKey].
+   * The caller charges the run-scoped ledger separately (chargeRunLlmUsage), after this call.
+   */
+  private async recordStageUsage(
+    context: AiExecutionContextWithManager,
+    stageKey: string,
+    runId: string,
+    result: {
+      usage?: { input_tokens?: number | null; output_tokens?: number | null } | null;
+      estimated_tokens?: number | null;
+      estimated_cost_eur?: number | null;
+      model?: string | null;
+    } | null | undefined,
+  ): Promise<void> {
+    const repo = context.manager.getRepository(AiRun);
+    const run = await repo.findOne({
+      where: {
+        id: runId,
+        tenant_id: context.tenantId,
+      },
+    });
+    if (!run) return;
+    run.usage_json = {
+      ...(isRecord(run.usage_json) ? run.usage_json : {}),
+      [stageKey]: {
+        input_tokens: result?.usage?.input_tokens ?? null,
+        output_tokens: result?.usage?.output_tokens ?? null,
+        estimated_tokens: result?.estimated_tokens,
+      },
+    };
+    run.cost_json = {
+      ...(isRecord(run.cost_json) ? run.cost_json : {}),
+      [stageKey]: {
+        estimated_cost_eur: result?.estimated_cost_eur,
+        model: result?.model ?? null,
+      },
+    };
+    run.updated_at = new Date();
+    await repo.save(run);
   }
 
   private async recordAndEnforceHelpdeskRunCap(
@@ -7347,7 +7113,7 @@ export class AiAgentControlService {
       let briefProjection: { estimatedTokens: number; estimatedCostEur: number } | null = null;
       if (!this.diagnosticBriefSynthesis) {
         brief = buildFallbackDiagnosticBrief(briefInput, 'synthesis_service_unavailable');
-        await this.recordDiagnosticBriefRunStep(context, {
+        await this.recordStageRunStep(context, RUN_STEP_STAGES.diagnosticBrief, {
           runId: alertResult.run_id,
           stepIndex: stepIndex++,
           status: 'skipped',
@@ -7356,7 +7122,7 @@ export class AiAgentControlService {
         });
       } else if (process.env.AI_AGENT_DIAGNOSTIC_BRIEF === '0') {
         brief = buildFallbackDiagnosticBrief(briefInput, 'synthesis_disabled_by_env');
-        await this.recordDiagnosticBriefRunStep(context, {
+        await this.recordStageRunStep(context, RUN_STEP_STAGES.diagnosticBrief, {
           runId: alertResult.run_id,
           stepIndex: stepIndex++,
           status: 'skipped',
@@ -7375,7 +7141,7 @@ export class AiAgentControlService {
           || baseUsageEstimate.estimatedCostEur + briefProjection.estimatedCostEur > guardrails.maxEstimatedCostEur
         ) {
           brief = buildFallbackDiagnosticBrief(briefInput, 'synthesis_projected_over_per_run_cap');
-          await this.recordDiagnosticBriefRunStep(context, {
+          await this.recordStageRunStep(context, RUN_STEP_STAGES.diagnosticBrief, {
             runId: alertResult.run_id,
             stepIndex: stepIndex++,
             status: 'skipped',
@@ -7395,10 +7161,10 @@ export class AiAgentControlService {
           const briefStepIndex = stepIndex++;
           brief = await this.diagnosticBriefSynthesis.synthesizeDiagnosticBrief(context, briefInput);
           if (brief.estimated_tokens > 0) {
-            await this.recordDiagnosticBriefUsage(context, { runId: alertResult.run_id, brief });
+            await this.recordStageUsage(context, 'diagnostic_brief', alertResult.run_id, brief);
             chargeRunLlmUsage(brief);
           }
-          await this.recordDiagnosticBriefRunStep(context, {
+          await this.recordStageRunStep(context, RUN_STEP_STAGES.diagnosticBrief, {
             runId: alertResult.run_id,
             stepIndex: briefStepIndex,
             status: brief.fallback
@@ -8060,7 +7826,7 @@ export class AiAgentControlService {
           warnings: [`${evidenceProjection.attachmentCount} screenshot(s) not analyzed: projected over the per-run LLM usage cap.`],
           skippedReason: 'vision_projected_over_per_run_cap',
         };
-        await this.recordEvidenceExtractionRunStep(context, {
+        await this.recordStageRunStep(context, RUN_STEP_STAGES.evidenceExtraction, {
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
           status: 'skipped',
@@ -8108,14 +7874,11 @@ export class AiAgentControlService {
             },
           });
           if (ticketImageExtraction.estimated_tokens > 0) {
-            await this.recordEvidenceExtractionUsage(context, {
-              runId: ticketResult.run_id,
-              evidenceExtraction: ticketImageExtraction,
-            });
+            await this.recordStageUsage(context, 'evidence_extraction', ticketResult.run_id, ticketImageExtraction);
             chargeRunLlmUsage(ticketImageExtraction);
           }
           if (evidenceStepIndex != null) {
-            await this.recordEvidenceExtractionRunStep(context, {
+            await this.recordStageRunStep(context, RUN_STEP_STAGES.evidenceExtraction, {
               runId: ticketResult.run_id,
               stepIndex: evidenceStepIndex,
               status: ticketImageExtraction.skippedReason && ticketImageExtraction.estimated_tokens === 0 ? 'skipped' : 'completed',
@@ -8139,7 +7902,7 @@ export class AiAgentControlService {
             skippedReason: 'vision_call_error',
           };
           if (evidenceStepIndex != null) {
-            await this.recordEvidenceExtractionRunStep(context, {
+            await this.recordStageRunStep(context, RUN_STEP_STAGES.evidenceExtraction, {
               runId: ticketResult.run_id,
               stepIndex: evidenceStepIndex,
               status: 'failed',
@@ -8198,7 +7961,7 @@ export class AiAgentControlService {
         knowledgeNeedRepresentation = this.ticketNeedBuilder.buildDeterministicNeedRepresentation(needInput, [
           'Need builder skipped: projected over the per-run LLM usage cap.',
         ]);
-        await this.recordNeedRepresentationRunStep(context, {
+        await this.recordStageRunStep(context, RUN_STEP_STAGES.needRepresentation, {
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
           status: 'skipped',
@@ -8215,14 +7978,11 @@ export class AiAgentControlService {
         try {
           knowledgeNeedRepresentation = await this.ticketNeedBuilder.buildNeedRepresentation(context, needInput);
           if (knowledgeNeedRepresentation.estimated_tokens > 0) {
-            await this.recordNeedRepresentationUsage(context, {
-              runId: ticketResult.run_id,
-              needRepresentation: knowledgeNeedRepresentation,
-            });
+            await this.recordStageUsage(context, 'need_representation', ticketResult.run_id, knowledgeNeedRepresentation);
             chargeRunLlmUsage(knowledgeNeedRepresentation);
           }
           if (needStepIndex != null) {
-            await this.recordNeedRepresentationRunStep(context, {
+            await this.recordStageRunStep(context, RUN_STEP_STAGES.needRepresentation, {
               runId: ticketResult.run_id,
               stepIndex: needStepIndex,
               status: knowledgeNeedRepresentation.estimated_tokens > 0 ? 'completed' : 'skipped',
@@ -8243,7 +8003,7 @@ export class AiAgentControlService {
             `Need builder unavailable: ${message.slice(0, 220)}`,
           ]);
           if (needStepIndex != null) {
-            await this.recordNeedRepresentationRunStep(context, {
+            await this.recordStageRunStep(context, RUN_STEP_STAGES.needRepresentation, {
               runId: ticketResult.run_id,
               stepIndex: needStepIndex,
               status: 'failed',
@@ -8361,10 +8121,7 @@ export class AiAgentControlService {
         })
         : buildFallbackKnowledgeInterpretation(knowledgeSearchPlan, mergedKnowledgeCandidates);
       if (knowledgeInterpretation.estimated_tokens > 0) {
-        await this.recordKnowledgeInterpretationUsage(context, {
-          runId: ticketResult.run_id,
-          interpretation: knowledgeInterpretation,
-        });
+        await this.recordStageUsage(context, 'knowledge_interpretation', ticketResult.run_id, knowledgeInterpretation);
         chargeRunLlmUsage(knowledgeInterpretation);
       }
       const appliedInterpretation = applyKnowledgeInterpretation(mergedKnowledgeCandidates, knowledgeInterpretation);
@@ -8513,7 +8270,7 @@ export class AiAgentControlService {
       }
       if (!this.replySynthesis) {
         synthesisFallbackReason = 'synthesis_service_unavailable';
-        await this.recordSynthesisRunStep(context, {
+        await this.recordStageRunStep(context, RUN_STEP_STAGES.synthesis, {
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
           status: 'skipped',
@@ -8524,7 +8281,7 @@ export class AiAgentControlService {
       }
       if (process.env.AI_AGENT_REPLY_SYNTHESIS === '0') {
         synthesisFallbackReason = 'synthesis_disabled_by_env';
-        await this.recordSynthesisRunStep(context, {
+        await this.recordStageRunStep(context, RUN_STEP_STAGES.synthesis, {
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
           status: 'skipped',
@@ -8557,7 +8314,7 @@ export class AiAgentControlService {
         )
       ) {
         synthesisFallbackReason = 'synthesis_projected_over_per_run_cap';
-        await this.recordSynthesisRunStep(context, {
+        await this.recordStageRunStep(context, RUN_STEP_STAGES.synthesis, {
           runId: ticketResult.run_id,
           stepIndex: stepIndex++,
           status: 'skipped',
@@ -8589,12 +8346,9 @@ export class AiAgentControlService {
           if (replySynthesisResult.fallback_reason) {
             synthesisFallbackReason = replySynthesisResult.fallback_reason;
           }
-          await this.recordSynthesisUsage(context, {
-            runId: ticketResult.run_id,
-            synthesis: replySynthesisResult,
-          });
+          await this.recordStageUsage(context, 'synthesis', ticketResult.run_id, replySynthesisResult);
           chargeRunLlmUsage(replySynthesisResult);
-          await this.recordSynthesisRunStep(context, {
+          await this.recordStageRunStep(context, RUN_STEP_STAGES.synthesis, {
             runId: ticketResult.run_id,
             stepIndex: synthesisStepIndex,
             status: 'completed',
@@ -8618,7 +8372,7 @@ export class AiAgentControlService {
           });
         } catch (error) {
           synthesisFallbackReason = error instanceof Error ? `synthesis_error:${error.message.slice(0, 180)}` : 'synthesis_error';
-          await this.recordSynthesisRunStep(context, {
+          await this.recordStageRunStep(context, RUN_STEP_STAGES.synthesis, {
             runId: ticketResult.run_id,
             stepIndex: synthesisStepIndex,
             status: 'failed',
@@ -8746,10 +8500,7 @@ export class AiAgentControlService {
       } else {
         actionPlannerResult = await this.actionPlanner.planActions(context, actionPlannerInput);
         if (actionPlannerResult) {
-          await this.recordActionPlannerUsage(context, {
-            runId: ticketResult.run_id,
-            planner: actionPlannerResult,
-          });
+          await this.recordStageUsage(context, 'action_planner', ticketResult.run_id, actionPlannerResult);
           chargeRunLlmUsage(actionPlannerResult);
         } else {
           actionPlannerFallbackReason = 'action_planner_unavailable_or_invalid';
