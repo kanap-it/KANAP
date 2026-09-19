@@ -64,14 +64,26 @@ Pulse **Sincronizar ahora**. KANAP lee Netbox y muestra **Revisar antes de aplic
 
 La vista previa está agrupada:
 
-- **Nuevos activos**: objetos sin equivalente en KANAP. Se van a crear.
-- **Activos actualizados**: objetos asociados a un activo existente que difiere. Cada uno enumera los campos que cambian, campo por campo, como `antes → después`.
-- **Por decidir**: objetos sobre los que KANAP no decide por su cuenta. No les pasa nada hasta que los resuelva en la página.
+- **Por crear**: objetos sin equivalente en KANAP. Se van a crear.
+- **Por actualizar**: objetos asociados a un activo existente que difiere. Todavía no se ha modificado nada, los valores se escriben cuando usted aplica. Cada uno enumera los campos que cambian, campo por campo, como `antes → después`.
+- **Por decidir**: objetos sobre los que KANAP no decide por su cuenta. No les pasa nada hasta que los resuelva, aquí o más tarde en la página.
 - **Omitidos**: objetos fuera de alcance, contados por motivo (rol sin correspondencia, sitio sin correspondencia, sin nombre en Netbox, ignorado por usted).
 - **Ausentes de Netbox**: activos que una ejecución anterior vinculó y cuyo objeto de Netbox ha desaparecido.
 - **Avisos**: valores que Netbox devuelve y que KANAP no ha podido retomar, por ejemplo un sistema operativo que no está en su catálogo. Un objeto que no tiene nada que cambiar pero sí algo que señalar aparece también aquí.
 
-Léala y pulse **Aplicar**. Los objetos que ya son idénticos se cuentan como sin cambios y no se tocan en absoluto. En inventarios grandes, la vista previa enumera solo los 500 primeros objetos; la ejecución aplica todo.
+Léala y pulse **Aplicar**. Los objetos que ya son idénticos se cuentan como sin cambios y no se tocan en absoluto. En inventarios grandes, la vista previa enumera solo los 500 primeros objetos; la ejecución aplica todo. El filtro de la parte superior restringe la lista a un objeto o a un nombre de activo.
+
+### Corregir la vista previa antes de aplicar
+
+KANAP solo puede reconocer un activo por su número de serie, su nombre de host o su nombre. Un equipo que usted ha renombrado, sin ninguno de estos datos en común, aparece en **Por crear** y se crearía por segunda vez. La vista previa le permite resolverlo antes. Una fila para la que KANAP propone algo tiene un botón, **Corregir** en **Por crear** y **Por actualizar**, **Decidir** en los objetos que necesitan una decisión. Un objeto ya vinculado por una ejecución anterior no lo tiene: está resuelto, y la fila solo muestra lo que cambia. Una primera asociación indica en qué se basa («Reconocido por su número de serie»), para que pueda detectar un error. El botón abre estas opciones:
+
+- **Vincular a un activo existente**: busque el activo y selecciónelo. La fila pasa a **Por actualizar** y muestra lo que Netbox va a cambiar en ese activo, campo por campo, para que siga leyendo antes de aplicar.
+- **Crear un activo nuevo**: para un objeto clasificado en **Por decidir**, o para uno que KANAP ha asociado al activo equivocado.
+- **No importar este objeto**: el objeto queda fuera de esta sincronización y de las siguientes. Ningún activo se modifica. Pasa a **Resueltos por usted** en la vista previa y, una vez aplicado, a **Ignorados** en la página, donde podrá recuperarlo más tarde.
+
+Una fila sobre la que ha decidido lo indica y ofrece **Deshacer**. Cuando varios objetos clasificados en **Por decidir** tienen un único activo sugerido, **Vincular los N objetos que solo tienen una sugerencia** los resuelve todos de una vez. Pasan a **Por actualizar**, donde lee lo que cambia antes de aplicar.
+
+No se escribe nada mientras decide. Sus decisiones se aplican junto con todo lo demás cuando pulsa **Aplicar**, y se mantienen después: la sincronización automática sigue los vínculos que usted ha creado. Cerrar la vista previa los descarta.
 
 La aplicación se ejecuta en segundo plano. La página la sigue y se actualiza sola cuando termina.
 
@@ -87,6 +99,8 @@ Una primera importación en un KANAP ya poblado tiene que encontrar los activos 
 4. **El nombre del activo**, ignorando mayúsculas y el sufijo de dominio.
 
 Si un paso encuentra exactamente un activo, esa es la asociación. Si encuentra varios, KANAP se detiene ahí y clasifica el objeto en **Por decidir** con los candidatos enumerados. Nunca fusiona por conjetura.
+
+**La dirección IP es una red de seguridad, nunca una asociación.** Cuando ninguno de los cuatro pasos encuentra nada, KANAP comprueba si algún activo ya lleva la dirección principal del objeto. Si lo hay, el objeto no se crea: pasa a **Por decidir** con ese activo como sugerencia, y usted confirma si se trata del mismo equipo. Una dirección por sí sola nunca vincula nada, ni siquiera cuando un único activo la lleva. Las direcciones se reutilizan, se comparten entre los miembros de un clúster o simplemente están obsoletas, y un vínculo equivocado dejaría que Netbox sobrescribiera el activo equivocado. La sincronización automática sigue la misma regla, así que un equipo nuevo de Netbox en una dirección conocida le espera en lugar de convertirse en un duplicado.
 
 Otras dos reglas mantienen el resultado limpio:
 
@@ -150,7 +164,7 @@ Una sincronización nunca pone un activo en **Retirado**. Retirar un equipo es u
 
 ## Sincronización automática
 
-Active **Sincronización automática** en la tarjeta de la integración y KANAP ejecuta el mismo trabajo cada hora, aplicando los cambios sin vista previa. El conmutador es por espacio de trabajo, y solo se visitan los espacios de trabajo que lo han activado.
+Active **Sincronización automática** en la tarjeta de la integración y KANAP ejecuta el mismo trabajo cada hora, aplicando los cambios sin vista previa. El conmutador es por espacio de trabajo, y solo se visitan los espacios de trabajo que lo han activado. El trabajo horario nunca hace la primera importación: empieza cuando usted ha aplicado una sincronización y esta ha terminado sin errores. Hasta entonces el conmutador puede estar activado sin que se ejecute nada.
 
 Los objetos que necesitan una decisión no se resuelven nunca de forma automática. Se acumulan en **Por decidir** y le esperan.
 
@@ -166,7 +180,7 @@ Debajo, la pestaña **Objetos** enumera todos los objetos de Netbox dentro del a
 
 | Estado | Qué significa | Qué puede hacer |
 |--------|---------------|-----------------|
-| **Por decidir** | Varios activos podrían ser este objeto, o dos objetos han llegado al mismo activo. | **Vincular a...** uno de los candidatos, **Crear un activo**, o **Ignorar**. |
+| **Por decidir** | Varios activos podrían ser este objeto, dos objetos han llegado al mismo activo, o un activo ya lleva la dirección IP del objeto. | **Vincular a...** uno de los candidatos, **Crear un activo**, o **Ignorar**. |
 | **Ausentes de Netbox** | El objeto ha desaparecido de Netbox. El activo queda intacto. | **Marcar el activo como retirado**, **Ignorar**, o dejarlo. |
 | **Errores** | El objeto no se ha podido escribir, con el motivo en la columna Mensaje. | Corrija la causa y vuelva a ejecutar, o **Ignorar** el objeto. |
 | **Ignorados** | Le ha dicho a KANAP que deje este objeto en paz. Se omite en cada ejecución. | **Dejar de ignorar** lo devuelve a la lista. Cuando el registro no contiene nada que decidir, lo retira en su lugar y el objeto se vuelve a evaluar en la siguiente sincronización. |
@@ -211,5 +225,6 @@ El widget no molesta cuando no hay nada que hacer: una línea que dice que la si
 
 - **Primero las correspondencias, después la sincronización.** Las correspondencias son el alcance. Empiece por los roles y los sitios de los que esté seguro, ejecute una vez, y amplíe después.
 - **Lea la vista previa en la primera ejecución.** Es la única ejecución en la que todas las asociaciones son nuevas, así que es la que merece leerse línea por línea.
+- **Equipos renombrados: revise la lista Por crear.** Todo lo que reconozca ahí está a punto de duplicarse. Vincúlelo a su activo en la vista previa, o rellene su número de serie o su nombre de host en KANAP y vuelva a abrir la vista previa.
 - **Rellene los números de serie.** Es la asociación más sólida que existe. Los activos que llevan número de serie sobreviven a los cambios de nombre en ambos lados sin caer nunca en **Por decidir**.
 - **Espere antes de activar la ejecución horaria.** Dos ejecuciones manuales limpias seguidas, la segunda sin nada que cambiar, significan que las correspondencias y las asociaciones son correctas.

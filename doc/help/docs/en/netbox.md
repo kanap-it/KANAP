@@ -64,14 +64,26 @@ Press **Synchronise now**. KANAP reads Netbox and shows **Review before applying
 
 The preview is grouped:
 
-- **New assets**: objects with no counterpart in KANAP. They will be created.
-- **Updated assets**: objects matched to an existing asset that differs. Each one lists the fields that change, field by field, as `before → after`.
-- **Needs a decision**: objects KANAP will not decide on its own. Nothing happens to them until you settle them on the page.
+- **To create**: objects with no counterpart in KANAP. They will be created.
+- **To update**: objects matched to an existing asset that differs. Nothing is changed yet, the values are written when you apply. Each one lists the fields that change, field by field, as `before → after`.
+- **Needs a decision**: objects KANAP will not decide on its own. Nothing happens to them until you settle them, here or later on the page.
 - **Skipped**: objects out of scope, counted by reason (role not mapped, site not mapped, no name in Netbox, ignored by you).
 - **Missing from Netbox**: assets a previous run linked whose Netbox object is gone.
 - **Warnings**: values Netbox reports that KANAP could not take over, for example an operating system that is not in your catalogue. An object with nothing to change but something to report appears here too.
 
-Read it, then press **Apply**. Objects that are already identical are counted as unchanged and not touched at all. Large inventories list only the first 500 rows in the preview; the run itself applies everything.
+Read it, then press **Apply**. Objects that are already identical are counted as unchanged and not touched at all. Large inventories list only the first 500 rows in the preview; the run itself applies everything. The filter at the top narrows the list to an object or an asset name.
+
+### Correct the preview before applying
+
+KANAP can only recognise an asset through its serial number, its host name or its name. Equipment you renamed, with none of these in common, shows up under **To create** and would be created a second time. The preview lets you settle that first. A row KANAP proposes something for has a button, **Correct** under **To create** and **To update**, **Decide** on objects that need a decision. An object already linked by an earlier run has none: it is settled, and the row only shows what changes. A first match says what it rests on ("Recognised by its serial number"), so you can tell a wrong one. The button opens these choices:
+
+- **Link to an existing asset**: search for the asset and pick it. The row moves to **To update** and shows what Netbox will change on that asset, field by field, so you still read before you apply.
+- **Create a new asset**: for an object under **Needs a decision**, or one KANAP matched to the wrong asset.
+- **Do not import this object**: the object is left out of this synchronisation and the next ones. Nothing happens to any asset. It moves to **Settled by you** in the preview and, once applied, to **Ignored** on the page, where you can take it back later.
+
+A row you decided on says so and offers **Undo**. When several objects under **Needs a decision** have a single suggested asset, **Link the N objects that have a single suggestion** settles them all at once. They move to **To update**, where you read what changes before applying.
+
+Nothing is written while you decide. Your choices are applied with everything else when you press **Apply**, and they hold afterwards: the automatic synchronisation follows the links you made. Closing the preview discards them.
 
 Applying runs in the background. The page follows it and refreshes on its own when it finishes.
 
@@ -87,6 +99,8 @@ A first import into a populated KANAP has to find the assets you already have in
 4. **The asset name**, ignoring case and the domain suffix.
 
 If a step finds exactly one asset, that is the match. If it finds several, KANAP stops there and files the object under **To decide** with the candidates listed. It never merges on a guess.
+
+**The IP address is a safety net, never a match.** When none of the four steps finds anything, KANAP checks whether an asset already holds the object's primary address. If one does, the object is not created: it goes to **To decide** with that asset as the suggestion, and you confirm whether it is the same equipment. An address alone never links anything, even when a single asset holds it. Addresses are reused, shared between cluster members, or simply out of date, and a wrong link would let Netbox overwrite the wrong asset. The automatic synchronisation follows the same rule, so a new Netbox device on a known address waits for you instead of becoming a duplicate.
 
 Two further rules keep the result clean:
 
@@ -150,7 +164,7 @@ A synchronisation never sets an asset to **Retired**. Retiring equipment is a de
 
 ## Automatic synchronisation
 
-Turn **Automatic synchronisation** on in the integration card and KANAP runs the same job every hour, applying the changes without a preview. The switch is per tenant, and only tenants that turned it on are visited.
+Turn **Automatic synchronisation** on in the integration card and KANAP runs the same job every hour, applying the changes without a preview. The switch is per tenant, and only tenants that turned it on are visited. The hourly job never does the first import: it starts once you have applied a synchronisation yourself and it finished without error. Until then the switch can be on and nothing runs.
 
 Objects that need a decision are never resolved automatically. They pile up under **To decide** and wait for you.
 
@@ -166,7 +180,7 @@ Below it, the **Objects** tab lists every Netbox object in scope, filtered by st
 
 | State | What it means | What you can do |
 |-------|---------------|-----------------|
-| **To decide** | Several assets could be this object, or two objects reached the same asset. | **Link to...** one of the candidates, **Create new asset**, or **Ignore**. |
+| **To decide** | Several assets could be this object, two objects reached the same asset, or an asset already holds the object's IP address. | **Link to...** one of the candidates, **Create new asset**, or **Ignore**. |
 | **Missing from Netbox** | The object is gone from Netbox. The asset is untouched. | **Mark asset as retired**, **Ignore**, or leave it. |
 | **Errors** | The object could not be written, with the reason in the message column. | Fix the cause and run again, or **Ignore** the object. |
 | **Ignored** | You told KANAP to leave this object alone. It is skipped by every run. | **Stop ignoring** puts it back in the list. When the record holds nothing to decide, it is removed instead and the object is judged afresh at the next synchronisation. |
@@ -211,5 +225,6 @@ The tile stays out of the way when there is nothing to do: one line saying the s
 
 - **Map first, synchronise second.** The mapping is the scope. Start with the roles and sites you are sure about, run once, and widen it afterwards.
 - **Read the preview on the first run.** It is the only run where every match is new, so it is the one worth reading line by line.
+- **Renamed equipment: check the To create list.** Anything you recognise there is about to be duplicated. Link it to its asset in the preview, or fill in its serial number or host name in KANAP and open the preview again.
 - **Fill in the serial numbers.** It is the sturdiest match there is. Assets that carry a serial number survive renames on both sides without ever landing in **To decide**.
 - **Wait before turning the hourly run on.** Two clean manual runs in a row, the second one showing nothing to change, means the mapping and the matches are right.
