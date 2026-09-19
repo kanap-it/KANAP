@@ -1,11 +1,11 @@
 import {
-  Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res,
+  Body, Controller, Delete, ForbiddenException, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res,
   UploadedFile, UseGuards, UseInterceptors,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
@@ -44,8 +44,19 @@ export class PortfolioProjectsController {
     private readonly dataSource: DataSource,
   ) {}
 
+  /**
+   * The tenant-bound manager for this request. `TenantInitGuard` creates the query runner for every
+   * non-public tenant route, so a missing manager means the request has no tenant context.
+   */
+  private requireManager(ctx: TenantRequest): EntityManager {
+    if (!ctx.manager) {
+      throw new ForbiddenException('Tenant context is not available');
+    }
+    return ctx.manager;
+  }
+
   private resolve(idOrRef: string, ctx: TenantRequest): Promise<string> {
-    return resolveToUuid(idOrRef, 'project', ctx.manager);
+    return resolveToUuid(idOrRef, 'project', this.requireManager(ctx));
   }
 
   private projectAccessScope(ctx: TenantRequest, level: PermissionLevel = 'reader') {
@@ -119,7 +130,7 @@ export class PortfolioProjectsController {
     @Res() res: Response,
   ) {
     const result = await this.csvSvc.export({
-      manager: ctx.manager,
+      manager: this.requireManager(ctx),
       tenantId: ctx.tenantId,
       scope,
       fields: fields ? fields.split(',').map((f) => f.trim()) : undefined,
@@ -151,7 +162,7 @@ export class PortfolioProjectsController {
         operation,
       },
       {
-        manager: ctx.manager,
+        manager: this.requireManager(ctx),
         tenantId: ctx.tenantId,
         userId: ctx.userId,
       },

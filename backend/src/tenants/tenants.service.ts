@@ -1,7 +1,7 @@
 import { catalogToMetadata, DEFAULT_CLASSIFICATION_CATALOG } from '../it-ops-settings/classification-catalog';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, IsNull, Repository } from 'typeorm';
 import { Tenant, TenantStatus } from './tenant.entity';
 import { RolesService } from '../roles/roles.service';
 import { Role } from '../roles/role.entity';
@@ -238,7 +238,7 @@ export class TenantsService {
   findBySlug(slug: string, opts?: { manager?: EntityManager }) {
     const repo = this.getRepo(opts?.manager);
     // Only consider non-deleted tenants (deleted_at IS NULL)
-    return repo.findOne({ where: { slug, deleted_at: null } });
+    return repo.findOne({ where: { slug, deleted_at: IsNull() } });
   }
 
   findById(id: string, opts?: { manager?: EntityManager }) {
@@ -296,7 +296,7 @@ export class TenantsService {
       throw new BadRequestException('Slug not available');
     }
     // Ignore tenants that were previously deleted when checking for existing
-    const existing = await repo.findOne({ where: { slug, deleted_at: null } });
+    const existing = await repo.findOne({ where: { slug, deleted_at: IsNull() } });
     if (existing) {
       await this.ensureSystemRoles(manager, existing.id);
       await this.seedDefaultTaskTypes(manager, existing.id);

@@ -2864,11 +2864,12 @@ export class AiCapabilityRegistry {
       where: {
         tenant_id: context.tenantId,
         run_id: action.run_id,
-        target_type: action.target_type,
         target_ref: action.target_ref,
-        provider_kind: action.provider_kind,
-        provider_key: action.provider_key,
         status: 'executed',
+        // TypeORM skips null/undefined where values, so a null column simply adds no predicate.
+        ...(action.target_type != null ? { target_type: action.target_type } : {}),
+        ...(action.provider_kind != null ? { provider_kind: action.provider_kind } : {}),
+        ...(action.provider_key != null ? { provider_key: action.provider_key } : {}),
       },
     });
     return siblings.filter((sibling) => {

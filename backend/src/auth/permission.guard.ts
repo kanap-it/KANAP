@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import {
   REQUIRE_LEVEL_KEY,
   REQUIRE_ANY_LEVEL_KEY,
@@ -41,7 +41,7 @@ export class PermissionGuard implements CanActivate {
     const userJwt = req.user as { sub?: string; email?: string; role?: string } | undefined;
     if (!userJwt?.sub) return false;
 
-    const manager = (req as any)?.queryRunner?.manager ?? this.dataSource.manager;
+    const manager: EntityManager = (req as any)?.queryRunner?.manager ?? this.dataSource.manager;
     const user = await this.users.findById(userJwt.sub, { manager });
     if (!user) return false;
     if (user.status !== 'enabled') {

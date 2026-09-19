@@ -676,6 +676,10 @@ export class CompaniesService {
     const lifecycle = resolveLifecycleState({ nextStatus: statusInput, nextDisabledAt: disabled_at });
     const entity = repo.create({
       ...rest,
+      // These columns are NOT NULL on the entity while the DTO allows null
+      name: rest.name ?? undefined,
+      country_iso: rest.country_iso ?? undefined,
+      city: rest.city ?? undefined,
       status: lifecycle.status,
       disabled_at: lifecycle.disabled_at,
     });

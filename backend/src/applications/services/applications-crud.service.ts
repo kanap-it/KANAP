@@ -524,7 +524,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   }
 
   // Derived users
-  async computeDerivedUsers(appId: string, year: number, mode: 'manual' | 'it_users' | 'headcount', opts?: ServiceOpts): Promise<number> {
+  async computeDerivedUsers(appId: string, year: number | null, mode: 'manual' | 'it_users' | 'headcount' | null, opts?: ServiceOpts): Promise<number> {
     const mg = this.getManager(opts);
     await this.assertVisible(appId, opts?.accessScope, mg);
     if (mode === 'manual') {

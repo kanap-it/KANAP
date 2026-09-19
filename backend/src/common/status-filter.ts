@@ -1,4 +1,4 @@
-import { Brackets, SelectQueryBuilder } from 'typeorm';
+import { Brackets, ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { normalizeAgFilterModel } from './ag-grid-filtering';
 import { StatusState } from './status';
 
@@ -80,7 +80,7 @@ export function buildStatusWhereFragment(opts: StatusFilterOptions): StatusWhere
   };
 }
 
-export function applyStatusFilter<T>(
+export function applyStatusFilter<T extends ObjectLiteral>(
   qb: SelectQueryBuilder<T>,
   opts: StatusFilterOptions,
 ): SelectQueryBuilder<T> {
@@ -120,7 +120,8 @@ export function extractStatusFilterFromAgModel(filters: any): {
     return { sanitizedFilters: rest };
   }
   if (Array.isArray(model.values) && model.values.length > 0) {
-    const parsed = model.values
+    const rawValues: unknown[] = model.values;
+    const parsed = rawValues
       .map((value) => parseStatusValue(value))
       .filter((val): val is StatusState => val !== undefined);
     if (parsed.length > 0) {

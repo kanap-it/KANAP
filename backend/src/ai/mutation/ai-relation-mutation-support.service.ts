@@ -731,6 +731,7 @@ export class AiRelationMutationSupportService {
       case 'projects': return { table: 'portfolio_projects', labelSql: `COALESCE(CONCAT('PRJ-', t.item_number::text, ' - ', t.name), t.name, t.id::text)` };
       case 'requests': return { table: 'portfolio_requests', labelSql: `COALESCE(CONCAT('REQ-', t.item_number::text, ' - ', t.name), t.name, t.id::text)` };
       case 'spend_items': return { table: 'spend_items', labelSql: 'COALESCE(t.product_name, t.id::text)' };
+      case 'suppliers': return { table: 'suppliers', labelSql: 'COALESCE(t.name, t.id::text)' };
       case 'users': return { table: 'users', labelSql: `COALESCE(NULLIF(TRIM(CONCAT(COALESCE(t.first_name, ''), ' ', COALESCE(t.last_name, ''))), ''), t.email, t.id::text)` };
     }
   }

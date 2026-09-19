@@ -1421,7 +1421,7 @@ export class KnowledgeService {
     userId: string | null | undefined,
   ): Promise<'reader' | 'member' | 'admin' | null> {
     const level = await this.getPermissionLevelForUser(manager, userId, 'knowledge');
-    return this.hasPermissionLevel(level, 'reader')
+    return this.hasPermissionLevel(level || undefined, 'reader')
       ? (level as 'reader' | 'member' | 'admin')
       : null;
   }

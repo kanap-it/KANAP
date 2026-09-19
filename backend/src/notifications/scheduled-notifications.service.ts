@@ -67,8 +67,9 @@ export class ScheduledNotificationsService implements OnModuleInit {
           `SELECT slug FROM tenants WHERE id = $1`,
           [tenantId],
         );
-        if (result.length > 0 && result[0].slug) {
-          slug = result[0].slug;
+        const slugFromDb: string | undefined = result[0]?.slug ?? undefined;
+        if (slugFromDb) {
+          slug = slugFromDb;
           this.tenantSlugCache.set(tenantId, slug);
         }
       }

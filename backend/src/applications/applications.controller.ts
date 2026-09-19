@@ -8,7 +8,7 @@ import { ApplicationsCsvService } from './applications-csv.service';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { attachmentMulterOptions, csvImportMulterOptions, documentImportMulterOptions, inlineImageMulterOptions } from '../common/upload';
 import { contentDisposition } from '../common/content-disposition';
 import { StorageService } from '../common/storage/storage.service';
@@ -32,7 +32,6 @@ import {
   ApplicationMapSummaryResponse,
   VersionLineageResponse,
   BulkOperationResponse,
-  TotalUsersResponse,
   ApplicationsBulkDeleteResult,
   ApplicationWithServerAssignments,
   CsvImportResult,
@@ -58,6 +57,17 @@ export class ApplicationsController {
     private readonly dataSource: DataSource,
     private readonly tasks: TasksUnifiedService,
   ) {}
+
+  /**
+   * The tenant-bound manager for this request. `TenantInitGuard` creates the query runner for every
+   * non-public tenant route, so a missing manager means the request has no tenant context.
+   */
+  private requireManager(ctx: TenantRequest): EntityManager {
+    if (!ctx.manager) {
+      throw new ForbiddenException('Tenant context is not available');
+    }
+    return ctx.manager;
+  }
 
   private async participationScope(
     ctx: TenantRequest,
@@ -146,7 +156,7 @@ export class ApplicationsController {
     @Tenant() ctx: TenantRequest,
   ): Promise<void> {
     const result = await this.csvSvc.export({
-      manager: ctx.manager,
+      manager: this.requireManager(ctx),
       tenantId: ctx.tenantId,
       query,
       scope,
@@ -573,7 +583,7 @@ export class ApplicationsController {
         operation,
       },
       {
-        manager: ctx.manager,
+        manager: this.requireManager(ctx),
         tenantId: ctx.tenantId,
         userId: ctx.userId,
       },
@@ -922,7 +932,7 @@ export class ApplicationsController {
     @Param('id') id: string,
     @Query('year') yearRaw: string | undefined,
     @Tenant() ctx: TenantRequest,
-  ): Promise<TotalUsersResponse> {
+  ): Promise<{ total: number; year: number | null }> {
     const y = yearRaw ? parseInt(String(yearRaw), 10) : undefined;
     return this.svc.getTotalUsers(id, y, await this.readApplicationOpts(ctx));
   }

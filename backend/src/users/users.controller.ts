@@ -172,7 +172,7 @@ export class UsersController {
       order: { is_primary: 'DESC', created_at: 'ASC' },
     });
     return {
-      items: userRoles.map(ur => ({
+      items: userRoles.map((ur: UserRole) => ({
         id: ur.role_id,
         name: ur.role?.role_name ?? null,
         is_primary: ur.is_primary,
@@ -243,8 +243,8 @@ export class UsersController {
         table: 'user_roles',
         recordId: id,
         action: 'update',
-        before: { roles: previousRoles.map((ur) => ({ id: ur.role_id, name: ur.role?.role_name ?? null })) },
-        after: { roles: roleIds.map((rid) => ({ id: rid, name: roles.find((r) => r.id === rid)?.role_name ?? null })) },
+        before: { roles: previousRoles.map((ur: UserRole) => ({ id: ur.role_id, name: ur.role?.role_name ?? null })) },
+        after: { roles: roleIds.map((rid) => ({ id: rid, name: roles.find((r: Role) => r.id === rid)?.role_name ?? null })) },
         userId: req.user?.sub ?? null,
       },
       manager ? { manager } : undefined,

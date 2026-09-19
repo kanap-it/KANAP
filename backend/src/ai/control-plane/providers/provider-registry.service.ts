@@ -268,6 +268,10 @@ export class AiProviderRegistryService {
         return this.automation(context, providerKey);
       case 'kanap_domain':
         return this.kanapDomain(context, providerKey);
+      // Inventory sources (Netbox) reuse ai_adapter_configs for their connection and credential;
+      // they deliberately have no control-plane provider adapter.
+      case 'inventory':
+        throw new Error(`No control-plane provider adapter exists for provider kind "${providerKind}".`);
     }
   }
 

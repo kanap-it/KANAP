@@ -4,3 +4,8 @@ declare module 'csv-parse/sync' {
 }
 
 declare module 'adm-zip';
+
+// `cors` ships without types and @types/cors is not a dependency. Declared here, alongside
+// the other untyped modules, rather than adding a package: strict mode's noImplicitAny was
+// the only thing that objected to it.
+declare module 'cors';

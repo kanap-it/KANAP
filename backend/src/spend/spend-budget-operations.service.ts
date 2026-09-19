@@ -70,7 +70,7 @@ export class SpendBudgetOperationsService {
       action: 'Copy',
     }, { manager: mg });
 
-    const columnMapping = {
+    const columnMapping: Record<'budget' | 'revision' | 'follow_up' | 'landing', keyof SpendAmount> = {
       'budget': 'planned',
       'revision': 'committed',
       'follow_up': 'actual',
@@ -538,7 +538,7 @@ export class SpendBudgetOperationsService {
       action: 'Clear',
     }, { manager: mg });
 
-    const columnMapping = {
+    const columnMapping: Record<'budget' | 'revision' | 'follow_up' | 'landing', keyof SpendAmount> = {
       'budget': 'planned',
       'revision': 'committed',
       'follow_up': 'actual',

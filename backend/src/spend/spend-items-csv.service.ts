@@ -523,6 +523,10 @@ export class SpendItemsCsvService {
     const item_number = await this.itemNumbers.nextItemNumber('spend', tenantId, manager);
     const entity = repo.create({
       ...rest,
+      // These columns are NOT NULL on the entity while the DTO allows null
+      product_name: rest.product_name ?? undefined,
+      currency: rest.currency ?? undefined,
+      effective_start: rest.effective_start ?? undefined,
       item_number,
       status: lifecycle.status,
       disabled_at: lifecycle.disabled_at,

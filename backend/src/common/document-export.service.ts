@@ -607,7 +607,7 @@ export class DocumentExportService {
     const entry = zip.getEntry('content.xml');
     if (!entry) return;
 
-    const originalXml = entry.getData().toString('utf8');
+    const originalXml: string = entry.getData().toString('utf8');
     let changed = false;
     const updatedXml = originalXml.replace(/<draw:frame\b[^>]*>/gi, (tag) => {
       const widthMatch = tag.match(/\bsvg:width="([^"]+)"/i);

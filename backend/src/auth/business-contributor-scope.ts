@@ -1,5 +1,5 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { EntityManager, SelectQueryBuilder } from 'typeorm';
+import { EntityManager, ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { PermissionLevel } from '../permissions/permissions.service';
 
 export type ParticipationAccessScope = {
@@ -187,7 +187,7 @@ export function applicationParticipantCondition(alias: string, userRef: string):
   )`;
 }
 
-export function applyRequestParticipantScope<T>(
+export function applyRequestParticipantScope<T extends ObjectLiteral>(
   qb: SelectQueryBuilder<T>,
   accessScope: ParticipationAccessScope | undefined,
   alias = 'r',
@@ -198,7 +198,7 @@ export function applyRequestParticipantScope<T>(
   });
 }
 
-export function applyProjectParticipantScope<T>(
+export function applyProjectParticipantScope<T extends ObjectLiteral>(
   qb: SelectQueryBuilder<T>,
   accessScope: ParticipationAccessScope | undefined,
   alias = 'p',
@@ -209,7 +209,7 @@ export function applyProjectParticipantScope<T>(
   });
 }
 
-export function applyApplicationParticipantScope<T>(
+export function applyApplicationParticipantScope<T extends ObjectLiteral>(
   qb: SelectQueryBuilder<T>,
   accessScope: ParticipationAccessScope | undefined,
   alias = 'a',

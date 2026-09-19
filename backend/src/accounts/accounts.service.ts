@@ -305,6 +305,8 @@ export class AccountsService {
     }
     const entityLike: DeepPartial<Account> = {
       ...rest,
+      // `account_name` is NOT NULL: a null from the DTO must stay unset, not be written as NULL.
+      account_name: rest.account_name ?? undefined,
       account_number: rest.account_number != null ? String(rest.account_number) : undefined,
       consolidation_account_number:
         rest.consolidation_account_number != null ? rest.consolidation_account_number : null,

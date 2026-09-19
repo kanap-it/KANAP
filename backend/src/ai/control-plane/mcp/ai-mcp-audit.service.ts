@@ -127,7 +127,7 @@ export class AiMcpAuditService {
     };
   }
 
-  private normalizeFilters(filters: AiMcpAuditFilters): Required<AiMcpAuditFilters> {
+  private normalizeFilters(filters: AiMcpAuditFilters): Required<Omit<AiMcpAuditFilters, 'limit'>> & { limit: number } {
     const limit = filters.limit == null ? 50 : Number(filters.limit);
     if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
       throw new BadRequestException('limit must be an integer from 1 to 200.');

@@ -411,7 +411,7 @@ export class ApplicationsLifecycleService extends ApplicationsBaseService {
         ...original,
         id: undefined,
         interface_id: `${original.interface_id} ${nameSuffix}`,
-        name: original.name ? `${original.name} ${nameSuffix}` : null,
+        name: original.name ? `${original.name} ${nameSuffix}` : undefined,
         source_application_id: isSource ? targetAppId : original.source_application_id,
         target_application_id: isTarget ? targetAppId : original.target_application_id,
         lifecycle: 'proposed',

@@ -123,7 +123,7 @@ export class AuthController {
   async me(@Req() req: any) {
     const sub = req?.user?.sub as string | undefined;
     if (!sub) throw new BadRequestException({ code: 'INVALID_TOKEN', message: 'Invalid token' });
-    const manager = req?.queryRunner?.manager;
+    const manager: EntityManager | undefined = req?.queryRunner?.manager;
     const user = await this.users.findById(sub, { manager });
     if (!user) throw new BadRequestException({ code: 'USER_NOT_FOUND', message: 'User not found' });
     if (user.status !== 'enabled') {
@@ -257,7 +257,8 @@ export class AuthController {
       to: email,
       resetUrl,
       expiresInMinutes: this.auth.getPasswordResetExpirationMinutes(),
-      locale: user.locale,
+      // `getEmailStrings` / `resolveEmailLocale` treat null and undefined identically.
+      locale: user.locale ?? undefined,
     });
     return { ok: true };
   }
