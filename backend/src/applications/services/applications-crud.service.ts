@@ -88,7 +88,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     if (includeSupport) {
       support_contacts = await this.listSupportContactsInternal(appId, mg);
     }
-    const derived_total_users = await this.computeDerivedUsers(app.id, app.users_year, app.users_mode, { manager: mg });
+    const derived_total_users = await this.computeDerivedUsers(app.id, null, app.users_mode, { manager: mg });
     let instances: Array<any> = [];
     if (include.has('instances') || include.has('deployments')) {
       instances = await mg.query(
@@ -528,16 +528,15 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   async computeDerivedUsers(appId: string, year: number | null, mode: 'manual' | 'it_users' | 'headcount' | null, opts?: ServiceOpts): Promise<number> {
     const mg = this.getManager(opts);
     await this.assertVisible(appId, opts?.accessScope, mg);
-    // One rule for the grid column and this total: see buildDerivedUsersByApp. Without a
-    // year there is nothing to derive. The former copy passed `fiscal_year: null` to find(),
-    // which TypeORM drops, and so summed the metrics of every fiscal year.
+    // One rule for the grid column and this total: see buildDerivedUsersByApp. `year` is an
+    // optional reference year; without it the current year is used.
     let usersOverride: number | null = null;
     if (mode === 'manual') {
       const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
       usersOverride = app?.users_override ?? null;
     }
     const totals = await buildDerivedUsersByApp(
-      [{ id: appId, users_mode: mode, users_year: year, users_override: usersOverride }],
+      [{ id: appId, users_mode: mode, users_override: usersOverride, reference_year: year }],
       mg,
     );
     return totals[appId] ?? 0;
@@ -549,7 +548,7 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
     await this.assertVisible(resolvedAppId, opts?.accessScope, mg);
     const app = await mg.getRepository(Application).findOne({ where: { id: resolvedAppId } });
     if (!app) throw new NotFoundException('Application not found');
-    const year = typeof yearOverride === 'number' && !isNaN(yearOverride) ? yearOverride : app.users_year;
+    const year = typeof yearOverride === 'number' && !isNaN(yearOverride) ? yearOverride : new Date().getFullYear();
     const total = await this.computeDerivedUsers(resolvedAppId, year, app.users_mode, { manager: mg });
     return { total, year };
   }

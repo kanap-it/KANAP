@@ -1,18 +1,44 @@
 import { In } from 'typeorm';
 import type { Application } from '../application.entity';
 
-export type DerivedUsersInput = Pick<Application, 'id' | 'users_mode' | 'users_year' | 'users_override'>;
+export type DerivedUsersInput = Pick<Application, 'id' | 'users_mode' | 'users_override'> & {
+  /** Year to read the metrics for. Defaults to the current year. */
+  reference_year?: number | null;
+};
+
+/**
+ * The metric to use for a reference year: that year's, else the closest earlier year's,
+ * else the closest later one. A company whose figures for the new year have not been
+ * entered yet keeps last year's, instead of dropping to zero in January.
+ */
+export function pickMetricForYear<T>(byYear: Map<number, T> | undefined, referenceYear: number): T | undefined {
+  if (!byYear || byYear.size === 0) return undefined;
+  const exact = byYear.get(referenceYear);
+  if (exact !== undefined) return exact;
+  const years = [...byYear.keys()];
+  const earlier = years.filter((y) => y < referenceYear);
+  const chosen = earlier.length > 0 ? Math.max(...earlier) : Math.min(...years);
+  return byYear.get(chosen);
+}
 
 /**
  * Derived users of applications: the single rule behind the grid column and the
  * application's own total.
  *
- * Deriving the total per application issued 2-5 queries each, so a 20-row page cost
- * 60-100 round trips. The same totals are derived here with a fixed number of queries
- * for the whole page: the company/department links in one read, the departments in one
- * read, then one metrics read per fiscal year present in the page.
+ * The total is the current audience: the metrics of the current year, or the most recent
+ * ones entered (see pickMetricForYear). `applications.users_year` is no longer read. No
+ * screen lets a user choose it: it was stamped with the creation year and never moved, so
+ * the total stopped following the figures entered for later years, and an application
+ * imported from CSV had no year at all and derived nothing.
+ *
+ * Fixed number of queries for a whole page: the company/department links in one read, the
+ * departments in one read, then one metrics read per family.
  */
-export async function buildDerivedUsersByApp(apps: DerivedUsersInput[], mg: any): Promise<Record<string, number>> {
+export async function buildDerivedUsersByApp(
+  apps: DerivedUsersInput[],
+  mg: any,
+  currentYear: number = new Date().getFullYear(),
+): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
   if (apps.length === 0) return out;
 
@@ -47,28 +73,25 @@ export async function buildDerivedUsersByApp(apps: DerivedUsersInput[], mg: any)
   }
 
   const companyIds = [...new Set(Object.values(companiesByApp).flat())];
-  const years = [...new Set(linked.map((a) => a.users_year).filter((y): y is number => y != null))];
-  const companyMetrics: Record<string, { itUsers: number | null; headcount: number }> = {};
-  const departmentHeadcount: Record<string, number> = {};
-  if (years.length > 0) {
-    const [companyRows, departmentRows] = await Promise.all([
-      companyIds.length > 0
-        ? mg.getRepository(CompanyMetric).find({ where: { company_id: In(companyIds), fiscal_year: In(years) } })
-        : Promise.resolve([]),
-      departmentIds.length > 0
-        ? mg.getRepository(DepartmentMetric).find({ where: { department_id: In(departmentIds), fiscal_year: In(years) } })
-        : Promise.resolve([]),
-    ]);
-    for (const m of companyRows as any[]) {
-      const it = m.it_users;
-      companyMetrics[`${m.company_id}|${m.fiscal_year}`] = {
-        itUsers: typeof it === 'number' && it != null ? it : null,
-        headcount: Number(m.headcount || 0),
-      };
-    }
-    for (const m of departmentRows as any[]) {
-      departmentHeadcount[`${m.department_id}|${m.fiscal_year}`] = Number(m.headcount || 0);
-    }
+  const companyMetrics: Record<string, Map<number, { itUsers: number | null; headcount: number }>> = {};
+  const departmentHeadcount: Record<string, Map<number, number>> = {};
+  const [companyRows, departmentRows] = await Promise.all([
+    companyIds.length > 0
+      ? mg.getRepository(CompanyMetric).find({ where: { company_id: In(companyIds) } })
+      : Promise.resolve([]),
+    departmentIds.length > 0
+      ? mg.getRepository(DepartmentMetric).find({ where: { department_id: In(departmentIds) } })
+      : Promise.resolve([]),
+  ]);
+  for (const m of companyRows as any[]) {
+    const it = m.it_users;
+    (companyMetrics[m.company_id] ||= new Map()).set(Number(m.fiscal_year), {
+      itUsers: typeof it === 'number' && it != null ? it : null,
+      headcount: Number(m.headcount || 0),
+    });
+  }
+  for (const m of departmentRows as any[]) {
+    (departmentHeadcount[m.department_id] ||= new Map()).set(Number(m.fiscal_year), Number(m.headcount || 0));
   }
 
   for (const app of apps) {
@@ -80,13 +103,14 @@ export async function buildDerivedUsersByApp(apps: DerivedUsersInput[], mg: any)
     const appCompanyIdSet = new Set(appCompanyIds);
     const appDepartmentIds = (departmentsByApp[app.id] || []).filter((id) => !appCompanyIdSet.has(departmentCompany[id]));
     let total = 0;
+    const referenceYear = app.reference_year ?? currentYear;
     for (const companyId of appCompanyIdSet) {
-      const metric = companyMetrics[`${companyId}|${app.users_year}`];
+      const metric = pickMetricForYear(companyMetrics[companyId], referenceYear);
       if (!metric) continue;
       total += app.users_mode === 'it_users' ? (metric.itUsers ?? metric.headcount) : metric.headcount;
     }
     for (const departmentId of appDepartmentIds) {
-      total += departmentHeadcount[`${departmentId}|${app.users_year}`] || 0;
+      total += pickMetricForYear(departmentHeadcount[departmentId], referenceYear) || 0;
     }
     out[app.id] = total;
   }
