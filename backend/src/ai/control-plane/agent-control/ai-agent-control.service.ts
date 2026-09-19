@@ -387,11 +387,28 @@ function buildMonitoringRetrievalQueryCandidates(
   return Array.from(new Set(candidates)).slice(0, MAX_MONITORING_KNOWLEDGE_QUERIES);
 }
 
-export type AgentControlTargetingOptionField = 'status' | 'priority' | 'type' | 'category' | 'entity' | 'group' | 'technician';
-// Monitoring flavor served through the same targeting-options endpoint for SRE
-// definitions: enum fields resolve from describeReferenceEnums, catalog fields
-// (group/device/check_type) from searchReferenceCatalog on the bound provider.
-export type AgentControlMonitoringTargetingOptionField = 'status' | 'severity' | 'ack_state' | 'group' | 'device' | 'check_type';
+// The small helpers and the targeting-option types they need live in their own module:
+// every other concern in this file used them, and none of them depend on anything here.
+export type {
+  AgentControlTargetingOptionField,
+  AgentControlMonitoringTargetingOptionField,
+} from './agent-control-util';
+import {
+  toIso,
+  trimmedString,
+  manualTicketRef,
+  approvalDecisionReason,
+  cleanTargetingOptionField,
+  cleanMonitoringTargetingOptionField,
+  cleanTargetingOptionLimit,
+  cleanTargetingOptionQuery,
+  providerKeyFromBindings,
+  adapterData,
+  adapterFailureMessage,
+  safeLimit,
+  clampText,
+  stripHeadlineTags,
+} from './agent-control-util';
 
 export type AgentControlAgentDefinitionInput = {
   agent_key?: string | null;
@@ -658,8 +675,6 @@ const ACTION_TYPE_CAPABILITY_TABLE: Record<string, { prepare: string; approved: 
 // `group` is the assignable-group catalogue and `technician` the named-technician
 // catalogue (both routing targets), served read-only to the UI. Neither is an enum field:
 // they go through the provider catalog search, like `category` and `entity`.
-const TARGETING_OPTION_FIELDS = new Set(['status', 'priority', 'type', 'category', 'entity', 'group', 'technician']);
-const MONITORING_TARGETING_OPTION_FIELDS = new Set(['status', 'severity', 'ack_state', 'group', 'device', 'check_type']);
 const TARGETING_ENUM_OPTIONS_TTL_MS = 60 * 60 * 1000;
 const TARGETING_CATALOG_OPTIONS_TTL_MS = 2 * 60 * 1000;
 // Empty-query catalog lists (what every dropdown-open shows) change rarely but can be
@@ -667,7 +682,6 @@ const TARGETING_CATALOG_OPTIONS_TTL_MS = 2 * 60 * 1000;
 // stale copy (up to the stale-serve bound) while a background refresh replaces it.
 const TARGETING_CATALOG_BROWSE_TTL_MS = 30 * 60 * 1000;
 const TARGETING_OPTIONS_STALE_SERVE_MS = 24 * 60 * 60 * 1000;
-const TARGETING_OPTIONS_MAX_LIMIT = 50;
 
 // An identical earlier proposal only suppresses regeneration while it is still a live or
 // settled decision. A proposal/action that lapsed (pending or approved past its expiry, or
@@ -751,104 +765,6 @@ const KNOWLEDGE_QUERY_STOP_WORDS = new Set([
   'with',
 ]);
 
-function toIso(value: Date | string | null | undefined): string | null {
-  if (!value) return null;
-  if (value instanceof Date) return value.toISOString();
-  return value;
-}
-
-function trimmedString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
-}
-
-// Operator input for a manual agent run on a ticket: '64', '#64' and 'ticket:64' are all
-// accepted. Wildcards are rejected up front (the work-item table forbids them by constraint).
-function manualTicketRef(value: unknown): string | null {
-  const raw = trimmedString(value) ?? '';
-  const stripped = raw.replace(/^ticket:/i, '').replace(/^#/, '').trim();
-  if (!stripped || stripped.includes('*')) return null;
-  return stripped;
-}
-
-function approvalDecisionReason(value: unknown, fallback: string): string {
-  const trimmed = trimmedString(value);
-  if (!trimmed) return fallback;
-  return trimmed.length > 500 ? trimmed.slice(0, 500) : trimmed;
-}
-
-function cleanTargetingOptionField(value: unknown): AgentControlTargetingOptionField {
-  const field = trimmedString(value)?.toLowerCase();
-  if (!field || !TARGETING_OPTION_FIELDS.has(field)) {
-    throw new BadRequestException('Unsupported targeting option field.');
-  }
-  return field as AgentControlTargetingOptionField;
-}
-
-function cleanMonitoringTargetingOptionField(value: unknown): AgentControlMonitoringTargetingOptionField {
-  const field = trimmedString(value)?.toLowerCase();
-  if (!field || !MONITORING_TARGETING_OPTION_FIELDS.has(field)) {
-    throw new BadRequestException('Unsupported targeting option field.');
-  }
-  return field as AgentControlMonitoringTargetingOptionField;
-}
-
-function cleanTargetingOptionLimit(value: unknown): number {
-  const parsed = typeof value === 'number'
-    ? value
-    : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
-  if (!Number.isFinite(parsed)) {
-    return 20;
-  }
-  return Math.max(1, Math.min(Math.floor(parsed), TARGETING_OPTIONS_MAX_LIMIT));
-}
-
-function cleanTargetingOptionQuery(value: unknown): string {
-  const raw = trimmedString(value);
-  return raw ? raw.slice(0, 120) : '';
-}
-
-function providerKeyFromBindings(
-  bindings: Record<string, unknown> | null | undefined,
-  kind: string,
-): string | null {
-  if (!bindings) return null;
-  const entry = bindings[kind];
-  if (!isRecord(entry)) return null;
-  return typeof entry.provider_key === 'string' && entry.provider_key.trim()
-    ? entry.provider_key.trim()
-    : null;
-}
-
-function adapterData<T>(value: unknown): T | null {
-  if (!isRecord(value) || value.ok !== true || !('data' in value)) {
-    return null;
-  }
-  return value.data as T;
-}
-
-function adapterFailureMessage(value: unknown): string | null {
-  if (!isRecord(value) || value.ok !== false) {
-    return null;
-  }
-  return typeof value.message === 'string' && value.message.trim().length > 0
-    ? value.message.trim()
-    : 'Provider request failed.';
-}
-
-function safeLimit(value: number | undefined, fallback: number, max: number): number {
-  if (!Number.isFinite(value ?? NaN)) return fallback;
-  return Math.max(1, Math.min(max, Math.floor(value as number)));
-}
-
-function clampText(value: string | null | undefined, max: number): string {
-  const normalized = String(value ?? '').replace(/\s+/g, ' ').trim();
-  if (!normalized) return '';
-  return normalized.length > max ? `${normalized.slice(0, max - 3)}...` : normalized;
-}
-
-function stripHeadlineTags(value: string | null | undefined): string {
-  return clampText(String(value ?? '').replace(/<\/?b>/g, ''), 280);
-}
 
 function normalizeKnowledgeText(value: string | null | undefined): string {
   return String(value ?? '')
