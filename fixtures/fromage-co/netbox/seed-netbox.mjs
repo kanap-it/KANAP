@@ -198,6 +198,60 @@ const RACKS = [
   { name: 'GOU-R01', site: 'gouda-server-room', u_height: 42 },
 ];
 
+// The Location tree the sub-location import is exercised against. Only the
+// top-level ones become KANAP sub-locations: "Rangée A" and "Cage 3" exist to
+// prove that equipment parked two levels down is attached to the top level
+// above it, and are never imported themselves.
+//
+// "Local technique" is created BEFORE "local technique" on purpose: Netbox
+// accepts both (its names are case-sensitive, KANAP's are not), and the two
+// must resolve to one KANAP row. The lower Netbox id wins, so the order of
+// this array is what makes the fixture deterministic.
+const LOCATIONS = [
+  { name: 'Salle serveurs', slug: 'salle-serveurs', site: 'paris-data-center' },
+  { name: 'Rangée A', slug: 'rangee-a', site: 'paris-data-center', parent: 'Salle serveurs' },
+  { name: 'Cage 3', slug: 'cage-3', site: 'paris-data-center', parent: 'Rangée A' },
+  { name: 'Local technique', slug: 'local-technique', site: 'gouda-server-room' },
+  { name: 'local technique', slug: 'local-technique-2', site: 'gouda-server-room' },
+  { name: 'Atelier', slug: 'atelier', site: 'gouda-server-room' },
+];
+
+// Devices placed in a Location. Only rackless ones are listed: Netbox requires
+// a device's rack to sit in the device's own location, so mounting a device
+// somewhere new would move the whole rack with it.
+//
+// The sub-location cases get their own devices, so the numbers do not depend on
+// an unrelated device's role being mapped or on a decision taken in an earlier
+// preview. "Salle serveurs" therefore holds three of them plus PAR-SUB-04,
+// parked in "Cage 3", which is attached to it on the way up: four assets.
+//
+// Every other device in the fixture stays without a Location, which is what
+// proves an asset keeps the sub-location it already had.
+const DEVICE_LOCATIONS = {
+  // An existing KANAP asset, so one row is an update and shows the field-level
+  // diff rather than being a plain creation.
+  'PAR-APP-09': 'Salle serveurs',
+  'PAR-SUB-01': 'Salle serveurs',
+  'PAR-SUB-02': 'Salle serveurs',
+  'PAR-SUB-03': 'Salle serveurs',
+  'PAR-SUB-04': 'Cage 3',
+  'GOU-SUB-01': 'Local technique',
+  'GOU-SUB-02': 'local technique',
+  'GOU-SUB-03': 'Atelier',
+};
+
+// The devices the sub-location cases are read on. Rackless and addressless, so
+// they can sit in any Location, with a role the import maps.
+const SUB_LOCATION_DEVICES = [
+  { name: 'PAR-SUB-01', site: 'paris-data-center', role: 'server', type: 'poweredge-r650', serial: 'DELL-PAR-SUB01', platform: 'ubuntu-22-04-lts' },
+  { name: 'PAR-SUB-02', site: 'paris-data-center', role: 'server', type: 'poweredge-r650', serial: 'DELL-PAR-SUB02', platform: 'ubuntu-22-04-lts' },
+  { name: 'PAR-SUB-03', site: 'paris-data-center', role: 'server', type: 'poweredge-r650', serial: 'DELL-PAR-SUB03', platform: 'ubuntu-22-04-lts' },
+  { name: 'PAR-SUB-04', site: 'paris-data-center', role: 'server', type: 'poweredge-r650', serial: 'DELL-PAR-SUB04', platform: 'ubuntu-22-04-lts' },
+  { name: 'GOU-SUB-01', site: 'gouda-server-room', role: 'iot-gateway', type: 'ecostruxure-iot-gateway', serial: 'SCH-GOU-SUB01' },
+  { name: 'GOU-SUB-02', site: 'gouda-server-room', role: 'iot-gateway', type: 'ecostruxure-iot-gateway', serial: 'SCH-GOU-SUB02' },
+  { name: 'GOU-SUB-03', site: 'gouda-server-room', role: 'iot-gateway', type: 'ecostruxure-iot-gateway', serial: 'SCH-GOU-SUB03' },
+];
+
 // "NixOS 25.05" is deliberately absent from the KANAP OS catalog. "Ubuntu 24.04 LTS" is in
 // it, and differs from what the demo tenant records for PAR-DB-01.
 const PLATFORMS = [
@@ -341,6 +395,29 @@ async function seedBase() {
     siteId.set(item.slug, row.id);
   }
 
+  info('Seeding locations');
+  const locationId = new Map();
+  // Two passes: a parent always exists before the child that names it.
+  for (const pass of [0, 1]) {
+    for (const item of LOCATIONS) {
+      if ((item.parent ? 1 : 0) !== pass) continue;
+      const row = await ensure(
+        '/dcim/locations',
+        { name: item.name, site_id: siteId.get(item.site) },
+        {
+          name: item.name,
+          slug: item.slug,
+          site: siteId.get(item.site),
+          status: 'active',
+          ...(item.parent ? { parent: locationId.get(item.parent) } : {}),
+        },
+        `location ${item.name}`,
+        ['name'],
+      );
+      locationId.set(item.name, row.id);
+    }
+  }
+
   info('Seeding racks');
   const rackId = new Map();
   for (const item of RACKS) {
@@ -379,7 +456,7 @@ async function seedBase() {
   }
 
   info('Seeding devices');
-  for (const item of DEVICES) {
+  for (const item of [...DEVICES, ...SUB_LOCATION_DEVICES]) {
     // Serials are unique in this fixture, so they identify a device even after
     // the drift scenario renames one.
     // The drift scenario also changes one serial, so fall back to the name.
@@ -397,8 +474,15 @@ async function seedBase() {
       rack: item.rack ? rackId.get(item.rack) : null,
       position: item.position ?? null,
       face: item.position ? 'front' : null,
+      location: DEVICE_LOCATIONS[item.name] ? locationId.get(DEVICE_LOCATIONS[item.name]) : null,
     };
-    const device = await ensure('/dcim/devices', lookup, body, `device ${item.name ?? '(unnamed)'}`, ['name', 'serial', 'status', 'platform']);
+    const device = await ensure(
+      '/dcim/devices',
+      lookup,
+      body,
+      `device ${item.name ?? '(unnamed)'}`,
+      ['name', 'serial', 'status', 'platform', 'location'],
+    );
     if (!item.ip) continue;
 
     const iface = await ensure(
@@ -449,6 +533,9 @@ async function seedBase() {
 
 const DRIFT = {
   deleteSerial: 'SCH-CAVE-GW02',
+  // Renaming a Location must rename the KANAP sub-location in place, for every
+  // asset that carries it, without any asset moving.
+  renameLocation: { from: 'Salle serveurs', to: 'Salle serveurs A' },
   newSerial: { serial: 'NTAP-PAR-SAN01', value: 'NTAP-PAR-SAN01-RMA' },
   rename: { serial: 'DELL-PAR-ESX04', from: 'PAR-ESX-04', to: 'PAR-ESX-04R' },
   status: { serial: 'DELL-GOU-ESX01', value: 'decommissioning' },
@@ -467,6 +554,16 @@ async function seedDrift() {
     ok(`Deleted device ${doomed.name} (${DRIFT.deleteSerial})`);
   } else {
     info(`Device ${DRIFT.deleteSerial} already deleted`);
+  }
+
+  const renamedLocation = await findOne('/dcim/locations', { name: DRIFT.renameLocation.from });
+  if (renamedLocation) {
+    await nbPatch(`/dcim/locations/${renamedLocation.id}/`, { name: DRIFT.renameLocation.to });
+    stats.updated += 1;
+    changes += 1;
+    ok(`Renamed location ${DRIFT.renameLocation.from} to ${DRIFT.renameLocation.to}`);
+  } else {
+    info(`Location already named ${DRIFT.renameLocation.to}`);
   }
 
   const replaced = await findOne('/dcim/devices', { serial: DRIFT.newSerial.serial });

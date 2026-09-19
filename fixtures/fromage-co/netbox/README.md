@@ -57,9 +57,10 @@ node fixtures/fromage-co/netbox/seed-netbox.mjs --scenario=drift
 ```
 
 It deletes `CAVE-GW-02`, changes the serial of `PAR-SAN-01`, renames `PAR-ESX-04` to
-`PAR-ESX-04R`, sets `GOU-ESX-01` to decommissioning, and adds `PAR-ESX-06`. It prints what it changed
-and is idempotent. Running the base scenario afterwards restores the base state, except for
-the deleted device which is recreated.
+`PAR-ESX-04R`, renames the Location `Salle serveurs` to `Salle serveurs A`, sets `GOU-ESX-01` to
+decommissioning, and adds `PAR-ESX-06`. It prints what it changed and is idempotent. Running the
+base scenario afterwards restores the base state, including the Location name, except for the
+deleted device which is recreated.
 
 ## Reset
 
@@ -103,6 +104,26 @@ Re-run the fixture against the dev tenant to apply them.
 | Duplicate primary IP | `PAR-DUP-A` and `PAR-DUP-B`, both 10.10.10.90/24 | Both assets created with the IP. See the note below. |
 | Not in Netbox | Assets `AWS-EC2-BOUTIQUE`, `AWS-RDS-BOUTIQUE`, `AWS-ECS-API` | Untouched. Never reported as absent, since no Netbox object ever claimed them. |
 
+## Sub-location case table
+
+Netbox Locations under a mapped site become sub-locations of the mapped KANAP location. Only
+the top-level ones: a device parked deeper is attached to the top-level Location above it.
+None of these devices carries a rack or an address, so they can sit in any Location. Netbox
+requires a device's rack to belong to the device's own Location, so moving a device into a
+rack's Location moves every device in that rack with it.
+
+| Case | Netbox object | Expected KANAP result |
+| --- | --- | --- |
+| One Location, several devices | Location `Salle serveurs` (Paris Data Center), devices `PAR-SUB-01`, `PAR-SUB-02`, `PAR-SUB-03` | Created once. The preview lists `Salle serveurs · Paris Data Center · 5 assets`, counting the two cases below. |
+| Existing asset gains a sub-location | Device `PAR-APP-09`, in `Salle serveurs` | Its asset already exists, so the row is an update and shows `Sub-location: — → Salle serveurs`. |
+| Two levels down | Location `Cage 3`, under `Rangée A`, under `Salle serveurs`; device `PAR-SUB-04` | Attached to `Salle serveurs`, no warning. `Rangée A` and `Cage 3` are never imported. |
+| A second site | Location `Local technique` (Gouda Server Room), device `GOU-SUB-01` | A second sub-location under Gouda Server Room. |
+| Name clash inside one site | Location `local technique`, created after `Local technique`, device `GOU-SUB-02` | One `Local technique` sub-location, created from the Location with the lower Netbox id. The second is reported as a conflict and its device imports without a sub-location. |
+| Adoption of a hand-made row | Location `Atelier`, device `GOU-SUB-03` | A sub-location created by hand at Gouda Server Room, whatever its spelling, is adopted: same row, renamed to the Netbox spelling, and marked Netbox. No duplicate. |
+| Device with no Location | Every other device in the fixture | Its asset keeps the sub-location it already had. Add one by hand to check it survives a run. |
+| Virtual machines | The whole `VIRTUAL_MACHINES` set | Never given a sub-location: a Netbox VM carries no Location. |
+| Rename | Drift scenario renames `Salle serveurs` to `Salle serveurs A` | One `Renamed` line in the preview, no diff on any equipment row, and the sub-location is renamed in place. |
+
 Note on the duplicate IP: KANAP rejects a duplicate only when the IP address and the subnet
 both match, and the Fromage & Co tenant has no subnets configured. So with the fixture as it
 stands, both devices import cleanly and the case does not trigger. It becomes live once a
@@ -116,6 +137,7 @@ address in the global table.
 | Object | Count |
 | --- | --- |
 | Sites | 6 |
+| Locations | 6 (4 top-level, 2 nested) |
 | Racks | 3 |
 | Manufacturers | 8 |
 | Device types | 17 |

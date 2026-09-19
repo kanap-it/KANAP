@@ -32,6 +32,8 @@ export type NetboxNoticeCode =
   | 'ip_match_candidates'
   | 'subnet_not_in_catalog'
   | 'no_ip_address_type'
+  | 'sub_location_name_taken'
+  | 'locations_unavailable'
   | 'fetch_incomplete'
   | 'save_failed'
   | 'validation_failed'
@@ -197,6 +199,36 @@ export interface NetboxPreviewResult {
   rows: NetboxPlanRow[];
   rows_truncated: boolean;
   missing: NetboxRecordRow[];
+  /**
+   * Changes to the shared sub-locations, listed once each rather than once per
+   * asset: a first import creates them, and a rename in Netbox renames one row
+   * that every asset carrying it follows. Absent on payloads from an older
+   * backend, hence the `?`.
+   */
+  sub_locations?: NetboxSubLocationsView;
+}
+
+/** What a run does to the tenant's sub-locations. */
+export interface NetboxSubLocationsView {
+  /** False when Netbox did not return its locations: nothing is touched. */
+  available: boolean;
+  changes: NetboxSubLocationChange[];
+}
+
+export interface NetboxSubLocationChange {
+  action: 'create' | 'adopt' | 'rename' | 'update' | 'conflict';
+  /** Null for a creation, and for a conflict against a row not yet created. */
+  sub_item_id: string | null;
+  location_id: string;
+  /** The KANAP location the sub-location belongs to. */
+  location_name: string;
+  external_id: string;
+  external_url: string;
+  name: string;
+  /** Set for a rename, and for an adoption that changes the spelling. */
+  previous_name: string | null;
+  /** Objects of this run that end up in it. */
+  asset_count: number;
 }
 
 export interface NetboxSyncState {

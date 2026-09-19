@@ -19,6 +19,9 @@ type SubItem = {
   name: string;
   description: string | null;
   usage_count: number;
+  /** 'netbox' when an inventory synchronisation owns this row. */
+  external_source?: string | null;
+  external_url?: string | null;
 };
 
 type DraftRow = {
@@ -329,17 +332,38 @@ function SubItemRow({
   return (
     <Box component="tr">
       <Box component="td">
-        <TextField
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => {
-            if (name.trim() !== row.name) onSave({ name });
-          }}
-          variant="standard"
-          fullWidth
-          disabled={!canManage}
-          sx={inputSx}
-        />
+        <Stack direction="row" spacing={0.75} alignItems="center">
+          <TextField
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => {
+              if (name.trim() !== row.name) onSave({ name });
+            }}
+            variant="standard"
+            fullWidth
+            disabled={!canManage}
+            sx={inputSx}
+          />
+          {/* The row is kept in step with an inventory: a manual rename is put
+              back in line at the next run. It stays fully editable. */}
+          {row.external_source === 'netbox' ? (
+            row.external_url ? (
+              <Box
+                component="a"
+                href={row.external_url}
+                target="_blank"
+                rel="noreferrer"
+                sx={{ fontSize: 11, color: 'kanap.text.tertiary', whiteSpace: 'nowrap', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+              >
+                Netbox
+              </Box>
+            ) : (
+              <Box component="span" sx={{ fontSize: 11, color: 'kanap.text.tertiary', whiteSpace: 'nowrap' }}>
+                Netbox
+              </Box>
+            )
+          ) : null}
+        </Stack>
       </Box>
       <Box component="td">
         <TextField

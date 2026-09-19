@@ -292,7 +292,17 @@
           "skipped": "Skipped ({{n}})",
           "missing": "Missing from Netbox ({{n}})",
           "warnings": "Warnings",
-          "decided": "Settled by you ({{n}})"
+          "decided": "Settled by you ({{n}})",
+          "subLocations": "Sub-locations ({{n}})"
+        },
+        "subLocations": {
+          "create": "New",
+          "adopt": "Existing, now linked to Netbox",
+          "rename": "Renamed",
+          "update": "Description updated",
+          "conflict": "Name already used, left unchanged",
+          "assets_one": "{{count}} asset",
+          "assets_other": "{{count}} assets"
         },
         "updating": "Updating the preview...",
         "filterLabel": "Filter the list",
@@ -349,6 +359,7 @@
         "name": "Name",
         "kind": "Asset type",
         "location": "Location",
+        "sub_location": "Sub-location",
         "status": "Lifecycle",
         "hostname": "Hostname",
         "domain": "Domain",
@@ -384,7 +395,8 @@
         },
         "reservedRoles": {
           "virtualMachines": "Virtual machines"
-        }
+        },
+        "subLocationsHint": "Inside a mapped site, the top-level Netbox locations become sub-locations here. Equipment placed deeper is attached to the top-level location above it."
       },
       "retire": {
         "title": "Mark asset as retired",
@@ -436,7 +448,9 @@
         "lifecycle_not_in_catalog": "The lifecycle \"{{value}}\" is not in your catalogue, so it was left unchanged.",
         "no_ip_address_type": "No IP address type is set up in the IT settings, so the address was not imported.",
         "netbox_status_attention": "Netbox reports this object as {{status}}.",
-        "ip_match_candidates": "An asset already uses the address {{value}}. Choose whether it is the same equipment."
+        "ip_match_candidates": "An asset already uses the address {{value}}. Choose whether it is the same equipment.",
+        "sub_location_name_taken": "A sub-location named \"{{value}}\" already exists at this location for another Netbox location. The sub-location was left unchanged.",
+        "locations_unavailable": "Netbox did not return its locations. Sub-locations were left unchanged in this run."
       },
       "netboxStatus": {
         "active": "Active",

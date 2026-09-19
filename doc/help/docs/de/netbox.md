@@ -56,6 +56,8 @@ Bei den Rollen steht eine zusätzliche Zeile: **Virtuelle Maschinen**. Jede virt
 
 Jede Zeile zeigt, wie viele Geräte und virtuelle Maschinen sie umfasst, damit Sie sehen, worum es bei einer Auswahl geht. Wenn ein Netbox-Name eindeutig einem Ihrer Namen entspricht, ist die Zeile vorbelegt und mit **Vorschlag** gekennzeichnet. Ein Vorschlag ist nur ein Vorschlag: Nichts wird verwendet, bevor Sie **Zuordnungen speichern** drücken.
 
+Wird ein Netbox-Standort zugeordnet, werden seine Netbox-Locations als Unterstandorte des gewählten Standorts übernommen. Nur die Locations der ersten Ebene dieses Netbox-Standorts, und nur die, in denen tatsächlich ein importiertes Gerät steht. Ein Gerät, das tiefer steht, in „Gebäude A > Etage 1 > Raum 101“, wird „Gebäude A“ zugeordnet: KANAP erfasst, wo sich ein Gerät befindet, auf der Ebene eines Standorts und eines Gebäudes, nicht eines Raums. Dafür gibt es nichts zu konfigurieren.
+
 ---
 
 ## Die erste Synchronisierung
@@ -64,6 +66,7 @@ Drücken Sie **Jetzt synchronisieren**. KANAP liest Netbox und zeigt **Vor dem A
 
 Die Vorschau ist gruppiert:
 
+- **Unterstandorte**: die gemeinsamen Zeilen, die der Lauf anlegt, übernimmt oder umbenennt, jeweils einmal aufgeführt mit dem Standort, zu dem sie gehören, und der Anzahl der Geräte, die darin landen. Das Umbenennen einer Netbox-Location erscheint hier als eine Zeile, nicht als Bewegung jedes einzelnen Assets.
 - **Anzulegen**: Objekte ohne Gegenstück in KANAP. Sie werden angelegt.
 - **Zu aktualisieren**: Objekte, die einem vorhandenen Asset zugeordnet sind und davon abweichen. Noch ist nichts geändert, die Werte werden beim Anwenden geschrieben. Jedes listet die Felder auf, die sich ändern, Feld für Feld, als `vorher → nachher`.
 - **Zu entscheiden**: Objekte, über die KANAP nicht selbst entscheidet. Mit ihnen geschieht nichts, bis Sie sie klären, hier oder später auf der Seite.
@@ -122,6 +125,7 @@ Zwei weitere Regeln halten das Ergebnis sauber:
 | Betriebssystem | Anhänge, Aufgaben, Vorfälle |
 | Lebenszyklus | Alles Übrige am Asset |
 | Standort | |
+| Unterstandort | |
 
 Bei einem Asset, das mit Netbox verknüpft ist, sind die verwalteten Felder mit **Wird von Netbox verwaltet** gekennzeichnet und können in KANAP nicht bearbeitet werden. Ändern Sie sie in Netbox, und der nächste Lauf übernimmt sie. Alles Übrige am Asset bleibt wie gewohnt bearbeitbar.
 
@@ -152,6 +156,18 @@ Eine Synchronisierung setzt ein Asset nie auf **Außer Betrieb**. Geräte außer
 
 **Werte, die KANAP nicht kennt, werden übersprungen, nie erfunden.** Ein Betriebssystem, eine Domänenendung oder ein Lebenszyklus ohne Eintrag in **IT-Landschaft > Einstellungen** bleibt unverändert und wird als Warnung gemeldet. Legen Sie den Eintrag dort an und starten Sie den Lauf erneut. Eine primäre IPv6-Adresse wird genauso ausgelassen, mit dem Hinweis „Die primäre Adresse ist eine IPv6-Adresse, die noch nicht importiert wird.“
 
+**Unterstandorte werden zwischen Geräten geteilt.** Ein Unterstandort ist eine Zeile an einem Standort, und jedes dort platzierte Asset verweist darauf. Wird die Netbox-Location umbenannt, wird diese eine Zeile umbenannt, sodass alle Geräte, die sie tragen, auf einmal folgen, auch die, die Sie selbst dort eingeordnet haben. Nichts verschiebt sich Asset für Asset.
+
+**Ein von Hand angelegter Unterstandort wird übernommen, nicht verdoppelt.** Hat eine Netbox-Location denselben Namen wie ein Unterstandort, den Sie an diesem Standort bereits verwenden, verknüpft KANAP die beiden: Ihre Zeile behält ihre Identität, übernimmt die Schreibweise aus Netbox und ist von da an mit **Netbox** gekennzeichnet. Ihre Assets bleiben, wo sie sind.
+
+**Nichts wird je gelöscht.** Eine aus Netbox entfernte Location lässt ihren Unterstandort bestehen, mit den Assets, die ihn tragen. Ein mit Netbox verknüpfter Unterstandort bleibt bearbeitbar: Benennen Sie ihn in KANAP um oder löschen Sie ihn, und der nächste Lauf gleicht ihn wieder an, wobei er ihn neu anlegt, wenn ein Asset ihn noch braucht.
+
+**Ein Gerät ohne Location behält seinen Unterstandort.** Geschrieben wird nur eine Location, die Netbox tatsächlich meldet, dieselbe Regel wie bei jedem anderen verwalteten Feld. Virtuelle Maschinen erhalten nie einen: Eine virtuelle Maschine in Netbox trägt keine Location.
+
+**Zwei Locations mit demselben Namen an einem Standort.** Netbox erlaubt „Technikraum“ und „technikraum“ nebeneinander, KANAP nicht. Der zuerst importierte gewinnt, der andere wird als Warnung gemeldet. Dasselbe passiert, wenn zwei Netbox-Standorte demselben KANAP-Standort zugeordnet sind und beide eine Location desselben Namens führen.
+
+**Wenn Netbox seine Locations nicht zurückgibt**, wird der Lauf mit den Geräten fortgesetzt und jeder Unterstandort unverändert gelassen, mit einem Hinweis darauf in der Vorschau. Eine teilweise Zuordnung wäre schlimmer als keine.
+
 **Ein neues Asset übernimmt den Anbieter seines Standorts**, wenn dieser Anbieter in Ihren IT-Einstellungen vorhanden ist, sonst „Sonstige“. Netbox kennt keinen Hosting-Anbieter.
 
 **Ein Lauf, der immer weiter scheitert, hört auf.** Wenn 10 Objekte nacheinander nicht gespeichert werden können, wird der Lauf abgebrochen und als fehlgeschlagen gemeldet, statt die Liste mit Fehlerzeilen zu füllen und am Ende Erfolg zu melden.
@@ -167,6 +183,8 @@ Eine Synchronisierung setzt ein Asset nie auf **Außer Betrieb**. Geräte außer
 Aktivieren Sie **Automatische Synchronisierung** auf der Integrationskarte, und KANAP führt denselben Lauf stündlich aus und wendet die Änderungen ohne Vorschau an. Der Schalter gilt pro Mandant, und nur Mandanten, die ihn aktiviert haben, werden angefahren. Der stündliche Lauf übernimmt nie den ersten Import: Er startet, sobald Sie selbst eine Synchronisierung angewendet haben und diese fehlerfrei beendet wurde. Bis dahin kann der Schalter eingeschaltet sein, ohne dass etwas läuft.
 
 Objekte, die eine Entscheidung brauchen, werden nie automatisch aufgelöst. Sie sammeln sich unter **Zu entscheiden** und warten auf Sie.
+
+Unterstandorte werden auch vom automatischen Lauf angelegt und umbenannt. Ein Mandant, dessen erster Import bereits erledigt ist, erhält sie beim nächsten stündlichen Lauf, ohne vorherige Vorschau.
 
 Ein manueller und ein geplanter Lauf können sich nicht überschneiden: Läuft bereits einer, tut der andere für diesen Mandanten nichts und versucht es später erneut. In der Cloud-Edition wird ein Mandant übersprungen, dessen Abonnement eingefroren ist oder dessen Testphase abgelaufen ist, bis das Abonnement geklärt ist. On-Premise-Installationen sind davon nicht betroffen.
 
@@ -218,6 +236,8 @@ Die Kachel hält sich zurück, wenn es nichts zu tun gibt: eine Zeile, dass die 
 | Eine Warnung meldet, dass ein Betriebssystem nicht in Ihrem Katalog steht | Die Netbox-Plattform hat keinen passenden Eintrag in **IT-Landschaft > Einstellungen**. Legen Sie ihn dort an und führen Sie den Lauf erneut aus. Bis dahin bleibt das Feld unverändert. |
 | Der Lauf ist nach einer Handvoll Objekte fehlgeschlagen | Zehn Objekte nacheinander konnten nicht gespeichert werden, deshalb wurde der Lauf abgebrochen. Die Ursache ist meist bei allen dieselbe, die Details stehen im Serverprotokoll. |
 | „Netbox hat mehr Seiten geliefert als erwartet. Einige Objekte wurden nicht geprüft.“ | Das Inventar ist größer, als ein Lauf liest. Was gelesen wurde, wird angewendet, und nichts wird als fehlend markiert. Grenzen Sie den Umfang unter **Zuordnungen** ein, damit der Lauf das abdeckt, was für Sie zählt. |
+| Ein Unterstandort warnt, dass sein Name bereits verwendet wird | Zwei Netbox-Locations dieses Standorts teilen sich den Namen, oder zwei zugeordnete Netbox-Standorte zeigen auf denselben KANAP-Standort und führen jeweils eine Location dieses Namens. Benennen Sie eine davon in Netbox um oder führen Sie sie dort zusammen. Die Geräte werden in jedem Fall importiert, ohne Unterstandort. |
+| „Netbox hat seine Locations nicht zurückgegeben“ | Das API-Token darf keine Locations lesen. Geben Sie ihm in Netbox die Berechtigung auf `dcim.location`, oder lassen Sie es: Der Geräteimport ist davon nicht betroffen. |
 
 ---
 
