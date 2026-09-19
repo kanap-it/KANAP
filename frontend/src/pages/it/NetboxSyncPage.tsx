@@ -26,8 +26,12 @@ import { formatShortDateTime } from '../../lib/dateFormat';
 import { useLocale } from '../../i18n/useLocale';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 import { getDotColor } from '../../utils/statusColors';
+import AssetPickerPopover from './netbox/AssetPickerPopover';
 import {
   netboxApi,
+  type NetboxAssetRef,
+  type NetboxDecision,
+  type NetboxDecisionAction,
   type NetboxMappingEntry,
   type NetboxNotice,
   type NetboxPlanRow,
@@ -298,135 +302,547 @@ function RecordRow({ row, onLink, onCreate, onIgnore, onUnignore, onRetire }: {
   );
 }
 
-function PreviewSection({ title, rows, showDiffs }: { title: string; rows: NetboxPlanRow[]; showDiffs: boolean }) {
+/**
+ * The dialog and its menus are portalled out of the page, so the page's own
+ * `kanap-mono` / `kanap-subhead` rules do not reach them: they are restated here.
+ */
+const previewClassSx = (theme: Theme) => ({
+  '& .kanap-mono': {
+    fontFamily: MONO_FONT, fontSize: 12,
+    color: theme.palette.kanap.text.secondary, fontVariantNumeric: 'tabular-nums',
+  },
+  '& .kanap-subhead': { fontSize: 12, fontWeight: 500, color: theme.palette.kanap.text.tertiary, mb: 0.5 },
+});
+
+/** Notices that ask the person for a decision; shown on the row itself, not in the warnings list. */
+const DECISION_NOTICE_CODES: string[] = ['ambiguous_candidates', 'contested_asset', 'ip_match_candidates'];
+
+/** One object is settled by its Netbox type and id; the preview never repeats a pair. */
+function rowKey(row: { external_type: string; external_id: string }): string {
+  return `${row.external_type}:${row.external_id}`;
+}
+
+/** How long to wait after the last click before asking the backend for a fresh plan. */
+const REPREVIEW_DEBOUNCE_MS = 600;
+
+type DecisionMenuState = { anchor: HTMLElement; row: NetboxPlanRow };
+
+/**
+ * One row of the preview: what happens to the object, what was decided about it,
+ * and the single compact action that opens the decision menu. Kept to plain
+ * elements: a first import can list several hundred rows.
+ */
+function PreviewRow({ row, decision, linkLabel, onOpenMenu, onUndo, showDiffs, showNotices }: {
+  row: NetboxPlanRow;
+  decision: NetboxDecision | null;
+  linkLabel: NetboxAssetRef | null;
+  onOpenMenu: (anchor: HTMLElement) => void;
+  onUndo: () => void;
+  showDiffs: boolean;
+  showNotices: boolean;
+}) {
   const { t } = useTranslation('it');
-  if (rows.length === 0) return null;
+  const noticeText = useNoticeText();
 
   const fieldLabel = (field: string) => (
     DIFF_FIELD_KEYS.includes(field) ? t(`pages.netbox.diffFields.${field}`) : field
   );
 
+  const name = row.external_name || t('pages.netbox.records.unnamed');
+  const linkedAsset = linkLabel || row.asset;
+  const decisionText = (() => {
+    if (!decision) return null;
+    if (decision.action === 'create') return t('pages.netbox.preview.decided.created');
+    if (decision.action === 'ignore') return t('pages.netbox.preview.decided.ignored');
+    return t('pages.netbox.preview.decided.linked', { name: linkedAsset?.name || '' });
+  })();
+
+  // An object an earlier run linked is settled: it only shows what changes.
+  // A first match is KANAP's guess, so the person sees what it rests on and can correct it.
+  const firstMatch = row.matched_by === 'serial' || row.matched_by === 'fqdn' || row.matched_by === 'name';
+  const canDecide = row.matched_by !== 'link';
+
+  const notices = showNotices
+    ? row.warnings.filter((warning) => DECISION_NOTICE_CODES.includes(warning.code))
+    : [];
+
   return (
-    <Box>
-      <Box className="kanap-subhead">{title}</Box>
-      <Stack spacing={0.75}>
-        {rows.slice(0, 50).map((row) => (
-          <Box key={`${row.external_type}-${row.external_id}`}>
-            <Typography variant="body2">
-              {row.external_name || t('pages.netbox.records.unnamed')}
-              {row.asset?.asset_reference ? (
-                <Box component="span" className="kanap-mono" sx={{ ml: 0.75 }}>
-                  {row.asset.asset_reference}
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, py: '2px' }}>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="body2">
+          {name}
+          {row.asset?.asset_reference ? (
+            <Box component="span" className="kanap-mono" sx={{ ml: 0.75 }}>
+              {row.asset.asset_reference}
+            </Box>
+          ) : null}
+        </Typography>
+        {firstMatch && !decision ? (
+          <Typography variant="caption" color="text.secondary" component="div">
+            {t(`pages.netbox.preview.matchedBy.${row.matched_by}`)}
+          </Typography>
+        ) : null}
+        {notices.map((warning) => (
+          <Typography key={warning.code} variant="caption" color="text.secondary" component="div">
+            {noticeText(warning)}
+          </Typography>
+        ))}
+        {row.candidates.length > 0 ? (
+          <Typography variant="caption" color="text.secondary" component="div">
+            {t('pages.netbox.preview.candidates')}{' '}
+            {row.candidates.map((candidate) => (
+              [candidate.name, candidate.asset_reference].filter(Boolean).join(' ')
+            )).join(', ')}
+          </Typography>
+        ) : null}
+        {showDiffs && row.diffs.length > 0 ? (
+          <Stack sx={{ pl: 1.5 }}>
+            {row.diffs.map((diff) => (
+              <Typography key={diff.field} variant="caption" color="text.secondary">
+                {fieldLabel(diff.field)}: {diff.before || t('pages.netbox.preview.empty')} → {diff.after || t('pages.netbox.preview.empty')}
+              </Typography>
+            ))}
+          </Stack>
+        ) : null}
+        {showDiffs && row.action === 'unchanged' ? (
+          <Typography variant="caption" color="text.secondary" component="div">
+            {t('pages.netbox.preview.alreadyIdentical')}
+          </Typography>
+        ) : null}
+      </Box>
+      <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+        {decisionText ? (
+          <>
+            <Typography variant="caption" color="text.secondary">
+              {decisionText}
+              {decision?.action === 'link' && linkedAsset?.asset_reference ? (
+                <Box component="span" className="kanap-mono" sx={{ ml: 0.5 }}>
+                  {linkedAsset.asset_reference}
                 </Box>
               ) : null}
             </Typography>
-            {showDiffs && row.diffs.length > 0 ? (
-              <Stack sx={{ pl: 1.5 }}>
-                {row.diffs.map((diff) => (
-                  <Typography key={diff.field} variant="caption" color="text.secondary">
-                    {fieldLabel(diff.field)}: {diff.before || t('pages.netbox.preview.empty')} → {diff.after || t('pages.netbox.preview.empty')}
-                  </Typography>
-                ))}
-              </Stack>
-            ) : null}
-          </Box>
+            <Button
+              size="small"
+              variant="action"
+              onClick={onUndo}
+              aria-label={t('pages.netbox.preview.actions.undoFor', { name })}
+            >
+              {t('pages.netbox.preview.actions.undo')}
+            </Button>
+          </>
+        ) : !canDecide ? null : (
+          <Button
+            size="small"
+            variant="action"
+            onClick={(event) => onOpenMenu(event.currentTarget)}
+            aria-label={row.action === 'ambiguous'
+              ? t('pages.netbox.preview.actions.decideFor', { name })
+              : t('pages.netbox.preview.actions.changeFor', { name })}
+          >
+            {row.action === 'ambiguous'
+              ? t('pages.netbox.preview.actions.decide')
+              : t('pages.netbox.preview.actions.change')}
+          </Button>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+function PreviewSection({ title, hint, rows, showDiffs, showNotices, action, renderRow }: {
+  title: string;
+  /** One line saying what will happen to these rows, and what the person can do about it. */
+  hint?: string;
+  rows: NetboxPlanRow[];
+  showDiffs: boolean;
+  showNotices: boolean;
+  action?: React.ReactNode;
+  renderRow: (row: NetboxPlanRow, showDiffs: boolean, showNotices: boolean) => React.ReactNode;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+        <Box className="kanap-subhead" sx={{ mb: 0 }}>{title}</Box>
+        {action}
+      </Box>
+      {hint ? (
+        <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>{hint}</Typography>
+      ) : null}
+      <Stack spacing={0.5}>
+        {rows.map((row) => (
+          <Box key={rowKey(row)}>{renderRow(row, showDiffs, showNotices)}</Box>
         ))}
       </Stack>
     </Box>
   );
 }
 
-function PreviewDialog({ open, preview, applying, onClose, onApply }: {
+/**
+ * Review before applying. The person settles objects here: every decision is kept
+ * in the dialog, travels with each re-preview so the plan reflects it, and is only
+ * written when the run is applied.
+ */
+function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewResult }: {
   open: boolean;
   preview: NetboxPreviewResult | null;
   applying: boolean;
   onClose: () => void;
-  onApply: () => void;
+  onApply: (decisions: NetboxDecision[]) => void;
+  onPreviewResult: (result: NetboxPreviewResult) => void;
 }) {
   const { t } = useTranslation(['it', 'common']);
   const noticeText = useNoticeText();
-  const rows = preview?.rows || [];
+
+  const [decisions, setDecisions] = React.useState<NetboxDecision[]>([]);
+  const [linkLabels, setLinkLabels] = React.useState<Record<string, NetboxAssetRef>>({});
+  const [filter, setFilter] = React.useState('');
+  const [decisionError, setDecisionError] = React.useState<string | null>(null);
+  const [menu, setMenu] = React.useState<DecisionMenuState | null>(null);
+  const [pickerFor, setPickerFor] = React.useState<DecisionMenuState | null>(null);
+  const [revision, setRevision] = React.useState(0);
+  const [syncedRevision, setSyncedRevision] = React.useState(0);
+  /** Keys added by the last change: dropped again if the backend refuses them. */
+  const lastBatchRef = React.useRef<string[]>([]);
+  /** Set when a change comes from dropping a refused decision: no round trip needed. */
+  const skipNextRef = React.useRef(false);
+  const revisionRef = React.useRef(0);
+  revisionRef.current = revision;
+
+  React.useEffect(() => {
+    if (open) return;
+    setDecisions([]);
+    setLinkLabels({});
+    setFilter('');
+    setDecisionError(null);
+    setMenu(null);
+    setPickerFor(null);
+    setRevision(0);
+    setSyncedRevision(0);
+    lastBatchRef.current = [];
+    skipNextRef.current = false;
+  }, [open]);
+
+  const repreview = useMutation({
+    mutationFn: (input: { payload: NetboxDecision[]; revision: number }) =>
+      netboxApi.previewSync({ decisions: input.payload, reuse_inventory: true }),
+    onSuccess: (result, input) => {
+      // An answer to an older set of choices must not replace a newer plan.
+      if (input.revision !== revisionRef.current) return;
+      setDecisionError(null);
+      setSyncedRevision(revisionRef.current);
+      onPreviewResult(result);
+    },
+    onError: (error: unknown, input) => {
+      if (input.revision !== revisionRef.current) return;
+      setDecisionError(getApiErrorMessage(error, t, t('pages.netbox.messages.previewFailed')));
+      setSyncedRevision(revisionRef.current);
+      const refused = lastBatchRef.current;
+      lastBatchRef.current = [];
+      if (refused.length === 0) return;
+      // The refused decision is dropped: the plan on screen already matches what is left.
+      skipNextRef.current = true;
+      setDecisions((prev) => prev.filter((decision) => !refused.includes(rowKey(decision))));
+      setRevision((prev) => prev + 1);
+    },
+  });
+
+  React.useEffect(() => {
+    if (revision === 0) return undefined;
+    if (skipNextRef.current) {
+      skipNextRef.current = false;
+      setSyncedRevision(revision);
+      return undefined;
+    }
+    const handle = window.setTimeout(() => repreview.mutate({ payload: decisions, revision }), REPREVIEW_DEBOUNCE_MS);
+    return () => window.clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revision, decisions]);
+
+  const applyDecisions = React.useCallback((next: NetboxDecision[], labels: Record<string, NetboxAssetRef>) => {
+    const keys = next.map(rowKey);
+    lastBatchRef.current = keys;
+    setDecisions((prev) => [...prev.filter((decision) => !keys.includes(rowKey(decision))), ...next]);
+    if (Object.keys(labels).length > 0) setLinkLabels((prev) => ({ ...prev, ...labels }));
+    setRevision((prev) => prev + 1);
+  }, []);
+
+  const undoDecision = React.useCallback((row: NetboxPlanRow) => {
+    const key = rowKey(row);
+    lastBatchRef.current = [];
+    setDecisions((prev) => prev.filter((decision) => rowKey(decision) !== key));
+    setRevision((prev) => prev + 1);
+  }, []);
+
+  const decisionByKey = React.useMemo(() => {
+    const map: Record<string, NetboxDecision> = {};
+    decisions.forEach((decision) => { map[rowKey(decision)] = decision; });
+    return map;
+  }, [decisions]);
+
+  /**
+   * What is shown for a row: the local decision wins so the click is reflected at
+   * once, and the server's own decision takes over once the new plan arrives.
+   */
+  const decisionFor = React.useCallback((row: NetboxPlanRow): NetboxDecision | null => {
+    const local = decisionByKey[rowKey(row)];
+    if (local) return local;
+    if (row.decision) {
+      return { external_type: row.external_type, external_id: row.external_id, action: row.decision };
+    }
+    return null;
+  }, [decisionByKey]);
+
+  const allRows = preview?.rows || [];
+  const needle = filter.trim().toLowerCase();
+  const rows = React.useMemo(() => {
+    if (!needle) return allRows;
+    return allRows.filter((row) => [
+      row.external_name,
+      row.asset?.name,
+      row.asset?.asset_reference,
+      ...row.candidates.flatMap((candidate) => [candidate.name, candidate.asset_reference]),
+    ].some((value) => (value || '').toLowerCase().includes(needle)));
+  }, [allRows, needle]);
+
   const created = rows.filter((row) => row.action === 'create');
-  const updated = rows.filter((row) => row.action === 'update');
+  // A decided object can come back unchanged: it stays visible so it can be undone.
+  const updated = rows.filter((row) => row.action === 'update' || (row.action === 'unchanged' && row.decision));
   const ambiguous = rows.filter((row) => row.action === 'ambiguous');
   const skipped = rows.filter((row) => row.action === 'skipped');
-  const warnings = Array.from(new Set(rows.flatMap((row) => row.warnings).map(noticeText).filter(Boolean)));
-  const skippedByReason = skipped.reduce<Record<string, number>>((acc, row) => {
+  const decidedSkipped = skipped.filter((row) => !!decisionFor(row));
+  const plainSkipped = skipped.filter((row) => !decisionFor(row));
+
+  const warnings = Array.from(new Set(
+    rows
+      .flatMap((row) => row.warnings)
+      .filter((warning) => !DECISION_NOTICE_CODES.includes(warning.code))
+      .map(noticeText)
+      .filter(Boolean),
+  ));
+  const skippedByReason = plainSkipped.reduce<Record<string, number>>((acc, row) => {
     const key = row.skip_reason || 'ignored';
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
 
+  /** Objects with a single suggestion and no decision yet: one click settles them all. */
+  const singleSuggestion = ambiguous.filter((row) => row.candidates.length === 1 && !decisionFor(row));
+
+  const acceptSingleSuggestions = () => {
+    const labels: Record<string, NetboxAssetRef> = {};
+    const next = singleSuggestion.map((row) => {
+      labels[rowKey(row)] = row.candidates[0];
+      return {
+        external_type: row.external_type,
+        external_id: row.external_id,
+        action: 'link' as const,
+        asset_id: row.candidates[0].id,
+      };
+    });
+    applyDecisions(next, labels);
+  };
+
+  const decide = (row: NetboxPlanRow, action: NetboxDecisionAction, asset?: NetboxAssetRef) => {
+    const decision: NetboxDecision = { external_type: row.external_type, external_id: row.external_id, action };
+    if (asset) decision.asset_id = asset.id;
+    applyDecisions([decision], asset ? { [rowKey(row)]: asset } : {});
+    setMenu(null);
+  };
+
+  const renderRow = (row: NetboxPlanRow, showDiffs: boolean, showNotices: boolean) => (
+    <PreviewRow
+      row={row}
+      decision={decisionFor(row)}
+      linkLabel={linkLabels[rowKey(row)] || null}
+      onOpenMenu={(anchor) => setMenu({ anchor, row })}
+      onUndo={() => undoDecision(row)}
+      showDiffs={showDiffs}
+      showNotices={showNotices}
+    />
+  );
+
+  const menuRow = menu?.row;
+  const busy = repreview.isPending || syncedRevision !== revision;
+
   return (
-    <KanapDialog
-      open={open}
-      title={t('pages.netbox.preview.title')}
-      onClose={onClose}
-      onSave={onApply}
-      saveLabel={t('pages.netbox.preview.apply')}
-      saveLoading={applying}
-      saveDisabled={!preview?.ok}
-      sx={{ maxWidth: 720 }}
-    >
-      {!preview ? null : (
-        // A first import lists dozens of rows: scroll the body so the Apply
-        // button in the shared dialog footer stays within reach.
-        <Stack spacing={2} sx={{ maxHeight: '60vh', overflowY: 'auto', pr: 1 }}>
-          {preview.message ? <Alert severity={preview.ok ? 'info' : 'error'}>{preview.message}</Alert> : null}
+    <>
+      <KanapDialog
+        open={open}
+        title={t('pages.netbox.preview.title')}
+        onClose={onClose}
+        onSave={() => onApply(decisions)}
+        saveLabel={t('pages.netbox.preview.apply')}
+        saveLoading={applying}
+        saveDisabled={!preview?.ok || busy}
+        sx={[{ maxWidth: 880 }, previewClassSx]}
+      >
+        {!preview ? null : (
+          <Stack spacing={1.5}>
+            {preview.message ? <Alert severity={preview.ok ? 'info' : 'error'}>{preview.message}</Alert> : null}
+            {decisionError ? (
+              <Alert severity="error" onClose={() => setDecisionError(null)}>{decisionError}</Alert>
+            ) : null}
 
-          <Typography variant="body2" color="text.secondary">
-            {t('pages.netbox.preview.summary', {
-              created: preview.counts.create,
-              updated: preview.counts.update,
-              unchanged: preview.counts.unchanged,
-            })}
+            <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 220 }}>
+                {t('pages.netbox.preview.summary', {
+                  created: preview.counts.create,
+                  updated: preview.counts.update,
+                  unchanged: preview.counts.unchanged,
+                })}
+              </Typography>
+              {busy ? (
+                <Typography variant="caption" color="text.secondary">{t('pages.netbox.preview.updating')}</Typography>
+              ) : null}
+              <TextField
+                size="small"
+                variant="standard"
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                // The shared dialog treats Enter as "apply": filtering must not start a run.
+                onKeyDown={(event) => { if (event.key === 'Enter') event.stopPropagation(); }}
+                placeholder={t('pages.netbox.preview.filterPlaceholder')}
+                inputProps={{ 'aria-label': t('pages.netbox.preview.filterLabel') }}
+                sx={{ width: 220 }}
+              />
+            </Stack>
+
+            {/* A first import lists hundreds of rows: scroll the body so the Apply
+                button in the shared dialog footer stays within reach. */}
+            <Stack spacing={2} sx={{ maxHeight: '56vh', overflowY: 'auto', pr: 1 }}>
+              <PreviewSection
+                title={t('pages.netbox.preview.sections.created', { n: created.length })}
+                hint={t('pages.netbox.preview.hints.created')}
+                rows={created}
+                showDiffs={false}
+                showNotices={false}
+                renderRow={renderRow}
+              />
+              <PreviewSection
+                title={t('pages.netbox.preview.sections.updated', { n: updated.length })}
+                hint={t('pages.netbox.preview.hints.updated')}
+                rows={updated}
+                showDiffs
+                showNotices={false}
+                renderRow={renderRow}
+              />
+              <PreviewSection
+                title={t('pages.netbox.preview.sections.ambiguous', { n: ambiguous.length })}
+                rows={ambiguous}
+                showDiffs={false}
+                showNotices
+                action={singleSuggestion.length >= 2 ? (
+                  <Button size="small" variant="action" onClick={acceptSingleSuggestions}>
+                    {t('pages.netbox.preview.acceptSingle', { count: singleSuggestion.length })}
+                  </Button>
+                ) : null}
+                renderRow={renderRow}
+              />
+              <PreviewSection
+                title={t('pages.netbox.preview.sections.decided', { n: decidedSkipped.length })}
+                rows={decidedSkipped}
+                showDiffs={false}
+                showNotices={false}
+                renderRow={renderRow}
+              />
+
+              {plainSkipped.length > 0 ? (
+                <Box>
+                  <Box className="kanap-subhead">{t('pages.netbox.preview.sections.skipped', { n: plainSkipped.length })}</Box>
+                  <Stack>
+                    {Object.entries(skippedByReason).map(([reason, count]) => (
+                      <Typography key={reason} variant="body2" color="text.secondary">
+                        {t(`pages.netbox.skipReason.${reason}`)} · {count}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              ) : null}
+
+              {preview.missing.length > 0 ? (
+                <Box>
+                  <Box className="kanap-subhead">{t('pages.netbox.preview.sections.missing', { n: preview.missing.length })}</Box>
+                  <Stack>
+                    {preview.missing.slice(0, 20).map((row) => (
+                      <Typography key={row.id} variant="body2">{row.external_name || t('pages.netbox.records.unnamed')}</Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              ) : null}
+
+              {warnings.length > 0 ? (
+                <Box>
+                  <Box className="kanap-subhead">{t('pages.netbox.preview.sections.warnings')}</Box>
+                  <Stack>
+                    {warnings.slice(0, 20).map((warning) => (
+                      <Typography key={warning} variant="body2" color="text.secondary">{warning}</Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              ) : null}
+
+              {preview.rows_truncated ? (
+                <Typography variant="caption" color="text.secondary">{t('pages.netbox.preview.truncated')}</Typography>
+              ) : null}
+            </Stack>
+          </Stack>
+        )}
+      </KanapDialog>
+
+      <Menu
+        anchorEl={menu?.anchor}
+        open={!!menu}
+        onClose={() => setMenu(null)}
+        PaperProps={{ sx: previewClassSx }}
+      >
+        {(menuRow?.action === 'ambiguous' ? menuRow.candidates : []).map((candidate) => (
+          <MenuItem
+            key={candidate.id}
+            sx={drawerMenuItemSx}
+            onClick={() => { if (menuRow) decide(menuRow, 'link', candidate); }}
+          >
+            {t('pages.netbox.preview.menu.linkToCandidate', { name: candidate.name })}
+            {candidate.asset_reference ? (
+              <Box component="span" className="kanap-mono" sx={{ ml: 0.75 }}>{candidate.asset_reference}</Box>
+            ) : null}
+          </MenuItem>
+        ))}
+        <MenuItem
+          sx={drawerMenuItemSx}
+          onClick={() => { if (menu) { setPickerFor(menu); setMenu(null); } }}
+        >
+          {menuRow && (menuRow.action === 'create')
+            ? t('pages.netbox.preview.menu.linkToExisting')
+            : t('pages.netbox.preview.menu.linkToAnother')}
+        </MenuItem>
+        {menuRow && menuRow.action !== 'create' ? (
+          <MenuItem sx={drawerMenuItemSx} onClick={() => decide(menuRow, 'create')}>
+            {menuRow.action === 'update'
+              ? t('pages.netbox.preview.menu.createInstead')
+              : t('pages.netbox.preview.menu.createNew')}
+          </MenuItem>
+        ) : null}
+        <MenuItem
+          sx={[drawerMenuItemSx, { display: 'block', whiteSpace: 'normal', maxWidth: 320 }]}
+          onClick={() => { if (menuRow) decide(menuRow, 'ignore'); }}
+        >
+          {t('pages.netbox.preview.menu.ignore')}
+          <Typography variant="caption" color="text.secondary" component="div">
+            {t('pages.netbox.preview.menu.ignoreHint')}
           </Typography>
+        </MenuItem>
+      </Menu>
 
-          <PreviewSection title={t('pages.netbox.preview.sections.created', { n: created.length })} rows={created} showDiffs={false} />
-          <PreviewSection title={t('pages.netbox.preview.sections.updated', { n: updated.length })} rows={updated} showDiffs />
-          <PreviewSection title={t('pages.netbox.preview.sections.ambiguous', { n: ambiguous.length })} rows={ambiguous} showDiffs={false} />
-
-          {skipped.length > 0 ? (
-            <Box>
-              <Box className="kanap-subhead">{t('pages.netbox.preview.sections.skipped', { n: skipped.length })}</Box>
-              <Stack>
-                {Object.entries(skippedByReason).map(([reason, count]) => (
-                  <Typography key={reason} variant="body2" color="text.secondary">
-                    {t(`pages.netbox.skipReason.${reason}`)} · {count}
-                  </Typography>
-                ))}
-              </Stack>
-            </Box>
-          ) : null}
-
-          {preview.missing.length > 0 ? (
-            <Box>
-              <Box className="kanap-subhead">{t('pages.netbox.preview.sections.missing', { n: preview.missing.length })}</Box>
-              <Stack>
-                {preview.missing.slice(0, 20).map((row) => (
-                  <Typography key={row.id} variant="body2">{row.external_name || t('pages.netbox.records.unnamed')}</Typography>
-                ))}
-              </Stack>
-            </Box>
-          ) : null}
-
-          {warnings.length > 0 ? (
-            <Box>
-              <Box className="kanap-subhead">{t('pages.netbox.preview.sections.warnings')}</Box>
-              <Stack>
-                {warnings.slice(0, 20).map((warning) => (
-                  <Typography key={warning} variant="body2" color="text.secondary">{warning}</Typography>
-                ))}
-              </Stack>
-            </Box>
-          ) : null}
-
-          {preview.rows_truncated ? (
-            <Typography variant="caption" color="text.secondary">{t('pages.netbox.preview.truncated')}</Typography>
-          ) : null}
-        </Stack>
-      )}
-    </KanapDialog>
+      <AssetPickerPopover
+        anchorEl={pickerFor?.anchor || null}
+        onClose={() => setPickerFor(null)}
+        onPick={(asset) => {
+          if (pickerFor) decide(pickerFor.row, 'link', asset);
+          setPickerFor(null);
+        }}
+      />
+    </>
   );
 }
 
@@ -674,7 +1090,7 @@ export default function NetboxSyncPage() {
   });
 
   const applyMutation = useMutation({
-    mutationFn: () => netboxApi.startSync(),
+    mutationFn: (decisions: NetboxDecision[]) => netboxApi.startSync({ decisions }),
     onSuccess: async (next) => {
       setPreviewOpen(false);
       queryClient.setQueryData(['netbox-status'], next);
@@ -876,7 +1292,8 @@ export default function NetboxSyncPage() {
         preview={preview}
         applying={applyMutation.isPending}
         onClose={() => setPreviewOpen(false)}
-        onApply={() => applyMutation.mutate()}
+        onApply={(decisions) => applyMutation.mutate(decisions)}
+        onPreviewResult={setPreview}
       />
     </Box>
   );

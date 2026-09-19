@@ -286,12 +286,57 @@
         "summary": "{{created}} por crear, {{updated}} por actualizar, {{unchanged}} sin cambios.",
         "truncated": "Aquí solo se enumeran los 500 primeros objetos. Se aplica todo.",
         "sections": {
-          "created": "Nuevos activos ({{n}})",
-          "updated": "Activos actualizados ({{n}})",
+          "created": "Por crear ({{n}})",
+          "updated": "Por actualizar ({{n}})",
           "ambiguous": "Por decidir ({{n}})",
           "skipped": "Omitidos ({{n}})",
           "missing": "Ausentes de Netbox ({{n}})",
-          "warnings": "Avisos"
+          "warnings": "Avisos",
+          "decided": "Resueltos por usted ({{n}})"
+        },
+        "updating": "Actualizando la vista previa...",
+        "filterLabel": "Filtrar la lista",
+        "filterPlaceholder": "p. ej., par-esx",
+        "candidates": "Sugerencias:",
+        "alreadyIdentical": "No hay nada que cambiar en este activo.",
+        "acceptSingle_one": "Vincular el objeto que solo tiene una sugerencia",
+        "acceptSingle_other": "Vincular los {{count}} objetos que solo tienen una sugerencia",
+        "decided": {
+          "linked": "Vinculado por usted a {{name}}",
+          "created": "Se creará",
+          "ignored": "No se importará"
+        },
+        "actions": {
+          "undo": "Deshacer",
+          "decide": "Decidir",
+          "change": "Corregir",
+          "decideFor": "Decidir sobre {{name}}",
+          "changeFor": "Corregir la propuesta para {{name}}",
+          "undoFor": "Deshacer la elección de {{name}}"
+        },
+        "menu": {
+          "linkToCandidate": "Vincular a {{name}}",
+          "linkToExisting": "Vincular a un activo existente...",
+          "linkToAnother": "Vincular a otro activo...",
+          "createNew": "Crear un activo nuevo",
+          "createInstead": "Crear mejor un activo nuevo",
+          "ignore": "No importar este objeto",
+          "ignoreHint": "Queda fuera de esta sincronización y de las siguientes. Puede recuperarlo desde la lista Ignorados."
+        },
+        "picker": {
+          "label": "Buscar un activo",
+          "placeholder": "p. ej., par-esx-01",
+          "searching": "Buscando...",
+          "noResults": "No se ha encontrado ningún activo."
+        },
+        "hints": {
+          "created": "Ningún activo de KANAP corresponde a estos objetos. Si alguno ya existe con otro nombre, vincúlelo para evitar un duplicado.",
+          "updated": "Todavía no se ha modificado nada. Estos valores se escribirán cuando pulse Aplicar."
+        },
+        "matchedBy": {
+          "serial": "Reconocido por su número de serie.",
+          "fqdn": "Reconocido por su nombre de host.",
+          "name": "Reconocido por su nombre."
         }
       },
       "skipReason": {
@@ -390,7 +435,8 @@
         "status_not_mapped": "El estado de Netbox «{{value}}» no tiene equivalente en KANAP, así que el ciclo de vida no se ha cambiado.",
         "lifecycle_not_in_catalog": "El ciclo de vida «{{value}}» no está en su catálogo, así que el valor no se ha cambiado.",
         "no_ip_address_type": "No hay ningún tipo de dirección IP definido en los ajustes de TI, así que la dirección no se ha importado.",
-        "netbox_status_attention": "Netbox informa de que este objeto está {{status}}."
+        "netbox_status_attention": "Netbox informa de que este objeto está {{status}}.",
+        "ip_match_candidates": "Un activo ya usa la dirección {{value}}. Decida si es el mismo equipo."
       },
       "netboxStatus": {
         "active": "Activo",

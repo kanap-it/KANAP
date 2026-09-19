@@ -286,12 +286,57 @@
         "summary": "{{created}} anzulegen, {{updated}} zu aktualisieren, {{unchanged}} ohne Änderung.",
         "truncated": "Hier sind nur die ersten 500 Objekte aufgeführt. Angewendet wird alles.",
         "sections": {
-          "created": "Neue Assets ({{n}})",
-          "updated": "Aktualisierte Assets ({{n}})",
+          "created": "Anzulegen ({{n}})",
+          "updated": "Zu aktualisieren ({{n}})",
           "ambiguous": "Zu entscheiden ({{n}})",
           "skipped": "Übersprungen ({{n}})",
           "missing": "Fehlt in Netbox ({{n}})",
-          "warnings": "Warnungen"
+          "warnings": "Warnungen",
+          "decided": "Von Ihnen geklärt ({{n}})"
+        },
+        "updating": "Vorschau wird aktualisiert...",
+        "filterLabel": "Liste filtern",
+        "filterPlaceholder": "z. B. par-esx",
+        "candidates": "Vorschläge:",
+        "alreadyIdentical": "An diesem Asset ist nichts zu ändern.",
+        "acceptSingle_one": "Das Objekt mit nur einem Vorschlag verknüpfen",
+        "acceptSingle_other": "Die {{count}} Objekte mit nur einem Vorschlag verknüpfen",
+        "decided": {
+          "linked": "Von Ihnen verknüpft mit {{name}}",
+          "created": "Wird angelegt",
+          "ignored": "Wird nicht importiert"
+        },
+        "actions": {
+          "undo": "Rückgängig",
+          "decide": "Entscheiden",
+          "change": "Korrigieren",
+          "decideFor": "Über {{name}} entscheiden",
+          "changeFor": "Vorschlag für {{name}} korrigieren",
+          "undoFor": "Auswahl für {{name}} rückgängig machen"
+        },
+        "menu": {
+          "linkToCandidate": "Mit {{name}} verknüpfen",
+          "linkToExisting": "Mit einem vorhandenen Asset verknüpfen...",
+          "linkToAnother": "Mit einem anderen Asset verknüpfen...",
+          "createNew": "Neues Asset anlegen",
+          "createInstead": "Stattdessen ein neues Asset anlegen",
+          "ignore": "Dieses Objekt nicht importieren",
+          "ignoreHint": "Bleibt bei dieser und den nächsten Synchronisierungen außen vor. Sie können es über die Liste Ignoriert zurückholen."
+        },
+        "picker": {
+          "label": "Asset suchen",
+          "placeholder": "z. B. par-esx-01",
+          "searching": "Suche läuft...",
+          "noResults": "Kein Asset gefunden."
+        },
+        "hints": {
+          "created": "Kein KANAP-Asset passt zu diesen Objekten. Falls eines bereits unter anderem Namen existiert, verknüpfen Sie es, um ein Duplikat zu vermeiden.",
+          "updated": "Noch ist nichts geändert. Diese Werte werden geschrieben, wenn Sie auf Anwenden klicken."
+        },
+        "matchedBy": {
+          "serial": "Erkannt an der Seriennummer.",
+          "fqdn": "Erkannt am Hostnamen.",
+          "name": "Erkannt am Namen."
         }
       },
       "skipReason": {
@@ -390,7 +435,8 @@
         "status_not_mapped": "Der Netbox-Status „{{value}}“ hat keine Entsprechung in KANAP, der Lebenszyklus blieb unverändert.",
         "lifecycle_not_in_catalog": "Der Lebenszyklus „{{value}}“ steht nicht in Ihrem Katalog, der Wert blieb unverändert.",
         "no_ip_address_type": "In den IT-Einstellungen ist kein IP-Adresstyp eingerichtet, die Adresse wurde nicht importiert.",
-        "netbox_status_attention": "Netbox meldet dieses Objekt als {{status}}."
+        "netbox_status_attention": "Netbox meldet dieses Objekt als {{status}}.",
+        "ip_match_candidates": "Ein Asset nutzt die Adresse {{value}} bereits. Entscheiden Sie, ob es dasselbe Gerät ist."
       },
       "netboxStatus": {
         "active": "Aktiv",

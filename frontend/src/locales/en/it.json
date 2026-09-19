@@ -286,12 +286,57 @@
         "summary": "{{created}} to create, {{updated}} to update, {{unchanged}} unchanged.",
         "truncated": "Only the first 500 objects are listed here. Everything is applied.",
         "sections": {
-          "created": "New assets ({{n}})",
-          "updated": "Updated assets ({{n}})",
+          "created": "To create ({{n}})",
+          "updated": "To update ({{n}})",
           "ambiguous": "Needs a decision ({{n}})",
           "skipped": "Skipped ({{n}})",
           "missing": "Missing from Netbox ({{n}})",
-          "warnings": "Warnings"
+          "warnings": "Warnings",
+          "decided": "Settled by you ({{n}})"
+        },
+        "updating": "Updating the preview...",
+        "filterLabel": "Filter the list",
+        "filterPlaceholder": "e.g., par-esx",
+        "candidates": "Suggested:",
+        "alreadyIdentical": "Nothing to change on this asset.",
+        "acceptSingle_one": "Link the object that has a single suggestion",
+        "acceptSingle_other": "Link the {{count}} objects that have a single suggestion",
+        "decided": {
+          "linked": "Linked by you to {{name}}",
+          "created": "Will be created",
+          "ignored": "Will not be imported"
+        },
+        "actions": {
+          "undo": "Undo",
+          "decide": "Decide",
+          "change": "Correct",
+          "decideFor": "Decide about {{name}}",
+          "changeFor": "Correct the proposal for {{name}}",
+          "undoFor": "Undo the choice for {{name}}"
+        },
+        "menu": {
+          "linkToCandidate": "Link to {{name}}",
+          "linkToExisting": "Link to an existing asset...",
+          "linkToAnother": "Link to another asset...",
+          "createNew": "Create a new asset",
+          "createInstead": "Create a new asset instead",
+          "ignore": "Do not import this object",
+          "ignoreHint": "Left out of this synchronisation and the next ones. You can take it back from the Ignored list."
+        },
+        "picker": {
+          "label": "Search for an asset",
+          "placeholder": "e.g., par-esx-01",
+          "searching": "Searching...",
+          "noResults": "No asset found."
+        },
+        "hints": {
+          "created": "No KANAP asset matches these objects. If one already exists under another name, link it to avoid a duplicate.",
+          "updated": "Nothing is changed yet. These values are written when you press Apply."
+        },
+        "matchedBy": {
+          "serial": "Recognised by its serial number.",
+          "fqdn": "Recognised by its host name.",
+          "name": "Recognised by its name."
         }
       },
       "skipReason": {
@@ -390,7 +435,8 @@
         "status_not_mapped": "The Netbox status \"{{value}}\" has no equivalent in KANAP, so the lifecycle was left unchanged.",
         "lifecycle_not_in_catalog": "The lifecycle \"{{value}}\" is not in your catalogue, so it was left unchanged.",
         "no_ip_address_type": "No IP address type is set up in the IT settings, so the address was not imported.",
-        "netbox_status_attention": "Netbox reports this object as {{status}}."
+        "netbox_status_attention": "Netbox reports this object as {{status}}.",
+        "ip_match_candidates": "An asset already uses the address {{value}}. Choose whether it is the same equipment."
       },
       "netboxStatus": {
         "active": "Active",

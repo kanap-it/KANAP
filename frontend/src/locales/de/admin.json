@@ -1192,7 +1192,7 @@
         "apiTokenExisting": "Ein Token ist bereits gespeichert. Lassen Sie das Feld leer, um es zu behalten.",
         "requestTimeout": "Wartezeit auf Netbox, zwischen 5 und 120 Sekunden. Für 30 Sekunden leer lassen.",
         "insecureTls": "Nur bei einem selbst signierten oder internen Zertifikat verwenden, dem Sie vertrauen. Die Verbindung bleibt verschlüsselt, das Zertifikat wird aber nicht mehr geprüft.",
-        "autoSync": "Läuft stündlich und wendet die Änderungen selbstständig an.",
+        "autoSync": "Läuft stündlich und wendet die Änderungen selbstständig an. Sie startet nach der ersten Synchronisierung, die Sie selbst anwenden.",
         "defaultEnvironment": "Gilt für die beim Import angelegten Assets. Danach wird sie nie geändert."
       },
       "messages": {

@@ -1192,7 +1192,7 @@
         "apiTokenExisting": "Ya hay un token guardado. Deja el campo vacío para conservarlo.",
         "requestTimeout": "Tiempo de espera antes de abandonar, entre 5 y 120 segundos. Déjalo vacío para usar 30.",
         "insecureTls": "Úsalo solo con un certificado autofirmado o interno en el que confíes. La conexión sigue cifrada, pero el certificado deja de comprobarse.",
-        "autoSync": "Se ejecuta cada hora y aplica los cambios por su cuenta.",
+        "autoSync": "Se ejecuta cada hora y aplica los cambios por su cuenta. Empieza después de la primera sincronización que usted aplique.",
         "defaultEnvironment": "Se aplica a los activos creados por la importación. Después no se cambia nunca."
       },
       "messages": {

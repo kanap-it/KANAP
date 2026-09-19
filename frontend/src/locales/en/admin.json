@@ -1192,7 +1192,7 @@
         "apiTokenExisting": "A token is already saved. Leave this field empty to keep it.",
         "requestTimeout": "How long to wait for Netbox before giving up, between 5 and 120 seconds. Leave empty to use 30.",
         "insecureTls": "Use this only for a self-signed or internal certificate you trust. The connection stays encrypted, but the certificate is no longer checked.",
-        "autoSync": "Runs every hour and applies the changes on its own.",
+        "autoSync": "Runs every hour and applies the changes on its own. It starts after the first synchronisation you apply yourself.",
         "defaultEnvironment": "Applied to the assets created by the import. It is never changed afterwards."
       },
       "messages": {
