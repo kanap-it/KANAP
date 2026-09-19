@@ -5,6 +5,7 @@ import {
   KANAP_ENTITY_SEARCH_CAPABILITY,
   KanapEntityFamily,
 } from '../capability/ai-capability.registry';
+import { isRecord } from '../../../common/object-guards';
 
 // Bounded KANAP entity resolution for monitoring diagnosis (plan 37 §4.5).
 //
@@ -88,10 +89,6 @@ export type KanapAlertContextResolution = {
   sources: EntitySourceRef[];
   notes: string[];
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
 
 function stringOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;

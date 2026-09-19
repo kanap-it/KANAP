@@ -4,6 +4,7 @@ import { AiAgentAuditEvent } from '../entities/ai-agent-audit-event.entity';
 import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
 import { AiSharedContextProfile } from '../entities/ai-shared-context-profile.entity';
 import { ResolvedSharedContext } from './ai-agent-prompt-compiler.service';
+import { isRecord } from '../../../common/object-guards';
 
 export type SharedContextResolutionReason =
   | 'disabled'
@@ -33,10 +34,6 @@ const MAX_PROFILE_KEY_CHARS = 120;
 const MAX_LINES = 60;
 const MAX_LINE_CHARS = 800;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function cleanSingleLine(value: unknown, max: number): string | null {
   if (value == null) return null;

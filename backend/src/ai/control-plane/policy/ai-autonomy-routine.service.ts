@@ -4,16 +4,13 @@ import { Repository } from 'typeorm';
 import { AiExecutionContextWithManager } from '../../ai.types';
 import { AiReadonlyDiagnosticWorkflowService, DiagnosticWorkflowResult } from '../diagnostics/ai-readonly-diagnostic-workflow.service';
 import { AiAutonomyRoutine } from '../entities/ai-autonomy-routine.entity';
+import { isRecord } from '../../../common/object-guards';
 
 type RoutineTriggerInput = {
   routineKey: string;
   alertId?: string | null;
   providerKey?: string | null;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function stringField(value: Record<string, unknown> | null | undefined, key: string): string | null {
   const raw = value?.[key];

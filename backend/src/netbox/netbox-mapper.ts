@@ -1,6 +1,7 @@
 import { CatalogOptionLike, findCatalogOption } from '../it-ops-settings/catalog-resolve';
 import { NetboxNotice, netboxNotice } from './netbox-notice';
 import { NetboxObject, NetboxObjectType } from './netbox.types';
+import { isRecord } from '../common/object-guards';
 
 // Pure normalisation and mapping: Netbox JSON in, a KANAP asset/hardware patch
 // out. No database, no HTTP, so the whole matrix is unit-testable.
@@ -97,10 +98,6 @@ const NETBOX_STATUS_MAP: Record<string, string> = {
 const NETBOX_ATTENTION_STATUSES = new Set(['offline', 'failed', 'paused']);
 
 const HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value != null && typeof value === 'object' && !Array.isArray(value);
-}
 
 function textOrNull(value: unknown): string | null {
   if (value == null) return null;

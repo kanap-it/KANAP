@@ -84,6 +84,7 @@ import {
   TicketStatusUpdateActionPayload,
   TicketingProvider,
 } from '../providers/provider.types';
+import { isRecord } from '../../../common/object-guards';
 
 const COMPATIBILITY_CAPABILITY_VERSION = '1.0.0';
 const PROVIDER_CAPABILITY_VERSION = '1.0.0';
@@ -1782,10 +1783,6 @@ function isAutomationTargetPayload(value: unknown): value is { type: string; val
   return typeof record.type === 'string'
     && Array.isArray(record.values)
     && record.values.every((entry) => typeof entry === 'string');
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 // Field-projected detail payload: scalars and short string lists only, plus normalized

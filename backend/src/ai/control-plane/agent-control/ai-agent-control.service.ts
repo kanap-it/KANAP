@@ -186,6 +186,7 @@ import {
   TicketNeedRepresentationBuildResult,
 } from './ai-ticket-need-representation.service';
 import { KnowledgeQueryDerivation } from './ai-ticket-need-representation.types';
+import { isRecord } from '../../../common/object-guards';
 
 export type AgentControlListRunsOptions = {
   limit?: number;
@@ -804,10 +805,6 @@ function cleanTargetingOptionLimit(value: unknown): number {
 function cleanTargetingOptionQuery(value: unknown): string {
   const raw = trimmedString(value);
   return raw ? raw.slice(0, 120) : '';
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function providerKeyFromBindings(

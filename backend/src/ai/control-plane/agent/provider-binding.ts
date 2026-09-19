@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { AiAgentDefinition } from '../entities/ai-agent-definition.entity';
+import { isRecord } from '../../../common/object-guards';
 
 export type ProviderBinding = {
   providerKind: string;
@@ -14,10 +15,6 @@ export type MonitoringBinding = {
 };
 
 export type ProviderBindingSource = Pick<AiAgentDefinition, 'provider_bindings_json'>;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;

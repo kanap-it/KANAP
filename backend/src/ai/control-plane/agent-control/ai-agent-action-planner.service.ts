@@ -12,6 +12,8 @@ import {
 } from './ai-agent-prompt-compiler.service';
 import { AiAgentLlmClient } from './ai-agent-llm-client';
 import type { TicketImageEvidence } from './ai-ticket-need-representation.types';
+import { isRecord } from '../../../common/object-guards';
+import { estimateJsonTokens } from './json-token-estimate';
 
 export type PlannerActionType = string;
 
@@ -203,10 +205,6 @@ function compactImageEvidence(evidence: TicketImageEvidence[] | null | undefined
   }));
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 // Routing catalogue and current assignment, lifted out of contexts.routing so the model
 // sees them once, in the same shape as allowed_status_transitions.
 function routingTargetSummaries(routing: unknown): Array<{ kind: string; key: string; label: string }> {
@@ -276,16 +274,11 @@ function lifecycleTransitionSummaries(lifecycle: unknown): Array<{
   });
 }
 
-function estimateTokens(value: unknown): number {
-  // Keep the margin aligned with synthesis: multilingual text and JSON overhead undercount at /4.
-  return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
-}
-
 export function estimateActionPlannerUsage(input: {
   systemPrompt: string;
   userPayload: Record<string, unknown>;
 }, prices: LlmTokenPrices | null, maxOutputTokens = MAX_ACTION_PLANNER_OUTPUT_TOKENS): { estimatedTokens: number; estimatedCostEur: number } {
-  const inputTokens = estimateTokens(input);
+  const inputTokens = estimateJsonTokens(input);
   return {
     estimatedTokens: inputTokens + maxOutputTokens,
     estimatedCostEur: llmCostEur(inputTokens, maxOutputTokens, prices),
@@ -416,8 +409,8 @@ export class AiAgentActionPlannerService {
         return null;
       }
       const parsed = response.value as ParsedActionPlan;
-      const actualInputTokens = response.usage ? response.usage.input_tokens : estimateTokens(userPayload);
-      const actualOutputTokens = response.usage ? response.usage.output_tokens : estimateTokens(response.text);
+      const actualInputTokens = response.usage ? response.usage.input_tokens : estimateJsonTokens(userPayload);
+      const actualOutputTokens = response.usage ? response.usage.output_tokens : estimateJsonTokens(response.text);
       const actualTokens = actualInputTokens + actualOutputTokens;
       return {
         source: 'llm',

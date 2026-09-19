@@ -17,6 +17,7 @@ import {
   AutomationLaunchActionPayload,
   AutomationTargetSelector,
 } from '../providers/provider.types';
+import { isRecord } from '../../../common/object-guards';
 
 const SECRET_KEY_RE = /(api[-_]?key|token|secret|password|authorization|cookie|session|credential)/i;
 const SECRET_VALUE_RE = /\b(Bearer\s+[A-Za-z0-9._~+/=-]{12,}|(?:password|token|secret|api[-_]?key)\s*[:=]\s*[^ \n\r\t]+)/i;
@@ -32,10 +33,6 @@ type TargetPolicy = {
   allow_unlisted_values?: boolean;
   max_targets?: number;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function normalizeJson(value: unknown): unknown {
   if (Array.isArray(value)) {

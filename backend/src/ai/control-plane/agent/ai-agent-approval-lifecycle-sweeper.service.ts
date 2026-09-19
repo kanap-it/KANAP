@@ -10,6 +10,7 @@ import { AiAgentWorkQueueService } from './ai-agent-work-queue.service';
 import { StripeConfigService } from '../../../billing/stripe/stripe.config';
 import { Subscription } from '../../../billing/subscription.entity';
 import { evaluateSubscriptionAccess } from '../../../billing/subscription-freeze.util';
+import { isRecord } from '../../../common/object-guards';
 
 const APPROVED_ACTION_EXECUTING_STATUS = 'executing';
 const QUEUED_EXECUTION_MAX_ATTEMPTS = 5;
@@ -45,10 +46,6 @@ function actionAgentDefinitionId(action: AiActionRequest): string | null {
   }
   const value = (metadata as Record<string, unknown>).agent_definition_id;
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function metadataObject(value: unknown): Record<string, unknown> {

@@ -10,6 +10,7 @@ import {
 } from './ai-agent-prompt-compiler.service';
 import { AiAgentLlmClient } from './ai-agent-llm-client';
 import { TicketNeedRepresentation } from './ai-ticket-need-representation.types';
+import { estimateJsonTokens } from './json-token-estimate';
 
 export type KnowledgePlannerTicket = {
   id: string;
@@ -154,11 +155,6 @@ function uniqueStrings(values: Array<string | null | undefined>, max = 50): stri
 function boundedConfidence(value: number | null | undefined): number | null {
   if (!Number.isFinite(value ?? NaN)) return null;
   return Math.max(0, Math.min(1, Number(value)));
-}
-
-function estimateTokens(value: unknown): number {
-  // Keep the margin aligned with the other agentic LLM stages.
-  return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
 }
 
 function extractTermsFromLatestMessage(latestRequesterMessage: string | null): {
@@ -528,8 +524,8 @@ export class AiKnowledgeSearchPlannerService {
         schema: ResultInterpretationSchema,
       });
       if (!result) return fallback;
-      const actualInputTokens = result.usage ? result.usage.input_tokens : estimateTokens(userPayload);
-      const actualOutputTokens = result.usage ? result.usage.output_tokens : estimateTokens(result.text ?? '');
+      const actualInputTokens = result.usage ? result.usage.input_tokens : estimateJsonTokens(userPayload);
+      const actualOutputTokens = result.usage ? result.usage.output_tokens : estimateJsonTokens(result.text ?? '');
       const usageFields = {
         model: result.runtime ? `${result.runtime.providerId}:${result.runtime.model}` : null,
         usage: result.usage,
