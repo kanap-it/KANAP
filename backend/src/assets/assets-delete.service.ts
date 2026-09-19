@@ -61,8 +61,7 @@ export class AssetsDeleteService extends BaseDeleteService<Asset> {
           c.source_asset_id = $2
           OR c.destination_asset_id = $2
           OR cs.asset_id = $2
-          OR cl.source_asset_id = $2
-          OR cl.destination_asset_id = $2
+          OR cl.equipment_asset_id = $2
         )`;
 
     const sampleQuery = `${baseIdsQuery}\n      ORDER BY c.created_at DESC\n      LIMIT 5`;
