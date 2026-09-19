@@ -14,6 +14,11 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *
  * The message is stored as a code plus parameters, never as a sentence: the
  * pages run in four languages and translate by code.
+ *
+ * external_status keeps the raw status the inventory reports (a Netbox status
+ * value such as 'failed'). KANAP's own lifecycle does not follow it — an
+ * offline machine is still an active asset — but the workspace shows it, so it
+ * is refreshed on every run.
  */
 export class AssetExternalLinks1853570000000 implements MigrationInterface {
   name = 'AssetExternalLinks1853570000000';
@@ -29,6 +34,7 @@ export class AssetExternalLinks1853570000000 implements MigrationInterface {
         external_name text,
         external_url text,
         asset_id uuid REFERENCES assets(id) ON DELETE SET NULL,
+        external_status text,
         state text NOT NULL DEFAULT 'linked',
         candidate_asset_ids uuid[] NOT NULL DEFAULT '{}'::uuid[],
         message_code text,

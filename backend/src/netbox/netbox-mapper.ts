@@ -90,6 +90,12 @@ const NETBOX_STATUS_MAP: Record<string, string> = {
   decommissioning: 'deprecated',
 };
 
+/**
+ * Netbox statuses that leave the KANAP lifecycle on Active but say something
+ * an administrator wants to see on the asset.
+ */
+const NETBOX_ATTENTION_STATUSES = new Set(['offline', 'failed', 'paused']);
+
 const HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -347,6 +353,12 @@ export function mapNetboxObject(object: NetboxObject, options: NetboxMapOptions)
   }
 
   const { hostname, domain } = mapHostname(name, catalogs.domains, warnings);
+
+  // Netbox says the machine is down; KANAP still calls the asset active, but
+  // the record carries the fact so the workspace can show it.
+  if (object.status && NETBOX_ATTENTION_STATUSES.has(object.status)) {
+    warnings.push(netboxNotice('netbox_status_attention', { value: object.status }));
+  }
 
   let status: string | null = null;
   const mappedStatus = object.status ? NETBOX_STATUS_MAP[object.status] ?? null : null;

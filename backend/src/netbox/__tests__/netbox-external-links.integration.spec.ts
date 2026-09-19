@@ -48,8 +48,9 @@ async function insertLink(
   values: { externalId: string; assetId?: string | null; tenantId?: string | null; state?: string },
 ): Promise<string> {
   const rows = await runner.query(
-    `INSERT INTO asset_external_links (tenant_id, source, external_type, external_id, external_name, asset_id, state)
-     VALUES (COALESCE($1::uuid, app_current_tenant()), 'netbox', 'device', $2, $3, $4, $5)
+    `INSERT INTO asset_external_links
+       (tenant_id, source, external_type, external_id, external_name, asset_id, state, external_status)
+     VALUES (COALESCE($1::uuid, app_current_tenant()), 'netbox', 'device', $2, $3, $4, $5, 'failed')
      RETURNING id, tenant_id`,
     [
       values.tenantId ?? null,
@@ -112,6 +113,16 @@ async function testTableIsTenantIsolated() {
     'the record message must be a code plus parameters, and the old text column must be gone',
   );
 
+  // The raw inventory status rides on the record, nullable: an object Netbox
+  // reports as failed stays an active asset with a note on it.
+  const statusColumn = await dataSource.query(
+    `SELECT data_type, is_nullable FROM information_schema.columns
+     WHERE table_name = 'asset_external_links' AND column_name = 'external_status'`,
+  );
+  assert.equal(statusColumn.length, 1, 'external_status is missing');
+  assert.equal(statusColumn[0].data_type, 'text');
+  assert.equal(statusColumn[0].is_nullable, 'YES');
+
   const stateCheck = await dataSource.query(
     `SELECT pg_get_constraintdef(oid) AS definition
      FROM pg_constraint WHERE conname = 'asset_external_links_state_check'`,
@@ -138,8 +149,12 @@ async function testRowsAreInvisibleToOtherTenants() {
     const assetA = await seedAsset(runner, tenantA, 'netbox-rls-a');
     const linkA = await insertLink(runner, { externalId: '101', assetId: assetA });
     // The tenant_id default reads the request context, so it is never passed.
-    const ownership = await runner.query(`SELECT tenant_id FROM asset_external_links WHERE id = $1`, [linkA]);
+    const ownership = await runner.query(
+      `SELECT tenant_id, external_status FROM asset_external_links WHERE id = $1`,
+      [linkA],
+    );
     assert.equal(ownership[0].tenant_id, tenantA, 'tenant_id must default to the current tenant');
+    assert.equal(ownership[0].external_status, 'failed');
 
     // Same external id, other tenant: allowed, the identity is per tenant.
     await setCurrentTenant(runner, tenantB);

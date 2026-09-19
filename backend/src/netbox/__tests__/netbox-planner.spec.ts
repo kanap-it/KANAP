@@ -8,6 +8,7 @@ import {
   normalizeNetboxVirtualMachine,
 } from '../netbox-mapper';
 import { ExistingAsset, buildMatcherIndex, matchNetboxObject } from '../netbox-matcher';
+import { primaryNotice } from '../netbox-notice';
 import { ExistingLink, NetboxPlanRow, planNetboxSync } from '../netbox-planner';
 import { NetboxObject } from '../netbox.types';
 
@@ -121,6 +122,10 @@ function plan(input: {
   });
 }
 
+function netboxNoticeOf(code: string) {
+  return { code, params: {}, text: code } as any;
+}
+
 function row(result: ReturnType<typeof plan>, externalId: string): NetboxPlanRow {
   const found = result.rows.find((entry) => entry.external_id === externalId);
   assert.ok(found, `no plan row for object ${externalId}`);
@@ -213,6 +218,82 @@ function row(result: ReturnType<typeof plan>, externalId: string): NetboxPlanRow
   // Display values are labels, never codes.
   assert.equal(mapped.display.kind, 'Physical server');
   assert.equal(mapped.display.location, 'Paris DC');
+}
+
+// --- Netbox statuses that deserve a look ------------------------------------
+
+{
+  // Offline, failed and paused leave the KANAP lifecycle on Active but are
+  // surfaced on the record, with the raw value for the UI to translate.
+  for (const value of ['offline', 'failed', 'paused']) {
+    const mapped = mapNetboxObject(device({ status: { value } }), MAP_OPTIONS);
+    assert.equal(mapped.asset?.status, 'active', `${value} stays active`);
+    const notice = mapped.warnings.find((entry) => entry.code === 'netbox_status_attention');
+    assert.ok(notice, `${value} must raise a notice`);
+    assert.equal(notice.params.value, value);
+    assert.match(notice.text, /^Netbox reports this object as (Offline|Failed|Paused)\.$/);
+  }
+
+  // Every other status says nothing.
+  for (const value of ['active', 'planned', 'staged', 'inventory', 'decommissioning']) {
+    const mapped = mapNetboxObject(device({ status: { value } }), MAP_OPTIONS);
+    assert.equal(
+      mapped.warnings.some((entry) => entry.code === 'netbox_status_attention'),
+      false,
+      `${value} must stay quiet`,
+    );
+  }
+
+  // Virtual machines are treated exactly the same way.
+  const vm = normalizeNetboxVirtualMachine(
+    { id: 60, name: 'par-app-60', site: { slug: 'paris' }, status: { value: 'failed' } },
+    BASE_URL,
+  );
+  assert.ok(mapNetboxObject(vm, MAP_OPTIONS).warnings.some((entry) => entry.code === 'netbox_status_attention'));
+}
+
+{
+  // The raw status travels on the plan row, whatever the row turns out to be.
+  const result = plan({ objects: [device({ status: { value: 'failed' } })], assets: [asset()] });
+  assert.equal(row(result, '1').external_status, 'failed');
+  assert.equal(row(result, '1').action, 'unchanged', 'a status change is not an asset change');
+  assert.deepEqual(row(result, '1').diffs, [], 'and produces no field to write');
+  assert.equal(result.counts.update, 0);
+  assert.equal(result.counts.unchanged, 1);
+  // The row still reaches the apply step, so the record gets refreshed.
+  assert.equal(result.writes.has('device:1'), true);
+
+  // An object out of scope still reports what Netbox says about it.
+  const skipped = plan({ objects: [device({ role: { slug: 'pdu' }, status: { value: 'offline' } })] });
+  assert.equal(row(skipped, '1').external_status, 'offline');
+}
+
+{
+  // One record, one notice: the priority rule decides which.
+  const blocked = [
+    netboxNoticeOf('os_not_in_catalog'),
+    netboxNoticeOf('netbox_status_attention'),
+    netboxNoticeOf('contested_asset'),
+  ];
+  assert.equal(primaryNotice(blocked)?.code, 'contested_asset', 'a decision beats everything');
+  assert.equal(
+    primaryNotice([netboxNoticeOf('ipv6_skipped'), netboxNoticeOf('netbox_status_attention')])?.code,
+    'netbox_status_attention',
+    'attention beats information',
+  );
+  assert.equal(
+    primaryNotice([netboxNoticeOf('os_not_in_catalog'), netboxNoticeOf('ipv6_skipped')])?.code,
+    'os_not_in_catalog',
+    'inside a tier, the first one produced wins',
+  );
+  assert.equal(primaryNotice([]), null);
+
+  // A failed object that also has an unknown OS reports the failure, not the OS.
+  const mapped = mapNetboxObject(
+    device({ status: { value: 'failed' }, platform: { name: 'Plan 9' } }),
+    MAP_OPTIONS,
+  );
+  assert.equal(primaryNotice(mapped.warnings)?.code, 'netbox_status_attention');
 }
 
 {

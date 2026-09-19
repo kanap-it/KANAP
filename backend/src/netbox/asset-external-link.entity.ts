@@ -34,6 +34,14 @@ export class AssetExternalLink {
   @Column('uuid', { nullable: true })
   asset_id!: string | null;
 
+  /**
+   * The raw status the inventory reports for this object (a Netbox status
+   * value, e.g. 'failed'). Informational: the asset's own lifecycle is not
+   * driven by it.
+   */
+  @Column('text', { nullable: true })
+  external_status!: string | null;
+
   @Column('text', { default: 'linked' })
   state!: AssetExternalLinkState;
 

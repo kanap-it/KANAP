@@ -31,7 +31,7 @@ import {
   matchCatalogOption,
 } from './netbox-mapper';
 import { ExistingAsset } from './netbox-matcher';
-import { NetboxNotice, netboxNotice, netboxNoticeFromStore } from './netbox-notice';
+import { NetboxNotice, netboxNotice, netboxNoticeFromStore, primaryNotice } from './netbox-notice';
 import {
   ExistingLink,
   NetboxPlan,
@@ -72,6 +72,8 @@ export type NetboxRecordRow = {
   state: AssetExternalLinkState;
   asset: { id: string; name: string; asset_reference: string | null; status: string } | null;
   candidates: Array<{ id: string; name: string; asset_reference: string | null }>;
+  /** The raw status the inventory reports; KANAP's lifecycle does not follow it. */
+  external_status: string | null;
   message: NetboxNotice | null;
   last_seen_at: string | null;
   last_synced_at: string | null;
@@ -134,7 +136,8 @@ const HARDWARE_FIELDS: Array<keyof MappedHardwareFields> = [
 
 // Every read of a record row selects exactly these columns.
 const RECORD_COLUMNS = `l.id, l.external_type, l.external_id, l.external_name, l.external_url, l.state,
-              l.candidate_asset_ids, l.message_code, l.message_params, l.last_seen_at, l.last_synced_at,
+              l.external_status, l.candidate_asset_ids, l.message_code, l.message_params,
+              l.last_seen_at, l.last_synced_at,
               a.id AS asset_id, a.name AS asset_name, a.asset_reference, a.status AS asset_status`;
 
 function emptyRecordCounts(): Record<AssetExternalLinkState, number> {
@@ -284,6 +287,7 @@ export class NetboxSyncService {
       external_name: row.external_name,
       external_url: row.external_url,
       state: row.state,
+      external_status: row.external_status ?? null,
       asset: row.asset_id
         ? { id: row.asset_id, name: row.asset_name, asset_reference: row.asset_reference, status: row.asset_status }
         : null,
@@ -786,7 +790,7 @@ export class NetboxSyncService {
           state: 'ambiguous',
           candidateAssetIds: row.candidates.map((candidate) => candidate.id),
           // The planner already worked out which ambiguity this is.
-          notice: row.warnings.at(-1) ?? netboxNotice('ambiguous_candidates'),
+          notice: primaryNotice(row.warnings) ?? netboxNotice('ambiguous_candidates'),
           synced: false,
         }).catch((error) => this.logRecordFailure(row, error));
         continue;
@@ -897,7 +901,7 @@ export class NetboxSyncService {
           state: 'linked',
           candidateAssetIds: [],
           // One record holds one notice; the preview carries the full list.
-          notice: warnings[0] ?? null,
+          notice: primaryNotice(warnings),
           synced: true,
         }, manager);
 
@@ -1001,7 +1005,7 @@ export class NetboxSyncService {
 
   private async upsertLink(
     tenantId: string,
-    row: Pick<NetboxPlanRow, 'external_type' | 'external_id' | 'external_name' | 'external_url'>,
+    row: Pick<NetboxPlanRow, 'external_type' | 'external_id' | 'external_name' | 'external_url' | 'external_status'>,
     values: {
       assetId: string | null;
       state: AssetExternalLinkState;
@@ -1015,11 +1019,13 @@ export class NetboxSyncService {
       await mg.query(
         `INSERT INTO asset_external_links
            (tenant_id, source, external_type, external_id, external_name, external_url,
-            asset_id, state, candidate_asset_ids, message_code, message_params, last_seen_at, last_synced_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid[], $10, $11::jsonb, now(), ${values.synced ? 'now()' : 'NULL'})
+            asset_id, state, candidate_asset_ids, message_code, message_params, external_status,
+            last_seen_at, last_synced_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid[], $10, $11::jsonb, $12, now(), ${values.synced ? 'now()' : 'NULL'})
          ON CONFLICT (tenant_id, source, external_type, external_id) DO UPDATE SET
            external_name = EXCLUDED.external_name,
            external_url = EXCLUDED.external_url,
+           external_status = EXCLUDED.external_status,
            asset_id = EXCLUDED.asset_id,
            state = EXCLUDED.state,
            candidate_asset_ids = EXCLUDED.candidate_asset_ids,
@@ -1040,6 +1046,7 @@ export class NetboxSyncService {
           values.candidateAssetIds,
           values.notice?.code ?? null,
           values.notice ? JSON.stringify(values.notice.params) : null,
+          row.external_status,
         ],
       );
     };
@@ -1053,9 +1060,13 @@ export class NetboxSyncService {
   private async touchIgnored(tenantId: string, row: NetboxPlanRow): Promise<void> {
     await withTenantExecution(this.dataSource, tenantId, (manager) => manager.query(
       `UPDATE asset_external_links
-       SET external_name = $4, external_url = $5, last_seen_at = now(), updated_at = now()
+       SET external_name = $4, external_url = $5, external_status = $7,
+           last_seen_at = now(), updated_at = now()
        WHERE tenant_id = $1 AND source = $2 AND external_type = $3 AND external_id = $6`,
-      [tenantId, NETBOX_LINK_SOURCE, row.external_type, row.external_name, row.external_url, row.external_id],
+      [
+        tenantId, NETBOX_LINK_SOURCE, row.external_type,
+        row.external_name, row.external_url, row.external_id, row.external_status,
+      ],
     ));
   }
 
@@ -1173,6 +1184,7 @@ export class NetboxSyncService {
       external_id: record.external_id,
       external_name: object.name,
       external_url: object.url,
+      external_status: object.status,
       action: assetId ? 'update' : 'create',
       asset: null,
       matched_by: null,

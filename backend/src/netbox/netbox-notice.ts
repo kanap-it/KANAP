@@ -13,6 +13,8 @@ export type NetboxNoticeCode =
   | 'contested_asset'
   | 'missing_from_netbox'
   | 'reevaluate_next_sync'
+  // --- worth a look, but nothing is blocked ---
+  | 'netbox_status_attention'
   // --- values KANAP could not take over ---
   | 'os_not_in_catalog'
   | 'os_ambiguous'
@@ -36,6 +38,13 @@ export type NetboxNotice = {
   text: string;
 };
 
+/** Netbox status values KANAP surfaces, in the wording Netbox itself uses. */
+const NETBOX_STATUS_LABELS: Record<string, string> = {
+  offline: 'Offline',
+  failed: 'Failed',
+  paused: 'Paused',
+};
+
 const TEXTS: Record<NetboxNoticeCode, (params: Record<string, string>) => string> = {
   ambiguous_candidates: () =>
     'Several assets could be this object. Choose one, or create a new asset.',
@@ -45,6 +54,8 @@ const TEXTS: Record<NetboxNoticeCode, (params: Record<string, string>) => string
     'This object is no longer in Netbox. Decide whether the asset should be retired.',
   reevaluate_next_sync: () =>
     'This object will be evaluated again at the next synchronisation.',
+  netbox_status_attention: (p) =>
+    `Netbox reports this object as ${NETBOX_STATUS_LABELS[p.value] ?? p.value}.`,
   os_not_in_catalog: (p) =>
     `The operating system "${p.value}" is not in the IT settings, so it was left unchanged.`,
   os_ambiguous: (p) =>
@@ -74,6 +85,53 @@ const TEXTS: Record<NetboxNoticeCode, (params: Record<string, string>) => string
 };
 
 const CODES = new Set(Object.keys(TEXTS));
+
+/**
+ * A record holds one notice, so when an object produces several, one has to
+ * win. Three tiers, and the highest wins; inside a tier the first notice
+ * produced wins, which is the order the mapper works in.
+ *
+ *  3 — something is blocked or waiting on a person: the object could not be
+ *      saved, or nobody can say which asset it is.
+ *  2 — nothing is blocked, but the object deserves a look: Netbox reports it
+ *      offline, failed or paused.
+ *  1 — purely informational: a value KANAP could not take over (operating
+ *      system, domain, host name, address...). The object is fine.
+ */
+const NOTICE_PRIORITY: Record<NetboxNoticeCode, 1 | 2 | 3> = {
+  ambiguous_candidates: 3,
+  contested_asset: 3,
+  missing_from_netbox: 3,
+  reevaluate_next_sync: 3,
+  save_failed: 3,
+  validation_failed: 3,
+  netbox_status_attention: 2,
+  os_not_in_catalog: 1,
+  os_ambiguous: 1,
+  domain_not_in_catalog: 1,
+  hostname_invalid: 1,
+  status_not_mapped: 1,
+  lifecycle_not_in_catalog: 1,
+  ipv6_skipped: 1,
+  ip_conflict_skipped: 1,
+  subnet_not_in_catalog: 1,
+  no_ip_address_type: 1,
+  fetch_incomplete: 1,
+};
+
+/** The one notice a record keeps out of everything an object produced. */
+export function primaryNotice(notices: NetboxNotice[]): NetboxNotice | null {
+  let best: NetboxNotice | null = null;
+  let bestRank = 0;
+  for (const notice of notices) {
+    const rank = NOTICE_PRIORITY[notice.code] ?? 1;
+    if (rank > bestRank) {
+      best = notice;
+      bestRank = rank;
+    }
+  }
+  return best;
+}
 
 /** Builds a notice, English wording included. */
 export function netboxNotice(code: NetboxNoticeCode, params: Record<string, string> = {}): NetboxNotice {

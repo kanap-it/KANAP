@@ -32,6 +32,8 @@ export type NetboxPlanRow = {
   external_id: string;
   external_name: string | null;
   external_url: string;
+  /** The raw status Netbox reports; KANAP's lifecycle does not follow it. */
+  external_status: string | null;
   action: NetboxPlanAction;
   asset: NetboxAssetRef | null;
   matched_by: NetboxMatchedBy | null;
@@ -246,6 +248,7 @@ export function planNetboxSync(input: {
       external_id: mapping.object.id,
       external_name: mapping.object.name,
       external_url: mapping.object.url,
+      external_status: mapping.object.status,
       action: 'skipped',
       asset: null,
       matched_by: null,
