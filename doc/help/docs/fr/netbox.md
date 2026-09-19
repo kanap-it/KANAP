@@ -64,14 +64,26 @@ Cliquez sur **Synchroniser maintenant**. KANAP lit Netbox et affiche **Vérifier
 
 L'aperçu est regroupé ainsi :
 
-- **Nouveaux actifs** : les objets sans équivalent dans KANAP. Ils seront créés.
-- **Actifs mis à jour** : les objets rapprochés d'un actif existant qui diffère. Chacun liste les champs qui changent, champ par champ, sous la forme `avant → après`.
-- **À décider** : les objets que KANAP ne tranchera pas seul. Rien ne leur arrive tant que vous ne les traitez pas sur la page.
+- **À créer** : les objets sans équivalent dans KANAP. Ils seront créés.
+- **À mettre à jour** : les objets rapprochés d'un actif existant qui diffère. Rien n'est encore modifié, les valeurs sont écrites quand vous appliquez. Chacun liste les champs qui changent, champ par champ, sous la forme `avant → après`.
+- **À décider** : les objets que KANAP ne tranchera pas seul. Rien ne leur arrive tant que vous ne les traitez pas, ici ou plus tard sur la page.
 - **Ignorés** : les objets hors périmètre, comptés par raison (rôle sans correspondance, site sans correspondance, sans nom dans Netbox, ignoré par vous).
 - **Absents de Netbox** : les actifs liés lors d'une exécution précédente dont l'objet Netbox a disparu.
 - **Avertissements** : les valeurs signalées par Netbox que KANAP n'a pas pu reprendre, par exemple un système d'exploitation absent de votre catalogue. Un objet sans changement mais avec quelque chose à signaler y figure également.
 
-Lisez l'aperçu, puis cliquez sur **Appliquer**. Les objets déjà identiques sont comptés comme sans changement et ne sont pas touchés. Sur un gros inventaire, l'aperçu ne liste que les 500 premières lignes ; l'exécution, elle, applique tout.
+Lisez l'aperçu, puis cliquez sur **Appliquer**. Les objets déjà identiques sont comptés comme sans changement et ne sont pas touchés. Sur un gros inventaire, l'aperçu ne liste que les 500 premières lignes ; l'exécution, elle, applique tout. Le filtre en haut restreint la liste à un objet ou à un nom d'actif.
+
+### Corriger l'aperçu avant d'appliquer
+
+KANAP ne peut reconnaître un actif que par son numéro de série, son nom d'hôte ou son nom. Un équipement que vous avez renommé, sans aucun de ces éléments en commun, apparaît dans **À créer** et serait créé une seconde fois. L'aperçu vous permet de régler cela avant. Une ligne pour laquelle KANAP propose quelque chose porte un bouton, **Corriger** dans **À créer** et **À mettre à jour**, **Décider** sur les objets qui demandent une décision. Un objet déjà lié par une exécution précédente n'en a pas : il est réglé, et la ligne montre seulement ce qui change. Un premier rapprochement indique sur quoi il repose (« Reconnu par son numéro de série »), ce qui vous permet de repérer une erreur. Le bouton ouvre ces choix :
+
+- **Lier à un actif existant** : cherchez l'actif et sélectionnez-le. La ligne passe dans **À mettre à jour** et montre ce que Netbox va changer sur cet actif, champ par champ, pour que vous lisiez avant d'appliquer.
+- **Créer un nouvel actif** : pour un objet classé dans **À décider**, ou pour un objet que KANAP a rapproché du mauvais actif.
+- **Ne pas importer cet objet** : l'objet est écarté de cette synchronisation et des suivantes. Aucun actif n'est touché. Il passe dans **Réglés par vous** dans l'aperçu et, une fois appliqué, dans **Ignorés** sur la page, où vous pourrez revenir dessus plus tard.
+
+Une ligne que vous avez tranchée l'indique et propose **Annuler ce choix**. Lorsque plusieurs objets classés dans **À décider** n'ont qu'un seul actif suggéré, **Lier les N objets qui n'ont qu'une seule suggestion** les règle tous d'un coup. Ils passent dans **À mettre à jour**, où vous lisez ce qui change avant d'appliquer.
+
+Rien n'est écrit pendant que vous décidez. Vos choix sont appliqués avec le reste quand vous cliquez sur **Appliquer**, et ils tiennent ensuite : la synchronisation automatique suit les liens que vous avez faits. Fermer l'aperçu les abandonne.
 
 L'application se déroule en arrière-plan. La page la suit et se rafraîchit d'elle-même à la fin.
 
@@ -87,6 +99,8 @@ Un premier import dans un KANAP déjà rempli doit retrouver les actifs que vous
 4. **Le nom de l'actif**, sans tenir compte de la casse ni du suffixe de domaine.
 
 Si une piste trouve exactement un actif, c'est le bon. Si elle en trouve plusieurs, KANAP s'arrête là et classe l'objet dans **À décider**, avec la liste des candidats. Il ne fusionne jamais sur une supposition.
+
+**L'adresse IP est un garde-fou, jamais un rapprochement.** Quand aucune des quatre pistes ne donne de résultat, KANAP vérifie si un actif porte déjà l'adresse principale de l'objet. Si c'est le cas, l'objet n'est pas créé : il part dans **À décider** avec cet actif en suggestion, et vous confirmez s'il s'agit du même équipement. Une adresse seule ne lie jamais rien, même quand un seul actif la porte. Les adresses sont réutilisées, partagées entre les membres d'un cluster, ou simplement périmées, et un mauvais lien laisserait Netbox écraser le mauvais actif. La synchronisation automatique suit la même règle : un nouvel équipement Netbox sur une adresse connue vous attend au lieu de devenir un doublon.
 
 Deux règles complètent le dispositif :
 
@@ -150,7 +164,7 @@ Une synchronisation ne passe jamais un actif en **Retiré**. Retirer un équipem
 
 ## Synchronisation automatique
 
-Activez **Synchronisation automatique** sur la carte d'intégration : KANAP exécute le même traitement toutes les heures et applique les changements sans aperçu. L'interrupteur est propre à chaque organisation, et seules celles qui l'ont activé sont traitées.
+Activez **Synchronisation automatique** sur la carte d'intégration : KANAP exécute le même traitement toutes les heures et applique les changements sans aperçu. L'interrupteur est propre à chaque organisation, et seules celles qui l'ont activé sont traitées. Le traitement horaire ne fait jamais le premier import : il démarre une fois que vous avez appliqué vous-même une synchronisation et qu'elle s'est terminée sans erreur. D'ici là, l'interrupteur peut être activé sans que rien ne s'exécute.
 
 Les objets qui demandent une décision ne sont jamais tranchés automatiquement. Ils s'accumulent dans **À décider** et vous attendent.
 
@@ -166,7 +180,7 @@ En dessous, l'onglet **Objets** liste tous les objets Netbox du périmètre, fil
 
 | État | Ce que cela signifie | Ce que vous pouvez faire |
 |------|----------------------|--------------------------|
-| **À décider** | Plusieurs actifs pourraient être cet objet, ou deux objets ont atteint le même actif. | **Lier à...** l'un des candidats, **Créer un actif**, ou **Ignorer**. |
+| **À décider** | Plusieurs actifs pourraient être cet objet, deux objets ont atteint le même actif, ou un actif porte déjà l'adresse IP de l'objet. | **Lier à...** l'un des candidats, **Créer un actif**, ou **Ignorer**. |
 | **Absents de Netbox** | L'objet a disparu de Netbox. L'actif n'est pas touché. | **Passer l'actif en retiré**, **Ignorer**, ou ne rien faire. |
 | **Erreurs** | L'objet n'a pas pu être écrit, la raison figure dans la colonne Message. | Corrigez la cause et relancez, ou **Ignorer** l'objet. |
 | **Ignorés** | Vous avez demandé à KANAP de laisser cet objet de côté. Chaque exécution le saute. | **Ne plus ignorer** le remet dans la liste. Quand la fiche ne contient rien à décider, elle est supprimée et l'objet est réexaminé à la prochaine synchronisation. |
@@ -211,5 +225,6 @@ La tuile reste discrète quand il n'y a rien à faire : une ligne indiquant que 
 
 - **Les correspondances d'abord, la synchronisation ensuite.** Les correspondances définissent le périmètre. Commencez par les rôles et les sites dont vous êtes sûr, lancez une exécution, puis élargissez.
 - **Lisez l'aperçu de la première exécution.** C'est la seule où tous les rapprochements sont nouveaux, donc la seule qui mérite une lecture ligne à ligne.
+- **Équipements renommés : vérifiez la liste À créer.** Tout ce que vous y reconnaissez est sur le point d'être dupliqué. Liez-le à son actif dans l'aperçu, ou renseignez son numéro de série ou son nom d'hôte dans KANAP et rouvrez l'aperçu.
 - **Renseignez les numéros de série.** C'est le rapprochement le plus solide. Les actifs qui portent un numéro de série survivent aux renommages des deux côtés sans jamais atterrir dans **À décider**.
 - **Attendez avant d'activer l'exécution horaire.** Deux exécutions manuelles propres d'affilée, la seconde n'annonçant aucun changement, signifient que les correspondances et les rapprochements sont justes.
