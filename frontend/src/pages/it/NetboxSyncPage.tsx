@@ -80,6 +80,12 @@ function useNoticeText() {
   return React.useCallback((notice: NetboxNotice | null | undefined): string => {
     if (!notice) return '';
     const key = `pages.netbox.notices.${notice.code}`;
+    if (notice.code === 'netbox_status_attention') {
+      // The sentence takes the translated mid-sentence label, not the raw value.
+      const value = notice.params?.value || '';
+      const status = t(`pages.netbox.netboxStatusInline.${value}`, { defaultValue: value });
+      return t(key, { status, defaultValue: notice.text });
+    }
     if (notice.code === 'validation_failed') {
       const leadIn = t(key, { defaultValue: '' });
       if (!leadIn) return notice.text;

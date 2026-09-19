@@ -369,7 +369,8 @@
         "never": "Netbox · noch nicht synchronisiert",
         "missing": "Nicht mehr in Netbox",
         "open": "In Netbox öffnen",
-        "managed": "Wird von Netbox verwaltet"
+        "managed": "Wird von Netbox verwaltet",
+        "netboxStatus": "Netbox-Status: {{status}}"
       },
       "notices": {
         "ambiguous_candidates": "Mehrere Assets kommen für dieses Objekt infrage. Wählen Sie eines aus oder legen Sie ein neues an.",
@@ -388,7 +389,23 @@
         "os_ambiguous": "Das Betriebssystem „{{value}}“ passt zu mehreren Einträgen in Ihrem Katalog, der Wert blieb unverändert.",
         "status_not_mapped": "Der Netbox-Status „{{value}}“ hat keine Entsprechung in KANAP, der Lebenszyklus blieb unverändert.",
         "lifecycle_not_in_catalog": "Der Lebenszyklus „{{value}}“ steht nicht in Ihrem Katalog, der Wert blieb unverändert.",
-        "no_ip_address_type": "In den IT-Einstellungen ist kein IP-Adresstyp eingerichtet, die Adresse wurde nicht importiert."
+        "no_ip_address_type": "In den IT-Einstellungen ist kein IP-Adresstyp eingerichtet, die Adresse wurde nicht importiert.",
+        "netbox_status_attention": "Netbox meldet dieses Objekt als {{status}}."
+      },
+      "netboxStatus": {
+        "active": "Aktiv",
+        "offline": "Offline",
+        "planned": "Geplant",
+        "staged": "Vorbereitet",
+        "failed": "Ausgefallen",
+        "inventory": "Auf Lager",
+        "decommissioning": "Wird ausgemustert",
+        "paused": "Pausiert"
+      },
+      "netboxStatusInline": {
+        "offline": "offline",
+        "failed": "ausgefallen",
+        "paused": "pausiert"
       }
     }
   },

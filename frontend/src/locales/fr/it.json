@@ -369,7 +369,8 @@
         "never": "Netbox · pas encore synchronisé",
         "missing": "N'est plus dans Netbox",
         "open": "Ouvrir dans Netbox",
-        "managed": "Géré par Netbox"
+        "managed": "Géré par Netbox",
+        "netboxStatus": "Statut Netbox : {{status}}"
       },
       "notices": {
         "ambiguous_candidates": "Plusieurs actifs peuvent correspondre à cet objet. Choisissez-en un ou créez un actif.",
@@ -388,7 +389,23 @@
         "os_ambiguous": "Le système d'exploitation « {{value}} » correspond à plusieurs entrées de votre catalogue, la valeur n'a pas été modifiée.",
         "status_not_mapped": "Le statut Netbox « {{value}} » n'a pas d'équivalent dans KANAP, le cycle de vie n'a pas été modifié.",
         "lifecycle_not_in_catalog": "Le cycle de vie « {{value}} » ne figure pas dans votre catalogue, la valeur n'a pas été modifiée.",
-        "no_ip_address_type": "Aucun type d'adresse IP n'est défini dans les paramètres IT, l'adresse n'a pas été importée."
+        "no_ip_address_type": "Aucun type d'adresse IP n'est défini dans les paramètres IT, l'adresse n'a pas été importée.",
+        "netbox_status_attention": "Netbox signale cet objet comme {{status}}."
+      },
+      "netboxStatus": {
+        "active": "Actif",
+        "offline": "Hors ligne",
+        "planned": "Planifié",
+        "staged": "Préparé",
+        "failed": "En panne",
+        "inventory": "En stock",
+        "decommissioning": "En cours de retrait",
+        "paused": "En pause"
+      },
+      "netboxStatusInline": {
+        "offline": "hors ligne",
+        "failed": "en panne",
+        "paused": "en pause"
       }
     }
   },

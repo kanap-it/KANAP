@@ -33,7 +33,23 @@ export type NetboxNoticeCode =
   | 'no_ip_address_type'
   | 'fetch_incomplete'
   | 'save_failed'
-  | 'validation_failed';
+  | 'validation_failed'
+  | 'netbox_status_attention';
+
+/** Raw Netbox status values. Kept as a plain string on the wire: an unknown value must not break anything. */
+export type NetboxExternalStatus =
+  | 'active' | 'offline' | 'planned' | 'staged'
+  | 'failed' | 'inventory' | 'decommissioning' | 'paused';
+
+/**
+ * Netbox statuses worth telling the user about. The KANAP lifecycle stays Active;
+ * only the Netbox-side state is surfaced.
+ */
+export const NETBOX_ATTENTION_STATUSES: readonly string[] = ['offline', 'failed', 'paused'];
+
+export function isNetboxAttentionStatus(value: string | null | undefined): boolean {
+  return !!value && NETBOX_ATTENTION_STATUSES.includes(value);
+}
 
 export interface NetboxNotice {
   code: NetboxNoticeCode;
@@ -133,6 +149,8 @@ export interface NetboxPlanRow {
   diffs: NetboxFieldDiff[];
   skip_reason: 'unmapped_role' | 'unmapped_site' | 'unnamed' | 'ignored' | null;
   warnings: NetboxNotice[];
+  /** Raw Netbox status; absent on payloads from an older backend. */
+  external_status?: string | null;
 }
 
 export interface NetboxSyncCounts {
@@ -184,6 +202,8 @@ export interface NetboxRecordRow {
   state: NetboxRecordState;
   asset: (NetboxAssetRef & { status: string }) | null;
   candidates: NetboxAssetRef[];
+  /** Raw Netbox status; absent on payloads from an older backend. */
+  external_status?: string | null;
   message: NetboxNotice | null;
   last_seen_at: string | null;
   last_synced_at: string | null;

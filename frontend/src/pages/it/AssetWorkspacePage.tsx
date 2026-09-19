@@ -59,6 +59,7 @@ import SendLinkButton from '../../components/workspace/SendLinkButton';
 import { fetchAssetRelationsCount } from '../../utils/workspaceTabCounts';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
 import type { AssetExternalLink } from '../../api/endpoints/assets';
+import { isNetboxAttentionStatus } from '../../api/endpoints/netbox';
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 type IpAddressEntry = { type: string; ip: string; subnet_cidr: string | null };
 
@@ -277,6 +278,9 @@ export default function AssetWorkspacePage() {
     [data?.external_links],
   );
   const netboxManaged = netboxLink?.state === 'linked';
+  const netboxAttentionStatus = netboxManaged && isNetboxAttentionStatus(netboxLink?.external_status)
+    ? (netboxLink?.external_status as string)
+    : null;
   const canEditNetboxField = canManage && !netboxManaged;
   const netboxSyncedLabel = React.useMemo(() => {
     const value = netboxLink?.last_synced_at;
@@ -1571,7 +1575,14 @@ export default function AssetWorkspacePage() {
           {tab === 'overview' && (
             <Stack spacing={3.5}>
               {!isCreate && netboxLink ? (
-                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  alignItems="center"
+                  flexWrap="wrap"
+                  useFlexGap
+                  sx={{ fontSize: 12, color: 'kanap.text.tertiary', rowGap: 0.5 }}
+                >
                   <Box component="span">{t('pages.netbox.assetSource.label')}</Box>
                   <Box
                     component="span"
@@ -1595,6 +1606,18 @@ export default function AssetWorkspacePage() {
                   >
                     {t('pages.netbox.assetSource.open')}
                   </MuiLink>
+                  {netboxAttentionStatus ? (
+                    <>
+                      <Box component="span">·</Box>
+                      <Box component="span" sx={{ color: getDotColor('warning', theme.palette.mode) }}>
+                        {t('pages.netbox.assetSource.netboxStatus', {
+                          status: t(`pages.netbox.netboxStatus.${netboxAttentionStatus}`, {
+                            defaultValue: netboxAttentionStatus,
+                          }),
+                        })}
+                      </Box>
+                    </>
+                  ) : null}
                   {netboxManaged ? (
                     <>
                       <Box component="span">·</Box>

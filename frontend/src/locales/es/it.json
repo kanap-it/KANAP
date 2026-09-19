@@ -369,7 +369,8 @@
         "never": "Netbox · aún sin sincronizar",
         "missing": "Ya no está en Netbox",
         "open": "Abrir en Netbox",
-        "managed": "Gestionado por Netbox"
+        "managed": "Gestionado por Netbox",
+        "netboxStatus": "Estado en Netbox: {{status}}"
       },
       "notices": {
         "ambiguous_candidates": "Varios activos podrían ser este objeto. Elija uno o cree un activo nuevo.",
@@ -388,7 +389,23 @@
         "os_ambiguous": "El sistema operativo «{{value}}» coincide con varias entradas de su catálogo, así que el valor no se ha cambiado.",
         "status_not_mapped": "El estado de Netbox «{{value}}» no tiene equivalente en KANAP, así que el ciclo de vida no se ha cambiado.",
         "lifecycle_not_in_catalog": "El ciclo de vida «{{value}}» no está en su catálogo, así que el valor no se ha cambiado.",
-        "no_ip_address_type": "No hay ningún tipo de dirección IP definido en los ajustes de TI, así que la dirección no se ha importado."
+        "no_ip_address_type": "No hay ningún tipo de dirección IP definido en los ajustes de TI, así que la dirección no se ha importado.",
+        "netbox_status_attention": "Netbox informa de que este objeto está {{status}}."
+      },
+      "netboxStatus": {
+        "active": "Activo",
+        "offline": "Sin conexión",
+        "planned": "Planificado",
+        "staged": "Preparado",
+        "failed": "Averiado",
+        "inventory": "En inventario",
+        "decommissioning": "En retirada",
+        "paused": "En pausa"
+      },
+      "netboxStatusInline": {
+        "offline": "sin conexión",
+        "failed": "averiado",
+        "paused": "en pausa"
       }
     }
   },

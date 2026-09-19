@@ -38,6 +38,8 @@ export interface AssetExternalLink {
   external_type: 'device' | 'vm';
   external_url: string;
   state: 'linked' | 'ambiguous' | 'missing' | 'ignored' | 'error';
+  /** Raw Netbox status; absent on payloads from an older backend. */
+  external_status?: string | null;
   last_synced_at: string | null;
 }
 

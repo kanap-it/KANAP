@@ -216,6 +216,36 @@ describe('NetboxSyncPage', () => {
     expect(screen.getByText('The operating system "Photon OS" is not in your catalogue, so it was left unchanged.')).toBeInTheDocument();
   });
 
+  it('renders the Netbox status notice with the status translated, not the raw value', async () => {
+    (apiClient.get as any).mockImplementation((url: string) => {
+      if (url === '/netbox/status') return Promise.resolve(STATUS);
+      if (url === '/netbox/records') {
+        return Promise.resolve({
+          items: [{
+            ...AMBIGUOUS_ROW,
+            state: 'linked',
+            external_status: 'failed',
+            candidates: [],
+            message: {
+              code: 'netbox_status_attention',
+              params: { value: 'failed' },
+              text: 'SERVER ENGLISH, SHOULD NOT BE SHOWN',
+            },
+          }],
+          total: 1,
+        });
+      }
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    renderPage('/it/netbox?state=linked');
+
+    expect(await screen.findByText('Netbox reports this object as failed.')).toBeInTheDocument();
+    expect(screen.queryByText(/SHOULD NOT BE SHOWN/)).not.toBeInTheDocument();
+    // The raw value never leaks into the sentence.
+    expect(screen.queryByText(/as failed\./)).toBeInTheDocument();
+  });
+
   it('falls back to the server text for a notice code this build does not know', async () => {
     (apiClient.get as any).mockImplementation((url: string, config?: any) => {
       if (url === '/netbox/status') return Promise.resolve(STATUS);
