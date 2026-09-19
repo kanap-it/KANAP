@@ -11,6 +11,7 @@ import { WithQueryClient } from './lib/queryClient'
 import { ThemeModeProvider, createAppTheme, useThemeMode } from './config/ThemeContext'
 import { TenantProvider, useTenant } from './tenant/TenantContext'
 import { KanapDialogProvider } from './components/design'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
 import './i18n'
 import { useLocale } from './i18n/useLocale'
 import '@fontsource-variable/inter'
@@ -47,7 +48,12 @@ function AppShell() {
           <AuthProvider>
             <SessionManager>
               <KanapDialogProvider>
-                <App />
+                {/* Inside the theme and i18n providers so the fallback renders styled and
+                    translated, and around <App /> so a route-level crash or a failed chunk
+                    import shows a message instead of a blank page. */}
+                <AppErrorBoundary>
+                  <App />
+                </AppErrorBoundary>
               </KanapDialogProvider>
             </SessionManager>
           </AuthProvider>

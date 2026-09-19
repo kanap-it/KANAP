@@ -15,5 +15,10 @@
   "WEEKLY_REVIEW_USER_NOT_FOUND": "Utilisateur introuvable ou désactivé.",
   "WEEKLY_REVIEW_ROLE_INELIGIBLE": "La revue hebdomadaire n'est pas disponible pour votre rôle actuel.",
   "WEEKLY_REVIEW_NOT_ENABLED": "Activez les notifications par e-mail et la revue hebdomadaire pour afficher l'aperçu.",
-  "WEEKLY_REVIEW_SEND_FAILED": "Échec de l'envoi de l'e-mail de revue hebdomadaire."
+  "WEEKLY_REVIEW_SEND_FAILED": "Échec de l'envoi de l'e-mail de revue hebdomadaire.",
+  "APP_CRASH_TITLE": "Une erreur est survenue.",
+  "APP_CRASH_BODY": "La page n'a pas pu s'afficher. La recharger corrige généralement le problème.",
+  "APP_CRASH_RELOAD": "Recharger",
+  "APP_CRASH_DETAILS": "Détails techniques",
+  "APP_UPDATE_AVAILABLE": "Une nouvelle version est disponible."
 }

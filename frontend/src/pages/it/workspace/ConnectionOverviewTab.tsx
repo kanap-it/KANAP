@@ -21,7 +21,10 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../api';
 import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
-import MarkdownEditor from '../../../components/MarkdownEditor';
+// Lazy like the eight other call sites: a static import here pulls the MDX editor and its
+// whole Lexical dependency tree into the entry chunk for every user. The Suspense boundary
+// below was already in place.
+const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
 import ConnectionEndpointPicker from './ConnectionEndpointPicker';
 import ConnectionLinkInterfacesDialog from './ConnectionLinkInterfacesDialog';
 import ConnectionProtocolsTable, { type ConnectionProtocol } from './ConnectionProtocolsTable';
