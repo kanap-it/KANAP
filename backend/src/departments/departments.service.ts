@@ -19,7 +19,7 @@ import {
 import { applyStatusFilter, extractStatusFilterFromAgModel } from '../common/status-filter';
 import { StatusState, STATUS_STATES, resolveLifecycleState } from '../common/status';
 import { DepartmentUpsertDto } from './dto/department.dto';
-import { neutralizeCsvRow } from '../common/csv/csv-export.service';
+import { denormalizeCsvRow, neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 type DepartmentLookupItem = { id: string; name: string; company_id: string };
 
@@ -614,7 +614,7 @@ export class DepartmentsService {
           }
         })
         .on('error', (err) => reject(err))
-        .on('data', (row: Row) => rows.push(row))
+        .on('data', (row: Row) => rows.push(denormalizeCsvRow(row)))
         .on('end', () => resolve());
     });
     if (!headerOk) {

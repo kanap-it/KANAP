@@ -2,7 +2,12 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { format } from '@fast-csv/format';
-import { neutralizeCsvFormulaValue, neutralizeCsvRow } from '../csv-export.service';
+import {
+  denormalizeCsvFormulaValue,
+  denormalizeCsvRow,
+  neutralizeCsvFormulaValue,
+  neutralizeCsvRow,
+} from '../csv-export.service';
 
 /**
  * Every export that hand-rolls its own fast-csv formatter now passes
@@ -82,7 +87,43 @@ async function testFormatterLeavesOrdinaryTextAlone() {
   assert.ok(!csv.includes("'"), 'ordinary text must not gain an apostrophe');
 }
 
+function testLeavesPlainNegativeNumbersAlone() {
+  // Amounts come out of formatCents and numeric columns as strings. A prefixed negative
+  // becomes text in a spreadsheet and drops out of every SUM.
+  assert.equal(neutralizeCsvFormulaValue('-1200.50'), '-1200.50');
+  assert.equal(neutralizeCsvFormulaValue('-1200,5'), '-1200,5');
+  assert.equal(neutralizeCsvFormulaValue('-7'), '-7');
+  // Anything else starting with a trigger stays protected.
+  assert.equal(neutralizeCsvFormulaValue('-1+cmd|calc'), "'-1+cmd|calc");
+  assert.equal(neutralizeCsvFormulaValue('-x'), "'-x");
+  assert.equal(neutralizeCsvFormulaValue('- bullet'), "'- bullet");
+  assert.equal(neutralizeCsvFormulaValue('+33 6 12 34 56 78'), "'+33 6 12 34 56 78");
+  assert.equal(neutralizeCsvFormulaValue('+33612345678'), "'+33612345678");
+}
+
+function testRowRoundTripsThroughExportAndImport() {
+  const original = {
+    phone: '+33 6 12 34 56 78',
+    notes: '- first point',
+    name: '=cmd|calc',
+    handle: '@team',
+    amount: '-1200.50',
+    plain: "l'apostrophe",
+    quoted: "'kept",
+    count: 3,
+  };
+  const exported = neutralizeCsvRow(original) as Record<string, unknown>;
+  assert.equal(exported.phone, "'+33 6 12 34 56 78");
+  assert.deepEqual(denormalizeCsvRow(exported), original);
+  // A user value that merely starts with an apostrophe is not ours to strip.
+  assert.equal(denormalizeCsvFormulaValue("'kept"), "'kept");
+  // Files exported before plain negatives were exempted still import cleanly.
+  assert.equal(denormalizeCsvFormulaValue("'-1200.50"), '-1200.50');
+}
+
 async function run() {
+  testLeavesPlainNegativeNumbersAlone();
+  testRowRoundTripsThroughExportAndImport();
   testNeutralizesEveryStringFieldOfARow();
   testNeutralizesArrayRows();
   testPassesThroughScalars();
@@ -91,9 +132,38 @@ async function run() {
   await testFormatterEmitsNeutralizedValues();
   await testFormatterLeavesOrdinaryTextAlone();
   testEveryCsvWriterNeutralizesFormulas();
+  testEveryNeutralizingWriterDenormalizesItsImport();
 }
 
 void run();
+
+/**
+ * The other half of the guard below: an exporter that neutralises and whose module also
+ * parses CSV must strip the apostrophe on the way back in. Without it, re-importing an
+ * unmodified export stores "'+33 6 12..." and "'- first point".
+ */
+function testEveryNeutralizingWriterDenormalizesItsImport() {
+  const srcRoot = path.join(__dirname, '..', '..', '..');
+  const offenders: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === '__tests__' || entry.name === 'migrations' || entry.name === 'node_modules') continue;
+        walk(full);
+        continue;
+      }
+      if (!entry.name.endsWith('.ts') || entry.name.endsWith('.spec.ts')) continue;
+      const source = fs.readFileSync(full, 'utf8');
+      if (!source.includes('transform: neutralizeCsvRow') || !source.includes('parseString(')) continue;
+      if (!source.includes('denormalizeCsvRow(')) {
+        offenders.push(path.relative(srcRoot, full).split(path.sep).join('/'));
+      }
+    }
+  };
+  walk(srcRoot);
+  assert.deepEqual(offenders, [], `CSV importers must call denormalizeCsvRow:\n${offenders.join('\n')}`);
+}
 
 /**
  * Source-level guard. The unit tests above prove the transform works when it is attached;
@@ -107,6 +177,9 @@ function testEveryCsvWriterNeutralizesFormulas() {
     'common/csv/csv-import.service.ts',
     'users/users.service.ts', // neutralises every exported field explicitly
     'applications/applications-csv.service.ts', // template export: headers only, no values
+    // Encodes the stored template payload (coa_templates.csv_payload), read back by the same
+    // service. Neutralising there would persist the apostrophe; it is storage, not an export.
+    'admin/coa-templates/admin-coa-templates.service.ts',
   ]);
 
   const srcRoot = path.join(__dirname, '..', '..', '..');

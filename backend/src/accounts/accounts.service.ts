@@ -12,7 +12,7 @@ import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
 import { resolveLifecycleState, StatusState } from '../common/status';
 import { extractStatusFilterFromAgModel } from '../common/status-filter';
 import { AccountUpsertDto } from './dto/account.dto';
-import { neutralizeCsvRow } from '../common/csv/csv-export.service';
+import { denormalizeCsvRow, neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 @Injectable()
 export class AccountsService {
@@ -491,7 +491,7 @@ export class AccountsService {
           }
         })
         .on('error', (err) => reject(err))
-        .on('data', (row: Row) => rows.push(row))
+        .on('data', (row: Row) => rows.push(denormalizeCsvRow(row)))
         .on('end', () => resolve());
     });
     if (!headerOk) {

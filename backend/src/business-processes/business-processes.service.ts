@@ -14,7 +14,7 @@ import { parseString } from '@fast-csv/parse';
 import * as fs from 'fs';
 import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
 import { User } from '../users/user.entity';
-import { neutralizeCsvRow } from '../common/csv/csv-export.service';
+import { denormalizeCsvRow, neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 @Injectable()
 export class BusinessProcessesService {
@@ -472,7 +472,7 @@ export class BusinessProcessesService {
           }
         })
         .on('error', (err) => reject(err))
-        .on('data', (row: Row) => rows.push(row))
+        .on('data', (row: Row) => rows.push(denormalizeCsvRow(row)))
         .on('end', () => resolve());
     });
 

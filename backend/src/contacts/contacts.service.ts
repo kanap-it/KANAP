@@ -11,7 +11,7 @@ import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
 import * as fs from 'fs';
 import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
-import { neutralizeCsvRow } from '../common/csv/csv-export.service';
+import { denormalizeCsvRow, neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 @Injectable()
 export class ContactsService {
@@ -461,7 +461,7 @@ export class ContactsService {
           }
         })
         .on('error', (err) => reject(err))
-        .on('data', (row: Row) => rows.push(row))
+        .on('data', (row: Row) => rows.push(denormalizeCsvRow(row)))
         .on('end', () => resolve());
     });
     if (!headerOk) {

@@ -20,7 +20,7 @@ import {
 import { applyStatusFilter, extractStatusFilterFromAgModel } from '../common/status-filter';
 import { StatusState, STATUS_STATES, resolveLifecycleState } from '../common/status';
 import { CompanyUpsertDto } from './dto/company.dto';
-import { neutralizeCsvRow } from '../common/csv/csv-export.service';
+import { denormalizeCsvRow, neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 type CompanyFilterTarget = FilterTargetConfig & { requiresMetrics?: boolean };
 type CompanyLookupItem = { id: string; name: string };
@@ -896,7 +896,7 @@ export class CompaniesService {
           }
         })
         .on('error', (err) => reject(err))
-        .on('data', (row: Row) => rows.push(row))
+        .on('data', (row: Row) => rows.push(denormalizeCsvRow(row)))
         .on('end', () => resolve());
     });
     if (!headerOk) {

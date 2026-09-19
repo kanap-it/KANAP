@@ -5,7 +5,7 @@ import { CoaTemplate } from './coa-template.entity';
 import { parseString } from '@fast-csv/parse';
 import { format } from '@fast-csv/format';
 import { AuditService } from '../../audit/audit.service';
-import { neutralizeCsvRow } from '../../common/csv/csv-export.service';
+import { denormalizeCsvRow } from '../../common/csv/csv-export.service';
 
 @Injectable()
 export class AdminCoaTemplatesService {
@@ -43,7 +43,10 @@ export class AdminCoaTemplatesService {
     const rows: Record<string, any>[] = [];
     await new Promise<void>((resolve, reject) => {
       parseString(csv, { headers: true, delimiter, ignoreEmpty: true, trim: true })
-        .on('data', (row: Record<string, string>) => {
+        .on('data', (rawRow: Record<string, string>) => {
+          // A payload uploaded from a neutralised accounts export carries the protective
+          // apostrophe; accounts.importCsv strips it too, so both readers agree.
+          const row = denormalizeCsvRow(rawRow);
           const toInt = (v: any): number | null => {
             const s = (v ?? '').toString().trim();
             if (s === '') return null;
@@ -76,7 +79,9 @@ export class AdminCoaTemplatesService {
     const chunks: string[] = [];
     return await new Promise<string>((resolve, reject) => {
       try {
-        const stream = format({ headers, delimiter, transform: neutralizeCsvRow });
+        // No formula neutralisation here: this encodes the payload stored in
+        // coa_templates.csv_payload, which parseTemplateRows reads back. It is not an export.
+        const stream = format({ headers, delimiter });
         stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
         stream.on('end', () => resolve('\ufeff' + chunks.join('')));
         for (const r of sorted) {
