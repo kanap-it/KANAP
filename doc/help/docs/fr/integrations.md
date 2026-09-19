@@ -1,14 +1,14 @@
 # Intégrations
 
-Utilisez la page Intégrations pour connecter KANAP à des outils tiers qui complètent les données que vous gérez déjà dans la plateforme. Aujourd'hui, la page configure une seule connexion : votre centre de services **GLPI**. Cette unique connexion remplit désormais deux fonctions à la fois — elle permet à **Plaid** (le chat interactif) de trouver et d'importer des tickets dans KANAP sous forme de tâches, et elle alimente les **Agents IA** qui surveillent votre centre de services et proposent ou réalisent le travail sur les tickets. De nouvelles intégrations viendront s'ajouter ici au fil du temps.
+Utilisez la page Intégrations pour connecter KANAP à des outils tiers qui complètent les données que vous gérez déjà dans la plateforme. La connexion principale est votre centre de services **GLPI**. Cette connexion remplit deux fonctions à la fois : elle permet à **Plaid** (le chat interactif) de trouver et d'importer des tickets dans KANAP sous forme de tâches, et elle alimente les **Agents IA** qui surveillent votre centre de services et proposent ou réalisent le travail sur les tickets. La page héberge également la connexion **Inventaire Netbox**, qui n'a rien à voir avec l'IA. De nouvelles intégrations viendront s'ajouter ici au fil du temps.
 
 ## Où la trouver
 
 - Espace de travail : **Administration**
 - Chemin : **Administration → Intégrations**
 - Route : `/admin/integrations`
-- Autorisation : `ai_settings:admin` pour consulter et modifier la connexion sur cette page
-- Indicateur de fonctionnalité : partage la même surface `ai_settings` que la page de paramètres Plaid. Lorsque la surface est désactivée, l'entrée n'apparaît pas dans la barre latérale.
+- Autorisation : `ai_settings:admin` ou `infrastructure:admin`. Chaque carte a son exigence propre : les connexions GLPI et supervision demandent `ai_settings:admin`, la connexion Netbox demande `infrastructure:admin`. Vous ne voyez que les cartes que vous avez le droit de configurer.
+- Indicateur de fonctionnalité : les cartes GLPI et supervision partagent la même surface `ai_settings` que la page de paramètres Plaid. Lorsque cette surface est désactivée, elles sont masquées. La carte Netbox n'a pas d'indicateur de fonctionnalité et reste disponible dans l'édition cloud comme dans l'édition on-premise.
 
 Les identifiants que vous saisissez ici sont ceux que Plaid comme n'importe quel Agent IA utilisent pour atteindre GLPI — vous configurez la connexion une seule fois, à un seul endroit.
 
@@ -58,6 +58,16 @@ Le formulaire de configuration contient :
 ### Stockage des secrets
 
 Si votre instance KANAP ne dispose pas d'un coffre à secrets configuré, un texte d'aide apparaît sous chaque champ de jeton pour vous avertir que les valeurs ne peuvent pas être conservées. Configurez le stockage des secrets au niveau de l'instance avant de vous appuyer sur cette intégration en production.
+
+---
+
+## Inventaire Netbox
+
+[Netbox](https://netboxlabs.com/docs/netbox/) fait référence dans beaucoup d'équipes d'infrastructure : équipements, machines virtuelles, baies, sites, adresses. La carte **Inventaire Netbox** stocke l'adresse et le jeton d'API que KANAP utilise pour lire cet inventaire et maintenir ses actifs en phase avec lui. Netbox reste la référence pour les équipements qu'il décrit ; KANAP conserve la couche métier autour.
+
+Cette connexion est indépendante des fonctionnalités d'IA. Elle demande `infrastructure:admin`, fonctionne dans l'édition cloud comme dans l'édition on-premise, et reste disponible quand l'IA est désactivée.
+
+Configurez la connexion ici, puis rendez-vous dans **Cartographie SI > Netbox** pour choisir ce qui est importé et lancer la synchronisation. La procédure complète, les règles de rapprochement et le tableau de résolution des problèmes figurent sur [Synchronisation Netbox](netbox.md).
 
 ---
 

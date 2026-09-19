@@ -1,14 +1,14 @@
 # Integrationen
 
-Verwenden Sie die Integrationsseite, um KANAP mit Drittanbieter-Tools zu verbinden, die die in der Plattform bereits verwalteten Daten ergänzen. Heute konfiguriert die Seite eine Verbindung: Ihren **GLPI**-Service-Desk. Diese eine Verbindung erfüllt nun zwei Zwecke gleichzeitig – sie ermöglicht **Plaid** (dem interaktiven Chat), Tickets zu finden und als Aufgaben in KANAP zu importieren, und sie versorgt die **KI-Agenten**, die Ihren Service-Desk überwachen und Ticketarbeit vorschlagen oder ausführen. Weitere Integrationen werden hier im Laufe der Zeit hinzugefügt.
+Verwenden Sie die Integrationsseite, um KANAP mit Drittanbieter-Tools zu verbinden, die die in der Plattform bereits verwalteten Daten ergänzen. Die wichtigste Verbindung ist Ihr **GLPI**-Service-Desk. Diese eine Verbindung erfüllt zwei Zwecke gleichzeitig: Sie ermöglicht **Plaid** (dem interaktiven Chat), Tickets zu finden und als Aufgaben in KANAP zu importieren, und sie versorgt die **KI-Agenten**, die Ihren Service-Desk überwachen und Ticketarbeit vorschlagen oder ausführen. Die Seite beherbergt außerdem die Verbindung **Netbox-Inventar**, die nichts mit KI zu tun hat. Weitere Integrationen werden hier im Laufe der Zeit hinzugefügt.
 
 ## Wo Sie es finden
 
 - Arbeitsbereich: **Administration**
 - Pfad: **Administration → Integrationen**
 - Route: `/admin/integrations`
-- Berechtigung: `ai_settings:admin`, um die Verbindung auf dieser Seite anzuzeigen und zu bearbeiten
-- Feature-Flag: teilt sich dieselbe `ai_settings`-Oberfläche wie die Plaid-Einstellungsseite. Wenn die Oberfläche deaktiviert ist, erscheint der Eintrag nicht in der Seitenleiste.
+- Berechtigung: `ai_settings:admin` oder `infrastructure:admin`. Jede Karte hat ihre eigene Anforderung: Die GLPI- und die Monitoring-Verbindung benötigen `ai_settings:admin`, die Netbox-Verbindung benötigt `infrastructure:admin`. Sie sehen nur die Karten, die Sie konfigurieren dürfen.
+- Feature-Flag: Die GLPI- und die Monitoring-Karte teilen sich dieselbe `ai_settings`-Oberfläche wie die Plaid-Einstellungsseite. Ist diese Oberfläche deaktiviert, werden sie ausgeblendet. Die Netbox-Karte hat kein Feature-Flag und ist sowohl in der Cloud als auch in der On-Premise-Edition verfügbar.
 
 Die Anmeldedaten, die Sie hier eingeben, verwenden sowohl Plaid als auch jeder KI-Agent, um GLPI zu erreichen – Sie konfigurieren die Verbindung einmal, an einem Ort.
 
@@ -58,6 +58,16 @@ Das Konfigurationsformular enthält:
 ### Geheimnisspeicher
 
 Wenn Ihre KANAP-Instanz keinen konfigurierten Geheimnisspeicher hat, erscheint unter jedem Tokenfeld ein Hilfetext, der Sie warnt, dass die Werte nicht persistiert werden können. Konfigurieren Sie den Geheimnisspeicher auf Instanzebene, bevor Sie sich in der Produktion auf diese Integration verlassen.
+
+---
+
+## Netbox-Inventar
+
+[Netbox](https://netboxlabs.com/docs/netbox/) ist für viele Infrastrukturteams die maßgebliche Quelle: Geräte, virtuelle Maschinen, Racks, Standorte, Adressen. Die Karte **Netbox-Inventar** speichert die Adresse und das API-Token, mit denen KANAP dieses Inventar liest und seine Assets damit im Einklang hält. Netbox bleibt die Referenz für die dort beschriebenen Geräte, KANAP führt die fachliche Ebene darum herum.
+
+Diese Verbindung ist von den KI-Funktionen unabhängig. Sie benötigt `infrastructure:admin`, funktioniert in der Cloud und in der On-Premise-Edition und bleibt verfügbar, wenn KI deaktiviert ist.
+
+Konfigurieren Sie die Verbindung hier und gehen Sie dann zu **IT-Landschaft > Netbox**, um auszuwählen, was importiert wird, und die Synchronisierung auszuführen. Das vollständige Vorgehen, die Zuordnungsregeln und die Tabelle zur Fehlerbehebung finden Sie unter [Netbox-Synchronisierung](netbox.md).
 
 ---
 

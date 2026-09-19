@@ -1,14 +1,14 @@
 # Integrations
 
-Use the Integrations page to connect KANAP to third-party tools that complement the data you already manage in the platform. Today, the page configures one connection: your **GLPI** service desk. That single connection now serves two purposes at once — it lets **Plaid** (the interactive chat) find and import tickets into KANAP as tasks, and it feeds the **AI Agents** that watch your service desk and propose or carry out ticket work. New integrations will be added here over time.
+Use the Integrations page to connect KANAP to third-party tools that complement the data you already manage in the platform. The main connection is your **GLPI** service desk. That single connection serves two purposes at once: it lets **Plaid** (the interactive chat) find and import tickets into KANAP as tasks, and it feeds the **AI Agents** that watch your service desk and propose or carry out ticket work. The page also hosts the **Netbox inventory** connection, which has nothing to do with AI. New integrations will be added here over time.
 
 ## Where to find it
 
 - Workspace: **Admin**
 - Path: **Admin → Integrations**
 - Route: `/admin/integrations`
-- Permission: `ai_settings:admin` to view and edit the connection on this page
-- Feature flag: shares the same `ai_settings` surface as the Plaid settings page. When the surface is off, the entry does not appear in the sidebar.
+- Permission: `ai_settings:admin` or `infrastructure:admin`. Each card has its own requirement: the GLPI and monitoring connections need `ai_settings:admin`, the Netbox connection needs `infrastructure:admin`. You only see the cards you are allowed to configure.
+- Feature flag: the GLPI and monitoring cards share the same `ai_settings` surface as the Plaid settings page. When that surface is off, they are hidden. The Netbox card has no feature flag and is available in both the cloud and the on-premise edition.
 
 The credentials you enter here are what both Plaid and any AI Agent use to reach GLPI — you configure the connection once, in one place.
 
@@ -58,6 +58,16 @@ The configuration form contains:
 ### Secret storage
 
 If your KANAP instance does not have a configured secret store, a helper text appears under each token field warning you that the values cannot be persisted. Configure secret storage at the instance level before relying on this integration in production.
+
+---
+
+## Netbox inventory
+
+[Netbox](https://netboxlabs.com/docs/netbox/) is the source of truth for many infrastructure teams: devices, virtual machines, racks, sites, addresses. The **Netbox inventory** card stores the address and the API token KANAP uses to read that inventory and keep its assets in step with it. Netbox stays the reference for the equipment it describes; KANAP keeps the business layer around it.
+
+This connection is independent of the AI features. It needs `infrastructure:admin`, it works in the cloud and in the on-premise edition, and it stays available when AI is turned off.
+
+Configure the connection here, then go to **IT Landscape > Netbox** to choose what is imported and run the synchronisation. The full procedure, the matching rules and the troubleshooting table are on [Netbox synchronisation](netbox.md).
 
 ---
 
