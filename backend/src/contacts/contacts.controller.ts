@@ -20,8 +20,17 @@ export class ContactsController {
   @Get()
   list(@Query() query: any, @Req() req: any) { return this.svc.list(query, { manager: req?.queryRunner?.manager }); }
 
-  // Static routes first to avoid collisions with ':id'
-  // (duplicates removed; export/import defined above)
+  // Declared before ':id': Nest matches routes in declaration order, and '/export' would
+  // otherwise be taken for an id and fail on the uuid cast.
+  @UseGuards(PermissionGuard)
+  @RequireLevel('contacts', 'admin')
+  @Get('export')
+  async export(@Query('scope') scope: 'template' | 'data' = 'data', @Res() res: Response, @Req() req: any) {
+    const { filename, content } = await this.svc.exportCsv(scope, { manager: req?.queryRunner?.manager });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', contentDisposition(filename));
+    res.send(content);
+  }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('contacts', 'reader')
@@ -54,16 +63,6 @@ export class ContactsController {
   @RequireLevel('contacts', 'member')
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) { return this.svc.delete(id, { manager: req?.queryRunner?.manager }); }
-
-  @UseGuards(PermissionGuard)
-  @RequireLevel('contacts', 'admin')
-  @Get('export')
-  async export(@Query('scope') scope: 'template' | 'data' = 'data', @Res() res: Response, @Req() req: any) {
-    const { filename, content } = await this.svc.exportCsv(scope, { manager: req?.queryRunner?.manager });
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', contentDisposition(filename));
-    res.send(content);
-  }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('contacts', 'admin')
