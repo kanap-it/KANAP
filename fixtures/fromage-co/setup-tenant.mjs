@@ -748,6 +748,35 @@ async function ensureDuplicateAssetName() {
   ok('Created the second asset named NYC-SW-01');
 }
 
+// Two assets the Netbox inventory knows under another name. The first one
+// shares its IP address with the Netbox device, the second shares nothing and
+// can only be tied by hand in the preview.
+async function ensureRenamedAssets() {
+  info('Ensuring the renamed assets used by the Netbox address and manual link cases');
+  const assets = await getAll('/assets?limit=1000');
+  const template = assets.find((item) => normalizeValue(item.name) === 'PAR-ESX-01');
+  if (!template) {
+    warn("Asset 'PAR-ESX-01' not found; skipping the renamed assets");
+    return;
+  }
+  const wanted = [
+    { name: 'SRV-COMPTA-OLD', ip_addresses: [{ type: 'host', ip: '10.10.10.95', subnet_cidr: null }], notes: 'Netbox knows it as PAR-APP-09; only the IP address ties them' },
+    { name: 'SRV-PAIE-OLD', ip_addresses: null, notes: 'Netbox knows it as PAR-APP-10; nothing ties them, link it by hand in the preview' },
+  ];
+  for (const entry of wanted) {
+    if (assets.some((item) => normalizeValue(item.name) === entry.name)) continue;
+    await apiPost('/assets', {
+      ...entry,
+      kind: template.kind,
+      environment: template.environment,
+      provider: template.provider,
+      location_id: template.location_id,
+      status: 'active',
+    });
+    ok(`Created asset ${entry.name}`);
+  }
+}
+
 // ── Demo users ───────────────────────────────────────────────────────────────
 // Created via POST /users (not the CSV import) because that is the only
 // endpoint that accepts an initial password — the demo needs known logins.
@@ -1469,6 +1498,7 @@ async function runImports() {
   await ensureAssets(locationIdByFixtureCode);
   await ensureAssetHardwareInfo();
   if (options.netboxTestCases) await ensureDuplicateAssetName();
+  if (options.netboxTestCases) await ensureRenamedAssets();
   await importCsv('19-tasks.csv', '/tasks/import');
 }
 

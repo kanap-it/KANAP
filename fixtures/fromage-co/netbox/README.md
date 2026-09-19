@@ -75,7 +75,7 @@ Then start the profile again and reseed.
 
 `fixtures/fromage-co/setup-tenant.mjs` sets hardware info on `GOU-NAS-01`, `PAR-SAN-02` and
 `PRM-ESX-01`. With `--netbox-test-cases` it also creates a second asset named `NYC-SW-01`,
-which the ambiguity case needs. That flag is for dev tenants only, so the demo stays clean.
+which the ambiguity case needs, and the assets `SRV-COMPTA-OLD` and `SRV-PAIE-OLD` for the two renamed-equipment cases. That flag is for dev tenants only, so the demo stays clean.
 Re-run the fixture against the dev tenant to apply them.
 
 ## Case table
@@ -91,6 +91,8 @@ Re-run the fixture against the dev tenant to apply them.
 | OS outside the catalog | VM `PAR-WEB-01`, platform NixOS 25.05 | Warning. The KANAP OS stays Ubuntu 22.04 LTS. Other fields applied. |
 | Decommissioning status | Device `PAR-ESX-03`, status `decommissioning` | Asset status becomes `deprecated`. |
 | Site differs from the KANAP location | VM `PAR-BKP-01` on the Gouda vSphere cluster | Location moves to Gouda Server Room. |
+| Same IP address, nothing else in common | Device `PAR-APP-09`, 10.10.10.95 | Asset `SRV-COMPTA-OLD` holds that address. Never linked on its own and never created blindly: filed under "To decide" with that asset as the suggestion. |
+| Renamed, nothing in common | Device `PAR-APP-10` | Planned as a new asset. In the preview, choose "Link to an existing asset" and pick `SRV-PAIE-OLD`: the row moves to the updates with its field changes, and nothing is created. |
 | Ambiguous | Device `NYC-SW-01` | Two KANAP assets are named `NYC-SW-01`. Reported as ambiguous, never merged. |
 | New devices | `PAR-ESX-05`, `PAR-SW-01`, `PAR-DUP-A`, `PAR-DUP-B` | Created as new assets. |
 | New virtual machines | `PAR-LOG-01`, `PAR-CI-01` | Created as new assets. |
@@ -119,10 +121,10 @@ address in the global table.
 | Device types | 17 |
 | Device roles | 9 |
 | Platforms | 8 |
-| Devices | 33 |
-| Device interfaces | 30 |
+| Devices | 35 |
+| Device interfaces | 32 |
 | Cluster types | 1 |
 | Clusters | 3 |
 | Virtual machines | 12 |
 | VM interfaces | 12 |
-| IP addresses | 42 |
+| IP addresses | 44 |

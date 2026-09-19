@@ -60,6 +60,8 @@ export type NetboxIntegrationView = {
   request_timeout_seconds: number | null;
   insecure_tls: boolean;
   auto_sync: boolean;
+  /** A synchronisation was applied by hand at least once; the hourly run waits for it. */
+  manual_sync_done: boolean;
   default_environment: string;
   secret_writable: boolean;
   updated_at: string | null;
@@ -208,6 +210,7 @@ export class NetboxConfigService {
       request_timeout_seconds: config?.timeout_seconds ?? null,
       insecure_tls: metadata?.insecure_tls === true,
       auto_sync: metadata?.auto_sync === true,
+      manual_sync_done: typeof metadata?.first_manual_sync_at === 'string',
       default_environment: textOrNull(metadata?.default_environment) ?? 'prod',
       secret_writable: this.cipher.canEncrypt(),
       updated_at: config?.updated_at instanceof Date
@@ -388,6 +391,11 @@ export class NetboxConfigService {
     if (!config) return;
     const metadata: Record<string, unknown> = { ...(asRecord(config.metadata_json) ?? {}) };
     metadata.sync_state = state;
+    // The hourly run waits for this: a first import is read and applied by a
+    // person before anything is allowed to apply changes on its own.
+    if (state.status === 'success' && state.trigger === 'manual' && !metadata.first_manual_sync_at) {
+      metadata.first_manual_sync_at = state.finished_at ?? new Date().toISOString();
+    }
     config.metadata_json = metadata;
     config.updated_at = new Date();
     await this.repo(manager).save(config);

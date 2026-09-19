@@ -9,7 +9,7 @@ import {
 } from '../netbox-mapper';
 import { ExistingAsset, buildMatcherIndex, matchNetboxObject } from '../netbox-matcher';
 import { primaryNotice } from '../netbox-notice';
-import { ExistingLink, NetboxPlanRow, planNetboxSync } from '../netbox-planner';
+import { ExistingLink, NetboxDecision, NetboxPlanRow, planNetboxSync } from '../netbox-planner';
 import { NetboxObject } from '../netbox.types';
 
 // Unit spec for the pure half of the Netbox sync: normalisation, mapping,
@@ -110,6 +110,7 @@ function plan(input: {
   assets?: ExistingAsset[];
   links?: ExistingLink[];
   fetchOk?: boolean;
+  decisions?: NetboxDecision[];
 }) {
   const mappings = input.objects.map((object) => mapNetboxObject(object, MAP_OPTIONS));
   return planNetboxSync({
@@ -119,6 +120,7 @@ function plan(input: {
     catalogs: CATALOGS,
     fetchOk: input.fetchOk ?? true,
     totalObjects: input.objects.length,
+    decisions: input.decisions,
   });
 }
 
@@ -422,12 +424,22 @@ function row(result: ReturnType<typeof plan>, externalId: string): NetboxPlanRow
 
   // Nothing matches: a new asset.
   const fresh = matchNetboxObject(
-    mapNetboxObject(device({ id: 2, name: 'par-web-99', serial: 'SN-9999' }), MAP_OPTIONS),
+    mapNetboxObject(device({ id: 2, name: 'par-web-99', serial: 'SN-9999', primary_ip4: { address: '10.10.1.99/24' } }), MAP_OPTIONS),
     null,
     index,
   );
   assert.equal(fresh.assetId, null);
   assert.deepEqual(fresh.candidateAssetIds, []);
+
+  // Same object on an address an asset already holds: offered, never linked.
+  const sameAddress = matchNetboxObject(
+    mapNetboxObject(device({ id: 2, name: 'par-web-99', serial: 'SN-9999' }), MAP_OPTIONS),
+    null,
+    index,
+  );
+  assert.equal(sameAddress.assetId, null);
+  assert.deepEqual(sameAddress.candidateAssetIds, ['asset-1']);
+  assert.equal(sameAddress.suggestedByIp, '10.10.1.5');
 }
 
 {
@@ -743,6 +755,143 @@ function row(result: ReturnType<typeof plan>, externalId: string): NetboxPlanRow
   // An asset that never came from Netbox is not touched: it has no link row.
   const untouched = plan({ objects: [device()], assets: [asset(), asset({ id: 'aws-1', name: 'aws-rds-01', serial_number: null, hostname: null, fqdn: null })] });
   assert.equal(untouched.missing.length, 0);
+}
+
+// --- IP address: a suggestion, never a link ----------------------------------
+
+{
+  // Nothing but the address ties the renamed asset to the object.
+  const renamed = asset({ id: 'asset-old', name: 'esx-legacy', hostname: null, fqdn: null, serial_number: null });
+  const byIp = plan({ objects: [device()], assets: [renamed] });
+  const found = row(byIp, '1');
+  assert.equal(found.action, 'ambiguous');
+  assert.deepEqual(found.candidates.map((candidate) => candidate.id), ['asset-old']);
+  assert.equal(primaryNotice(found.warnings)?.code, 'ip_match_candidates');
+  assert.equal(primaryNotice(found.warnings)?.params.value, '10.10.1.5');
+  assert.equal(byIp.counts.create, 0);
+  assert.equal(byIp.writes.size, 0);
+
+  // A firmer level still wins: the serial links on its own, the address is not asked about.
+  const bySerial = plan({ objects: [device()], assets: [asset({ name: 'esx-legacy', hostname: null, fqdn: null })] });
+  assert.equal(row(bySerial, '1').action, 'update');
+  assert.equal(row(bySerial, '1').matched_by, 'serial');
+
+  // An asset another Netbox object owns is not offered: the newcomer is created.
+  const owned = plan({
+    objects: [device(), device({ id: 2, name: 'par-new-01', serial: 'SN-0002' })],
+    assets: [asset()],
+    links: [{ id: 'l1', external_type: 'device', external_id: '1', asset_id: 'asset-1', state: 'linked' }],
+  });
+  assert.equal(row(owned, '2').action, 'create');
+
+  // Same on a first run, when the other object reaches the asset in this very plan.
+  const sameRun = plan({
+    objects: [device(), device({ id: 2, name: 'par-new-01', serial: 'SN-0002' })],
+    assets: [asset()],
+  });
+  assert.equal(row(sameRun, '1').matched_by, 'serial');
+  assert.equal(row(sameRun, '2').action, 'create');
+
+  // No address on the Netbox side: plain creation.
+  const noIp = plan({ objects: [device({ primary_ip4: null })], assets: [renamed] });
+  assert.equal(row(noIp, '1').action, 'create');
+}
+
+// --- decisions made in the preview -------------------------------------------
+
+{
+  const other = asset({
+    id: 'asset-2', name: 'srv-compta', asset_reference: 'AST-9', hostname: null, fqdn: null,
+    serial_number: 'OLD-SERIAL', ip_addresses: null, model: 'PowerEdge R640',
+  });
+  const newcomer = device({ id: 7, name: 'par-app-07', serial: 'SN-0007', primary_ip4: { address: '10.10.1.77/24' } });
+  const key = { external_type: 'device' as const, external_id: '7' };
+
+  // Without a decision the object is new.
+  assert.equal(row(plan({ objects: [newcomer], assets: [other] }), '7').action, 'create');
+
+  // Link: the chosen asset is updated, with its field differences shown.
+  const linked = plan({ objects: [newcomer], assets: [other], decisions: [{ ...key, action: 'link', asset_id: 'asset-2' }] });
+  const linkedRow = row(linked, '7');
+  assert.equal(linkedRow.action, 'update');
+  assert.equal(linkedRow.matched_by, 'manual');
+  assert.equal(linkedRow.decision, 'link');
+  assert.equal(linkedRow.asset?.id, 'asset-2');
+  assert.ok(linkedRow.diffs.some((diff) => diff.field === 'name' && diff.after === 'par-app-07'));
+  assert.ok(linkedRow.diffs.some((diff) => diff.field === 'serial_number' && diff.before === 'OLD-SERIAL'));
+  assert.equal(linked.writes.get('device:7')?.assetId, 'asset-2');
+
+  // Ignore: nothing to write, and the row says who decided.
+  const ignored = plan({ objects: [newcomer], assets: [other], decisions: [{ ...key, action: 'ignore' }] });
+  assert.equal(row(ignored, '7').action, 'skipped');
+  assert.equal(row(ignored, '7').skip_reason, 'ignored');
+  assert.equal(row(ignored, '7').decision, 'ignore');
+  assert.equal(ignored.writes.size, 0);
+
+  // Create: candidates are set aside.
+  const twins = [asset({ id: 'twin-a', serial_number: null }), asset({ id: 'twin-b', serial_number: null })];
+  assert.equal(row(plan({ objects: [device({ serial: '' })], assets: twins }), '1').action, 'ambiguous');
+  const forced = plan({
+    objects: [device({ serial: '' })],
+    assets: twins,
+    decisions: [{ external_type: 'device', external_id: '1', action: 'create' }],
+  });
+  assert.equal(row(forced, '1').action, 'create');
+  assert.equal(row(forced, '1').decision, 'create');
+  assert.equal(forced.writes.get('device:1')?.assetId, null);
+
+  // A decision settles an ambiguity in favour of one candidate.
+  const settled = plan({
+    objects: [device({ serial: '' })],
+    assets: twins,
+    decisions: [{ external_type: 'device', external_id: '1', action: 'link', asset_id: 'twin-b' }],
+  });
+  assert.equal(row(settled, '1').asset?.id, 'twin-b');
+
+  // A decision lifts an earlier "ignore".
+  const unignored = plan({
+    objects: [newcomer],
+    assets: [other],
+    links: [{ id: 'l7', external_type: 'device', external_id: '7', asset_id: null, state: 'ignored' }],
+    decisions: [{ ...key, action: 'link', asset_id: 'asset-2' }],
+  });
+  assert.equal(row(unignored, '7').action, 'update');
+
+  // Out of scope stays out of scope, whatever was decided.
+  const outOfScope = plan({
+    objects: [device({ id: 7, role: { slug: 'pdu', name: 'PDU' } })],
+    assets: [other],
+    decisions: [{ ...key, action: 'link', asset_id: 'asset-2' }],
+  });
+  assert.equal(row(outOfScope, '7').skip_reason, 'unmapped_role');
+  assert.equal(row(outOfScope, '7').decision, null);
+
+  // An asset that is gone: the decision falls away, the cascade decides.
+  const gone = plan({ objects: [newcomer], assets: [other], decisions: [{ ...key, action: 'link', asset_id: 'nope' }] });
+  assert.equal(row(gone, '7').action, 'create');
+
+  // The chosen asset belongs to another live object: asked again, never a second owner,
+  // and the rightful owner keeps its link.
+  const held = plan({
+    objects: [device(), newcomer],
+    assets: [asset()],
+    links: [{ id: 'l1', external_type: 'device', external_id: '1', asset_id: 'asset-1', state: 'linked' }],
+    decisions: [{ ...key, action: 'link', asset_id: 'asset-1' }],
+  });
+  assert.equal(row(held, '7').action, 'ambiguous');
+  assert.equal(primaryNotice(row(held, '7').warnings)?.code, 'contested_asset');
+  assert.equal(row(held, '1').action, 'unchanged');
+  assert.equal(held.writes.has('device:7'), false);
+
+  // Two objects sent to the same asset, one by hand and one by serial: both wait.
+  const clash = plan({
+    objects: [device(), newcomer],
+    assets: [asset()],
+    decisions: [{ ...key, action: 'link', asset_id: 'asset-1' }],
+  });
+  assert.equal(row(clash, '1').action, 'ambiguous');
+  assert.equal(row(clash, '7').action, 'ambiguous');
+  assert.equal(clash.writes.size, 0);
 }
 
 console.log('netbox-planner.spec.ts OK');

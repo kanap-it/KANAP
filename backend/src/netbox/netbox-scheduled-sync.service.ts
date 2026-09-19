@@ -86,6 +86,11 @@ export class NetboxScheduledSyncService implements OnModuleInit {
     if (!view.configured || !view.enabled || !view.auto_sync) {
       return { ok: false };
     }
+    // Never the first import: hundreds of assets created or overwritten with
+    // nobody having read the preview is what the manual run exists to avoid.
+    if (!view.manual_sync_done) {
+      return { ok: false };
+    }
     if (await this.subscriptionSkipReason(manager, tenantId)) {
       return { ok: false };
     }

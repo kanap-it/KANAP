@@ -236,6 +236,9 @@ const DEVICES = [
   { name: 'PAR-SW-01', site: 'paris-data-center', role: 'switch', type: 'ms250-48', serial: 'MRK-PAR-SW01', platform: 'cisco-meraki', rack: 'PAR-R02', position: 39, ip: '10.10.10.3/24' },
   { name: 'PAR-PDU-01', site: 'paris-data-center', role: 'pdu', type: 'ap8853-rack-pdu', serial: 'APC-PAR-PDU01' },
   { name: 'Badge reader entrance', site: 'paris-data-center', role: 'iot-gateway', type: 'ecostruxure-iot-gateway', serial: 'SCH-PAR-BADGE01', platform: 'schneider-ecostruxure', ip: '10.10.10.61/24' },
+  // Already in KANAP under another name: SRV-COMPTA-OLD shares only the address, SRV-PAIE-OLD shares nothing.
+  { name: 'PAR-APP-09', site: 'paris-data-center', role: 'server', type: 'poweredge-r650', serial: 'DELL-PAR-APP09', platform: 'ubuntu-22-04-lts', ip: '10.10.10.95/24' },
+  { name: 'PAR-APP-10', site: 'paris-data-center', role: 'server', type: 'poweredge-r650', serial: 'DELL-PAR-APP10', platform: 'ubuntu-22-04-lts', ip: '10.10.10.96/24' },
   { name: 'PAR-DUP-A', site: 'paris-data-center', role: 'server', type: 'poweredge-r650', serial: 'DELL-PAR-DUPA', platform: 'ubuntu-22-04-lts', ip: '10.10.10.90/24' },
   { name: 'PAR-DUP-B', site: 'paris-data-center', role: 'server', type: 'poweredge-r650', serial: 'DELL-PAR-DUPB', platform: 'ubuntu-22-04-lts', ip: '10.10.10.90/24' },
 

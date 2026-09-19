@@ -7,7 +7,7 @@ import {
   NetboxIntegrationSaveInput,
   NetboxTestInput,
 } from './netbox-config.service';
-import { NetboxResolveInput, NetboxSyncService } from './netbox-sync.service';
+import { NetboxResolveInput, NetboxSyncInput, NetboxSyncService } from './netbox-sync.service';
 
 // Netbox inventory administration. Everything is infrastructure:admin except
 // the status endpoint, which the home tile reads.
@@ -73,15 +73,15 @@ export class NetboxController {
   @UseGuards(PermissionGuard)
   @RequireLevel('infrastructure', 'admin')
   @Post('sync/preview')
-  preview(@Req() req: any) {
-    return this.sync.preview(this.manager(req), this.tenantId(req));
+  preview(@Body() body: NetboxSyncInput, @Req() req: any) {
+    return this.sync.preview(this.manager(req), this.tenantId(req), body ?? {});
   }
 
   @UseGuards(PermissionGuard)
   @RequireLevel('infrastructure', 'admin')
   @Post('sync')
-  startSync(@Req() req: any) {
-    return this.sync.startManualRun(this.manager(req), this.tenantId(req));
+  startSync(@Body() body: NetboxSyncInput, @Req() req: any) {
+    return this.sync.startManualRun(this.manager(req), this.tenantId(req), body ?? {});
   }
 
   @UseGuards(PermissionGuard)
