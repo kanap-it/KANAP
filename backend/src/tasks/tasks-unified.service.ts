@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import { Task, TaskPriorityLevel } from './task.entity';
 import { TaskTimeEntry } from './task-time-entry.entity';
 import { AuditService } from '../audit/audit.service';
@@ -694,7 +694,8 @@ export class TasksUnifiedService {
     if (target.type === null) {
       // List standalone tasks
       return repo.find({
-        where: { ...tenantScope, related_object_type: null as any } as any,
+        // IsNull(): TypeORM drops a plain `null` from find options, which listed every task.
+        where: { ...tenantScope, related_object_type: IsNull() } as any,
         order: { created_at: 'DESC' as any },
       });
     }

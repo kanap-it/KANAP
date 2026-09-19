@@ -329,8 +329,6 @@ import {
   UUID_RE,
 } from './agent-control-constants.util';
 
-// Kept on the service's public surface: the control-plane spec imports it from here.
-export { proposalStillBlocksRegeneration } from './agent-control-constants.util';
 import {
   actionRequestIdsFromCapabilityOutput,
   ticketNotesFromOutput,
@@ -741,6 +739,18 @@ function bulkApproveActionSort(
  * renders it alongside the ticketing synthesis steps; its capability name is what identifies
  * the monitoring stage.
  */
+/**
+ * Keys under which a stage's usage and cost are stored in `ai_runs.usage_json` / `cost_json`.
+ * The cost views read these exact keys, so a misspelt one must not compile.
+ */
+export type RunUsageStageKey =
+  | 'synthesis'
+  | 'diagnostic_brief'
+  | 'need_representation'
+  | 'evidence_extraction'
+  | 'knowledge_interpretation'
+  | 'action_planner';
+
 export const RUN_STEP_STAGES = {
   synthesis: { kind: 'synthesis', capabilityName: 'answer_synthesis' },
   diagnosticBrief: { kind: 'synthesis', capabilityName: 'diagnostic_brief_synthesis' },
@@ -950,7 +960,7 @@ export class AiAgentControlService {
    */
   private async recordStageUsage(
     context: AiExecutionContextWithManager,
-    stageKey: string,
+    stageKey: RunUsageStageKey,
     runId: string,
     result: {
       usage?: { input_tokens?: number | null; output_tokens?: number | null } | null;

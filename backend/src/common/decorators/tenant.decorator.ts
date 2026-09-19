@@ -1,4 +1,4 @@
-import { createParamDecorator, ExecutionContext, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { EntityManager, QueryRunner } from 'typeorm';
 
 /**
@@ -21,11 +21,12 @@ export interface TenantRequest {
   /**
    * The EntityManager from the query runner (convenience accessor).
    *
-   * Still optional, and deliberately not asserted here: this decorator is also used on
-   * routes that run outside the request transaction (`@Public()`, `@SkipTenantTransaction()`)
-   * where no runner exists. Callers that need it must handle its absence; silently falling
-   * back to `dataSource.manager` runs the query on a connection with no tenant context, where
-   * RLS returns zero rows rather than failing.
+   * Still optional, and deliberately not asserted here: a route that runs outside the
+   * request transaction (`@Public()`, `@SkipTenantTransaction()`) has no runner. No such
+   * route uses this decorator today, but the type must not promise otherwise. Callers that
+   * need it must handle its absence; silently falling back to `dataSource.manager` runs the
+   * query on a connection with no tenant context, where RLS returns zero rows rather than
+   * failing.
    */
   manager?: EntityManager;
 }
@@ -66,12 +67,14 @@ export const Tenant = createParamDecorator(
     const tenantId: string = request?.tenant?.id ?? '';
     if (!tenantId) {
       // A tenant-scoped route reached without a resolved tenant. The tenancy middleware
-      // returns 404 for a host it cannot resolve, but it calls next() when resolution itself
-      // throws -- and this used to hand back an empty tenantId, letting the request continue
-      // against no tenant at all. Fail loudly instead.
-      throw new InternalServerErrorException(
-        'Tenant context is missing for a tenant-scoped route',
-      );
+      // returns 404 for a slug it cannot resolve, but it calls next() for a host that names
+      // no tenant at all (apex, localhost) and when resolution itself throws -- and this used
+      // to hand back an empty tenantId, letting the request continue against no tenant.
+      // The usual cause is the Host header, so this is a client error, not a 500.
+      throw new BadRequestException({
+        error: 'TENANT_CONTEXT_MISSING',
+        message: 'This host does not address a tenant.',
+      });
     }
 
     const userId: string = request?.user?.sub ?? '';

@@ -1,5 +1,5 @@
 import * as assert from 'node:assert/strict';
-import { ApplicationsListService } from '../services/applications-list.service';
+import { buildDerivedUsersByApp } from '../services/derived-users';
 
 /**
  * Regression guard for the applications list N+1.
@@ -53,7 +53,7 @@ function makeApps(count: number) {
 }
 
 async function testQueryCountDoesNotGrowWithPageSize() {
-  const run = (ApplicationsListService.prototype as any).buildDerivedUsersByApp;
+  const run = buildDerivedUsersByApp;
 
   const small = createCountingManager(3);
   await run.call(null, makeApps(3), small.manager);
@@ -75,7 +75,7 @@ async function testQueryCountDoesNotGrowWithPageSize() {
 }
 
 async function testDerivesTheSameTotalsAsThePerRowRule() {
-  const run = (ApplicationsListService.prototype as any).buildDerivedUsersByApp;
+  const run = buildDerivedUsersByApp;
   const { manager } = createCountingManager(2);
 
   const itUsers = await run.call(null, makeApps(2), manager);
@@ -92,7 +92,7 @@ async function testDerivesTheSameTotalsAsThePerRowRule() {
 }
 
 async function testSkipsTheDepartmentAlreadyCoveredByACompany() {
-  const run = (ApplicationsListService.prototype as any).buildDerivedUsersByApp;
+  const run = buildDerivedUsersByApp;
 
   // d1 belongs to c1 here: the company metric already includes it, so it must not be added.
   const ownManager = {
@@ -113,7 +113,7 @@ async function testSkipsTheDepartmentAlreadyCoveredByACompany() {
 }
 
 async function testManualModeUsesTheRowWithoutAnyQuery() {
-  const run = (ApplicationsListService.prototype as any).buildDerivedUsersByApp;
+  const run = buildDerivedUsersByApp;
   const { manager, total } = createCountingManager(0);
 
   const out = await run.call(
@@ -126,8 +126,20 @@ async function testManualModeUsesTheRowWithoutAnyQuery() {
   assert.equal(total(), 0, 'manual mode needs no database read at all');
 }
 
+async function testWithoutAYearNothingIsDerived() {
+  // The per-application copy used to pass `fiscal_year: null` to find(); TypeORM drops a
+  // null from find options, so it summed the metrics of every year. The grid and the
+  // application's own total now share this rule, and both report 0.
+  const { manager } = createCountingManager(1);
+  const out = await buildDerivedUsersByApp(
+    [{ id: 'app-0', users_mode: 'it_users', users_year: null, users_override: null }],
+    manager,
+  );
+  assert.deepEqual(out, { 'app-0': 0 });
+}
+
 async function testEmptyPageIsFree() {
-  const run = (ApplicationsListService.prototype as any).buildDerivedUsersByApp;
+  const run = buildDerivedUsersByApp;
   const { manager, total } = createCountingManager(0);
 
   assert.deepEqual(await run.call(null, [], manager), {});
@@ -139,6 +151,7 @@ async function run() {
   await testDerivesTheSameTotalsAsThePerRowRule();
   await testSkipsTheDepartmentAlreadyCoveredByACompany();
   await testManualModeUsesTheRowWithoutAnyQuery();
+  await testWithoutAYearNothingIsDerived();
   await testEmptyPageIsFree();
 }
 

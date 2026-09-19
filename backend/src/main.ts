@@ -397,7 +397,7 @@ async function bootstrap() {
       // Single-tenant mode: skip all Host parsing, resolve tenant by slug
       if (Features.SINGLE_TENANT) {
         const stSlug = (process.env.DEFAULT_TENANT_SLUG || 'default').trim();
-        const rows = await ds.query('SELECT id, slug, name FROM tenants WHERE slug = $1 LIMIT 1', [stSlug]);
+        const rows = await ds.query('SELECT id, slug, name FROM tenants WHERE slug = $1 AND deleted_at IS NULL LIMIT 1', [stSlug]);
         if (rows?.[0]) {
           (req as any).tenant = { id: rows[0].id, slug: rows[0].slug, name: rows[0].name };
         } else {
@@ -411,7 +411,7 @@ async function bootstrap() {
       const host = rawHost.split(':')[0]?.toLowerCase() ?? '';
 
       if (platformAdminHost && host === platformAdminHost) {
-        const rows = await ds.query('SELECT id, slug, name FROM tenants WHERE slug = $1 LIMIT 1', ['platform-admin']);
+        const rows = await ds.query('SELECT id, slug, name FROM tenants WHERE slug = $1 AND deleted_at IS NULL LIMIT 1', ['platform-admin']);
         if (rows && rows[0]) {
           (req as any).isPlatformHost = true;
           (req as any).tenant = { id: rows[0].id, slug: rows[0].slug, name: rows[0].name };
@@ -461,7 +461,7 @@ async function bootstrap() {
       }
 
       const dataSource = app.get(DataSource);
-      const rows = await dataSource.query('SELECT id, slug, name FROM tenants WHERE slug = $1 LIMIT 1', [slug]);
+      const rows = await dataSource.query('SELECT id, slug, name FROM tenants WHERE slug = $1 AND deleted_at IS NULL LIMIT 1', [slug]);
       if (rows && rows[0]) {
         (req as any).tenant = { slug, id: rows[0].id, name: rows[0].name };
         return next();
