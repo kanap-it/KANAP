@@ -105,7 +105,7 @@ export class StripeWebhookService implements OnModuleInit {
       return;
     }
 
-    const tenant = await this.lookupTenant(identifiers);
+    const tenant = await this.lookupTenant(identifiers, event);
     if (!tenant) {
       // Check for enterprise support subscription
       const eventPriceId = event?.data?.object?.items?.data?.[0]?.price?.id
@@ -175,24 +175,50 @@ export class StripeWebhookService implements OnModuleInit {
     };
   }
 
-  private async lookupTenant(identifiers: { customerId?: string; subscriptionId?: string }): Promise<Tenant | null> {
+  private async lookupTenant(
+    identifiers: { customerId?: string; subscriptionId?: string },
+    event?: StripeEvent,
+  ): Promise<Tenant | null> {
     if (identifiers.customerId) {
       const tenant = await this.dataSource.getRepository(Tenant).findOne({ where: { stripe_customer_id: identifiers.customerId } });
       if (tenant) return tenant;
     }
 
-    if (identifiers.subscriptionId) {
-      const row = await this.dataSource.query(
-        `SELECT tenant_id FROM subscriptions WHERE stripe_subscription_id = $1 LIMIT 1`,
-        [identifiers.subscriptionId],
+    // The customer did not match: the tenant's stored customer id has drifted from the
+    // customer that owns its subscription (billing recreates a customer it cannot retrieve).
+    // `subscriptions` is under FORCE RLS and a webhook has no tenant, so it cannot be searched
+    // across tenants; the `tenant_id` KANAP writes in the Stripe metadata says where to look.
+    // The hint is only accepted when that tenant's own row carries this subscription id:
+    // applying an event rewrites the tenant's subscription and customer, and a late event
+    // from a subscription the tenant has left must not overwrite the live one.
+    const hintedTenantId = this.tenantIdFromMetadata(event);
+    if (identifiers.subscriptionId && hintedTenantId) {
+      const owned: unknown[] = await withTenant(this.dataSource, hintedTenantId, (manager) =>
+        manager.query(
+          `SELECT 1 FROM subscriptions WHERE tenant_id = $1 AND stripe_subscription_id = $2 LIMIT 1`,
+          [hintedTenantId, identifiers.subscriptionId],
+        ),
       );
-      const tenantId: string | undefined = row?.[0]?.tenant_id;
-      if (tenantId) {
-        return this.dataSource.getRepository(Tenant).findOne({ where: { id: tenantId } });
+      if (owned.length > 0) {
+        return this.dataSource.getRepository(Tenant).findOne({ where: { id: hintedTenantId } });
       }
     }
 
     return null;
+  }
+
+  /** `metadata.tenant_id` as written by BillingService on the customer, the subscription and the checkout session. */
+  private tenantIdFromMetadata(event?: StripeEvent): string | undefined {
+    const data = event?.data?.object ?? {};
+    const candidates = [
+      data.metadata?.tenant_id,
+      data.subscription_details?.metadata?.tenant_id,
+      data.parent?.subscription_details?.metadata?.tenant_id,
+    ];
+    return candidates.find(
+      (value): value is string =>
+        typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value),
+    );
   }
 
   private async enrichIdentifiers(identifiers: { customerId?: string; subscriptionId?: string }): Promise<void> {
