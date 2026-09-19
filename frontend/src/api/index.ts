@@ -75,6 +75,7 @@ export type {
 export { assetsApi, locationsApi } from './endpoints/assets';
 export type {
   Asset,
+  AssetExternalLink,
   AssetSummary,
   IpAddressEntry,
   ServerAssignment,
@@ -88,6 +89,19 @@ export type {
   CreateLocationInput,
   UpdateLocationInput,
 } from './endpoints/assets';
+
+// Netbox inventory integration
+export { netboxApi } from './endpoints/netbox';
+export type {
+  NetboxIntegrationView,
+  NetboxIntegrationSaveInput,
+  NetboxMappingOptions,
+  NetboxPlanRow,
+  NetboxPreviewResult,
+  NetboxRecordRow,
+  NetboxRecordState,
+  NetboxStatus,
+} from './endpoints/netbox';
 
 // Interfaces and Connections
 export { interfacesApi, connectionsApi } from './endpoints/interfaces';

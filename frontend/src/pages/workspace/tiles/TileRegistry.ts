@@ -41,6 +41,7 @@ const LazyGlobalStatusChangesTile = () => import('./GlobalStatusChangesTile').th
 const LazyStaleTasksTile = () => import('./StaleTasksTile').then((m) => m.default);
 const LazyKnowledgeOverviewTile = () => import('./KnowledgeOverviewTile').then((m) => m.default);
 const LazyApplicationComplianceTile = () => import('./ApplicationComplianceTile').then((m) => m.default);
+const LazyNetboxSyncTile = () => import('./NetboxSyncTile').then((m) => m.default);
 
 // We'll use a placeholder component initially, then replace with lazy-loaded ones
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,6 +134,15 @@ export const TILE_REGISTRY: Record<string, TileDefinition> = {
     configSchema: {},
     requiredPermissions: [{ resource: 'applications', level: 'reader' }],
   },
+  'netbox-sync': {
+    component: Placeholder,
+    title: 'Netbox synchronisation',
+    titleKey: 'dashboard.tiles.netboxSync',
+    icon: 'Dns',
+    defaultConfig: {},
+    configSchema: {},
+    requiredPermissions: [{ resource: 'infrastructure', level: 'admin' }],
+  },
   // Phase 2 tiles
   'team-activity': {
     component: Placeholder,
@@ -181,6 +191,7 @@ export const TILE_LOADERS = {
   'new-requests': LazyNewRequestsTile,
   'knowledge-overview': LazyKnowledgeOverviewTile,
   'application-compliance': LazyApplicationComplianceTile,
+  'netbox-sync': LazyNetboxSyncTile,
   'team-activity': LazyTeamActivityTile,
   'global-status-changes': LazyGlobalStatusChangesTile,
   'stale-tasks': LazyStaleTasksTile,

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import CloseIcon from '@mui/icons-material/Close';
 import {
   Box,
@@ -23,6 +24,7 @@ export type KanapDialogProps = {
   saveColor?: ButtonProps['color'];
   saveDisabled?: boolean;
   saveLoading?: boolean;
+  /** Defaults to the localized "Cancel"; pass one only for a non-standard label. */
   cancelLabel?: string;
   showCancel?: boolean;
   sx?: SxProps<Theme>;
@@ -44,10 +46,12 @@ export default function KanapDialog({
   saveColor = 'primary',
   saveDisabled = false,
   saveLoading = false,
-  cancelLabel = 'Cancel',
+  cancelLabel,
   showCancel = true,
   sx,
 }: KanapDialogProps) {
+  const { t } = useTranslation('common');
+  const resolvedCancelLabel = cancelLabel ?? t('buttons.cancel');
   const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (saveDisabled || saveLoading) return;
@@ -138,7 +142,7 @@ export default function KanapDialog({
           </Box>
           {showCancel ? (
             <Button variant="action" onClick={onClose}>
-              {cancelLabel}
+              {resolvedCancelLabel}
             </Button>
           ) : null}
           <Button

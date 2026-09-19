@@ -28,6 +28,7 @@ export const DEFAULT_DASHBOARD_CONFIG: DashboardTileConfig[] = [
   { id: 'team-activity', enabled: false, order: 9, config: { limit: 5 } },
   { id: 'global-status-changes', enabled: false, order: 10, config: { days: 5 } },
   { id: 'stale-tasks', enabled: false, order: 11, config: { scope: 'my', thresholdDays: 90 } },
+  { id: 'netbox-sync', enabled: false, order: 12, config: {} },
 ];
 
 @Entity('user_dashboard_config')

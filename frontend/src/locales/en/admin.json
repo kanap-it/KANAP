@@ -1161,5 +1161,54 @@
       "byModel": "Cost by model",
       "unknownModel": "Unknown model"
     }
+  },
+  "integrations": {
+    "netbox": {
+      "title": "Netbox inventory",
+      "description": "Bring your Netbox inventory into KANAP assets. Netbox stays the reference for the equipment it describes.",
+      "status": {
+        "connected": "Connected",
+        "disabled": "Disabled",
+        "notConfigured": "Not configured"
+      },
+      "fields": {
+        "enabled": "Enable Netbox synchronisation",
+        "baseUrl": "Netbox address",
+        "apiToken": "API token",
+        "requestTimeout": "Request timeout (seconds)",
+        "insecureTls": "Ignore certificate errors",
+        "autoSync": "Automatic synchronisation",
+        "defaultEnvironment": "Environment for new assets"
+      },
+      "placeholders": {
+        "baseUrl": "https://netbox.example.com",
+        "apiTokenConfigured": "Configured",
+        "enterApiToken": "Paste the token",
+        "requestTimeout": "30"
+      },
+      "hints": {
+        "baseUrl": "The address you use to open Netbox in a browser.",
+        "apiToken": "In Netbox, open the user menu at the top right, then API tokens. A read-only token is enough.",
+        "apiTokenExisting": "A token is already saved. Leave this field empty to keep it.",
+        "requestTimeout": "How long to wait for Netbox before giving up, between 5 and 120 seconds. Leave empty to use 30.",
+        "insecureTls": "Use this only for a self-signed or internal certificate you trust. The connection stays encrypted, but the certificate is no longer checked.",
+        "autoSync": "Runs every hour and applies the changes on its own.",
+        "defaultEnvironment": "Applied to the assets created by the import. It is never changed afterwards."
+      },
+      "messages": {
+        "saved": "Settings saved.",
+        "saveFailed": "The settings could not be saved.",
+        "loadFailed": "The Netbox settings could not be loaded.",
+        "testSuccess": "Connected to Netbox {{version}}.",
+        "testFailed": "The connection to Netbox failed.",
+        "nextStep": "Netbox is connected."
+      },
+      "actions": {
+        "save": "Save settings",
+        "test": "Test connection",
+        "testing": "Testing...",
+        "goToSync": "Set up the synchronisation"
+      }
+    }
   }
 }

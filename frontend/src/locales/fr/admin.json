@@ -1161,5 +1161,54 @@
       "byModel": "Coût par modèle",
       "unknownModel": "Modèle inconnu"
     }
+  },
+  "integrations": {
+    "netbox": {
+      "title": "Inventaire Netbox",
+      "description": "Reprenez l'inventaire Netbox dans les actifs KANAP. Netbox reste la référence pour les équipements qu'il décrit.",
+      "status": {
+        "connected": "Connecté",
+        "disabled": "Désactivé",
+        "notConfigured": "Non configuré"
+      },
+      "fields": {
+        "enabled": "Activer la synchronisation Netbox",
+        "baseUrl": "Adresse Netbox",
+        "apiToken": "Jeton d'API",
+        "requestTimeout": "Délai d'attente (secondes)",
+        "insecureTls": "Ignorer les erreurs de certificat",
+        "autoSync": "Synchronisation automatique",
+        "defaultEnvironment": "Environnement des nouveaux actifs"
+      },
+      "placeholders": {
+        "baseUrl": "https://netbox.example.com",
+        "apiTokenConfigured": "Configuré",
+        "enterApiToken": "Collez le jeton",
+        "requestTimeout": "30"
+      },
+      "hints": {
+        "baseUrl": "L'adresse que vous utilisez pour ouvrir Netbox dans un navigateur.",
+        "apiToken": "Dans Netbox, ouvrez le menu utilisateur en haut à droite, puis API tokens. Un jeton en lecture seule suffit.",
+        "apiTokenExisting": "Un jeton est déjà enregistré. Laissez ce champ vide pour le conserver.",
+        "requestTimeout": "Temps d'attente avant d'abandonner, entre 5 et 120 secondes. Laissez vide pour utiliser 30.",
+        "insecureTls": "À utiliser uniquement avec un certificat auto-signé ou interne auquel vous faites confiance. La connexion reste chiffrée, mais le certificat n'est plus vérifié.",
+        "autoSync": "S'exécute toutes les heures et applique les changements automatiquement.",
+        "defaultEnvironment": "Appliqué aux actifs créés par l'import. Il n'est jamais modifié ensuite."
+      },
+      "messages": {
+        "saved": "Paramètres enregistrés.",
+        "saveFailed": "Les paramètres n'ont pas pu être enregistrés.",
+        "loadFailed": "Les paramètres Netbox n'ont pas pu être chargés.",
+        "testSuccess": "Connexion établie avec Netbox {{version}}.",
+        "testFailed": "La connexion à Netbox a échoué.",
+        "nextStep": "Netbox est connecté."
+      },
+      "actions": {
+        "save": "Enregistrer les paramètres",
+        "test": "Tester la connexion",
+        "testing": "Test en cours...",
+        "goToSync": "Configurer la synchronisation"
+      }
+    }
   }
 }

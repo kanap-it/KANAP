@@ -64,7 +64,8 @@
       "applications": "Aplicaciones",
       "interfaces": "Interfaces",
       "interfaceMap": "Mapa de interfaces",
-      "settings": "Configuración"
+      "settings": "Configuración",
+      "netbox": "Netbox"
     },
     "portfolio": {
       "tasks": "Tareas",
@@ -141,6 +142,7 @@
     "tasks": "Tareas",
     "operations": "Administración",
     "aiModels": "Modelos IA",
-    "aiUsage": "Uso y costes"
+    "aiUsage": "Uso y costes",
+    "netbox": "Netbox"
   }
 }

@@ -35,6 +35,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import ScheduleIcon from '@mui/icons-material/Schedule';
+import SyncIcon from '@mui/icons-material/Sync';
 import BrushIcon from '@mui/icons-material/Brush';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ExtensionIcon from '@mui/icons-material/Extension';
@@ -96,6 +97,11 @@ export default function Layout() {
   const canShowAgents = config.features.aiSettings
     && hasLevel('ai_agents', 'reader')
     && aiCapabilities.data?.instance_features.ai_settings === true;
+  // The integrations page also hosts non-AI connectors (Netbox), so an infrastructure
+  // admin reaches it even when the AI settings surface is unavailable.
+  const aiSettingsAvailable = config.features.aiSettings
+    && aiCapabilities.data?.surfaces.settings.available === true;
+  const canShowIntegrations = aiSettingsAvailable || hasLevel('infrastructure', 'admin');
   const agentBadgesQuery = useQuery({
     queryKey: ['ai-agent-control-badges'],
     queryFn: () => aiAgentControlApi.getBadges(),
@@ -144,6 +150,7 @@ export default function Layout() {
     { to: '/it/assets', label: t('nav:sidebar.it.assets'), icon: <DnsIcon />, resource: 'infrastructure' },
     { to: '/it/connections', label: t('nav:sidebar.it.connections'), icon: <LanIcon />, resource: 'infrastructure' },
     { to: '/it/connection-map', label: t('nav:sidebar.it.connectionMap'), icon: <LanIcon />, resource: 'infrastructure' },
+    { to: '/it/netbox', label: t('nav:sidebar.it.netbox'), icon: <SyncIcon />, resource: 'infrastructure', level: 'admin' as const },
     { divider: t('nav:sidebar.it.sections.applications') },
     { to: '/it/applications', label: t('nav:sidebar.it.applications'), icon: <WorkOutlineIcon />, resource: 'applications' },
     { to: '/it/interfaces', label: t('nav:sidebar.it.interfaces'), icon: <HubIcon />, resource: 'applications' },
@@ -232,6 +239,8 @@ export default function Layout() {
     }
     if (claims?.isGlobalAdmin || claims?.isPlatformAdmin) return true;
     if (ws === 'admin' && !isPlatformHost) {
+      // The integrations page alone is enough to justify the admin workspace.
+      if (canShowIntegrations) return true;
       const requirements = getNavRequirements(tenantAdminNav).filter((entry) => {
         if (entry.resource === 'ai_settings') {
           return aiCapabilities.data?.surfaces.settings.available === true;
@@ -254,7 +263,7 @@ export default function Layout() {
                 : [],
     );
     return resources.some(r => hasLevel(r.resource, r.level));
-  }, [hasLevel, claims, config.features.aiChat, config.features.aiSettings, isPlatformHost, aiCapabilities.data, canShowAgents, hasScopedApplicationReaderAccess, shouldHideApplications]);
+  }, [hasLevel, claims, config.features.aiChat, config.features.aiSettings, isPlatformHost, aiCapabilities.data, canShowAgents, canShowIntegrations, hasScopedApplicationReaderAccess, shouldHideApplications]);
 
   // Determine which workspaces are visible
   const visibleWorkspaces = React.useMemo(() => {
@@ -466,13 +475,13 @@ export default function Layout() {
             let entries: NavEntry[];
             if (workspace === 'admin') {
               const base = isPlatformHost && !isSingleTenant ? platformAdminNav : tenantAdminNav;
-              const aiAdminRoutes = ['/admin/ai', '/admin/ai-models', '/admin/ai-usage', '/admin/integrations'];
+              const aiAdminRoutes = ['/admin/ai', '/admin/ai-models', '/admin/ai-usage'];
               entries = base.filter((entry) => {
                 if (!isNavItem(entry)) return true;
                 if (entry.to === '/admin/billing' && !config.features.billing) return false;
                 if (entry.to === '/admin/auth' && !config.features.sso) return false;
-                if (aiAdminRoutes.includes(entry.to) && !config.features.aiSettings) return false;
-                if (aiAdminRoutes.includes(entry.to) && aiCapabilities.data?.surfaces.settings.available !== true) return false;
+                if (entry.to === '/admin/integrations') return canShowIntegrations;
+                if (aiAdminRoutes.includes(entry.to) && !aiSettingsAvailable) return false;
                 return true;
               });
               // In single-tenant mode, append Scheduled Tasks for admin users
@@ -496,7 +505,8 @@ export default function Layout() {
             // Filter items by permission (dividers pass through)
             const permitted = entries.filter((entry) => {
               if (!isNavItem(entry)) return true;
-              if (['/admin/ai', '/admin/ai-models', '/admin/ai-usage', '/admin/integrations'].includes(entry.to)) {
+              if (entry.to === '/admin/integrations') return canShowIntegrations;
+              if (['/admin/ai', '/admin/ai-models', '/admin/ai-usage'].includes(entry.to)) {
                 return aiCapabilities.data?.surfaces.settings.available === true;
               }
               return !entry.resource || hasLevel(entry.resource, entry.level ?? 'reader');

@@ -6,6 +6,7 @@ import {
   Button,
   Chip,
   IconButton,
+  Link as MuiLink,
   Menu,
   MenuItem,
   Select,
@@ -57,8 +58,21 @@ import { PortfolioMetadataItem, PortfolioStatusMetadata } from '../portfolio/wor
 import SendLinkButton from '../../components/workspace/SendLinkButton';
 import { fetchAssetRelationsCount } from '../../utils/workspaceTabCounts';
 import { useRecentlyViewed } from '../workspace/hooks/useRecentlyViewed';
+import type { AssetExternalLink } from '../../api/endpoints/assets';
+import { isNetboxAttentionStatus } from '../../api/endpoints/netbox';
 const MarkdownEditor = React.lazy(() => import('../../components/MarkdownEditor'));
 type IpAddressEntry = { type: string; ip: string; subnet_cidr: string | null };
+
+/**
+ * Asset fields Netbox owns on a linked asset. The controls for these are disabled,
+ * but `patchAsset` drops them as a last line of defence so no autosave path (a
+ * debounce queued before the link data arrived, a stale closure, a future control)
+ * can ever push a local value over the inventory.
+ */
+const NETBOX_MANAGED_ASSET_FIELDS = [
+  'name', 'kind', 'location_id', 'status', 'hostname', 'domain', 'fqdn',
+  'operating_system', 'ip_addresses',
+] as const;
 
 type AssetRecord = {
   id: string;
@@ -81,6 +95,7 @@ type AssetRecord = {
   sub_location_id?: string | null;
   operating_system: string | null;
   notes: string | null;
+  external_links?: AssetExternalLink[] | null;
 };
 
 type AssignmentRow = {
@@ -257,6 +272,27 @@ export default function AssetWorkspacePage() {
   const notesSaveTimerRef = React.useRef<number | null>(null);
 
   const [data, setData] = React.useState<AssetRecord | null>(null);
+  // Netbox owns the inventory fields it feeds; KANAP keeps the business layer editable.
+  const netboxLink = React.useMemo(
+    () => (data?.external_links || []).find((link) => link.source === 'netbox') || null,
+    [data?.external_links],
+  );
+  const netboxManaged = netboxLink?.state === 'linked';
+  const netboxAttentionStatus = netboxManaged && isNetboxAttentionStatus(netboxLink?.external_status)
+    ? (netboxLink?.external_status as string)
+    : null;
+  const canEditNetboxField = canManage && !netboxManaged;
+  const netboxSyncedLabel = React.useMemo(() => {
+    const value = netboxLink?.last_synced_at;
+    if (!value) return null;
+    const minutes = Math.floor((Date.now() - new Date(value).getTime()) / 60000);
+    if (!Number.isFinite(minutes)) return null;
+    if (minutes < 1) return t('pages.netbox.time.justNow');
+    if (minutes < 60) return t('pages.netbox.time.minutesAgo', { count: minutes });
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return t('pages.netbox.time.hoursAgo', { count: hours });
+    return t('pages.netbox.time.daysAgo', { count: Math.floor(hours / 24) });
+  }, [netboxLink?.last_synced_at, t]);
   const [error, setError] = React.useState<string | null>(null);
   const [dirty, setDirty] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -1047,11 +1083,18 @@ export default function AssetWorkspacePage() {
       return;
     }
     if (!id) return;
+    let safePatch = patch;
+    if (netboxManaged) {
+      safePatch = Object.fromEntries(
+        Object.entries(patch).filter(([key]) => !NETBOX_MANAGED_ASSET_FIELDS.includes(key as never)),
+      ) as typeof patch;
+      if (Object.keys(safePatch).length === 0) return;
+    }
     setSaving(true);
     setError(null);
-    setData((prev) => (prev ? ({ ...prev, ...patch } as AssetRecord) : prev));
+    setData((prev) => (prev ? ({ ...prev, ...safePatch } as AssetRecord) : prev));
     try {
-      const res = await api.patch(`/assets/${id}`, patch);
+      const res = await api.patch(`/assets/${id}`, safePatch);
       setData(res.data as AssetRecord);
       setDirty(false);
     } catch (e: any) {
@@ -1061,7 +1104,7 @@ export default function AssetWorkspacePage() {
     } finally {
       setSaving(false);
     }
-  }, [id, isCreate, load, t]);
+  }, [id, isCreate, load, netboxManaged, t]);
 
   const handleNotesChange = React.useCallback((value: string) => {
     setNotes(value);
@@ -1238,7 +1281,7 @@ export default function AssetWorkspacePage() {
             onChange={(_, val) => updateAssetType(val?.value || '')}
             getOptionLabel={(opt) => opt.label}
             isOptionEqualToValue={(opt, val) => opt.value === val.value}
-            disabled={!canManage || saving}
+            disabled={!canEditNetboxField || saving}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -1261,7 +1304,7 @@ export default function AssetWorkspacePage() {
               size="small"
               hideLabel
               textFieldSx={drawerFieldValueSx}
-              disabled={!canManage || saving}
+              disabled={!canEditNetboxField || saving}
             />
           </Box>
         </PropertyRow>
@@ -1345,7 +1388,7 @@ export default function AssetWorkspacePage() {
               updateScalar('status', next as AssetRecord['status']);
             }}
             variant="standard"
-            disabled={!canManage || saving}
+            disabled={!canEditNetboxField || saving}
             sx={drawerSelectSx}
           >
             {lifecycleOptions.map((opt) => <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>)}
@@ -1375,7 +1418,7 @@ export default function AssetWorkspacePage() {
         onCopyReference={!isCreate && (data?.asset_reference || data?.id) ? () => { void navigator.clipboard?.writeText(data?.asset_reference || data?.id || ''); } : undefined}
         title={isCreate ? name : data?.name || name || ''}
         titleFallback={isCreate ? 'New asset' : 'Untitled asset'}
-        canEditTitle={canManage}
+        canEditTitle={canEditNetboxField}
         onTitleSave={(value) => {
           const next = value.trim();
           if (!next) return;
@@ -1406,7 +1449,7 @@ export default function AssetWorkspacePage() {
                 setStatus(value);
                 void patchAsset({ status: value });
               }}
-              disabled={!canManage}
+              disabled={!canEditNetboxField}
             />
             <PortfolioStatusMetadata
               value={environment}
@@ -1421,7 +1464,7 @@ export default function AssetWorkspacePage() {
             />
             <PortfolioMetadataItem
               onClick={(event) => setAssetTypeAnchorEl(event.currentTarget)}
-              disabled={!canManage || saving}
+              disabled={!canEditNetboxField || saving}
               title="Edit asset type"
             >
               {assetTypeLabel}
@@ -1449,7 +1492,7 @@ export default function AssetWorkspacePage() {
             <PortfolioMetadataItem
               label="Location"
               onClick={(event) => setLocationAnchorEl(event.currentTarget)}
-              disabled={!canManage || saving}
+              disabled={!canEditNetboxField || saving}
               title="Edit location"
             >
               {locationLabel}
@@ -1531,6 +1574,58 @@ export default function AssetWorkspacePage() {
       >
           {tab === 'overview' && (
             <Stack spacing={3.5}>
+              {!isCreate && netboxLink ? (
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  alignItems="center"
+                  flexWrap="wrap"
+                  useFlexGap
+                  sx={{ fontSize: 12, color: 'kanap.text.tertiary', rowGap: 0.5 }}
+                >
+                  <Box component="span">{t('pages.netbox.assetSource.label')}</Box>
+                  <Box
+                    component="span"
+                    sx={netboxLink.state === 'missing'
+                      ? { color: getDotColor('warning', theme.palette.mode) }
+                      : undefined}
+                  >
+                    {netboxLink.state === 'missing'
+                      ? t('pages.netbox.assetSource.missing')
+                      : netboxSyncedLabel
+                        ? t('pages.netbox.assetSource.synchronised', { when: netboxSyncedLabel })
+                        : t('pages.netbox.assetSource.never')}
+                  </Box>
+                  <Box component="span">·</Box>
+                  <MuiLink
+                    href={netboxLink.external_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="hover"
+                    sx={{ fontSize: 12 }}
+                  >
+                    {t('pages.netbox.assetSource.open')}
+                  </MuiLink>
+                  {netboxAttentionStatus ? (
+                    <>
+                      <Box component="span">·</Box>
+                      <Box component="span" sx={{ color: getDotColor('warning', theme.palette.mode) }}>
+                        {t('pages.netbox.assetSource.netboxStatus', {
+                          status: t(`pages.netbox.netboxStatus.${netboxAttentionStatus}`, {
+                            defaultValue: netboxAttentionStatus,
+                          }),
+                        })}
+                      </Box>
+                    </>
+                  ) : null}
+                  {netboxManaged ? (
+                    <>
+                      <Box component="span">·</Box>
+                      <Box component="span">{t('pages.netbox.assetSource.managed')}</Box>
+                    </>
+                  ) : null}
+                </Stack>
+              ) : null}
               {isCreate ? (
                 <Stack spacing={1.5} sx={{ maxWidth: 560 }}>
                   <Box>
@@ -1883,6 +1978,11 @@ export default function AssetWorkspacePage() {
                 <Box sx={{ mb: 1.5 }}>
                   <SectionLabel>Identity</SectionLabel>
                 </Box>
+                {netboxManaged ? (
+                  <Typography variant="caption" sx={{ display: 'block', color: 'kanap.text.tertiary', mb: 1 }}>
+                    {t('pages.netbox.assetSource.managed')}
+                  </Typography>
+                ) : null}
                 <Stack spacing={1.5} sx={{ maxWidth: 560 }}>
                   <PropertyRow label="Hostname" valueSx={{ maxWidth: 520 }}>
                     <TextField
@@ -1906,7 +2006,7 @@ export default function AssetWorkspacePage() {
                       size="small"
                       variant="standard"
                       sx={contentFieldSx}
-                      disabled={!canManage}
+                      disabled={!canEditNetboxField}
                     />
                   </PropertyRow>
                   <PropertyRow label="Domain" valueSx={{ maxWidth: 520 }}>
@@ -1922,7 +2022,7 @@ export default function AssetWorkspacePage() {
                       size="small"
                       variant="standard"
                       sx={contentFieldSx}
-                      disabled={!canManage}
+                      disabled={!canEditNetboxField}
                     >
                       <MenuItem value="" sx={drawerMenuItemSx}>None</MenuItem>
                       {domainOptions
@@ -1983,7 +2083,7 @@ export default function AssetWorkspacePage() {
                         if (isCreate) setDirty(true);
                         else void patchAsset({ operating_system: next || null });
                       }}
-                      disabled={isCluster || !canManage}
+                      disabled={isCluster || !canEditNetboxField}
                       helperText={(() => {
                         if (isCluster) return 'Operating system is defined by cluster member assets.';
                         const sel = operatingSystemOptions.find((opt) => opt.value === operatingSystem);
@@ -2010,6 +2110,11 @@ export default function AssetWorkspacePage() {
                 <Box sx={{ mb: 1.5 }}>
                   <SectionLabel>IP addresses</SectionLabel>
                 </Box>
+                {netboxManaged ? (
+                  <Typography variant="caption" sx={{ display: 'block', color: 'kanap.text.tertiary', mb: 1 }}>
+                    {t('pages.netbox.assetSource.managed')}
+                  </Typography>
+                ) : null}
                 <Stack spacing={2}>
                   {/* Keep the network block in the main work area; it is too wide for the properties drawer. */}
                   <Button
@@ -2021,7 +2126,7 @@ export default function AssetWorkspacePage() {
                       setIpAddresses((prev) => [...prev, { type: defaultType, ip: '', subnet_cidr: null }]);
                       if (isCreate) setDirty(true);
                     }}
-                    disabled={!canManage}
+                    disabled={!canEditNetboxField}
                     sx={{ alignSelf: 'flex-start' }}
                   >
                     Add IP address
@@ -2057,7 +2162,7 @@ export default function AssetWorkspacePage() {
                               size="small"
                               variant="standard"
                               sx={contentFieldSx}
-                              disabled={!canManage}
+                              disabled={!canEditNetboxField}
                             >
                               {ipAddressTypeOptions.map((opt) => (
                                 <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>
@@ -2082,7 +2187,7 @@ export default function AssetWorkspacePage() {
                               size="small"
                               variant="standard"
                               sx={contentFieldSx}
-                              disabled={!canManage}
+                              disabled={!canEditNetboxField}
                             />
                           </PropertyRow>
                           <IconButton
@@ -2093,7 +2198,7 @@ export default function AssetWorkspacePage() {
                               persistIpAddresses(next);
                             }}
                             size="small"
-                            disabled={!canManage}
+                            disabled={!canEditNetboxField}
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
@@ -2112,7 +2217,7 @@ export default function AssetWorkspacePage() {
                               variant="standard"
                               sx={contentFieldSx}
                               helperText={subnetOptions.length === 0 ? 'Define subnets in settings.' : undefined}
-                              disabled={!canManage}
+                              disabled={!canEditNetboxField}
                             >
                               <MenuItem value="" sx={drawerMenuItemSx}>None</MenuItem>
                               {subnetOptions.map((opt) => (
@@ -2153,6 +2258,7 @@ export default function AssetWorkspacePage() {
             <HardwareInfoPanel
               ref={hardwareRef}
               assetId={id}
+              netboxManaged={netboxManaged}
             />
           )}
           {tab === 'support' && isPhysicalAsset && !isCreate && (
