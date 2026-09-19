@@ -14,6 +14,7 @@ import { useAuth } from '../auth/AuthContext';
 import { LinkCellRenderer } from '../components/grid/renderers';
 import { formatItemRef } from '../utils/item-ref';
 import { readStoredCapexListContext, writeStoredCapexListContext } from './capex/listContextStorage';
+import { statusScopeParams } from '../utils/statusScopeParams';
 import ForbiddenPage from './ForbiddenPage';
 import { STATUS_VALUES } from '../constants/status';
 import { formatAmount as formatNumber } from '../i18n/formatters';
@@ -128,12 +129,7 @@ export default function CapexPage() {
       };
       if (queryState.q) params.q = queryState.q;
       if (Object.keys(filters).length > 0) params.filters = JSON.stringify(filters);
-      const statusScope = queryState.statusScope;
-      if (statusScope === 'enabled' || statusScope === 'disabled') {
-        params.status = statusScope;
-      } else if (statusScope === 'all') {
-        params.includeDisabled = '1';
-      }
+      Object.assign(params, statusScopeParams(queryState.statusScope));
       const res = await api.get('/capex-items/summary/filter-values', { params });
       const values = (res.data?.[field] || []) as Array<string | null>;
       const options = values.map((value) => {
@@ -205,11 +201,7 @@ export default function CapexPage() {
       const params: Record<string, any> = {};
       if (q) params.q = q;
       if (filterModel && Object.keys(filterModel).length > 0) params.filters = JSON.stringify(filterModel);
-      if (statusScope === 'enabled' || statusScope === 'disabled') {
-        params.status = statusScope;
-      } else if (statusScope === 'all') {
-        params.includeDisabled = '1';
-      }
+      Object.assign(params, statusScopeParams(statusScope));
       const res = await api.get('/capex-items/summary/totals', { params });
       const totals = res.data || {};
       const rc = typeof totals.reportingCurrency === 'string' ? totals.reportingCurrency : 'EUR';
@@ -715,7 +707,7 @@ export default function CapexPage() {
           const filtersString = filtersObject && Object.keys(filtersObject).length > 0 ? JSON.stringify(filtersObject) : '';
           const scope = state.statusScope ?? 'enabled';
           lastQueryRef.current = { sort: normalizedSort, q: state.q || '', filters: filtersObject, filtersString, statusScope: scope };
-          const snapshot = { sort: normalizedSort, q: state.q || '', filters: filtersString };
+          const snapshot = { sort: normalizedSort, q: state.q || '', filters: filtersString, statusScope: scope };
           storedContextRef.current = snapshot;
           writeStoredCapexListContext(snapshot);
           updateTotals({ q: state.q || '', filterModel: filtersObject, statusScope: scope });
