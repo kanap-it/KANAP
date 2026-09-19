@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { withTenant } from '../../common/tenant-runner';
 import { AiBuiltinUsage } from './ai-builtin-usage.entity';
@@ -28,6 +28,11 @@ export type BuiltinUsageAdminRow = {
 export const FREE_MESSAGE_LIMIT_KEY = 'default';
 export const DEFAULT_FREE_MONTHLY_MESSAGE_LIMIT = 1500;
 
+// getUsageForAllTenants opens one tenant-scoped transaction per tenant. Reading them all at
+// once would take every connection of the pool (DB_POOL_MAX, 20 by default) as soon as the
+// platform has that many tenants, and stall the whole API while the admin page loads.
+const USAGE_READ_CONCURRENCY = 4;
+
 function getYearMonth(date = new Date()): string {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -44,6 +49,8 @@ function getResetDate(yearMonth: string): string {
 
 @Injectable()
 export class AiBuiltinUsageService {
+  private readonly logger = new Logger(AiBuiltinUsageService.name);
+
   constructor(private readonly dataSource: DataSource) {}
 
   private getUsageRepo(manager?: EntityManager) {
@@ -131,30 +138,40 @@ export class AiBuiltinUsageService {
     // so a single context-less query returns zero rows for every tenant — which is what
     // made the admin usage page report 0 for everyone. Read it once per tenant inside its
     // own tenant-scoped transaction, as TenantStatsService does.
-    const rows = await Promise.all(
-      tenants.map(async (tenant) => {
+    const readTenant = async (tenant: { id: string; name: string; slug: string }): Promise<BuiltinUsageAdminRow> => {
+      let used = 0;
+      try {
         const usage: Array<{ user_message_count: number }> = await withTenant(
           this.dataSource,
           tenant.id,
           (manager) =>
             manager.query(
-              `SELECT user_message_count FROM ai_builtin_usage WHERE year_month = $1`,
-              [yearMonth],
+              `SELECT user_message_count FROM ai_builtin_usage WHERE tenant_id = $1 AND year_month = $2`,
+              [tenant.id, yearMonth],
             ),
         );
-        const used = Number(usage?.[0]?.user_message_count) || 0;
-        return {
-          tenant_id: tenant.id,
-          tenant_name: tenant.name,
-          tenant_slug: tenant.slug,
-          used,
-          limit,
-          // Same 4-decimal rounding the single-query version produced in SQL.
-          usage_ratio: limit === 0 ? null : Math.round((used / limit) * 10000) / 10000,
-          year_month: yearMonth,
-        };
-      }),
-    );
+        used = Number(usage?.[0]?.user_message_count) || 0;
+      } catch (error) {
+        // One unreadable tenant must not take the whole page down.
+        this.logger.warn(`Built-in AI usage read failed for tenant ${tenant.slug}: ${error instanceof Error ? error.message : error}`);
+      }
+      return {
+        tenant_id: tenant.id,
+        tenant_name: tenant.name,
+        tenant_slug: tenant.slug,
+        used,
+        limit,
+        // Same 4-decimal rounding the single-query version produced in SQL.
+        usage_ratio: limit === 0 ? null : Math.round((used / limit) * 10000) / 10000,
+        year_month: yearMonth,
+      };
+    };
+
+    const rows: BuiltinUsageAdminRow[] = [];
+    for (let i = 0; i < tenants.length; i += USAGE_READ_CONCURRENCY) {
+      const batch = tenants.slice(i, i + USAGE_READ_CONCURRENCY);
+      rows.push(...(await Promise.all(batch.map(readTenant))));
+    }
 
     return rows.sort(
       (a, b) => b.used - a.used || a.tenant_name.localeCompare(b.tenant_name),
