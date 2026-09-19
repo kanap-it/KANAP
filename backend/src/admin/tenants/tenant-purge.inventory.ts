@@ -149,6 +149,7 @@ export const TENANT_PURGE_TABLES = [
   'app_instances',
   // Asset extension tables must be purged before assets
   'asset_attachments',
+  'asset_external_links',
   'asset_links',
   'asset_support_contacts',
   'asset_hardware_info',

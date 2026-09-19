@@ -8,6 +8,9 @@ import {
 export type ProviderKind =
   | 'ticketing'
   | 'monitoring'
+  // Inventory sources (Netbox) reuse ai_adapter_configs for their connection
+  // and encrypted credential; they have no control-plane provider adapter.
+  | 'inventory'
   | 'virtualization'
   | 'directory'
   | 'communication'

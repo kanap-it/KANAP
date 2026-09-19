@@ -40,6 +40,7 @@ const options = {
   year: DEFAULTS.year,
   skipRelations: false,
   skipAgents: false,
+  netboxTestCases: false,
 };
 
 for (let i = 0; i < argv.length; i += 1) {
@@ -58,6 +59,8 @@ for (let i = 0; i < argv.length; i += 1) {
   else if (arg === '--year') options.year = Number(argv[++i] ?? options.year);
   else if (arg === '--skip-relations') options.skipRelations = true;
   else if (arg === '--skip-agents') options.skipAgents = true;
+  // Dev only: adds the deliberately duplicated asset used by the Netbox sync tests.
+  else if (arg === '--netbox-test-cases') options.netboxTestCases = true;
   else throw new Error(`Unknown argument: ${arg}`);
 }
 
@@ -690,6 +693,59 @@ async function ensureAssets(locationIdByFixtureCode) {
     });
   }
   ok('Assets ensured');
+}
+
+// Hardware info on a few physical assets. The Netbox test inventory
+// (fixtures/fromage-co/netbox) relies on these serials: GOU-NAS-01 carries the
+// serial of the Netbox device GOU-SYNO-01, so the sync matches by serial and
+// renames the asset. PAR-SAN-02 carries the serial Netbox already has, so
+// nothing changes. PRM-ESX-01 carries a stale serial and model that Netbox
+// overwrites.
+const ASSET_HARDWARE = [
+  { name: 'GOU-NAS-01', serial_number: 'SYN-GOU-NAS01', manufacturer: 'Synology', model: 'RS1221+' },
+  { name: 'PAR-SAN-02', serial_number: 'NTAP-PAR-SAN02', manufacturer: 'NetApp', model: 'FAS2720' },
+  { name: 'PRM-ESX-01', serial_number: 'OLD-PRM-ESX01', manufacturer: 'Dell', model: 'PowerEdge R640' },
+];
+
+async function ensureAssetHardwareInfo() {
+  info('Ensuring asset hardware info');
+  for (const { name, ...fields } of ASSET_HARDWARE) {
+    const assetId = await assetIdByName(name);
+    if (!assetId) {
+      warn(`Asset '${name}' not found while setting hardware info`);
+      continue;
+    }
+    const current = await apiGet(`/assets/${assetId}/hardware-info`);
+    const unchanged = current && Object.entries(fields).every(([key, value]) => normalizeValue(current[key]) === value);
+    if (unchanged) continue;
+    await apiPost(`/assets/${assetId}/hardware-info`, fields);
+    ok(`Hardware info set on ${name}`);
+  }
+}
+
+// Two assets share the name NYC-SW-01 on purpose. The Netbox device of the same
+// name then has two candidates at the same deduplication level, which the sync
+// must report as ambiguous instead of merging.
+async function ensureDuplicateAssetName() {
+  info('Ensuring the duplicate asset name used by the Netbox ambiguity case');
+  const duplicates = (await getAll('/assets?limit=1000')).filter((item) => normalizeValue(item.name) === 'NYC-SW-01');
+  if (duplicates.length >= 2) return;
+  if (duplicates.length === 0) {
+    warn("Asset 'NYC-SW-01' not found; skipping the duplicate");
+    return;
+  }
+  const template = await apiGet(`/assets/${duplicates[0].id}`);
+  await apiPost('/assets', {
+    name: 'NYC-SW-01',
+    kind: template.kind,
+    environment: template.environment,
+    provider: template.provider,
+    location_id: template.location_id,
+    status: 'active',
+    operating_system: template.operating_system ?? null,
+    notes: 'Duplicate name kept on purpose for the Netbox sync ambiguity case',
+  });
+  ok('Created the second asset named NYC-SW-01');
 }
 
 // ── Demo users ───────────────────────────────────────────────────────────────
@@ -1411,6 +1467,8 @@ async function runImports() {
   await importCsv('17-portfolio-requests.csv', '/portfolio/requests/import');
   const locationIdByFixtureCode = await ensureLocations();
   await ensureAssets(locationIdByFixtureCode);
+  await ensureAssetHardwareInfo();
+  if (options.netboxTestCases) await ensureDuplicateAssetName();
   await importCsv('19-tasks.csv', '/tasks/import');
 }
 
