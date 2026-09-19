@@ -15,9 +15,40 @@ import i18n from '../i18n';
  *    the cure is a single reload that picks up the new shell.
  */
 
-/** Bumped at most once per window; a broken deploy must not cause a reload loop. */
+/**
+ * One automatic reload per window. The window is long enough that a deploy which really is
+ * broken cannot loop (the retry fails within seconds and lands on the message below), and
+ * short enough that a tab kept open across a later deploy still recovers on its own.
+ */
 const RELOAD_GUARD_KEY = 'kanap-chunk-reload-at';
-const RELOAD_GUARD_MS = 10_000;
+const RELOAD_GUARD_MS = 5 * 60_000;
+
+type ReloadGuardStorage = Pick<Storage, 'getItem' | 'setItem'>;
+
+/**
+ * Decide whether to reload for a stale chunk, and record the attempt. Without a working
+ * storage the attempt cannot be remembered, so there is no automatic reload at all: every
+ * load would otherwise reload again. The message and its Reload button remain.
+ */
+export function claimStaleChunkReload(storage: ReloadGuardStorage | null, now: number = Date.now()): boolean {
+  if (!storage) return false;
+  try {
+    const lastAttempt = Number(storage.getItem(RELOAD_GUARD_KEY) || 0);
+    if (now - lastAttempt < RELOAD_GUARD_MS) return false;
+    storage.setItem(RELOAD_GUARD_KEY, String(now));
+    return Number(storage.getItem(RELOAD_GUARD_KEY)) === now;
+  } catch {
+    return false;
+  }
+}
+
+function getSessionStorage(): ReloadGuardStorage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Recognise a failed dynamic import. The wording differs per browser, so this matches the
@@ -45,18 +76,7 @@ export class AppErrorBoundary extends React.Component<Props, State> {
 
   private reloadOnceForStaleChunk(error: Error): void {
     if (!isChunkLoadError(error)) return;
-    let lastAttempt = 0;
-    try {
-      lastAttempt = Number(window.sessionStorage.getItem(RELOAD_GUARD_KEY) || 0);
-    } catch {
-      // Storage unavailable (private mode): fall through and reload once.
-    }
-    if (Date.now() - lastAttempt < RELOAD_GUARD_MS) return;
-    try {
-      window.sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
-    } catch {
-      // Ignore: the reload below is what matters.
-    }
+    if (!claimStaleChunkReload(getSessionStorage())) return;
     window.location.reload();
   }
 

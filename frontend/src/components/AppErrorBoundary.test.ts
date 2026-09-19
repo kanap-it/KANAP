@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isChunkLoadError } from './AppErrorBoundary';
+import { claimStaleChunkReload, isChunkLoadError } from './AppErrorBoundary';
 
 /**
  * The boundary reloads the page once when a dynamic import fails, because that failure means
@@ -37,5 +37,47 @@ describe('isChunkLoadError', () => {
     expect(isChunkLoadError('Loading chunk 7 failed')).toBe(true);
     expect(isChunkLoadError(undefined)).toBe(false);
     expect(isChunkLoadError(null)).toBe(false);
+  });
+});
+
+/**
+ * The automatic reload must happen once. A guard that forgets the attempt reloads on every
+ * load, which is a loop the user cannot leave.
+ */
+describe('claimStaleChunkReload', () => {
+  const memoryStorage = () => {
+    const values = new Map<string, string>();
+    return {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => void values.set(key, value),
+    };
+  };
+
+  it('reloads once, then not again for the failing retry', () => {
+    const storage = memoryStorage();
+    expect(claimStaleChunkReload(storage, 1_000_000)).toBe(true);
+    expect(claimStaleChunkReload(storage, 1_000_000 + 3_000)).toBe(false);
+    // A slow connection or a late click must not start a second round.
+    expect(claimStaleChunkReload(storage, 1_000_000 + 60_000)).toBe(false);
+  });
+
+  it('recovers again after a later deploy in the same tab', () => {
+    const storage = memoryStorage();
+    expect(claimStaleChunkReload(storage, 1_000_000)).toBe(true);
+    expect(claimStaleChunkReload(storage, 1_000_000 + 6 * 60_000)).toBe(true);
+  });
+
+  it('never reloads when the attempt cannot be remembered', () => {
+    expect(claimStaleChunkReload(null)).toBe(false);
+    const throwing = {
+      getItem: () => { throw new Error('SecurityError'); },
+      setItem: () => { throw new Error('SecurityError'); },
+    };
+    expect(claimStaleChunkReload(throwing)).toBe(false);
+    const readOnly = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); } };
+    expect(claimStaleChunkReload(readOnly)).toBe(false);
+    // Writes silently dropped (some embedded web views).
+    const forgetful = { getItem: () => null, setItem: () => undefined };
+    expect(claimStaleChunkReload(forgetful)).toBe(false);
   });
 });
