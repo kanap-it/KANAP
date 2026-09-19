@@ -33,6 +33,7 @@ export default function AccountWorkspacePage() {
   const sort = searchParams.get('sort');
   const q = searchParams.get('q');
   const filters = searchParams.get('filters');
+  const statusScope = searchParams.get('scope');
   const selected = searchParams.get('selected');
   const coaId = selected || searchParams.get('coaId');
 
@@ -41,6 +42,7 @@ export default function AccountWorkspacePage() {
     sort,
     q,
     filters,
+    statusScope,
     extraParams: coaId ? { coaId } : undefined,
   });
   const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate

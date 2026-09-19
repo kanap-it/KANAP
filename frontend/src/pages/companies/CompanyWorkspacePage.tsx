@@ -35,9 +35,10 @@ export default function CompanyWorkspacePage() {
   const sort = searchParams.get('sort');
   const q = searchParams.get('q');
   const filters = searchParams.get('filters');
+  const statusScope = searchParams.get('scope');
   const listYear = searchParams.get('year');
 
-  const nav = useCompanyNav({ id, sort, q, filters, year: listYear });
+  const nav = useCompanyNav({ id, sort, q, filters, year: listYear, statusScope });
   const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate
     ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null, nextId: null }
     : nav;
@@ -155,9 +156,10 @@ export default function CompanyWorkspacePage() {
     if (sort) sp.set('sort', sort);
     if (q) sp.set('q', q);
     if (filters) sp.set('filters', filters);
+    if (statusScope) sp.set('scope', statusScope);
     if (searchParams.get('year')) sp.set('year', searchParams.get('year') as string);
     return sp;
-  }, [filters, q, sort, searchParams]);
+  }, [filters, q, sort, statusScope, searchParams]);
 
   return (
     <Box sx={{ p: 2 }}>

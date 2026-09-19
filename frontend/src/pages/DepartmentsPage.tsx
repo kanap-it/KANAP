@@ -41,6 +41,9 @@ export default function DepartmentsPage() {
     if (sort) sp.set('sort', sort);
     if (q) sp.set('q', q);
     if (filters && Object.keys(filters).length > 0) sp.set('filters', JSON.stringify(filters));
+    // The grid's status scope, so prev/next in the workspace walks the same set.
+    const statusScope = lastQueryRef.current?.statusScope;
+    if (statusScope) sp.set('scope', statusScope);
     sp.set('year', String(year));
     return sp;
   }, [year]);

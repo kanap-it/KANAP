@@ -111,6 +111,9 @@ export default function CoaPage() {
     if (sort) params.set('sort', sort);
     if (q) params.set('q', q);
     if (filters && Object.keys(filters).length > 0) params.set('filters', JSON.stringify(filters));
+    // The grid's status scope, so prev/next in the workspace walks the same set.
+    const statusScope = lastQueryRef.current?.statusScope;
+    if (statusScope) params.set('scope', statusScope);
     if (selectedCoaId) {
       params.set('selected', selectedCoaId);
       params.set('coaId', selectedCoaId);

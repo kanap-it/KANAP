@@ -34,8 +34,9 @@ export default function BusinessProcessWorkspacePage() {
   const sort = searchParams.get('sort');
   const q = searchParams.get('q');
   const filters = searchParams.get('filters');
+  const statusScope = searchParams.get('scope');
 
-  const nav = useBusinessProcessNav({ id, sort, q, filters });
+  const nav = useBusinessProcessNav({ id, sort, q, filters, statusScope });
   const { total, index, hasPrev, hasNext, prevId, nextId } = isCreate
     ? { total: 0, index: 0, hasPrev: false, hasNext: false, prevId: null, nextId: null }
     : nav;
