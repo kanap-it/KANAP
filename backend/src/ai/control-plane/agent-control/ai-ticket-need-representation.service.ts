@@ -19,6 +19,8 @@ import {
   TicketNeedEvidenceSource,
   TicketNeedRepresentation,
 } from './ai-ticket-need-representation.types';
+import { isRecord } from '../../../common/object-guards';
+import { estimateJsonTokens } from './json-token-estimate';
 
 export type TicketNeedRepresentationBuildResult = {
   source: 'llm' | 'deterministic' | 'llm_fallback';
@@ -63,10 +65,6 @@ const EVIDENCE_SOURCE_VALUES = [
   'ticket_note',
   'screenshot',
 ] as const;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function schemaText(value: unknown, maxLength: number): string | null {
   let raw: string | null = null;
@@ -363,16 +361,11 @@ function boundedConfidence(value: number | null | undefined): number | null {
   return Math.max(0, Math.min(1, Number(value)));
 }
 
-function estimateTokens(value: unknown): number {
-  // Keep the margin aligned with synthesis: multilingual text and JSON overhead undercount at /4.
-  return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
-}
-
 export function estimateTicketNeedRepresentationUsage(input: {
   systemPrompt: string;
   userPayload: Record<string, unknown>;
 }, prices: LlmTokenPrices | null, maxOutputTokens = MAX_NEED_BUILDER_OUTPUT_TOKENS): { estimatedTokens: number; estimatedCostEur: number } {
-  const inputTokens = estimateTokens(input);
+  const inputTokens = estimateJsonTokens(input);
   return {
     estimatedTokens: inputTokens + maxOutputTokens,
     estimatedCostEur: llmCostEur(inputTokens, maxOutputTokens, prices),
@@ -733,8 +726,8 @@ export class AiTicketNeedRepresentationService {
           warnings: ['Need builder skipped: no LLM runtime configured.'],
         };
       }
-      const actualInputTokens = result.usage ? result.usage.input_tokens : estimateTokens(userPayload);
-      const actualOutputTokens = result.usage ? result.usage.output_tokens : estimateTokens(result.text ?? '');
+      const actualInputTokens = result.usage ? result.usage.input_tokens : estimateJsonTokens(userPayload);
+      const actualOutputTokens = result.usage ? result.usage.output_tokens : estimateJsonTokens(result.text ?? '');
       const usageFields = {
         model: result.runtime ? `${result.runtime.providerId}:${result.runtime.model}` : null,
         usage: result.usage,

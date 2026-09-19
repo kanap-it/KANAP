@@ -44,6 +44,8 @@ import {
   SRE_MONITORING_ALLOWED_CAPABILITIES,
   SRE_MONITORING_FORBIDDEN_CAPABILITIES,
 } from './agent-definition-defaults';
+import { isRecord } from '../../../common/object-guards';
+import { actionClassForCapabilityName } from './ai-agent-autonomy';
 
 export {
   HELP_DESK_ALLOWED_CAPABILITIES,
@@ -435,10 +437,6 @@ export type HelpdeskTicketingAgentSummary = {
   };
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
 function numberFromPolicy(value: unknown, fallback: number, min: number, max: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return fallback;
@@ -619,16 +617,6 @@ function addEstimatedUsage(acc: { tokens: number; cost: number }, run: AiRun): v
   const cost = policyObject(run.cost_json);
   acc.tokens += numericMetadata(usage.estimated_tokens ?? usage.total_tokens);
   acc.cost += numericMetadata(cost.estimated_cost_eur ?? cost.total_cost_eur ?? cost.total_cost);
-}
-
-function actionClass(action: AiActionRequest): string {
-  if (action.capability_name.includes('internal_note')) return 'internal_note';
-  if (action.capability_name.includes('public_reply')) return 'public_reply';
-  if (action.capability_name.includes('classification_update')) return 'classification';
-  if (action.capability_name.includes('status_update')) return 'status';
-  if (action.capability_name.includes('assignment_update')) return 'assignment';
-  if (action.capability_name.includes('participant_update')) return 'participant';
-  return action.capability_name;
 }
 
 function incrementCounter(target: Record<string, number>, key: string): void {
@@ -3100,7 +3088,7 @@ export class AiAgentWorkQueueService {
     let dismissed = 0;
 
     for (const action of relevantActions) {
-      incrementCounter(proposalsByActionClass, actionClass(action));
+      incrementCounter(proposalsByActionClass, actionClassForCapabilityName(action.capability_name));
       if (['executed', 'rejected', 'expired', 'failed', 'dismissed'].includes(action.status)) {
         incrementCounter(terminalByStatus, action.status);
       }

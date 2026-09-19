@@ -9,6 +9,7 @@ import {
   NetboxObject,
   NetboxReferenceOption,
 } from './netbox.types';
+import { isRecord } from '../common/object-guards';
 
 // Read client for the Netbox REST API. No new npm dependency: plain
 // node:http / node:https so "ignore certificate" can be scoped to a single
@@ -75,10 +76,6 @@ const TLS_ERROR_CODES = new Set([
 
 const TLS_MESSAGE = 'KANAP does not trust the certificate of the Netbox server. '
   + 'Install a certificate KANAP trusts, or turn on "Ignore certificate" for this connection.';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value != null && typeof value === 'object' && !Array.isArray(value);
-}
 
 function textOrNull(value: unknown): string | null {
   if (value == null) return null;

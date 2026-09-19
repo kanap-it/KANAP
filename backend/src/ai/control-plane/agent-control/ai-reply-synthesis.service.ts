@@ -10,6 +10,7 @@ import {
 } from './ai-agent-prompt-compiler.service';
 import { AiAgentLlmClient } from './ai-agent-llm-client';
 import type { TicketImageEvidence } from './ai-ticket-need-representation.types';
+import { estimateJsonTokens } from './json-token-estimate';
 
 export type ReplySynthesisTicket = {
   id: string;
@@ -211,11 +212,6 @@ function operatingContextLeakDetected(input: {
   return false;
 }
 
-function estimateTokens(value: unknown): number {
-  // French/German text plus JSON overhead underestimates token counts with the old /4 heuristic.
-  return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
-}
-
 export function estimateReplySynthesisUsage(
   input: unknown,
   prices: LlmTokenPrices | null,
@@ -224,7 +220,7 @@ export function estimateReplySynthesisUsage(
   estimatedTokens: number;
   estimatedCostEur: number;
 } {
-  const inputTokens = estimateTokens(input);
+  const inputTokens = estimateJsonTokens(input);
   return {
     estimatedTokens: inputTokens + maxOutputTokens,
     estimatedCostEur: llmCostEur(inputTokens, maxOutputTokens, prices),
@@ -433,8 +429,8 @@ export class AiReplySynthesisService {
       needsHumanReview = true;
     }
     const technicianBrief = normalizeText(parsed.technician_brief);
-    const actualInputTokens = response.usage ? response.usage.input_tokens : estimateTokens(payload);
-    const actualOutputTokens = response.usage ? response.usage.output_tokens : estimateTokens(response.text);
+    const actualInputTokens = response.usage ? response.usage.input_tokens : estimateJsonTokens(payload);
+    const actualOutputTokens = response.usage ? response.usage.output_tokens : estimateJsonTokens(response.text);
     const actualTokens = actualInputTokens + actualOutputTokens;
     return {
       language: parsed.language || input.language,

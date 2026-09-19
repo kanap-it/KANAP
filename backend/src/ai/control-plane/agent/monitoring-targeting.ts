@@ -5,6 +5,7 @@ import {
   MONITORING_SEVERITY_VALUES,
 } from '../providers/provider-constants';
 import { MonitoringAlert, MonitoringAlertListScope } from '../providers/provider.types';
+import { isRecord } from '../../../common/object-guards';
 
 export const MONITORING_TARGETING_SCHEMA_VERSION = 1;
 export { MONITORING_ACK_STATES, MONITORING_ALERT_STATUS_VALUES, MONITORING_SEVERITY_VALUES };
@@ -65,10 +66,6 @@ const SEVERITY_LADDER = MONITORING_SEVERITY_VALUES as readonly string[];
 const PUSHED_DOWN_REASON = 'Translated to the bound monitoring provider\'s alert scope and re-checked locally after the bounded fetch.';
 const LOCAL_FILTER_REASON = 'Applied after a bounded provider fetch.';
 const CONTROL_PLANE_REASON = 'Resolved from KANAP target state, not provider search.';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;

@@ -8,6 +8,7 @@ import { AiActionRequest } from '../entities/ai-action-request.entity';
 import { AiEvaluation } from '../entities/ai-evaluation.entity';
 import { hashStableJson } from '../evidence/ai-evidence.service';
 import { PolicyDecisionRecord } from '../policy/policy-decision.types';
+import { isRecord } from '../../../common/object-guards';
 
 const DEFAULT_PROVIDER_ACTION_TTL_MS = 30 * 60 * 1000;
 const PROVIDER_ACTION_RETRYABLE_TERMINAL_STATUSES = new Set(['expired', 'failed', 'rejected', 'dismissed']);
@@ -33,10 +34,6 @@ export type ProviderActionRequestSeed = {
   expiresAt?: Date | null;
   retryAfterStatuses?: string[] | null;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function stringMetadata(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;

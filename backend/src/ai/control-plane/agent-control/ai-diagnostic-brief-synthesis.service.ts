@@ -17,6 +17,7 @@ import {
   ReplySynthesisWebResult,
 } from './ai-reply-synthesis.service';
 import { KanapAlertContextResolution } from './ai-kanap-entity-context.service';
+import { estimateJsonTokens } from './json-token-estimate';
 
 // Diagnostic-brief synthesis (plan 37 §4.4) — the alert-world analog of reply
 // synthesis: ONE structured LLM stage turning deterministic alert evidence plus
@@ -331,10 +332,6 @@ function compactEntity(entity: { ref: string | null; label: string; status: stri
   };
 }
 
-function estimateTokens(value: unknown): number {
-  return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
-}
-
 export function estimateDiagnosticBriefUsage(
   input: unknown,
   prices: LlmTokenPrices | null,
@@ -343,7 +340,7 @@ export function estimateDiagnosticBriefUsage(
   estimatedTokens: number;
   estimatedCostEur: number;
 } {
-  const inputTokens = estimateTokens(input);
+  const inputTokens = estimateJsonTokens(input);
   return {
     estimatedTokens: inputTokens + maxOutputTokens,
     estimatedCostEur: llmCostEur(inputTokens, maxOutputTokens, prices),
@@ -587,8 +584,8 @@ export class AiDiagnosticBriefSynthesisService {
     const needsHumanReview = parsed.needs_human_review === true
       || unknownCitationDropped
       || usedSources.length === 0;
-    const actualInputTokens = response.usage ? response.usage.input_tokens : estimateTokens(payload);
-    const actualOutputTokens = response.usage ? response.usage.output_tokens : estimateTokens(response.text);
+    const actualInputTokens = response.usage ? response.usage.input_tokens : estimateJsonTokens(payload);
+    const actualOutputTokens = response.usage ? response.usage.output_tokens : estimateJsonTokens(response.text);
     const actualTokens = actualInputTokens + actualOutputTokens;
     return {
       language: parsed.language || input.language,

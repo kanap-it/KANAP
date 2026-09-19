@@ -9,6 +9,7 @@ import { AiEvidence } from '../entities/ai-evidence.entity';
 import { AiRecommendation } from '../entities/ai-recommendation.entity';
 import { AiToolExecution } from '../entities/ai-tool-execution.entity';
 import { PolicyDecisionReason } from './policy-decision.types';
+import { isRecord } from '../../../common/object-guards';
 
 type BudgetConstraints = {
   window_minutes?: number;
@@ -18,10 +19,6 @@ type BudgetConstraints = {
   max_recent_cost?: number;
   cost_json_key?: string;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function numberField(value: Record<string, unknown> | null | undefined, key: string): number | null {
   const raw = value?.[key];

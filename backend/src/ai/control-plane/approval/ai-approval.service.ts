@@ -8,6 +8,7 @@ import { AiActionRequest } from '../entities/ai-action-request.entity';
 import { AiApproval } from '../entities/ai-approval.entity';
 import { AiApprovalPolicyResolverService } from '../policy/ai-approval-policy-resolver.service';
 import { PolicyDecisionRecord } from '../policy/policy-decision.types';
+import { isRecord } from '../../../common/object-guards';
 
 const DEFAULT_APPROVAL_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_APPROVED_ACTION_EXECUTION_TTL_MS = 30 * 60 * 1000;
@@ -26,10 +27,6 @@ function approvalExpiryForAction(action: AiActionRequest, now = new Date()): Dat
   return Number.isFinite(currentExpiry.getTime()) && currentExpiry > minimum
     ? currentExpiry
     : minimum;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function executionClaimId(action: AiActionRequest): string | null {

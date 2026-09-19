@@ -25,6 +25,7 @@ import { AiToolExecution } from '../entities/ai-tool-execution.entity';
 import { AiEvidenceService } from '../evidence/ai-evidence.service';
 import { AiEmergencyPauseService } from '../pause/ai-emergency-pause.service';
 import { AdapterEvidenceSeed } from '../providers/provider.types';
+import { isRecord } from '../../../common/object-guards';
 
 type DispatchInput = {
   capabilityName: string;
@@ -57,10 +58,6 @@ function toOutputStatus(output: unknown): string {
     return 'failed';
   }
   return 'completed';
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function isAdapterFailure(value: unknown): value is {

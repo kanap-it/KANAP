@@ -10,6 +10,8 @@ import {
 } from './ai-agent-prompt-compiler.service';
 import { AgentLlmRuntime, AiAgentLlmClient } from './ai-agent-llm-client';
 import { TicketImageEvidence } from './ai-ticket-need-representation.types';
+import { isRecord } from '../../../common/object-guards';
+import { estimateJsonTokens } from './json-token-estimate';
 
 export type TicketEvidenceExtractionResult = {
   attachmentRefs: TicketAttachmentRef[];
@@ -32,10 +34,6 @@ const MAX_VISION_EXTRACTION_OUTPUT_TOKENS = 12000;
 const DEFAULT_MAX_IMAGES = 5;
 const DEFAULT_MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function schemaText(value: unknown, maxLength: number): string | null {
   let raw: string | null = null;
@@ -181,11 +179,6 @@ function normalizeParsedEvidence(ref: TicketAttachmentRef, parsed: ParsedVisionE
   };
 }
 
-function estimateTokens(value: unknown): number {
-  // Keep the margin aligned with synthesis: multilingual text and JSON overhead undercount at /4.
-  return Math.max(1, Math.ceil(JSON.stringify(value ?? {}).length / 3.5));
-}
-
 function aggregateUsage(
   left: TicketEvidenceExtractionResult['usage'],
   right: TicketEvidenceExtractionResult['usage'],
@@ -251,7 +244,7 @@ export function estimateTicketEvidenceExtractionUsage(input: {
   const selectedRefs = attachmentRefs
     .filter((ref) => ref.kind === 'image' || !ref.mimeType || SUPPORTED_IMAGE_MIME_TYPES.has(normalizeMimeType(ref.mimeType)))
     .slice(0, input.maxImages);
-  const estimatedInputTokens = selectedRefs.reduce((sum, ref) => sum + estimateTokens({
+  const estimatedInputTokens = selectedRefs.reduce((sum, ref) => sum + estimateJsonTokens({
     systemPrompt: input.systemPrompt,
     userPayload: visionPromptPayload({ ticketId: input.ticket.id, ref }),
   }), 0);
@@ -436,8 +429,8 @@ export class AiTicketEvidenceExtractionService {
         model = result.runtime ? `${result.runtime.providerId}:${result.runtime.model}` : model;
         usage = aggregateUsage(usage, result.usage);
         latencyMs += result.latencyMs;
-        const callInputTokens = result.usage ? result.usage.input_tokens : estimateTokens(userPayload);
-        const callOutputTokens = result.usage ? result.usage.output_tokens : estimateTokens(result.text ?? '');
+        const callInputTokens = result.usage ? result.usage.input_tokens : estimateJsonTokens(userPayload);
+        const callOutputTokens = result.usage ? result.usage.output_tokens : estimateJsonTokens(result.text ?? '');
         estimatedTokens += callInputTokens + callOutputTokens;
         estimatedCostEur += llmCostEur(callInputTokens, callOutputTokens, result.runtime);
         if (!result.ok) {

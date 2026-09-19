@@ -11,6 +11,7 @@ import {
   PrtgTableRequest,
   PrtgTableRow,
 } from './prtg.types';
+import { isRecord } from '../../common/object-guards';
 
 // Sessionless HTTP client for the PRTG classic API (v1). Auth material rides
 // in the query string (apitoken, or username+passhash fallback), so NO error
@@ -119,10 +120,6 @@ function connectionTimeoutMs(connection: PrtgConnection): number {
 // Optional DI token so specs can inject a fake transport; production leaves
 // it unbound and the client falls back to the global fetch.
 export const PRTG_FETCH_IMPLEMENTATION = 'PRTG_FETCH_IMPLEMENTATION';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value != null && typeof value === 'object' && !Array.isArray(value);
-}
 
 function textOrNull(value: unknown): string | null {
   if (value == null) {

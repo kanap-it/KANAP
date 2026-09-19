@@ -30,6 +30,7 @@ import {
   checkIntervalMinutesForDefinition,
   scheduledCheckDue,
 } from './ai-agent-check-interval';
+import { isRecord } from '../../../common/object-guards';
 
 export type MonitoringAlertIngestionPollSummary = {
   tenantId: string;
@@ -53,10 +54,6 @@ export type MonitoringAlertIngestionRunSummary = {
   alertsProcessed: number;
   errors: string[];
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function parseDateMs(value: unknown): number | null {
   if (typeof value !== 'string' || value.trim().length === 0) {

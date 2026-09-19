@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { OPEN_TICKET_STATUS_VALUES } from '../providers/provider-constants';
 import { ProviderContext, TicketReferenceCatalogKind, TicketRecord, TicketingProvider } from '../providers/provider.types';
+import { isRecord } from '../../../common/object-guards';
 
 export const SERVICE_DESK_TARGETING_SCHEMA_VERSION = 1;
 export { OPEN_TICKET_STATUS_VALUES };
@@ -58,10 +59,6 @@ const OPEN_TICKET_STATUS_VALUE_SET = new Set(OPEN_TICKET_STATUS_VALUES);
 const PUSHED_DOWN_FIELDS = new Set<string>();
 const LOCAL_FILTER_FIELDS = new Set(['status', 'category', 'entity', 'created_at', 'updated_at', 'inactivity_age', 'priority', 'type']);
 const CONTROL_PLANE_FIELDS = new Set(['touched_by']);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;

@@ -17,6 +17,7 @@ import { AiAutonomyCeilingService } from './ai-autonomy-ceiling.service';
 import { AiAutonomyDemotionService } from './ai-autonomy-demotion.service';
 import { autonomyRank } from './autonomy-levels';
 import { PolicyDecisionReason, PolicyDecisionRecord } from './policy-decision.types';
+import { isRecord } from '../../../common/object-guards';
 
 type EvidenceRequirements = {
   min_count?: number;
@@ -36,10 +37,6 @@ type TargetConstraints = {
   allowed_refs?: string[];
   allowed_patterns?: string[];
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
 
 function asObject<T>(value: unknown): T | null {
   return isRecord(value) ? value as T : null;
