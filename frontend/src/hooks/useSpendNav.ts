@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../api';
 import { ModuleItemNavParams, ModuleItemNavResult } from './useModuleItemNav';
 import { formatItemRef } from '../utils/item-ref';
+import { statusScopeParams } from '../utils/statusScopeParams';
 
 export type SpendNavParams = ModuleItemNavParams;
 
@@ -15,19 +16,23 @@ export type SpendNavParams = ModuleItemNavParams;
  * Indexing still uses the UUID list, matched against the resolved current id.
  */
 export function useSpendNav(params: SpendNavParams): ModuleItemNavResult {
-  const { id, sort, q, filters, year } = params;
+  const { id, sort, q, filters, year, statusScope } = params;
   const effectiveSort = sort || 'yBudget:DESC';
   const effectiveQ = q || '';
   const effectiveFilters = filters || '';
   const effectiveYear = year ?? '';
+  const effectiveStatusScope = statusScope ?? '';
 
   const { data } = useQuery({
-    queryKey: ['spend-items-summary-ids', effectiveSort, effectiveQ, effectiveFilters, effectiveYear],
+    queryKey: ['spend-items-summary-ids', effectiveSort, effectiveQ, effectiveFilters, effectiveYear, effectiveStatusScope],
     queryFn: async () => {
       const apiParams: Record<string, string | number | undefined> = {
         sort: effectiveSort,
         q: effectiveQ || undefined,
         filters: effectiveFilters || undefined,
+        // The list grid scopes by status; without the same scope here prev/next would walk a
+        // different set from the one on screen (the endpoint otherwise defaults to enabled).
+        ...statusScopeParams(statusScope),
       };
       if (year !== null && year !== undefined && year !== '') apiParams.year = year;
       const res = await api.get<{ ids: string[]; item_numbers: number[] }>('/spend-items/summary/ids', { params: apiParams });

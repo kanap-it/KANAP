@@ -2,6 +2,12 @@ export type CapexListContextSnapshot = {
   sort: string;
   q: string;
   filters: string;
+  /**
+   * Status scope of the list the user navigated from. The grid holds it in local state,
+   * so without persisting it here the item page cannot tell prev/next which scope to walk
+   * and the item page falls back to the endpoint default (enabled only).
+   */
+  statusScope?: string;
 };
 
 const STORAGE_KEY = 'capex-list-context';
@@ -10,7 +16,9 @@ function isCapexListContextSnapshot(value: any): value is CapexListContextSnapsh
   return value && typeof value === 'object'
     && typeof value.sort === 'string'
     && typeof value.q === 'string'
-    && typeof value.filters === 'string';
+    && typeof value.filters === 'string'
+    // Optional: snapshots written before this field existed stay valid.
+    && (value.statusScope === undefined || typeof value.statusScope === 'string');
 }
 
 export function readStoredCapexListContext(): CapexListContextSnapshot | null {

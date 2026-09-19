@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../api';
+import { statusScopeParams } from '../utils/statusScopeParams';
 
 type ModuleItemNavData = {
   ids: string[];
@@ -35,6 +36,12 @@ export interface ModuleItemNavParams {
   filters?: string | null;
   /** Optional year parameter */
   year?: number | string | null;
+  /**
+   * Status scope of the list being navigated (the grid's scope: enabled / disabled /
+   * invited / all). Omit only when the caller genuinely has no scope to mirror, in which
+   * case the endpoint default applies — which may differ from what the user sees.
+   */
+  statusScope?: string | null;
   /** Additional dynamic params to include in API calls (e.g., assigneeUserId, teamId) */
   extraParams?: Record<string, string | number | undefined>;
   /** When false, skip the IDs request. Defaults to true. */
@@ -91,25 +98,28 @@ export function useModuleItemNav(
   params: ModuleItemNavParams,
   config: ModuleItemNavConfig
 ): ModuleItemNavResult {
-  const { id, sort, q, filters, year, extraParams: dynamicExtraParams, enabled = true } = params;
+  const { id, sort, q, filters, year, statusScope, extraParams: dynamicExtraParams, enabled = true } = params;
   const { endpoint, queryKey, defaultSort, extraParams: staticExtraParams } = config;
 
   const effectiveSort = sort || defaultSort;
   const effectiveQ = q || '';
   const effectiveFilters = filters || '';
   const effectiveYear = year ?? '';
+  const effectiveStatusScope = statusScope ?? '';
 
   // Combine static config params with dynamic params from invocation
   const combinedExtraParams = { ...staticExtraParams, ...dynamicExtraParams };
   const extraParamsKey = JSON.stringify(combinedExtraParams);
 
   const { data } = useQuery({
-    queryKey: [queryKey, effectiveSort, effectiveQ, effectiveFilters, effectiveYear, extraParamsKey],
+    queryKey: [queryKey, effectiveSort, effectiveQ, effectiveFilters, effectiveYear, effectiveStatusScope, extraParamsKey],
     queryFn: async () => {
       const apiParams: Record<string, string | number | undefined> = {
         sort: effectiveSort,
         q: effectiveQ || undefined,
         filters: effectiveFilters || undefined,
+        // Same scope mapping the grid uses, so the id list matches the visible rows.
+        ...statusScopeParams(statusScope),
         ...combinedExtraParams,
       };
 

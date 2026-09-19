@@ -34,6 +34,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useTenant } from '../tenant/TenantContext';
 import { useThemeMode } from '../config/ThemeContext';
 import { useLocale } from '../i18n/useLocale';
+import { statusScopeParams } from '../utils/statusScopeParams';
 
 const DATE_FILTER_PARAMS = {
   suppressAndOrCondition: true,
@@ -534,12 +535,7 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
         if (fm && Object.keys(fm).length > 0) reqParams.filters = JSON.stringify(fm);
 
         if (statusScopeConfig) {
-          const scope = statusScopeRef.current;
-          if (scope === 'enabled' || scope === 'disabled' || scope === 'invited') {
-            reqParams.status = scope;
-          } else if (scope === 'all') {
-            reqParams.includeDisabled = '1';
-          }
+          Object.assign(reqParams, statusScopeParams(statusScopeRef.current));
         }
         // include global quick search (server-side)
         const q = searchRef.current;

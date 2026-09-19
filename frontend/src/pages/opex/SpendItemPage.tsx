@@ -233,7 +233,11 @@ export default function SpendItemPage() {
   const sort = searchParams.get('sort') || storedListContext?.sort || 'yBudget:DESC';
   const q = searchParams.get('q') || storedListContext?.q || '';
   const filters = searchParams.get('filters') || storedListContext?.filters || '';
-  React.useEffect(() => { writeStoredOpexListContext({ sort, q, filters }); }, [sort, q, filters]);
+  // Status scope of the list we came from. The grid keeps it in local state, so it reaches
+  // us through the stored list context; it must be forwarded to prev/next or the navigation
+  // walks a different set from the one on screen.
+  const statusScope = storedListContext?.statusScope || 'enabled';
+  React.useEffect(() => { writeStoredOpexListContext({ sort, q, filters, statusScope }); }, [sort, q, filters, statusScope]);
   const buildListContextParams = React.useCallback(() => {
     const sp = new URLSearchParams(searchParamsString);
     if (!sp.get('sort') && sort) sp.set('sort', sort);
@@ -242,7 +246,7 @@ export default function SpendItemPage() {
     return sp;
   }, [filters, q, searchParamsString, sort]);
 
-  const nav = useSpendNav({ id: uuid || idParam, sort, q, filters });
+  const nav = useSpendNav({ id: uuid || idParam, sort, q, filters, statusScope });
   const { index, total, hasPrev, hasNext, prevId, nextId } = isCreate
     ? { index: 0, total: 0, hasPrev: false, hasNext: false, prevId: null as any, nextId: null as any }
     : nav;
