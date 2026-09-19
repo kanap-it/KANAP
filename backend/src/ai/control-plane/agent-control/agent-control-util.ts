@@ -119,3 +119,19 @@ export function clampText(value: string | null | undefined, max: number): string
 export function stripHeadlineTags(value: string | null | undefined): string {
   return clampText(String(value ?? '').replace(/<\/?b>/g, ''), 280);
 }
+
+export function stringFromMetadata(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+export function metadataObject(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+export function cleanAgentPriority(value: unknown, fallback = 100): number {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.max(0, Math.min(1000, Math.floor(numeric)));
+}
