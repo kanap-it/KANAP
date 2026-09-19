@@ -4,7 +4,7 @@ import { EntityManager, In, Repository } from 'typeorm';
 import { BusinessProcess } from './business-process.entity';
 import { BusinessProcessCategory } from './business-process-category.entity';
 import { BusinessProcessCategoryLink } from './business-process-category-link.entity';
-import { parsePagination } from '../common/pagination';
+import { parseExportPagination, parsePagination } from '../common/pagination';
 import { applyStatusFilter, extractStatusFilterFromAgModel } from '../common/status-filter';
 import { AuditService, AuditSourceOptions } from '../audit/audit.service';
 import { BusinessProcessUpsertDto } from './dto/business-process.dto';
@@ -42,9 +42,11 @@ export class BusinessProcessesService {
     return manager ? manager.getRepository(User) : this.usersRepo;
   }
 
-  async list(query: any, opts?: { manager?: EntityManager }) {
+  async list(query: any, opts?: { manager?: EntityManager; exportAll?: boolean }) {
     const repo = this.getRepo(opts?.manager);
-    const { page, limit, skip, sort, status, q, filters } = parsePagination(query, { field: 'name', direction: 'ASC' });
+    const { page, limit, skip, sort, status, q, filters } = opts?.exportAll
+      ? parseExportPagination(query, { field: 'name', direction: 'ASC' })
+      : parsePagination(query, { field: 'name', direction: 'ASC' });
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const effectiveStatus = status ?? statusFromAg ?? null;
     const filtersToApply = sanitizedFilters ?? filters;
@@ -391,7 +393,7 @@ export class BusinessProcessesService {
     const delimiter = ';';
     const rows: any[] = [];
     if (scope === 'data') {
-      const { items } = await this.list({ page: 1, limit: 10000, sort: 'name:ASC' }, opts);
+      const { items } = await this.list({ page: 1, limit: 10000, sort: 'name:ASC' }, { ...opts, exportAll: true });
       for (const p of items as any[]) {
         const categoryNames = Array.isArray(p.categories)
           ? (p.categories as any[]).map((c) => c.name).join(';')

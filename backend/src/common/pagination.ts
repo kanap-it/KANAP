@@ -3,9 +3,22 @@ import { StatusState } from './status';
 
 export type Sort = { field: string; direction: 'ASC' | 'DESC' };
 
-export function parsePagination(query: any, defaultSort: Sort = { field: 'created_at', direction: 'DESC' }) {
+/** Cap for paginated reads driven by a UI grid. */
+export const MAX_LIST_LIMIT = 1000;
+
+/**
+ * Higher bound for the paths that legitimately ask for the whole set: CSV exports, the
+ * "select all" id lists, and the filter-value lists behind a column filter. Those go
+ * through the list parser with an explicit large `limit`, which the list cap silently
+ * reduced to 1000 rows. It stays bounded on purpose: an unbounded read is a memory risk
+ * on a large tenant, and the flag that selects this parser is set server-side, so a
+ * client cannot raise the ceiling from a query string.
+ */
+export const MAX_EXPORT_LIMIT = 50_000;
+
+function parsePaginationWithCap(query: any, defaultSort: Sort, maxLimit: number) {
   const page = Math.max(1, parseInt(query.page ?? '1', 10) || 1);
-  const limit = Math.min(1000, Math.max(1, parseInt(query.limit ?? '20', 10) || 20));
+  const limit = Math.min(maxLimit, Math.max(1, parseInt(query.limit ?? '20', 10) || 20));
   const sortParam: string = query.sort ?? `${defaultSort.field}:${defaultSort.direction}`;
   const [field, dirRaw] = String(sortParam).split(':');
   const direction = String(dirRaw ?? defaultSort.direction).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
@@ -25,6 +38,19 @@ export function parsePagination(query: any, defaultSort: Sort = { field: 'create
     }
   }
   return { page, limit, skip: (page - 1) * limit, sort: { field, direction } as Sort, status, q, filters };
+}
+
+export function parsePagination(query: any, defaultSort: Sort = { field: 'created_at', direction: 'DESC' }) {
+  return parsePaginationWithCap(query, defaultSort, MAX_LIST_LIMIT);
+}
+
+/**
+ * Same parsing with the export bound. Use it for exports, "select all" ids and
+ * filter-value lists — anything that must see every matching row rather than one page.
+ * Always select it with a server-side flag, never from the request query.
+ */
+export function parseExportPagination(query: any, defaultSort: Sort = { field: 'created_at', direction: 'DESC' }) {
+  return parsePaginationWithCap(query, defaultSort, MAX_EXPORT_LIMIT);
 }
 
 // Build a TypeORM-compatible where clause from AG Grid Text Filter model (single condition only)

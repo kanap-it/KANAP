@@ -10,7 +10,7 @@ import { Account } from '../accounts/account.entity';
 import { Supplier } from '../suppliers/supplier.entity';
 import { AnalyticsCategory } from '../analytics/analytics-category.entity';
 import { User } from '../users/user.entity';
-import { parsePagination, buildWhereFromAgFilters } from '../common/pagination';
+import { parseExportPagination, parsePagination, buildWhereFromAgFilters } from '../common/pagination';
 import { AuditService } from '../audit/audit.service';
 import { spreadAnnualToMonths } from '../spend/spread.util';
 import { format } from '@fast-csv/format';
@@ -493,13 +493,15 @@ export class CapexItemsService {
   }
 
   // CAPEX summary endpoint: derived yearly totals and spread mode
-  async summary(query: any, opts?: { manager?: EntityManager }) {
+  async summary(query: any, opts?: { manager?: EntityManager; exportAll?: boolean }) {
     const mg = opts?.manager ?? this.repo.manager;
     const now = new Date();
     const Y = now.getFullYear();
     const years = [Y - 1, Y, Y + 1, Y + 2];
 
-    const { page, limit, skip, sort, status, q, filters } = parsePagination(query);
+    const { page, limit, skip, sort, status, q, filters } = opts?.exportAll
+      ? parseExportPagination(query)
+      : parsePagination(query);
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedDbFields = [
@@ -1185,7 +1187,7 @@ export class CapexItemsService {
     // Data export
     const now = new Date();
     const Y = now.getFullYear();
-    const { items } = await this.summary({ page: 1, limit: 100000, sort: 'created_at:DESC' }, opts);
+    const { items } = await this.summary({ page: 1, limit: 100000, sort: 'created_at:DESC' }, { ...opts, exportAll: true });
 
     // Get company names for items that have company_id
     const mgExport = opts?.manager ?? this.repo.manager;
