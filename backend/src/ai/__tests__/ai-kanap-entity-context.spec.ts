@@ -1,8 +1,10 @@
 import * as assert from 'node:assert/strict';
+// These two moved to the knowledge module during the header split; import them from
+// where they live rather than through the service.
 import {
   normalizeKnowledgeSources,
   readAgentKnowledgeSources,
-} from '../control-plane/agent-control/ai-agent-control.service';
+} from '../control-plane/agent-control/agent-control-definition.util';
 import {
   KANAP_ENTITY_CONTEXT_CAPABILITY,
   KANAP_ENTITY_DETAIL_CAPABILITY,

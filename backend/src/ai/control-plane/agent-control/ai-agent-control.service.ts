@@ -255,6 +255,83 @@ import {
   serializeAgentAuditEvent,
 } from './agent-control-serializers.util';
 import {
+  readKanapDataBlock,
+  addEstimatedUsage,
+  dateKey,
+  withinDateRange,
+  cleanSingleLine,
+  requireBoundedLine,
+  hasOwn,
+  uniqueBoundsApplied,
+  cleanAgentKey,
+  slugAgentKey,
+  cleanAgentType,
+  cleanAgentEnvironment,
+  cleanAgentStatus,
+  normalizedPolicyObject,
+  normalizePersona,
+  normalizeResponsePolicyForConfig,
+  autonomyLevelRank,
+  capabilityNameFromEntry,
+  normalizeAllowedCapabilitiesForConfig,
+  normalizeScopePolicyForAgentType,
+  definitionAllowsCapability,
+  allowedCapabilityNames,
+  lifecycleAllowedTransitions,
+  lifecycleTransitionKey,
+  normalizePlannerStatusTransitionKey,
+  lifecycleTransitionByKey,
+  lifecycleTransitionIsTerminal,
+  preferredTerminalLifecycleTransition,
+  plannerStatusTransitionIsTerminal,
+  resolvePlannerStatusTransition,
+  plannerActionKindKey,
+  resolvePlannerAssignmentTarget,
+  resolveVerbatimCandidate,
+  plannerActionKey,
+  configSnapshot,
+  changedConfigDiff,
+  autonomyThresholds,
+  normalizeKnowledgeSources,
+  readAgentKnowledgeSources,
+  proposalHash,
+} from './agent-control-definition.util';
+import {
+  possibleCapabilityCapsForAgentType,
+  proposalStillBlocksRegeneration,
+  actionSortTime,
+  actionIsActivePending,
+  definitionIdFromMetadata,
+  numberFromMetadata,
+  withApprovedBatchContext,
+  approvedBatchExecutionAttempts,
+  actionExecutionSkipReason,
+  actionClass,
+  numericMetadata,
+  ACTION_TYPE_CAPABILITY_TABLE,
+  APPROVED_ACTION_EXECUTING_STATUS,
+  AUTONOMY_ACTION_CLASSES,
+  AUTONOMY_RECOMMENDATION_REASON_CODES,
+  CLOSE_TRIAGE_ACTIONS,
+  DEFAULT_BULK_EXECUTION_PHASE,
+  HELPDESK_REVIEW_ACTION_CAPABILITIES,
+  KnowledgeDocumentFetchAttempt,
+  PHASE_1_PLANNER_OWNED_ACTION_TYPES,
+  PLANNER_ASSIGNMENT_ACTION_TYPE,
+  PLANNER_CLASSIFICATION_ACTION_TYPE,
+  PLANNER_OWNED_ACTION_TYPES,
+  PLANNER_TERMINAL_TRANSITIONS,
+  STATIC_CAPABILITY_EXECUTION_PHASES,
+  TARGETING_CATALOG_BROWSE_TTL_MS,
+  TARGETING_CATALOG_OPTIONS_TTL_MS,
+  TARGETING_ENUM_OPTIONS_TTL_MS,
+  TARGETING_OPTIONS_STALE_SERVE_MS,
+  UUID_RE,
+} from './agent-control-constants.util';
+
+// Kept on the service's public surface: the control-plane spec imports it from here.
+export { proposalStillBlocksRegeneration } from './agent-control-constants.util';
+import {
   actionRequestIdsFromCapabilityOutput,
   ticketNotesFromOutput,
   parseTime,
@@ -598,226 +675,6 @@ export type MergedKnowledgeCandidate = KnowledgeSearchItem & {
   match_count?: number;
 };
 
-type KnowledgeDocumentFetchAttempt = {
-  document_id: string;
-  result?: CapabilityExecutionResult<Record<string, unknown>>;
-  item?: KnowledgeSearchItem | null;
-  error_message?: string | null;
-};
-
-const APPROVED_ACTION_EXECUTING_STATUS = 'executing';
-const HELPDESK_REVIEW_ACTION_CAPABILITIES = [
-  TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
-  TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
-  TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
-  TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
-  TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
-  TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
-];
-const DEFAULT_BULK_EXECUTION_PHASE = 999;
-const STATIC_CAPABILITY_EXECUTION_PHASES = new Map(
-  providerCapabilityContracts().map((contract) => [
-    `${contract.name}:${contract.version}`,
-    contract.execution_phase ?? DEFAULT_BULK_EXECUTION_PHASE,
-  ]),
-);
-const AUTONOMY_ACTION_CLASSES = ['internal_note', 'classification', 'status', 'public_reply', 'assignment', 'participant'] as const;
-const AUTONOMY_RECOMMENDATION_REASON_CODES = new Set([
-  'INSUFFICIENT_DECIDED_PROPOSALS',
-  'ACCEPTANCE_RATE_TOO_LOW',
-  'OBSERVATION_WINDOW_TOO_SHORT',
-]);
-const HELPDESK_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>([
-  ['ticketing.ticket.get', 'A1'],
-  [TICKETING_TICKET_NOTES_LIST_CAPABILITY, 'A1'],
-  [TICKETING_CLASSIFICATION_CONTEXT_CAPABILITY, 'A1'],
-  [TICKETING_LIFECYCLE_CONTEXT_CAPABILITY, 'A1'],
-  [TICKETING_ROUTING_CONTEXT_CAPABILITY, 'A1'],
-  [TICKETING_PARTICIPANT_CONTEXT_CAPABILITY, 'A1'],
-  ['search_knowledge', 'A1'],
-  ['get_document', 'A1'],
-  // Provisioned onto every helpdesk agent by HELP_DESK_ALLOWED_CAPABILITIES (work-queue service).
-  // Must be listed here or config saves round-tripping the capability are rejected. Read-only/A1;
-  // the run loop no-ops it unless both the per-agent toggle and platform web search are enabled.
-  ['web_search', 'A1'],
-  [TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY, 'A2'],
-  [TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY, 'A2'],
-  [TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY, 'A2'],
-  [TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY, 'A2'],
-  [TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY, 'A2'],
-  [TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY, 'A2'],
-  [TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY, 'A3'],
-  [TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY, 'A3'],
-  [TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY, 'A3'],
-  [TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY, 'A3'],
-  [TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY, 'A3'],
-  [TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY, 'A3'],
-]);
-// SRE cap table derived from the seed list (single source of truth in the
-// work-queue service): every 15.A SRE capability is a read capped at A1 —
-// prepare/approved write pairs only arrive with 15.B.
-const SRE_POSSIBLE_CAPABILITY_CAPS = new Map<string, string>(
-  SRE_MONITORING_ALLOWED_CAPABILITIES.map((capability) => [capability.name, capability.max_autonomy_level]),
-);
-// Capability validation is per agent type: monitoring reads are meaningless on a
-// helpdesk agent and ticketing writes are meaningless on an SRE agent — both are
-// rejected with the same "not available for this agent type" error.
-function possibleCapabilityCapsForAgentType(agentType: unknown): Map<string, string> {
-  return agentType === 'sre' ? SRE_POSSIBLE_CAPABILITY_CAPS : HELPDESK_POSSIBLE_CAPABILITY_CAPS;
-}
-const SUPPRESS_UNCHANGED_PROPOSAL_STATUSES = new Set(['pending', 'approved', 'rejected', 'executed']);
-const CLOSE_TRIAGE_ACTIONS = new Set(['prepare_close', 'prepare_close_reply']);
-const PHASE_1_PLANNER_OWNED_ACTION_TYPES = [
-  'internal_note',
-  'requester_reply',
-  'status_update',
-] as const satisfies readonly PlannerActionType[];
-// Instruction-driven group routing: owned only when the agent holds the assignment
-// capability pair and the provider exposes a routing catalogue for the ticket.
-const PLANNER_ASSIGNMENT_ACTION_TYPE = 'assignment_update' as const satisfies PlannerActionType;
-const PLANNER_CLASSIFICATION_ACTION_TYPE = 'classification_update' as const satisfies PlannerActionType;
-const PLANNER_OWNED_ACTION_TYPES = new Set<PlannerActionType>([...PHASE_1_PLANNER_OWNED_ACTION_TYPES, PLANNER_ASSIGNMENT_ACTION_TYPE, PLANNER_CLASSIFICATION_ACTION_TYPE]);
-const PLANNER_TERMINAL_TRANSITIONS = new Set(['solved', 'closed', 'resolved']);
-const ACTION_TYPE_CAPABILITY_TABLE: Record<string, { prepare: string; approved: string } | undefined> = {
-  internal_note: {
-    prepare: TICKETING_INTERNAL_NOTE_PREPARE_CAPABILITY,
-    approved: TICKETING_INTERNAL_NOTE_ADD_APPROVED_CAPABILITY,
-  },
-  requester_reply: {
-    prepare: TICKETING_PUBLIC_REPLY_PREPARE_CAPABILITY,
-    approved: TICKETING_PUBLIC_REPLY_ADD_APPROVED_CAPABILITY,
-  },
-  status_update: {
-    prepare: TICKETING_STATUS_UPDATE_PREPARE_CAPABILITY,
-    approved: TICKETING_STATUS_UPDATE_APPROVED_CAPABILITY,
-  },
-  classification_update: {
-    prepare: TICKETING_CLASSIFICATION_UPDATE_PREPARE_CAPABILITY,
-    approved: TICKETING_CLASSIFICATION_UPDATE_APPROVED_CAPABILITY,
-  },
-  assignment_update: {
-    prepare: TICKETING_ASSIGNMENT_UPDATE_PREPARE_CAPABILITY,
-    approved: TICKETING_ASSIGNMENT_UPDATE_APPROVED_CAPABILITY,
-  },
-  participant_update: {
-    prepare: TICKETING_PARTICIPANT_UPDATE_PREPARE_CAPABILITY,
-    approved: TICKETING_PARTICIPANT_UPDATE_APPROVED_CAPABILITY,
-  },
-};
-// `group` is the assignable-group catalogue and `technician` the named-technician
-// catalogue (both routing targets), served read-only to the UI. Neither is an enum field:
-// they go through the provider catalog search, like `category` and `entity`.
-const TARGETING_ENUM_OPTIONS_TTL_MS = 60 * 60 * 1000;
-const TARGETING_CATALOG_OPTIONS_TTL_MS = 2 * 60 * 1000;
-// Empty-query catalog lists (what every dropdown-open shows) change rarely but can be
-// slow to produce on large GLPI instances: keep them fresh much longer, and serve a
-// stale copy (up to the stale-serve bound) while a background refresh replaces it.
-const TARGETING_CATALOG_BROWSE_TTL_MS = 30 * 60 * 1000;
-const TARGETING_OPTIONS_STALE_SERVE_MS = 24 * 60 * 60 * 1000;
-
-// An identical earlier proposal only suppresses regeneration while it is still a live or
-// settled decision. A proposal/action that lapsed (pending or approved past its expiry, or
-// swept to 'expired') is gone from the operator's queue or no longer executable, so it must
-// NOT keep blocking a fresh proposal — otherwise a stale ticket, whose context hash never
-// changes, becomes permanently un-proposable after its first proposal expired.
-export function proposalStillBlocksRegeneration(action: AiActionRequest, now: number): boolean {
-  if (action.status === 'expired') {
-    return false;
-  }
-  if (!SUPPRESS_UNCHANGED_PROPOSAL_STATUSES.has(action.status)) {
-    return false;
-  }
-  if ((action.status === 'pending' || action.status === 'approved') && action.expires_at) {
-    const expiresAt = action.expires_at instanceof Date
-      ? action.expires_at.getTime()
-      : Date.parse(String(action.expires_at));
-    if (Number.isFinite(expiresAt) && expiresAt <= now) {
-      return false;
-    }
-  }
-  return true;
-}
-
-
-
-
-function actionSortTime(action: AiActionRequest): number {
-  const updated = action.updated_at instanceof Date ? action.updated_at.getTime() : Date.parse(String(action.updated_at ?? ''));
-  if (Number.isFinite(updated)) return updated;
-  const created = action.created_at instanceof Date ? action.created_at.getTime() : Date.parse(String(action.created_at ?? ''));
-  return Number.isFinite(created) ? created : 0;
-}
-
-function actionIsActivePending(action: AiActionRequest, now = Date.now()): boolean {
-  if (action.status !== 'pending') return false;
-  if (!action.expires_at) return true;
-  const expiresAt = action.expires_at instanceof Date ? action.expires_at.getTime() : Date.parse(String(action.expires_at));
-  return Number.isFinite(expiresAt) && expiresAt > now;
-}
-
-
-
-function definitionIdFromMetadata(value: unknown): string | null {
-  return stringFromMetadata(metadataObject(value).agent_definition_id);
-}
-
-function numberFromMetadata(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
-}
-
-function withApprovedBatchContext(
-  metadata: unknown,
-  patch: Record<string, unknown>,
-): Record<string, unknown> {
-  const existing = metadataObject(metadata);
-  const batch = metadataObject(existing.approved_batch_context);
-  return {
-    ...existing,
-    approved_batch_context: {
-      ...batch,
-      ...patch,
-    },
-  };
-}
-
-function approvedBatchExecutionAttempts(action: AiActionRequest): number {
-  const metadata = metadataObject(action.metadata_json);
-  const batch = metadataObject(metadata.approved_batch_context);
-  return numberFromMetadata(batch.execution_attempts);
-}
-
-function actionExecutionSkipReason(action: AiActionRequest | null): string | null {
-  if (!action) {
-    return 'Action request was not claimed for execution.';
-  }
-  if (action.status === 'executed') {
-    return null;
-  }
-  if (action.status === APPROVED_ACTION_EXECUTING_STATUS) {
-    return 'Action request is already being executed.';
-  }
-  if (action.error_message) {
-    return action.error_message;
-  }
-  if (action.status === 'approved') {
-    return 'Action request was not claimed for execution.';
-  }
-  return `Action is ${action.status}.`;
-}
-
-function actionClass(action: Pick<AiActionRequest, 'metadata_json' | 'capability_name'>): string {
-  return actionClassForCapabilityName(
-    stringFromMetadata(metadataObject(action.metadata_json).action_class) ?? action.capability_name,
-  );
-}
-
-function numericMetadata(value: unknown): number {
-  const numeric = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(numeric) ? numeric : 0;
-}
-
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // KANAP data enrichment sub-block (plan 37 §4.5): kanap_data.enabled defaults to FALSE
 // when the block is absent — existing (helpdesk) definitions predate it and must not
@@ -825,612 +682,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // explicitly enabled with all five domains, so SRE agents get it from day one. Within an
 // explicitly present block, a missing domain key defaults to ON (master-switch
 // semantics); unknown domain keys are dropped.
-function readKanapDataBlock(sources: Record<string, unknown>): {
-  enabled: boolean;
-  domains: Record<KanapEntityFamily, boolean>;
-} {
-  const kanapData = isRecord(sources.kanap_data) ? sources.kanap_data : {};
-  const rawDomains = isRecord(kanapData.domains) ? kanapData.domains : {};
-  const domains = {} as Record<KanapEntityFamily, boolean>;
-  for (const domain of KANAP_ENTITY_FAMILIES) {
-    domains[domain] = rawDomains[domain] !== false;
-  }
-  return { enabled: kanapData.enabled === true, domains };
-}
-
-// Per-agent retrieval-source policy, read from scope_policy_json.knowledge_sources.
-// Defaults preserve current behaviour: knowledge ON over all accessible libraries, web OFF,
-// KANAP data OFF (see readKanapDataBlock).
-export function readAgentKnowledgeSources(definition: AiAgentDefinition | null): {
-  knowledgeEnabled: boolean;
-  knowledgeLibraryIds: string[] | null; // null = all accessible libraries
-  webEnabled: boolean;
-  kanapData: { enabled: boolean; domains: Record<KanapEntityFamily, boolean> };
-} {
-  const scope = isRecord(definition?.scope_policy_json) ? definition.scope_policy_json : {};
-  const sources = isRecord(scope.knowledge_sources) ? scope.knowledge_sources : {};
-  const knowledge = isRecord(sources.knowledge) ? sources.knowledge : {};
-  const web = isRecord(sources.web) ? sources.web : {};
-  const allLibraries = knowledge.all_libraries !== false;
-  const libraryIds = Array.isArray(knowledge.library_ids)
-    ? knowledge.library_ids.filter((id): id is string => typeof id === 'string' && UUID_RE.test(id))
-    : [];
-  return {
-    knowledgeEnabled: knowledge.enabled !== false,
-    knowledgeLibraryIds: allLibraries || libraryIds.length === 0 ? null : libraryIds,
-    webEnabled: web.enabled === true,
-    kanapData: readKanapDataBlock(sources),
-  };
-}
-
-// Validate/clamp a knowledge_sources patch at write time. Library ids are UUID-checked and
-// de-duplicated here; tenant/ACL safety is additionally enforced at read time by
-// KnowledgeService.search (the configured ids are intersected with the agent user's
-// accessible libraries, never substituted for them).
-export function normalizeKnowledgeSources(value: unknown): Record<string, unknown> {
-  const source = isRecord(value) ? value : {};
-  const knowledge = isRecord(source.knowledge) ? source.knowledge : {};
-  const web = isRecord(source.web) ? source.web : {};
-  const allLibraries = knowledge.all_libraries !== false;
-  const libraryIds = Array.isArray(knowledge.library_ids)
-    ? Array.from(new Set(knowledge.library_ids.filter((id): id is string => typeof id === 'string' && UUID_RE.test(id))))
-    : [];
-  const kanapData = readKanapDataBlock(source);
-  return {
-    knowledge: {
-      enabled: knowledge.enabled !== false,
-      all_libraries: allLibraries,
-      library_ids: allLibraries ? [] : libraryIds,
-    },
-    web: { enabled: web.enabled === true },
-    kanap_data: { enabled: kanapData.enabled, domains: kanapData.domains },
-    precedence: 'knowledge_first',
-  };
-}
-
-function addEstimatedUsage(acc: { tokens: number; cost: number }, run: AiRun): void {
-  const usage = metadataObject(run.usage_json);
-  const cost = metadataObject(run.cost_json);
-  acc.tokens += numericMetadata(usage.estimated_tokens ?? usage.total_tokens);
-  acc.cost += numericMetadata(cost.estimated_cost_eur ?? cost.total_cost_eur ?? cost.total_cost);
-}
-
-function dateKey(value: Date): string {
-  return value.toISOString().slice(0, 10);
-}
-
-function withinDateRange(value: Date | string | null | undefined, start: Date, end: Date): boolean {
-  if (!value) return false;
-  const time = value instanceof Date ? value.getTime() : Date.parse(String(value));
-  return Number.isFinite(time) && time >= start.getTime() && time <= end.getTime();
-}
-
-function cleanSingleLine(value: unknown, max: number): string | null {
-  if (typeof value !== 'string') return null;
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  if (!normalized) return null;
-  return normalized.length > max ? normalized.slice(0, max) : normalized;
-}
-
-function requireBoundedLine(value: unknown, max: number, overLimitMessage: string): string | null {
-  if (typeof value !== 'string') return null;
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  if (!normalized) return null;
-  if (normalized.length > max) {
-    throw new BadRequestException(overLimitMessage);
-  }
-  return normalized;
-}
-
-function hasOwn(record: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(record, key);
-}
-
-function uniqueBoundsApplied(lists: string[][]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const list of lists) {
-    for (const item of list) {
-      if (seen.has(item)) continue;
-      seen.add(item);
-      out.push(item);
-    }
-  }
-  return out;
-}
-
-function cleanAgentKey(value: unknown): string {
-  const key = cleanSingleLine(value, 120);
-  if (!key || !/^[a-z0-9][a-z0-9._:-]*$/.test(key) || key.includes('*')) {
-    throw new BadRequestException('Agent key must be lowercase letters, numbers, dots, underscores, colons, or hyphens.');
-  }
-  return key;
-}
-
-function slugAgentKey(value: string): string {
-  const slug = value
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/g, '.')
-    .replace(/^\.+|\.+$/g, '')
-    .slice(0, 80);
-  return slug || 'agent';
-}
-
-function cleanAgentType(value: unknown): string {
-  const candidate = cleanSingleLine(value, 40) ?? 'custom';
-  if (!['helpdesk', 'sre', 'software_dev', 'code_review', 'custom'].includes(candidate)) {
-    throw new BadRequestException('Unsupported agent type.');
-  }
-  return candidate;
-}
-
-function cleanAgentEnvironment(value: unknown): string {
-  const candidate = cleanSingleLine(value, 40) ?? 'sandbox';
-  if (!['production', 'staging', 'sandbox', 'lab', 'mock'].includes(candidate)) {
-    throw new BadRequestException('Unsupported agent environment.');
-  }
-  return candidate;
-}
-
-function cleanAgentStatus(value: unknown): string {
-  const candidate = cleanSingleLine(value, 40);
-  if (!candidate || !['draft', 'enabled', 'disabled', 'archived'].includes(candidate)) {
-    throw new BadRequestException('Unsupported agent status.');
-  }
-  return candidate;
-}
-
-function normalizedPolicyObject(value: unknown, label: string): Record<string, unknown> | null {
-  if (value == null) return null;
-  if (!isRecord(value)) {
-    throw new BadRequestException(`${label} must be an object.`);
-  }
-  return value;
-}
-
-const MAX_PERSONA_MISSION_CHARS = 500;
-const MAX_PERSONA_TONE_CHARS = 300;
-const MAX_PERSONA_ESCALATION_CHARS = 500;
-// The ONE user-facing instructions limit: total characters across all
-// paragraphs. Chosen so a maxed-out persona plus a full shared-context
-// profile stays under the compiler's 40 000-char guidance budget — the cap
-// maps to real prompt truncation, not to an internal convention. Per-line
-// length and line count are deliberately unbounded.
-const MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS = 10_000;
-
-function normalizePersona(value: unknown, fallback: Record<string, unknown> | null = null): Record<string, unknown> | null {
-  if (value == null) return fallback;
-  if (!isRecord(value)) {
-    throw new BadRequestException('Persona must be a structured object.');
-  }
-  const base = isRecord(fallback) ? { ...fallback } : {};
-  delete base.tone;
-  delete base.escalation_text;
-  delete base.escalationText;
-  const missionProvided = hasOwn(value, 'mission');
-  const mission = requireBoundedLine(
-    value.mission,
-    MAX_PERSONA_MISSION_CHARS,
-    'Purpose must be at most 500 characters.',
-  );
-  const outputStyleInput = isRecord(value.output_style) ? value.output_style : {};
-  const fallbackOutputStyle = isRecord(base.output_style) ? base.output_style : {};
-  const toneProvided = hasOwn(outputStyleInput, 'tone') || hasOwn(value, 'tone');
-  // Strict validation applies to client input only. Stored values pass through
-  // untouched: a row written out-of-band must never brick every later save
-  // with an error about a field the UI no longer shows.
-  const tone = toneProvided
-    ? requireBoundedLine(
-      outputStyleInput.tone ?? value.tone,
-      MAX_PERSONA_TONE_CHARS,
-      'Reply tone must be at most 300 characters.',
-    )
-    : (typeof fallbackOutputStyle.tone === 'string' && fallbackOutputStyle.tone.trim() ? fallbackOutputStyle.tone : null);
-  const language = cleanSingleLine(outputStyleInput.language ?? fallbackOutputStyle.language, 24);
-  if (language && language !== 'auto' && !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i.test(language)) {
-    throw new BadRequestException('Unsupported output style language.');
-  }
-  const outputStyle = {
-    ...(tone ? { tone } : {}),
-    ...(language ? { language } : {}),
-  };
-  const escalationProvided = hasOwn(value, 'escalation_guidance')
-    || hasOwn(value, 'escalation_text')
-    || hasOwn(value, 'escalationText');
-  const escalationGuidance = escalationProvided
-    ? requireBoundedLine(
-      value.escalation_guidance ?? value.escalation_text ?? value.escalationText,
-      MAX_PERSONA_ESCALATION_CHARS,
-      'Escalation guidance must be at most 500 characters.',
-    )
-    : (typeof base.escalation_guidance === 'string' && base.escalation_guidance.trim() ? base.escalation_guidance : null);
-  const instructionsSource = hasOwn(value, 'instructions')
-    ? value.instructions
-    : base.instructions;
-  const instructions = Array.isArray(instructionsSource)
-    ? instructionsSource
-      .map((entry) => (typeof entry === 'string' ? entry.replace(/\s+/g, ' ').trim() : ''))
-      .filter((entry) => entry.length > 0)
-    : [];
-  const instructionsChars = instructions.reduce((total, entry) => total + entry.length, 0);
-  if (instructionsChars > MAX_PERSONA_INSTRUCTIONS_TOTAL_CHARS) {
-    throw new BadRequestException('Instructions are limited to 10 000 characters in total.');
-  }
-  const sharedContextInput = hasOwn(value, 'shared_context')
-    ? value.shared_context
-    : base.shared_context;
-  const sharedContextRecord = isRecord(sharedContextInput) ? sharedContextInput : {};
-  const sharedContextEnabled = sharedContextRecord.enabled === true;
-  const sharedContextProfileId = cleanSingleLine(sharedContextRecord.profile_id, 80);
-  if (sharedContextProfileId && !UUID_RE.test(sharedContextProfileId)) {
-    throw new BadRequestException('Shared context profile id must be a UUID.');
-  }
-  const sharedContext = sharedContextEnabled || sharedContextProfileId
-    ? {
-      enabled: sharedContextEnabled,
-      profile_id: sharedContextProfileId ?? null,
-    }
-    : null;
-  const persona: Record<string, unknown> = {
-    ...base,
-    instructions,
-    ...(sharedContext ? { shared_context: sharedContext } : {}),
-  };
-  if (missionProvided) {
-    if (mission) persona.mission = mission;
-    else delete persona.mission;
-  } else if (mission) {
-    persona.mission = mission;
-  }
-  if (Object.keys(outputStyle).length > 0) persona.output_style = outputStyle;
-  else delete persona.output_style;
-  if (escalationProvided) {
-    if (escalationGuidance) persona.escalation_guidance = escalationGuidance;
-    else delete persona.escalation_guidance;
-  } else if (escalationGuidance) {
-    persona.escalation_guidance = escalationGuidance;
-  }
-  if (!sharedContext) delete persona.shared_context;
-  return Object.keys(persona).length > 0 ? persona : null;
-}
-
-function normalizeResponsePolicyForConfig(
-  value: Record<string, unknown> | null,
-): Record<string, unknown> | null {
-  if (!value) return null;
-  return {
-    ...value,
-    ticket_actor_role: ticketActorRoleFromResponsePolicy(value),
-    automatic_public_reply: false,
-    automatic_ticket_updates: false,
-    require_human_approval_for_writes: true,
-  };
-}
-
-function autonomyLevelRank(value: unknown): number | null {
-  if (typeof value !== 'string') return null;
-  const match = value.match(/^A([0-6])$/);
-  return match ? Number(match[1]) : null;
-}
-
-function capabilityNameFromEntry(entry: unknown): string | null {
-  if (typeof entry === 'string') return trimmedString(entry);
-  if (isRecord(entry)) return trimmedString(entry.name);
-  return null;
-}
-
-function normalizeAllowedCapabilitiesForConfig(value: unknown, agentType: unknown): Record<string, unknown>[] | null {
-  if (value == null) return null;
-  const possibleCaps = possibleCapabilityCapsForAgentType(agentType);
-  const entries = Array.isArray(value)
-    ? value
-    : isRecord(value) && Array.isArray(value.capabilities)
-      ? value.capabilities
-      : null;
-  if (!entries) {
-    throw new BadRequestException('Allowed capabilities must be an array or object with a capabilities array.');
-  }
-  const normalized: Record<string, unknown>[] = [];
-  const seen = new Set<string>();
-  for (const entry of entries) {
-    const name = capabilityNameFromEntry(entry);
-    if (!name) {
-      throw new BadRequestException('Every capability entry requires a name.');
-    }
-    const maxCap = possibleCaps.get(name);
-    if (!maxCap) {
-      throw new ForbiddenException(`Capability ${name} is not available for this agent type.`);
-    }
-    const requestedLevel = isRecord(entry) && typeof entry.max_autonomy_level === 'string'
-      ? entry.max_autonomy_level
-      : maxCap;
-    const requestedRank = autonomyLevelRank(requestedLevel);
-    const maxRank = autonomyLevelRank(maxCap);
-    if (requestedRank === null || maxRank === null || requestedRank > maxRank) {
-      throw new ForbiddenException(`Capability ${name} cannot exceed ${maxCap}.`);
-    }
-    if (!seen.has(name)) {
-      seen.add(name);
-      normalized.push({
-        ...(isRecord(entry) ? entry : {}),
-        name,
-        version: isRecord(entry) && typeof entry.version === 'string' ? entry.version : '1.0.0',
-        max_autonomy_level: requestedLevel,
-      });
-    }
-  }
-  return normalized;
-}
-
-// Scope-policy normalization is agent-type aware: SRE definitions carry
-// monitoring targeting predicates (severity/ack_state/age_minutes, group refs)
-// that the service-desk normalizer rejects, and vice versa. Both normalizers
-// preserve every sibling scope key (knowledge_sources, ingestion, mode blocks)
-// verbatim and only rebuild the targeting block.
-function normalizeScopePolicyForAgentType(agentType: unknown, scopePolicy: unknown): Record<string, unknown> | null {
-  return agentType === 'sre'
-    ? normalizeMonitoringScopePolicy(scopePolicy)
-    : normalizeServiceDeskScopePolicy(scopePolicy);
-}
-
-function definitionAllowsCapability(definition: AiAgentDefinition, capabilityName: string): boolean {
-  const capabilities = Array.isArray(definition.allowed_capabilities_json)
-    ? definition.allowed_capabilities_json
-    : isRecord(definition.allowed_capabilities_json) && Array.isArray(definition.allowed_capabilities_json.capabilities)
-      ? definition.allowed_capabilities_json.capabilities
-      : [];
-  return capabilities.some((entry) => {
-    if (typeof entry === 'string') return entry === capabilityName;
-    return isRecord(entry) && entry.name === capabilityName;
-  });
-}
-
-function allowedCapabilityNames(definition: AiAgentDefinition | null): string[] {
-  if (!definition) return [];
-  const capabilities = Array.isArray(definition.allowed_capabilities_json)
-    ? definition.allowed_capabilities_json
-    : isRecord(definition.allowed_capabilities_json) && Array.isArray(definition.allowed_capabilities_json.capabilities)
-      ? definition.allowed_capabilities_json.capabilities
-      : [];
-  return capabilities
-    .map(capabilityNameFromEntry)
-    .filter((entry): entry is string => !!entry);
-}
-
-function lifecycleAllowedTransitions(lifecycle: Record<string, unknown> | null): Record<string, unknown>[] {
-  return Array.isArray(lifecycle?.allowedTransitions)
-    ? lifecycle.allowedTransitions.filter(isRecord)
-    : [];
-}
-
-function lifecycleTransitionKey(transition: Record<string, unknown> | null | undefined): string | null {
-  return typeof transition?.key === 'string' && transition.key.trim().length > 0
-    ? transition.key.trim()
-    : null;
-}
-
-function normalizePlannerStatusTransitionKey(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const raw = value.trim();
-  if (!raw) return null;
-  const compact = stripKnowledgeAccents(raw)
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/g, '');
-  const aliases: Record<string, string> = {
-    close: 'closed',
-    closing: 'closed',
-    closed: 'closed',
-    closeticket: 'closed',
-    ferme: 'closed',
-    fermer: 'closed',
-    cloture: 'closed',
-    cloturer: 'closed',
-    clotureticket: 'closed',
-    solve: 'solved',
-    solved: 'solved',
-    resolve: 'resolved',
-    resolved: 'resolved',
-    resoudre: 'resolved',
-    resolu: 'resolved',
-    pending: 'pending',
-    wait: 'pending',
-    waiting: 'pending',
-    attente: 'pending',
-    pendinguser: 'pending_user',
-    processingassigned: 'processing_assigned',
-    processingplanned: 'processing_planned',
-    escalatedl2: 'escalated_l2',
-  };
-  return aliases[compact] ?? raw.toLocaleLowerCase().replace(/\s+/g, '_');
-}
-
-function lifecycleTransitionByKey(lifecycle: Record<string, unknown> | null, key: string): Record<string, unknown> | null {
-  const normalizedKey = normalizePlannerStatusTransitionKey(key);
-  if (!normalizedKey) return null;
-  return lifecycleAllowedTransitions(lifecycle).find((transition) => lifecycleTransitionKey(transition) === normalizedKey) ?? null;
-}
-
-function lifecycleTransitionIsTerminal(transition: Record<string, unknown> | null | undefined): boolean {
-  return transition?.terminal === true;
-}
-
-function preferredTerminalLifecycleTransition(lifecycle: Record<string, unknown> | null): Record<string, unknown> | null {
-  const transitions = lifecycleAllowedTransitions(lifecycle);
-  return transitions.find(lifecycleTransitionIsTerminal)
-    ?? transitions.find((transition) => lifecycleTransitionKey(transition) === 'solved')
-    ?? transitions.find((transition) => lifecycleTransitionKey(transition) === 'closed')
-    ?? transitions.find((transition) => lifecycleTransitionKey(transition) === 'resolved')
-    ?? transitions.find((transition) => {
-      const key = lifecycleTransitionKey(transition);
-      return !!key && PLANNER_TERMINAL_TRANSITIONS.has(key);
-    })
-    ?? null;
-}
-
-function plannerStatusTransitionIsTerminal(key: string | null): boolean {
-  return !!key && PLANNER_TERMINAL_TRANSITIONS.has(key);
-}
-
-function resolvePlannerStatusTransition(
-  lifecycle: Record<string, unknown> | null,
-  action: PlannerAction,
-  closeEligible: boolean,
-): { transition: Record<string, unknown> | null; key: string | null; resolution: string | null } {
-  const normalizedKey = normalizePlannerStatusTransitionKey(action.transition_key);
-  if (!normalizedKey) {
-    return { transition: null, key: null, resolution: null };
-  }
-  const directTransition = lifecycleTransitionByKey(lifecycle, normalizedKey);
-  const directKey = lifecycleTransitionKey(directTransition);
-  if (directTransition && directKey) {
-    return {
-      transition: directTransition,
-      key: directKey,
-      resolution: directKey === action.transition_key ? null : 'transition_key_normalized',
-    };
-  }
-  if (closeEligible && plannerStatusTransitionIsTerminal(normalizedKey)) {
-    const terminalTransition = preferredTerminalLifecycleTransition(lifecycle);
-    const terminalKey = lifecycleTransitionKey(terminalTransition);
-    if (terminalTransition && terminalKey) {
-      return {
-        transition: terminalTransition,
-        key: terminalKey,
-        resolution: 'terminal_transition_substituted',
-      };
-    }
-  }
-  return { transition: null, key: normalizedKey, resolution: null };
-}
-
-function plannerActionKindKey(action: PlannerAction): string {
-  if (action.action_type === PLANNER_CLASSIFICATION_ACTION_TYPE) return `${action.action_type}:${proposalHash(action.proposed ?? {})}`;
-  if (action.action_type === 'requester_reply') {
-    return `${action.action_type}:${action.reply_kind ?? 'unspecified'}:${action.administrative_intent ?? 'none'}:${action.verbatim_ref ?? 'draft'}`;
-  }
-  if (action.action_type === 'status_update') {
-    return `${action.action_type}:${action.transition_key ?? 'unspecified'}`;
-  }
-  if (action.action_type === PLANNER_ASSIGNMENT_ACTION_TYPE) {
-    return `${action.action_type}:${action.target?.kind ?? 'unspecified'}:${action.target?.key ?? 'unspecified'}`;
-  }
-  return action.action_type;
-}
-
-// Resolves a planner assignment target against the provider routing catalogue. The label
-// always comes from the catalogue: the model may only pick, never name.
-function resolvePlannerAssignmentTarget(
-  routing: Record<string, unknown> | null,
-  action: PlannerAction,
-): { target: { kind: 'user' | 'group'; key: string; label: string } | null; reason: string | null } {
-  const key = typeof action.target?.key === 'string' ? action.target.key.trim() : '';
-  const label = typeof action.target?.label === 'string' ? action.target.label.trim().toLowerCase() : '';
-  if (!key && !label) {
-    return { target: null, reason: 'missing_assignment_target' };
-  }
-  if (!routing || routing.assignmentSupported !== true) {
-    return { target: null, reason: 'assignment_not_supported_by_provider' };
-  }
-  const catalogue = Array.isArray(routing.supportedAssignmentTargets) ? routing.supportedAssignmentTargets.filter(isRecord) : [];
-  const sameKind = catalogue.filter((candidate) => candidate.kind === action.target?.kind && typeof candidate.key === 'string' && typeof candidate.label === 'string');
-  let match = sameKind.find((candidate) => key && candidate.key === key);
-  if (!match && label) {
-    const labelMatches = sameKind.filter((candidate) => String(candidate.label).trim().toLowerCase() === label);
-    if (labelMatches.length > 1) {
-      return { target: null, reason: 'assignment_target_ambiguous' };
-    }
-    match = labelMatches[0];
-  }
-  if (!match || (match.kind !== 'group' && match.kind !== 'user')) {
-    return { target: null, reason: 'assignment_target_not_in_routing_catalogue' };
-  }
-  // Already-present check is per kind: a group write compares groups, a technician write
-  // compares the technicians already on the ticket.
-  const assignedRaw = match.kind === 'group' ? routing.assignedGroups : routing.assignedUsers;
-  const assigned = Array.isArray(assignedRaw) ? assignedRaw.filter(isRecord) : [];
-  if (assigned.some((entry) => String(entry.key ?? '') === String(match.key))) {
-    return { target: null, reason: 'assignment_target_already_present' };
-  }
-  return { target: { kind: match.kind, key: String(match.key), label: String(match.label) }, reason: null };
-}
-
-// Resolve the planner's verbatim_ref against the trusted candidate set. Tolerant of an
-// LLM that fumbles the ref token: falls back to a case-insensitive ref match, then to
-// normalized-text equality (the natural failure mode is the model echoing the message
-// text instead of the ref). Still strictly bounded to configured candidates — no ticket
-// text can leak in, so the verbatim guarantee holds.
-function resolveVerbatimCandidate(candidates: VerbatimCandidate[], ref: string): VerbatimCandidate | null {
-  const exact = candidates.find((candidate) => candidate.ref === ref);
-  if (exact) return exact;
-  const wanted = ref.trim().toLocaleLowerCase();
-  const byRefInsensitive = candidates.find((candidate) => candidate.ref.toLocaleLowerCase() === wanted);
-  if (byRefInsensitive) return byRefInsensitive;
-  // Tolerate a corrupted ref token (e.g. "verbatim_1-xyz" or a stale hash suffix): match by
-  // the leading verbatim index. This is still strictly an index into the trusted candidate
-  // set, so no ticket text can resolve here.
-  const indexMatch = wanted.match(/^verbatim[_-]?(\d+)/);
-  if (indexMatch) {
-    const candidate = candidates[Number(indexMatch[1]) - 1];
-    if (candidate) return candidate;
-  }
-  // Last resort: the model echoed the message text instead of the ref.
-  const wantedText = ref.replace(/\s+/g, ' ').trim().toLocaleLowerCase();
-  return candidates.find((candidate) => candidate.normalized.toLocaleLowerCase() === wantedText) ?? null;
-}
-
-function plannerActionKey(action: PlannerAction, guidanceHashValue: string): string {
-  return proposalHash({
-    action_type: action.action_type,
-    kind: plannerActionKindKey(action),
-    guidance_hash: guidanceHashValue,
-  });
-}
-
-function configSnapshot(definition: AiAgentDefinition): Record<string, unknown> {
-  return {
-    name: definition.name,
-    description: definition.description,
-    status: definition.status,
-    environment: definition.environment,
-    agent_priority: cleanAgentPriority(definition.agent_priority),
-    persona_json: definition.persona_json ?? null,
-    trigger_policy_json: definition.trigger_policy_json,
-    scope_policy_json: definition.scope_policy_json,
-    queue_policy_json: definition.queue_policy_json,
-    response_policy_json: definition.response_policy_json,
-    evaluation_policy_json: definition.evaluation_policy_json,
-    llm_model_config_id: definition.llm_model_config_id ?? null,
-    config_version: definition.config_version ?? 1,
-  };
-}
-
-function changedConfigDiff(
-  before: Record<string, unknown>,
-  after: Record<string, unknown>,
-): Record<string, { before: unknown; after: unknown }> {
-  const diff: Record<string, { before: unknown; after: unknown }> = {};
-  for (const key of Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))) {
-    if (hashStableJson(before[key]) !== hashStableJson(after[key])) {
-      diff[key] = { before: before[key] ?? null, after: after[key] ?? null };
-    }
-  }
-  return diff;
-}
-
-function autonomyThresholds(definition: AiAgentDefinition) {
-  const evaluation = metadataObject(definition.evaluation_policy_json);
-  const earned = metadataObject(evaluation.earned_autonomy);
-  return {
-    minimumDecided: Math.max(1, numericMetadata(earned.minimum_decided_count) || 20),
-    minimumAcceptanceRate: Math.max(0, Math.min(1, numericMetadata(earned.minimum_acceptance_rate) || 0.7)),
-    minimumObservationDays: Math.max(0, numericMetadata(earned.minimum_observation_days) || 28),
-  };
-}
 
 
-function proposalHash(value: unknown): string {
-  return hashStableJson(value);
-}
 
 // Terminal ticket transitions (solve/close) are destructive cleanup actions. Even
 // though they reuse the status_update capability (action class 'status', which is
