@@ -11,6 +11,7 @@ import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
 import * as fs from 'fs';
 import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
+import { neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 @Injectable()
 export class ContactsService {
@@ -409,7 +410,7 @@ export class ContactsService {
     const filename = scope === 'template' ? 'contacts_template.csv' : 'contacts.csv';
     const chunks: string[] = [];
     await new Promise<void>((resolve, reject) => {
-      const stream = format({ headers, delimiter });
+      const stream = format({ headers, delimiter, transform: neutralizeCsvRow });
       stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
       stream.on('end', () => resolve());
       stream.on('error', (err) => reject(err));

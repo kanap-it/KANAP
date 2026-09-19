@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { format } from '@fast-csv/format';
 import AdmZip = require('adm-zip');
 import { EntityManager } from 'typeorm';
+import { neutralizeCsvRow } from '../../common/csv/csv-export.service';
 
 export type StatusChangeItemType = 'task' | 'request' | 'project';
 
@@ -169,7 +170,7 @@ export class PortfolioStatusChangeReportService {
 
     const chunks: string[] = [];
     await new Promise<void>((resolve, reject) => {
-      const stream = format({ headers, delimiter: ';' });
+      const stream = format({ headers, delimiter: ';' , transform: neutralizeCsvRow });
       stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
       stream.on('error', (err) => reject(err));
       stream.on('end', () => resolve());

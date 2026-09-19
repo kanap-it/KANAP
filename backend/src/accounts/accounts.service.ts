@@ -12,6 +12,7 @@ import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
 import { resolveLifecycleState, StatusState } from '../common/status';
 import { extractStatusFilterFromAgModel } from '../common/status-filter';
 import { AccountUpsertDto } from './dto/account.dto';
+import { neutralizeCsvRow } from '../common/csv/csv-export.service';
 
 @Injectable()
 export class AccountsService {
@@ -437,7 +438,7 @@ export class AccountsService {
     const filename = scope === 'template' ? 'accounts_template.csv' : (opts?.coaId ? 'accounts_coa.csv' : 'accounts.csv');
     const chunks: string[] = [];
     await new Promise<void>((resolve, reject) => {
-      const stream = format({ headers, delimiter });
+      const stream = format({ headers, delimiter, transform: neutralizeCsvRow });
       stream.on('data', (chunk) => chunks.push(chunk.toString('utf8')));
       stream.on('end', () => resolve());
       stream.on('error', (err) => reject(err));
