@@ -23,6 +23,16 @@ import { NetboxObjectType } from './netbox.types';
 export type NetboxPlanAction = 'create' | 'update' | 'unchanged' | 'ambiguous' | 'skipped';
 export type NetboxSkipCause = 'unmapped_role' | 'unmapped_site' | 'unnamed' | 'ignored';
 
+/** What a person settled in the preview for one object; it overrides the cascade. */
+export type NetboxDecisionAction = 'link' | 'create' | 'ignore';
+export type NetboxDecision = {
+  external_type: NetboxObjectType;
+  external_id: string;
+  action: NetboxDecisionAction;
+  /** The asset to link to; only read for 'link'. */
+  asset_id?: string;
+};
+
 export type NetboxAssetRef = { id: string; name: string; asset_reference: string | null };
 
 export type NetboxFieldDiff = { field: string; before: string | null; after: string | null };
@@ -41,6 +51,8 @@ export type NetboxPlanRow = {
   diffs: NetboxFieldDiff[];
   skip_reason: NetboxSkipCause | null;
   warnings: NetboxNotice[];
+  /** The decision that shaped this row, when a person made one. */
+  decision: NetboxDecisionAction | null;
 };
 
 export type NetboxSyncCounts = {
@@ -211,8 +223,13 @@ export function planNetboxSync(input: {
   catalogs: NetboxCatalogs;
   fetchOk: boolean;
   totalObjects: number;
+  /** Choices made in the preview. An object out of scope ignores its own. */
+  decisions?: NetboxDecision[];
 }): NetboxPlan {
   const { mappings, links, assets, catalogs } = input;
+  const decisionsByKey = new Map(
+    (input.decisions ?? []).map((decision) => [externalKey(decision.external_type, decision.external_id), decision]),
+  );
   const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
   const linksByKey = new Map(links.map((link) => [externalKey(link.external_type, link.external_id), link]));
   const seen = new Set(mappings.map((mapping) => externalKey(mapping.object.type, mapping.object.id)));
@@ -235,6 +252,8 @@ export function planNetboxSync(input: {
     base: NetboxPlanRow;
     skip: NetboxSkipCause | null;
     match: ReturnType<typeof matchNetboxObject> | null;
+    /** A chosen asset that turned out to belong to another object. */
+    heldElsewhere?: boolean;
   };
 
   const decisions: Decision[] = [];
@@ -256,14 +275,44 @@ export function planNetboxSync(input: {
       diffs: [],
       skip_reason: null,
       warnings: mapping.warnings,
+      decision: null,
     };
 
-    if (link?.state === 'ignored') {
-      decisions.push({ key, mapping, base, skip: 'ignored', match: null });
-      continue;
-    }
+    // Scope comes first: a decision cannot pull in an object the role and site
+    // matches leave out, there would be nothing to build the asset from.
     if (mapping.skipReason) {
       decisions.push({ key, mapping, base, skip: mapping.skipReason, match: null });
+      continue;
+    }
+    const decided = decisionsByKey.get(key) ?? null;
+    if (decided?.action === 'ignore') {
+      decisions.push({ key, mapping, base: { ...base, decision: 'ignore' }, skip: 'ignored', match: null });
+      continue;
+    }
+    if (decided?.action === 'create') {
+      decisions.push({
+        key, mapping, base: { ...base, decision: 'create' }, skip: null,
+        match: { assetId: null, matchedBy: null, candidateAssetIds: [] },
+      });
+      continue;
+    }
+    if (decided?.action === 'link' && decided.asset_id && assetsById.has(decided.asset_id)) {
+      // The preview refuses a link to an asset another object holds. A run
+      // that still meets one (the link appeared in between) asks again rather
+      // than giving the asset a second owner.
+      const heldBy = owners.get(decided.asset_id);
+      const free = heldBy === undefined || heldBy === key;
+      decisions.push({
+        key, mapping, base: { ...base, decision: 'link' }, skip: null,
+        match: free
+          ? { assetId: decided.asset_id, matchedBy: 'manual', candidateAssetIds: [] }
+          : { assetId: null, matchedBy: null, candidateAssetIds: [decided.asset_id] },
+        heldElsewhere: !free,
+      });
+      continue;
+    }
+    if (link?.state === 'ignored') {
+      decisions.push({ key, mapping, base, skip: 'ignored', match: null });
       continue;
     }
 
@@ -299,7 +348,7 @@ export function planNetboxSync(input: {
   const writes = new Map<string, NetboxPlanWrite>();
   const counts = emptyCounts();
 
-  for (const { key, mapping, base, skip, match } of decisions) {
+  for (const { key, mapping, base, skip, match, heldElsewhere } of decisions) {
     if (skip || !match) {
       rows.push({ ...base, skip_reason: skip });
       counts.skipped += 1;
@@ -307,7 +356,13 @@ export function planNetboxSync(input: {
     }
 
     const contestedAsset = match.assetId && contested.has(match.assetId) ? match.assetId : null;
-    const candidateIds = contestedAsset ? [contestedAsset] : match.candidateAssetIds;
+    // An address suggestion pointing at an asset another object of this run
+    // reaches on firmer ground is not worth a question: that asset is taken.
+    const candidateIds = contestedAsset
+      ? [contestedAsset]
+      : match.suggestedByIp
+        ? match.candidateAssetIds.filter((id) => !reachedBy.has(id))
+        : match.candidateAssetIds;
     if (candidateIds.length > 0) {
       rows.push({
         ...base,
@@ -317,7 +372,11 @@ export function planNetboxSync(input: {
           .filter((ref): ref is NetboxAssetRef => ref != null),
         warnings: [
           ...base.warnings,
-          netboxNotice(contestedAsset ? 'contested_asset' : 'ambiguous_candidates'),
+          contestedAsset || heldElsewhere
+            ? netboxNotice('contested_asset')
+            : match.suggestedByIp
+              ? netboxNotice('ip_match_candidates', { value: match.suggestedByIp })
+              : netboxNotice('ambiguous_candidates'),
         ],
       });
       counts.ambiguous += 1;

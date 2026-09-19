@@ -6,6 +6,11 @@ import { MappedIpAddress, NetboxMapping } from './netbox-mapper';
 // name. The FIRST level that yields any candidate decides: more than one
 // candidate there is an ambiguity, reported for a human to settle, never
 // merged.
+//
+// The primary IP address comes last and never links on its own. An address is
+// reused, shared (clusters, VIPs) or stale too often to let Netbox overwrite
+// an asset on that basis alone: it only stops a blind creation and hands the
+// assets holding that address to a person as candidates.
 
 export type ExistingAsset = {
   id: string;
@@ -26,19 +31,22 @@ export type ExistingAsset = {
   rack_unit: string | null;
 };
 
-export type NetboxMatchedBy = 'link' | 'serial' | 'fqdn' | 'name';
+export type NetboxMatchedBy = 'link' | 'serial' | 'fqdn' | 'name' | 'manual';
 
 export type NetboxMatch = {
   assetId: string | null;
   matchedBy: NetboxMatchedBy | null;
   /** Populated only when the cascade stopped on several candidates. */
   candidateAssetIds: string[];
+  /** Set when the candidates come from the IP address alone; holds that address. */
+  suggestedByIp?: string;
 };
 
 export type NetboxMatcherIndex = {
   bySerial: Map<string, string[]>;
   byHost: Map<string, string[]>;
   byName: Map<string, string[]>;
+  byIp: Map<string, string[]>;
 };
 
 function normalize(value: unknown): string | null {
@@ -71,7 +79,7 @@ function push(index: Map<string, string[]>, key: string | null, assetId: string)
  * that matches on its name is a name match, not an FQDN one.
  */
 export function buildMatcherIndex(assets: ExistingAsset[]): NetboxMatcherIndex {
-  const index: NetboxMatcherIndex = { bySerial: new Map(), byHost: new Map(), byName: new Map() };
+  const index: NetboxMatcherIndex = { bySerial: new Map(), byHost: new Map(), byName: new Map(), byIp: new Map() };
   for (const asset of assets) {
     push(index.bySerial, normalize(asset.serial_number), asset.id);
     for (const value of [asset.hostname, asset.fqdn]) {
@@ -83,6 +91,9 @@ export function buildMatcherIndex(assets: ExistingAsset[]): NetboxMatcherIndex {
     const name = normalize(asset.name);
     push(index.byName, name, asset.id);
     push(index.byName, name ? firstLabel(name) : null, asset.id);
+    for (const entry of Array.isArray(asset.ip_addresses) ? asset.ip_addresses : []) {
+      push(index.byIp, normalize(entry?.ip), asset.id);
+    }
   }
   return index;
 }
@@ -128,6 +139,14 @@ export function matchNetboxObject(
     if (level.candidates.length > 1) {
       return { assetId: null, matchedBy: null, candidateAssetIds: level.candidates };
     }
+  }
+
+  // Nothing identifies the object. Before it is created, an asset already
+  // holding its primary address is worth a person's look, even a single one.
+  const ip = normalize(mapping.asset.ip_addresses?.[0]?.ip);
+  const sameAddress = lookup(index.byIp, [ip]);
+  if (ip && sameAddress.length > 0) {
+    return { assetId: null, matchedBy: null, candidateAssetIds: sameAddress, suggestedByIp: ip };
   }
   return { assetId: null, matchedBy: null, candidateAssetIds: [] };
 }

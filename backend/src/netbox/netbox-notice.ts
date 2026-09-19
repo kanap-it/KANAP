@@ -11,6 +11,7 @@ export type NetboxNoticeCode =
   // --- decisions waiting for a person ---
   | 'ambiguous_candidates'
   | 'contested_asset'
+  | 'ip_match_candidates'
   | 'missing_from_netbox'
   | 'reevaluate_next_sync'
   // --- worth a look, but nothing is blocked ---
@@ -50,6 +51,8 @@ const TEXTS: Record<NetboxNoticeCode, (params: Record<string, string>) => string
     'Several assets could be this object. Choose one, or create a new asset.',
   contested_asset: () =>
     'Two Netbox objects match this asset. Choose which one it is.',
+  ip_match_candidates: (params) =>
+    `An asset already uses the address ${params.value || ''}. Choose whether it is the same equipment.`.replace('  ', ' '),
   missing_from_netbox: () =>
     'This object is no longer in Netbox. Decide whether the asset should be retired.',
   reevaluate_next_sync: () =>
@@ -101,6 +104,7 @@ const CODES = new Set(Object.keys(TEXTS));
 const NOTICE_PRIORITY: Record<NetboxNoticeCode, 1 | 2 | 3> = {
   ambiguous_candidates: 3,
   contested_asset: 3,
+  ip_match_candidates: 3,
   missing_from_netbox: 3,
   reevaluate_next_sync: 3,
   save_failed: 3,

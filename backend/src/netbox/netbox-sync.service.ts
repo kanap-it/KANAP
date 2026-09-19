@@ -34,9 +34,11 @@ import { ExistingAsset } from './netbox-matcher';
 import { NetboxNotice, netboxNotice, netboxNoticeFromStore, primaryNotice } from './netbox-notice';
 import {
   ExistingLink,
+  NetboxDecision,
   NetboxPlan,
   NetboxPlanRow,
   NetboxSyncCounts,
+  claimedAssets,
   diffNetboxMapping,
   externalKey,
   planNetboxSync,
@@ -62,6 +64,51 @@ const PREVIEW_ROW_LIMIT = 500;
  * it should be said once, loudly.
  */
 const CONSECUTIVE_FAILURE_LIMIT = 10;
+/** One request carries at most this many choices from the preview dialog. */
+const DECISION_LIMIT = 1000;
+/**
+ * A re-preview after a choice in the dialog may reuse the inventory fetched
+ * this recently, so settling eighty objects does not read Netbox eighty times.
+ * Previews only: a run always reads Netbox again.
+ */
+const PREVIEW_INVENTORY_TTL_MS = 2 * 60 * 1000;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Reads the choices a preview dialog sent. Anything malformed is refused
+ * outright: a choice that silently fell away would let an asset be created
+ * that the person had just said not to create.
+ */
+export function parseNetboxDecisions(raw: unknown): NetboxDecision[] {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) {
+    throw new BadRequestException('The choices made in the preview could not be read. Open the preview again.');
+  }
+  if (raw.length > DECISION_LIMIT) {
+    throw new BadRequestException(`Too many choices in one go (${DECISION_LIMIT} at most). Apply these first, then continue.`);
+  }
+  const byKey = new Map<string, NetboxDecision>();
+  for (const entry of raw) {
+    const type = String((entry as any)?.external_type ?? '');
+    const id = String((entry as any)?.external_id ?? '').trim();
+    const action = String((entry as any)?.action ?? '');
+    const assetId = String((entry as any)?.asset_id ?? '').trim();
+    const valid = (type === 'device' || type === 'vm')
+      && /^[0-9]{1,18}$/.test(id)
+      && (action === 'link' || action === 'create' || action === 'ignore')
+      && (action !== 'link' || UUID_PATTERN.test(assetId));
+    if (!valid) {
+      throw new BadRequestException('The choices made in the preview could not be read. Open the preview again.');
+    }
+    byKey.set(externalKey(type, id), {
+      external_type: type as NetboxObjectType,
+      external_id: id,
+      action: action as NetboxDecision['action'],
+      ...(action === 'link' ? { asset_id: assetId } : {}),
+    });
+  }
+  return [...byKey.values()];
+}
 
 export type NetboxRecordRow = {
   id: string;
@@ -94,6 +141,12 @@ export type NetboxStatus = {
   auto_sync: boolean;
   sync: NetboxSyncStateView;
   records: Record<AssetExternalLinkState, number>;
+};
+
+/** Body of a preview or of a manual run: the choices made in the dialog. */
+export type NetboxSyncInput = {
+  decisions?: unknown;
+  reuse_inventory?: unknown;
 };
 
 export type NetboxResolveInput = {
@@ -194,6 +247,12 @@ function isDuplicateIpRejection(error: unknown): boolean {
 @Injectable()
 export class NetboxSyncService {
   private readonly logger = new Logger(NetboxSyncService.name);
+  /** Last inventory a preview fetched, per tenant. See PREVIEW_INVENTORY_TTL_MS. */
+  private readonly previewInventory = new Map<string, {
+    at: number;
+    baseUrl: string;
+    fetched: { objects: NetboxObject[]; complete: boolean };
+  }>();
 
   constructor(
     private readonly dataSource: DataSource,
@@ -506,6 +565,7 @@ export class NetboxSyncService {
   private buildPlan(
     local: LocalContext,
     fetched: { objects: NetboxObject[]; complete: boolean },
+    decisions: NetboxDecision[] = [],
   ): { plan: NetboxPlan; mappings: NetboxMapping[] } {
     const mappings = fetched.objects.map((object) => mapNetboxObject(object, {
       roleMap: local.roleMap,
@@ -521,19 +581,62 @@ export class NetboxSyncService {
       // A partial list is no basis for declaring anything gone.
       fetchOk: fetched.complete,
       totalObjects: fetched.objects.length,
+      decisions,
     });
     return { plan, mappings };
+  }
+
+  /**
+   * Refuses, before anything is shown or started, a link to an asset that is
+   * gone or that another Netbox object holds. `seen` is the set of objects the
+   * fetch returned, when there is one: a record whose object left Netbox does
+   * not hold its asset any more.
+   */
+  private assertDecisionsApply(
+    local: LocalContext,
+    decisions: NetboxDecision[],
+    seen: Set<string> | null,
+  ): void {
+    const assetIds = new Set(local.assets.map((asset) => asset.id));
+    const owners = claimedAssets(local.links, seen);
+    for (const decision of decisions) {
+      if (decision.action !== 'link' || !decision.asset_id) continue;
+      if (!assetIds.has(decision.asset_id)) {
+        throw new BadRequestException('One of the chosen assets does not exist any more. Choose another one.');
+      }
+      const owner = owners.get(decision.asset_id);
+      if (owner !== undefined && owner !== externalKey(decision.external_type, decision.external_id)) {
+        const asset = local.assets.find((entry) => entry.id === decision.asset_id);
+        throw new ConflictException({
+          statusCode: 409,
+          code: 'NETBOX_ASSET_ALREADY_LINKED',
+          message: `${asset?.name ?? 'This asset'} is already linked to another Netbox object. Pick another asset, or create a new one.`,
+        });
+      }
+    }
   }
 
   /**
    * Read-only preview, run inside the request. Never writes, never throws for
    * a connection problem: the dialog shows the reason instead.
    */
-  async preview(manager: EntityManager, tenantId: string): Promise<NetboxPreviewResult> {
+  async preview(manager: EntityManager, tenantId: string, input: NetboxSyncInput = {}): Promise<NetboxPreviewResult> {
+    const decisions = parseNetboxDecisions(input.decisions);
     const local = await this.loadLocalContext(manager, tenantId);
     let fetched: { objects: NetboxObject[]; complete: boolean };
     try {
-      fetched = await this.fetchObjects(local);
+      const baseUrl = String(local.config.base_url ?? '');
+      const kept = this.previewInventory.get(tenantId);
+      if (
+        input.reuse_inventory === true
+        && kept && kept.baseUrl === baseUrl
+        && Date.now() - kept.at < PREVIEW_INVENTORY_TTL_MS
+      ) {
+        fetched = kept.fetched;
+      } else {
+        fetched = await this.fetchObjects(local);
+        this.previewInventory.set(tenantId, { at: Date.now(), baseUrl, fetched });
+      }
     } catch (error) {
       return {
         ok: false,
@@ -544,11 +647,20 @@ export class NetboxSyncService {
         missing: [],
       };
     }
-    const { plan } = this.buildPlan(local, fetched);
-    // Rows that need nothing are left out, except when they carry a warning:
-    // an operating system missing from the catalog has to stay visible after
-    // the object itself has stopped changing.
-    const shown = plan.rows.filter((row) => row.action !== 'unchanged' || row.warnings.length > 0);
+    this.assertDecisionsApply(
+      local,
+      decisions,
+      fetched.complete && fetched.objects.length > 0
+        ? new Set(fetched.objects.map((object) => externalKey(object.type, object.id)))
+        : null,
+    );
+    const { plan } = this.buildPlan(local, fetched, decisions);
+    // Rows that need nothing are left out, except when they carry a warning
+    // (an operating system missing from the catalog has to stay visible after
+    // the object itself has stopped changing) or a decision, which the person
+    // must be able to see and take back.
+    const shown = plan.rows.filter((row) =>
+      row.action !== 'unchanged' || row.warnings.length > 0 || row.decision != null);
     const missingIds = plan.missing.map((link) => link.id);
     const missingRows = missingIds.length > 0
       ? await this.decorateRecords(
@@ -581,7 +693,8 @@ export class NetboxSyncService {
   // ==========================================================================
 
   /** Starts a manual run in the background; the page polls GET /netbox/status. */
-  async startManualRun(manager: EntityManager, tenantId: string): Promise<NetboxStatus> {
+  async startManualRun(manager: EntityManager, tenantId: string, input: NetboxSyncInput = {}): Promise<NetboxStatus> {
+    const decisions = parseNetboxDecisions(input.decisions);
     const status = await this.getStatus(manager, tenantId);
     if (!status.configured) {
       throw new BadRequestException('Set up the Netbox connection first, then run a synchronisation.');
@@ -598,6 +711,11 @@ export class NetboxSyncService {
         message: 'A synchronisation is already running. Wait for it to finish.',
       });
     }
+    if (decisions.some((decision) => decision.action === 'link')) {
+      // No fetch here, so every live record counts as holding its asset. The
+      // planner has the last word once the run has read Netbox.
+      this.assertDecisionsApply(await this.loadLocalContext(manager, tenantId), decisions, null);
+    }
     // Fire and forget: the run writes its own state, so nothing here has to be
     // The lock, not a stored flag, decides whether a run may start: a crashed
     // run leaves a stale 'running' behind but frees its lock, and must not
@@ -613,7 +731,7 @@ export class NetboxSyncService {
     }
     const startedAt = new Date();
     await this.persistState(tenantId, this.runningState('manual', startedAt));
-    void this.runLocked(tenantId, 'manual', runner, startedAt).catch((error) => {
+    void this.runLocked(tenantId, 'manual', runner, startedAt, decisions).catch((error) => {
       this.logger.error(`Netbox synchronisation could not start for tenant ${tenantId}: ${plainErrorMessage(error)}`);
     });
     return { ...status, sync: this.runningState('manual', startedAt) };
@@ -709,9 +827,10 @@ export class NetboxSyncService {
     trigger: 'manual' | 'scheduled',
     runner: ReturnType<DataSource['createQueryRunner']>,
     startedAt: Date,
+    decisions: NetboxDecision[] = [],
   ): Promise<{ status: 'skipped' | 'success' | 'failure'; counts?: NetboxSyncCounts; error?: string }> {
     try {
-      const result = await this.executeRun(tenantId);
+      const result = await this.executeRun(tenantId, decisions);
       const finishedAt = new Date();
       await this.persistState(tenantId, {
         status: 'success',
@@ -749,7 +868,10 @@ export class NetboxSyncService {
       this.config.writeSyncState(manager, tenantId, state));
   }
 
-  private async executeRun(tenantId: string): Promise<{ counts: NetboxSyncCounts; warnings: NetboxNotice[] }> {
+  private async executeRun(
+    tenantId: string,
+    decisions: NetboxDecision[] = [],
+  ): Promise<{ counts: NetboxSyncCounts; warnings: NetboxNotice[] }> {
     // Read phase outside any transaction, then the HTTP calls with no database
     // connection held, then one short transaction per object.
     const local = await withTenantExecution(
@@ -759,7 +881,9 @@ export class NetboxSyncService {
       { transaction: false },
     );
     const fetched = await this.fetchObjects(local);
-    const { plan } = this.buildPlan(local, fetched);
+    // The inventory a preview kept is older than what this run is about to write.
+    this.previewInventory.delete(tenantId);
+    const { plan } = this.buildPlan(local, fetched, decisions);
     const counts: NetboxSyncCounts = { ...plan.counts, create: 0, update: 0, unchanged: 0, error: 0 };
     const warnings: NetboxNotice[] = fetched.complete ? [] : [netboxNotice('fetch_incomplete')];
     if (!fetched.complete) {
@@ -779,7 +903,9 @@ export class NetboxSyncService {
       if (row.skip_reason) {
         // Out of scope. An object a person chose to ignore still gets its
         // "last seen" stamp so it does not drift into the missing list.
-        if (row.skip_reason === 'ignored') {
+        if (row.decision === 'ignore') {
+          await this.ignoreByDecision(tenantId, row).catch((error) => this.logRecordFailure(row, error));
+        } else if (row.skip_reason === 'ignored') {
           await this.touchIgnored(tenantId, row).catch((error) => this.logRecordFailure(row, error));
         }
         continue;
@@ -1057,6 +1183,33 @@ export class NetboxSyncService {
     await withTenantExecution(this.dataSource, tenantId, run);
   }
 
+  /**
+   * "Ignore", chosen in the preview. The object may have no record yet, so
+   * this one inserts; an existing record keeps its asset and its candidates,
+   * exactly as the same choice made from the records list does.
+   */
+  private async ignoreByDecision(tenantId: string, row: NetboxPlanRow): Promise<void> {
+    await withTenantExecution(this.dataSource, tenantId, (manager) => manager.query(
+      `INSERT INTO asset_external_links
+         (tenant_id, source, external_type, external_id, external_name, external_url,
+          state, external_status, last_seen_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'ignored', $7, now())
+       ON CONFLICT (tenant_id, source, external_type, external_id) DO UPDATE SET
+         external_name = EXCLUDED.external_name,
+         external_url = EXCLUDED.external_url,
+         external_status = EXCLUDED.external_status,
+         state = 'ignored',
+         message_code = NULL,
+         message_params = NULL,
+         last_seen_at = now(),
+         updated_at = now()`,
+      [
+        tenantId, NETBOX_LINK_SOURCE, row.external_type, row.external_id,
+        row.external_name, row.external_url, row.external_status,
+      ],
+    ));
+  }
+
   private async touchIgnored(tenantId: string, row: NetboxPlanRow): Promise<void> {
     await withTenantExecution(this.dataSource, tenantId, (manager) => manager.query(
       `UPDATE asset_external_links
@@ -1191,6 +1344,7 @@ export class NetboxSyncService {
       candidates: [],
       diffs: existingAsset ? diffNetboxMapping(mapping, existingAsset, local.catalogs) : [],
       skip_reason: null,
+      decision: null,
       warnings: mapping.warnings,
     };
     const outcome = await this.applyRow(
