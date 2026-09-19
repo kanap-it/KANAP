@@ -15,5 +15,10 @@
   "WEEKLY_REVIEW_USER_NOT_FOUND": "User not found or disabled.",
   "WEEKLY_REVIEW_ROLE_INELIGIBLE": "Weekly review is unavailable for your current role.",
   "WEEKLY_REVIEW_NOT_ENABLED": "Enable both email notifications and weekly review email to preview.",
-  "WEEKLY_REVIEW_SEND_FAILED": "Failed to send weekly review email."
+  "WEEKLY_REVIEW_SEND_FAILED": "Failed to send weekly review email.",
+  "APP_CRASH_TITLE": "Something went wrong.",
+  "APP_CRASH_BODY": "The page could not be displayed. Reloading usually fixes it.",
+  "APP_CRASH_RELOAD": "Reload",
+  "APP_CRASH_DETAILS": "Technical details",
+  "APP_UPDATE_AVAILABLE": "A new version is available."
 }

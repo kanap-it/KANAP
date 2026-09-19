@@ -3,7 +3,10 @@ import { Box, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import api from '../../../api';
 import EntityKnowledgePanel from '../../../components/EntityKnowledgePanel';
-import MarkdownEditor from '../../../components/MarkdownEditor';
+// Lazy like the eight other call sites: a static import here pulls the MDX editor and its
+// whole Lexical dependency tree into the entry chunk for every user, including those who
+// never open a note editor. The Suspense boundary below was already in place.
+const MarkdownEditor = React.lazy(() => import('../../../components/MarkdownEditor'));
 import LocationSubItemsTable from './LocationSubItemsTable';
 import { getApiErrorMessage } from '../../../utils/apiErrorMessage';
 
