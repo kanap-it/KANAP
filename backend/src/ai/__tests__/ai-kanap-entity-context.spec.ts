@@ -1,5 +1,5 @@
 import * as assert from 'node:assert/strict';
-// These two moved to the knowledge module during the header split; import them from
+// These two moved to the definition module during the header split; import them from
 // where they live rather than through the service.
 import {
   normalizeKnowledgeSources,

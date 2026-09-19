@@ -453,8 +453,10 @@ export class ContractsService {
   async listIds(query: any, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(Contract);
-    const { limit: rawLimit, skip, sort, status, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
-    const limit = Math.min(Math.max(rawLimit || 1000, 1), 10000);
+    const { skip, sort, status, q, filters } = parsePagination(query, { field: 'created_at', direction: 'DESC' });
+    // Not the parsed limit: parsePagination defaults to a page of 20, and the prev/next
+    // navigation that calls this sends no limit, so it only ever knew 20 contracts.
+    const limit = Math.min(Number(query?.limit) || 10000, 10000);
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const filterTargets = this.contractFilterTargets();

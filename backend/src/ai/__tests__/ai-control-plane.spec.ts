@@ -42,7 +42,8 @@ import {
 } from '../control-plane/capability/capability-contract';
 import { AiCapabilityRegistry, providerCapabilityContracts, routingDriftSnapshot } from '../control-plane/capability/ai-capability.registry';
 import { AiAutomationJobCatalogService } from '../control-plane/automation/ai-automation-job-catalog.service';
-import { AiAgentControlService, proposalStillBlocksRegeneration } from '../control-plane/agent-control/ai-agent-control.service';
+import { AiAgentControlService } from '../control-plane/agent-control/ai-agent-control.service';
+import { proposalStillBlocksRegeneration } from '../control-plane/agent-control/agent-control-constants.util';
 import { auditActivityType, auditActivityTypeClauseSql } from '../control-plane/agent-control/ai-agent-activity-timeline';
 import {
   AiAgentPromptCompilerService,

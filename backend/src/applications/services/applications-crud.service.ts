@@ -3,7 +3,7 @@ import { copyClassification } from './application-classification';
 import { classificationPatch, classificationReadState } from './application-classification';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
 import { decodeCsvBufferUtf8OrThrow } from '../../common/encoding';
@@ -25,6 +25,7 @@ import { fixMulterFilename } from '../../common/upload';
 import { ShareItemDto } from '../../notifications/dto/share-item.dto';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { projectParticipantCondition } from '../../auth/business-contributor-scope';
+import { buildDerivedUsersByApp } from './derived-users';
 
 type OwnerQueryRow = ApplicationOwner & {
   email?: string | null;
@@ -527,44 +528,19 @@ export class ApplicationsCrudService extends ApplicationsBaseService {
   async computeDerivedUsers(appId: string, year: number | null, mode: 'manual' | 'it_users' | 'headcount' | null, opts?: ServiceOpts): Promise<number> {
     const mg = this.getManager(opts);
     await this.assertVisible(appId, opts?.accessScope, mg);
+    // One rule for the grid column and this total: see buildDerivedUsersByApp. Without a
+    // year there is nothing to derive. The former copy passed `fiscal_year: null` to find(),
+    // which TypeORM drops, and so summed the metrics of every fiscal year.
+    let usersOverride: number | null = null;
     if (mode === 'manual') {
       const app = await mg.getRepository(Application).findOne({ where: { id: appId } });
-      return Math.max(0, Number(app?.users_override || 0));
+      usersOverride = app?.users_override ?? null;
     }
-    const compRepo = mg.getRepository(ApplicationCompany);
-    const deptRepo = mg.getRepository(ApplicationDepartment);
-    const { Department } = await import('../../departments/department.entity');
-    const { CompanyMetric } = await import('../../companies/company-metric.entity');
-    const { DepartmentMetric } = await import('../../departments/department-metric.entity');
-
-    const [companies, departments] = await Promise.all([
-      compRepo.find({ where: { application_id: appId } as any }),
-      deptRepo.find({ where: { application_id: appId } as any }),
-    ]);
-    const companyIds = new Set(companies.map((c) => c.company_id));
-    const departmentIds = departments.map((d) => d.department_id);
-    let filteredDeptIds: string[] = departmentIds;
-    if (departmentIds.length > 0 && companyIds.size > 0) {
-      const deptEntities = await mg.getRepository(Department).find({ where: { id: In(departmentIds) as any } as any });
-      filteredDeptIds = deptEntities.filter((d: any) => !companyIds.has(d.company_id)).map((d: any) => d.id);
-    }
-    let total = 0;
-    if (companyIds.size > 0) {
-      const metrics = await mg.getRepository(CompanyMetric).find({ where: { company_id: In([...companyIds]) as any, fiscal_year: year } as any });
-      for (const m of metrics) {
-        const it = (m as any).it_users as number | null | undefined;
-        const hc = Number(m.headcount || 0);
-        total += mode === 'it_users' ? (typeof it === 'number' && it != null ? it : hc) : hc;
-      }
-    }
-    if (filteredDeptIds.length > 0) {
-      const metrics = await mg.getRepository(DepartmentMetric).find({ where: { department_id: In(filteredDeptIds) as any, fiscal_year: year } as any });
-      for (const m of metrics) {
-        const hc = Number(m.headcount || 0);
-        total += hc;
-      }
-    }
-    return total;
+    const totals = await buildDerivedUsersByApp(
+      [{ id: appId, users_mode: mode, users_year: year, users_override: usersOverride }],
+      mg,
+    );
+    return totals[appId] ?? 0;
   }
 
   async getTotalUsers(appId: string, yearOverride?: number, opts?: ServiceOpts) {
