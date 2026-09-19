@@ -295,7 +295,19 @@
       "myTimeTitle": "Mon temps",
       "newRequestsTitle": "Nouvelles demandes",
       "statusChangesTitle": "Changements de statut de projet",
-      "teamActivityDays": "Activité de l'équipe ({{days}} derniers jours)"
+      "teamActivityDays": "Activité de l'équipe ({{days}} derniers jours)",
+      "netboxSync": "Synchronisation Netbox",
+      "netboxNotConfigured": "Netbox n'est pas connecté.",
+      "netboxConnect": "Connecter Netbox",
+      "netboxUpToDate": "Synchronisation à jour · {{when}}",
+      "netboxNeverRun": "Aucune synchronisation n'a encore été exécutée.",
+      "netboxLastRunFailed": "La dernière synchronisation a échoué",
+      "netboxToDecide_one": "{{count}} objet à décider",
+      "netboxToDecide_other": "{{count}} objets à décider",
+      "netboxMissing_one": "{{count}} actif absent de Netbox",
+      "netboxMissing_other": "{{count}} actifs absents de Netbox",
+      "netboxErrors_one": "{{count}} erreur",
+      "netboxErrors_other": "{{count}} erreurs"
     },
     "welcome": "Bienvenue"
   },

@@ -64,7 +64,8 @@
       "applications": "Anwendungen",
       "interfaces": "Schnittstellen",
       "interfaceMap": "Schnittstellenkarte",
-      "settings": "Einstellungen"
+      "settings": "Einstellungen",
+      "netbox": "Netbox"
     },
     "portfolio": {
       "tasks": "Aufgaben",
@@ -141,6 +142,7 @@
     "tasks": "Aufgaben",
     "operations": "Administration",
     "aiModels": "KI-Modelle",
-    "aiUsage": "Nutzung & Kosten"
+    "aiUsage": "Nutzung & Kosten",
+    "netbox": "Netbox"
   }
 }

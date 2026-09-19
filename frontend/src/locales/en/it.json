@@ -207,6 +207,189 @@
           "subtitle": "Lists used by the incident register."
         }
       }
+    },
+    "netbox": {
+      "title": "Netbox synchronisation",
+      "notConfigured": "Netbox is not connected yet.",
+      "disabledHint": "Turn the integration on in the settings to run a synchronisation.",
+      "runningHint": "A synchronisation is running.",
+      "tabs": {
+        "records": "Objects",
+        "mappings": "Mappings"
+      },
+      "actions": {
+        "syncNow": "Synchronise now",
+        "preparing": "Preparing the preview...",
+        "openSettings": "Open the integration settings",
+        "linkTo": "Link to...",
+        "createAsset": "Create new asset",
+        "ignore": "Ignore",
+        "stopIgnoring": "Stop ignoring",
+        "retire": "Mark asset as retired"
+      },
+      "strip": {
+        "lastSync": "Last synchronisation",
+        "never": "Never run",
+        "trigger": "Started",
+        "duration": "Duration",
+        "seconds_one": "{{count}} second",
+        "seconds_other": "{{count}} seconds",
+        "result": "Result",
+        "records": "Objects",
+        "recordCounts": "{{linked}} linked · {{attention}} to look at",
+        "lastRun": "Last run: {{summary}}",
+        "createdCount_one": "{{count}} created",
+        "createdCount_other": "{{count}} created",
+        "updatedCount_one": "{{count}} updated",
+        "updatedCount_other": "{{count}} updated"
+      },
+      "trigger": {
+        "manual": "By hand",
+        "scheduled": "Automatically"
+      },
+      "syncStatus": {
+        "never": "Never run",
+        "running": "Running",
+        "success": "Succeeded",
+        "failure": "Failed"
+      },
+      "states": {
+        "ambiguous": "To decide",
+        "missing": "Missing from Netbox",
+        "error": "Errors",
+        "ignored": "Ignored",
+        "linked": "Linked"
+      },
+      "objectType": {
+        "device": "Device",
+        "vm": "Virtual machine"
+      },
+      "records": {
+        "empty": "Nothing to show here.",
+        "unnamed": "Without a name",
+        "range": "{{from}} to {{to}} of {{total}}",
+        "previous": "Previous",
+        "next": "Next",
+        "columns": {
+          "netboxName": "Netbox name",
+          "type": "Type",
+          "asset": "KANAP asset",
+          "message": "Message",
+          "lastSeen": "Last seen",
+          "actions": "Actions"
+        }
+      },
+      "preview": {
+        "title": "Review before applying",
+        "apply": "Apply",
+        "empty": "Not set",
+        "summary": "{{created}} to create, {{updated}} to update, {{unchanged}} unchanged.",
+        "truncated": "Only the first 500 objects are listed here. Everything is applied.",
+        "sections": {
+          "created": "New assets ({{n}})",
+          "updated": "Updated assets ({{n}})",
+          "ambiguous": "Needs a decision ({{n}})",
+          "skipped": "Skipped ({{n}})",
+          "missing": "Missing from Netbox ({{n}})",
+          "warnings": "Warnings"
+        }
+      },
+      "skipReason": {
+        "unmapped_role": "Role not mapped",
+        "unmapped_site": "Site not mapped",
+        "unnamed": "No name in Netbox",
+        "ignored": "Ignored by you"
+      },
+      "diffFields": {
+        "name": "Name",
+        "kind": "Asset type",
+        "location": "Location",
+        "status": "Lifecycle",
+        "hostname": "Hostname",
+        "domain": "Domain",
+        "operating_system": "Operating system",
+        "primary_ip": "Primary IP address",
+        "serial_number": "Serial number",
+        "manufacturer": "Manufacturer",
+        "model": "Model",
+        "rack_location": "Rack location",
+        "rack_unit": "Rack unit"
+      },
+      "mappings": {
+        "intro": "Only mapped roles and sites are imported. Anything left on \"Do not import\" is skipped.",
+        "roles": "Netbox roles",
+        "sites": "Netbox sites",
+        "doNotImport": "Do not import",
+        "suggested": "Suggested",
+        "save": "Save mappings",
+        "saved": "Mappings saved.",
+        "columns": {
+          "netboxRole": "Netbox role",
+          "netboxSite": "Netbox site",
+          "objects": "Objects",
+          "assetType": "KANAP asset type",
+          "location": "KANAP location"
+        },
+        "counts": {
+          "devices_one": "{{count}} device",
+          "devices_other": "{{count}} devices",
+          "virtualMachines_one": "{{count}} virtual machine",
+          "virtualMachines_other": "{{count}} virtual machines",
+          "none": "None"
+        },
+        "reservedRoles": {
+          "virtualMachines": "Virtual machines"
+        }
+      },
+      "retire": {
+        "title": "Mark asset as retired",
+        "confirm": "Mark as retired",
+        "body": "{{name}} is no longer in Netbox. Its lifecycle becomes retired. The asset record, its links and its history are kept."
+      },
+      "time": {
+        "justNow": "Just now",
+        "minutesAgo_one": "{{count}} minute ago",
+        "minutesAgo_other": "{{count}} minutes ago",
+        "hoursAgo_one": "{{count}} hour ago",
+        "hoursAgo_other": "{{count}} hours ago",
+        "daysAgo_one": "{{count}} day ago",
+        "daysAgo_other": "{{count}} days ago"
+      },
+      "messages": {
+        "previewFailed": "The preview could not be prepared.",
+        "syncFailed": "The synchronisation could not be started.",
+        "alreadyRunning": "A synchronisation is already running.",
+        "actionFailed": "The action could not be completed.",
+        "mappingFailed": "The Netbox roles and sites could not be loaded.",
+        "mappingSaveFailed": "The mappings could not be saved."
+      },
+      "assetSource": {
+        "label": "Source:",
+        "synchronised": "Netbox · synchronised {{when}}",
+        "never": "Netbox · not synchronised yet",
+        "missing": "No longer in Netbox",
+        "open": "Open in Netbox",
+        "managed": "Managed by Netbox"
+      },
+      "notices": {
+        "ambiguous_candidates": "Several assets could be this object. Choose one, or create a new asset.",
+        "contested_asset": "Two Netbox objects point at the same asset. Decide which one should keep the link.",
+        "missing_from_netbox": "This object is no longer in Netbox. Decide whether the asset should be retired.",
+        "reevaluate_next_sync": "This object will be looked at again during the next synchronisation.",
+        "os_not_in_catalog": "The operating system \"{{value}}\" is not in your catalogue, so it was left unchanged.",
+        "domain_not_in_catalog": "The domain \"{{value}}\" is not in your catalogue, so it was left unchanged.",
+        "hostname_invalid": "\"{{value}}\" cannot be used as a host name, so the host name was left unchanged.",
+        "ipv6_skipped": "The primary address is an IPv6 address, which is not imported yet.",
+        "ip_conflict_skipped": "The address {{value}} is already used by another asset, so it was left out.",
+        "subnet_not_in_catalog": "The subnet {{value}} is not in your catalogue, so the address was saved without it.",
+        "fetch_incomplete": "Netbox returned more pages than expected. Some objects were not looked at.",
+        "save_failed": "This object could not be saved. The details are in the server log.",
+        "validation_failed": "This object was refused:",
+        "os_ambiguous": "The operating system \"{{value}}\" matches more than one entry in your catalogue, so it was left unchanged.",
+        "status_not_mapped": "The Netbox status \"{{value}}\" has no equivalent in KANAP, so the lifecycle was left unchanged.",
+        "lifecycle_not_in_catalog": "The lifecycle \"{{value}}\" is not in your catalogue, so it was left unchanged.",
+        "no_ip_address_type": "No IP address type is set up in the IT settings, so the address was not imported."
+      }
     }
   },
   "workspace": {

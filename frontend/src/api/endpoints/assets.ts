@@ -24,8 +24,21 @@ export interface Asset {
   sub_location_id?: string | null;
   operating_system?: string | null;
   notes?: string | null;
+  external_links?: AssetExternalLink[] | null;
   created_at: string;
   updated_at?: string;
+}
+
+/**
+ * Link between an asset and the external inventory it comes from.
+ * Only `linked` and `missing` rows are returned.
+ */
+export interface AssetExternalLink {
+  source: 'netbox';
+  external_type: 'device' | 'vm';
+  external_url: string;
+  state: 'linked' | 'ambiguous' | 'missing' | 'ignored' | 'error';
+  last_synced_at: string | null;
 }
 
 /**

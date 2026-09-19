@@ -127,7 +127,10 @@ export default function ProtectedRoute() {
         return <Navigate to="/403" replace />;
       }
     }
-    if (isAdminAiRoute || isAdminIntegrationsRoute) {
+    // The integrations page also hosts non-AI connectors (Netbox), so an infrastructure
+    // admin reaches it even when the AI settings surface is unavailable.
+    const integrationsViaInfrastructure = isAdminIntegrationsRoute && hasLevel('infrastructure', 'admin');
+    if ((isAdminAiRoute || isAdminIntegrationsRoute) && !integrationsViaInfrastructure) {
       if (!config.features.aiSettings) {
         return <Navigate to="/403" replace />;
       }
@@ -173,6 +176,7 @@ export default function ProtectedRoute() {
       applications: 'applications',
       interfaces: 'applications',
       'interface-map': 'applications',
+      netbox: 'infrastructure',
       settings: 'settings',
     };
     const masterDataAliases: Record<string, string> = {
@@ -242,6 +246,10 @@ export default function ProtectedRoute() {
     }
     if (isAdminAiRoute) {
       if (!hasLevel('ai_settings', 'admin')) {
+        return <Navigate to="/403" replace />;
+      }
+    } else if (isAdminIntegrationsRoute) {
+      if (!hasLevel('ai_settings', 'admin') && !hasLevel('infrastructure', 'admin')) {
         return <Navigate to="/403" replace />;
       }
     } else if (requirement && !hasLevel(requirement.resource, requirement.level)) {

@@ -1161,5 +1161,54 @@
       "byModel": "Coste por modelo",
       "unknownModel": "Modelo desconocido"
     }
+  },
+  "integrations": {
+    "netbox": {
+      "title": "Inventario de Netbox",
+      "description": "Incorpora tu inventario de Netbox a los activos de KANAP. Netbox sigue siendo la referencia para los equipos que describe.",
+      "status": {
+        "connected": "Conectado",
+        "disabled": "Desactivado",
+        "notConfigured": "Sin configurar"
+      },
+      "fields": {
+        "enabled": "Activar la sincronización con Netbox",
+        "baseUrl": "Dirección de Netbox",
+        "apiToken": "Token de API",
+        "requestTimeout": "Tiempo de espera (segundos)",
+        "insecureTls": "Ignorar los errores de certificado",
+        "autoSync": "Sincronización automática",
+        "defaultEnvironment": "Entorno de los nuevos activos"
+      },
+      "placeholders": {
+        "baseUrl": "https://netbox.example.com",
+        "apiTokenConfigured": "Configurado",
+        "enterApiToken": "Pega el token",
+        "requestTimeout": "30"
+      },
+      "hints": {
+        "baseUrl": "La dirección que usas para abrir Netbox en el navegador.",
+        "apiToken": "En Netbox, abre el menú de usuario arriba a la derecha y luego API tokens. Basta con un token de solo lectura.",
+        "apiTokenExisting": "Ya hay un token guardado. Deja el campo vacío para conservarlo.",
+        "requestTimeout": "Tiempo de espera antes de abandonar, entre 5 y 120 segundos. Déjalo vacío para usar 30.",
+        "insecureTls": "Úsalo solo con un certificado autofirmado o interno en el que confíes. La conexión sigue cifrada, pero el certificado deja de comprobarse.",
+        "autoSync": "Se ejecuta cada hora y aplica los cambios por su cuenta.",
+        "defaultEnvironment": "Se aplica a los activos creados por la importación. Después no se cambia nunca."
+      },
+      "messages": {
+        "saved": "Configuración guardada.",
+        "saveFailed": "No se ha podido guardar la configuración.",
+        "loadFailed": "No se ha podido cargar la configuración de Netbox.",
+        "testSuccess": "Conexión establecida con Netbox {{version}}.",
+        "testFailed": "La conexión con Netbox ha fallado.",
+        "nextStep": "Netbox está conectado."
+      },
+      "actions": {
+        "save": "Guardar configuración",
+        "test": "Probar conexión",
+        "testing": "Probando...",
+        "goToSync": "Configurar la sincronización"
+      }
+    }
   }
 }

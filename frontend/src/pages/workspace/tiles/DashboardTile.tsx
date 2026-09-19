@@ -27,6 +27,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import PlaceIcon from '@mui/icons-material/Place';
 import ArticleIcon from '@mui/icons-material/Article';
+import DnsIcon from '@mui/icons-material/Dns';
 
 export const TILE_ICONS: Record<string, typeof TaskIcon> = {
   Task: TaskIcon,
@@ -47,6 +48,7 @@ export const TILE_ICONS: Record<string, typeof TaskIcon> = {
   VerifiedUser: VerifiedUserIcon,
   Place: PlaceIcon,
   Article: ArticleIcon,
+  Dns: DnsIcon,
 };
 
 interface DashboardTileProps {

@@ -19,6 +19,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import PageHeader from '../../components/PageHeader';
 import MonitoringIntegrationCard from '../../components/admin/MonitoringIntegrationCard';
+import NetboxIntegrationCard from '../../components/admin/NetboxIntegrationCard';
+import { useAuth } from '../../auth/AuthContext';
+import { useFeatures } from '../../config/FeaturesContext';
+import { useAiCapabilities } from '../../ai/useAiCapabilities';
 import {
   aiAdminApi,
   type AiGlpiTestResult,
@@ -108,6 +112,14 @@ function glpiSecretHelperText(
 export default function AdminIntegrationsPage() {
   const { t } = useTranslation(['admin', 'common']);
   const queryClient = useQueryClient();
+  const { hasLevel } = useAuth();
+  const { config } = useFeatures();
+  const aiCapabilities = useAiCapabilities();
+  // Same condition the route used to enforce for the whole page; it now only
+  // decides whether the AI-backed connectors (GLPI, PRTG) are shown.
+  const aiSettingsAvailable = config.features.aiSettings
+    && aiCapabilities.data?.surfaces.settings.available === true;
+  const canManageNetbox = hasLevel('infrastructure', 'admin');
 
   const [form, setForm] = React.useState<IntegrationsForm>(EMPTY_FORM);
   const [saveSuccess, setSaveSuccess] = React.useState(false);
@@ -117,6 +129,7 @@ export default function AdminIntegrationsPage() {
   const settingsQuery = useQuery<AiSettingsPayload>({
     queryKey: ['admin-ai-settings'],
     queryFn: () => aiAdminApi.getSettings(),
+    enabled: aiSettingsAvailable,
   });
 
   React.useEffect(() => {
@@ -170,126 +183,130 @@ export default function AdminIntegrationsPage() {
     <>
       <PageHeader title={t('aiAdmin.sections.integrations')} />
       <Stack spacing={2} maxWidth={760}>
-        <Card>
-          <CardContent>
-            {settingsQuery.isLoading ? (
-              <Box display="flex" justifyContent="center" py={4}>
-                <CircularProgress size={28} />
-              </Box>
-            ) : settingsQuery.isError ? (
-              <Alert severity="error">
-                {getApiErrorMessage(settingsQuery.error, t, t('aiAdmin.messages.loadSettingsFailed'))}
-              </Alert>
-            ) : settingsQuery.data ? (
-              <Stack spacing={2.5}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="h6">{t('aiAdmin.glpi.title')}</Typography>
-                  <Tooltip title={t('aiAdmin.glpi.tooltips.plaidRequired')}>
-                    <IconButton
-                      size="small"
-                      aria-label={t('aiAdmin.glpi.tooltips.plaidRequired')}
-                      sx={{ p: 0.25 }}
+        {aiSettingsAvailable ? (
+          <Card>
+            <CardContent>
+              {settingsQuery.isLoading ? (
+                <Box display="flex" justifyContent="center" py={4}>
+                  <CircularProgress size={28} />
+                </Box>
+              ) : settingsQuery.isError ? (
+                <Alert severity="error">
+                  {getApiErrorMessage(settingsQuery.error, t, t('aiAdmin.messages.loadSettingsFailed'))}
+                </Alert>
+              ) : settingsQuery.data ? (
+                <Stack spacing={2.5}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="h6">{t('aiAdmin.glpi.title')}</Typography>
+                    <Tooltip title={t('aiAdmin.glpi.tooltips.plaidRequired')}>
+                      <IconButton
+                        size="small"
+                        aria-label={t('aiAdmin.glpi.tooltips.plaidRequired')}
+                        sx={{ p: 0.25 }}
+                      >
+                        <InfoOutlinedIcon fontSize="inherit" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+
+                  <Typography variant="body2" color="text.secondary">
+                    {t('aiAdmin.glpi.description')}
+                  </Typography>
+
+                  <FormControlLabel
+                    control={(
+                      <Switch
+                        checked={form.glpi_enabled}
+                        onChange={(event) => setForm((prev) => ({ ...prev, glpi_enabled: event.target.checked }))}
+                      />
+                    )}
+                    label={t('aiAdmin.glpi.fields.enabled')}
+                  />
+
+                  <TextField
+                    size="small"
+                    label={t('aiAdmin.glpi.fields.url')}
+                    value={form.glpi_url}
+                    onChange={(event) => setForm((prev) => ({ ...prev, glpi_url: event.target.value }))}
+                    placeholder={t('aiAdmin.glpi.placeholders.url')}
+                  />
+
+                  <TextField
+                    size="small"
+                    label={t('aiAdmin.glpi.fields.userToken')}
+                    type="password"
+                    value={form.glpi_user_token}
+                    onChange={(event) => setForm((prev) => ({ ...prev, glpi_user_token: event.target.value }))}
+                    placeholder={
+                      currentSettings?.has_glpi_user_token
+                        ? t('aiAdmin.glpi.placeholders.userTokenConfigured')
+                        : t('aiAdmin.glpi.placeholders.enterUserToken')
+                    }
+                    helperText={glpiSecretHelperText(
+                      currentSettings?.has_glpi_user_token,
+                      'aiAdmin.glpi.tokenHint.userTokenExisting',
+                      currentSettings,
+                      t,
+                    )}
+                  />
+
+                  <TextField
+                    size="small"
+                    label={t('aiAdmin.glpi.fields.appToken')}
+                    type="password"
+                    value={form.glpi_app_token}
+                    onChange={(event) => setForm((prev) => ({ ...prev, glpi_app_token: event.target.value }))}
+                    placeholder={
+                      currentSettings?.has_glpi_app_token
+                        ? t('aiAdmin.glpi.placeholders.appTokenConfigured')
+                        : t('aiAdmin.glpi.placeholders.enterAppToken')
+                    }
+                    helperText={glpiSecretHelperText(
+                      currentSettings?.has_glpi_app_token,
+                      'aiAdmin.glpi.tokenHint.appTokenExisting',
+                      currentSettings,
+                      t,
+                    )}
+                  />
+
+                  {glpiTestResult ? (
+                    <Alert
+                      severity={glpiTestResult.ok ? 'success' : 'error'}
+                      onClose={() => setGlpiTestResult(null)}
                     >
-                      <InfoOutlinedIcon fontSize="inherit" />
-                    </IconButton>
-                  </Tooltip>
+                      {glpiTestResult.message}
+                      {glpiTestResult.latency_ms != null ? ` (${glpiTestResult.latency_ms}ms)` : ''}
+                    </Alert>
+                  ) : null}
+
+                  {saveSuccess ? <Alert severity="success">{t('aiAdmin.messages.settingsSaved')}</Alert> : null}
+                  {saveError ? <Alert severity="error">{saveError}</Alert> : null}
+
+                  <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                    <Button
+                      variant="contained"
+                      onClick={() => saveMutation.mutate(form)}
+                      disabled={saveMutation.isPending}
+                    >
+                      {saveMutation.isPending ? t('common:status.saving') : t('aiAdmin.actions.saveSettings')}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={() => testGlpiMutation.mutate(form)}
+                      disabled={testGlpiMutation.isPending}
+                    >
+                      {testGlpiMutation.isPending ? t('aiAdmin.actions.testing') : t('aiAdmin.actions.testConnection')}
+                    </Button>
+                  </Stack>
                 </Stack>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
 
-                <Typography variant="body2" color="text.secondary">
-                  {t('aiAdmin.glpi.description')}
-                </Typography>
+        {aiSettingsAvailable ? <MonitoringIntegrationCard /> : null}
 
-                <FormControlLabel
-                  control={(
-                    <Switch
-                      checked={form.glpi_enabled}
-                      onChange={(event) => setForm((prev) => ({ ...prev, glpi_enabled: event.target.checked }))}
-                    />
-                  )}
-                  label={t('aiAdmin.glpi.fields.enabled')}
-                />
-
-                <TextField
-                  size="small"
-                  label={t('aiAdmin.glpi.fields.url')}
-                  value={form.glpi_url}
-                  onChange={(event) => setForm((prev) => ({ ...prev, glpi_url: event.target.value }))}
-                  placeholder={t('aiAdmin.glpi.placeholders.url')}
-                />
-
-                <TextField
-                  size="small"
-                  label={t('aiAdmin.glpi.fields.userToken')}
-                  type="password"
-                  value={form.glpi_user_token}
-                  onChange={(event) => setForm((prev) => ({ ...prev, glpi_user_token: event.target.value }))}
-                  placeholder={
-                    currentSettings?.has_glpi_user_token
-                      ? t('aiAdmin.glpi.placeholders.userTokenConfigured')
-                      : t('aiAdmin.glpi.placeholders.enterUserToken')
-                  }
-                  helperText={glpiSecretHelperText(
-                    currentSettings?.has_glpi_user_token,
-                    'aiAdmin.glpi.tokenHint.userTokenExisting',
-                    currentSettings,
-                    t,
-                  )}
-                />
-
-                <TextField
-                  size="small"
-                  label={t('aiAdmin.glpi.fields.appToken')}
-                  type="password"
-                  value={form.glpi_app_token}
-                  onChange={(event) => setForm((prev) => ({ ...prev, glpi_app_token: event.target.value }))}
-                  placeholder={
-                    currentSettings?.has_glpi_app_token
-                      ? t('aiAdmin.glpi.placeholders.appTokenConfigured')
-                      : t('aiAdmin.glpi.placeholders.enterAppToken')
-                  }
-                  helperText={glpiSecretHelperText(
-                    currentSettings?.has_glpi_app_token,
-                    'aiAdmin.glpi.tokenHint.appTokenExisting',
-                    currentSettings,
-                    t,
-                  )}
-                />
-
-                {glpiTestResult ? (
-                  <Alert
-                    severity={glpiTestResult.ok ? 'success' : 'error'}
-                    onClose={() => setGlpiTestResult(null)}
-                  >
-                    {glpiTestResult.message}
-                    {glpiTestResult.latency_ms != null ? ` (${glpiTestResult.latency_ms}ms)` : ''}
-                  </Alert>
-                ) : null}
-
-                {saveSuccess ? <Alert severity="success">{t('aiAdmin.messages.settingsSaved')}</Alert> : null}
-                {saveError ? <Alert severity="error">{saveError}</Alert> : null}
-
-                <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-                  <Button
-                    variant="contained"
-                    onClick={() => saveMutation.mutate(form)}
-                    disabled={saveMutation.isPending}
-                  >
-                    {saveMutation.isPending ? t('common:status.saving') : t('aiAdmin.actions.saveSettings')}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => testGlpiMutation.mutate(form)}
-                    disabled={testGlpiMutation.isPending}
-                  >
-                    {testGlpiMutation.isPending ? t('aiAdmin.actions.testing') : t('aiAdmin.actions.testConnection')}
-                  </Button>
-                </Stack>
-              </Stack>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <MonitoringIntegrationCard />
+        {canManageNetbox ? <NetboxIntegrationCard /> : null}
       </Stack>
     </>
   );

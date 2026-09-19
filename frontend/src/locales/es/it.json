@@ -207,6 +207,189 @@
           "subtitle": "Listas utilizadas por el registro de incidentes."
         }
       }
+    },
+    "netbox": {
+      "title": "Sincronización con Netbox",
+      "notConfigured": "Netbox aún no está conectado.",
+      "disabledHint": "Activa la integración en la configuración para lanzar una sincronización.",
+      "runningHint": "Hay una sincronización en curso.",
+      "tabs": {
+        "records": "Objetos",
+        "mappings": "Correspondencias"
+      },
+      "actions": {
+        "syncNow": "Sincronizar ahora",
+        "preparing": "Preparando la vista previa...",
+        "openSettings": "Abrir la configuración de la integración",
+        "linkTo": "Vincular a...",
+        "createAsset": "Crear un activo",
+        "ignore": "Ignorar",
+        "stopIgnoring": "Dejar de ignorar",
+        "retire": "Marcar el activo como retirado"
+      },
+      "strip": {
+        "lastSync": "Última sincronización",
+        "never": "Nunca ejecutada",
+        "trigger": "Inicio",
+        "duration": "Duración",
+        "seconds_one": "{{count}} segundo",
+        "seconds_other": "{{count}} segundos",
+        "result": "Resultado",
+        "records": "Objetos",
+        "recordCounts": "{{linked}} vinculados · {{attention}} por revisar",
+        "lastRun": "Última ejecución: {{summary}}",
+        "createdCount_one": "{{count}} creado",
+        "createdCount_other": "{{count}} creados",
+        "updatedCount_one": "{{count}} actualizado",
+        "updatedCount_other": "{{count}} actualizados"
+      },
+      "trigger": {
+        "manual": "Manual",
+        "scheduled": "Automática"
+      },
+      "syncStatus": {
+        "never": "Nunca ejecutada",
+        "running": "En curso",
+        "success": "Correcta",
+        "failure": "Fallida"
+      },
+      "states": {
+        "ambiguous": "Por decidir",
+        "missing": "Ausentes de Netbox",
+        "error": "Errores",
+        "ignored": "Ignorados",
+        "linked": "Vinculados"
+      },
+      "objectType": {
+        "device": "Equipo",
+        "vm": "Máquina virtual"
+      },
+      "records": {
+        "empty": "No hay nada que mostrar aquí.",
+        "unnamed": "Sin nombre",
+        "range": "{{from}} a {{to}} de {{total}}",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "columns": {
+          "netboxName": "Nombre en Netbox",
+          "type": "Tipo",
+          "asset": "Activo KANAP",
+          "message": "Mensaje",
+          "lastSeen": "Visto por última vez",
+          "actions": "Acciones"
+        }
+      },
+      "preview": {
+        "title": "Revisar antes de aplicar",
+        "apply": "Aplicar",
+        "empty": "Sin definir",
+        "summary": "{{created}} por crear, {{updated}} por actualizar, {{unchanged}} sin cambios.",
+        "truncated": "Aquí solo se enumeran los 500 primeros objetos. Se aplica todo.",
+        "sections": {
+          "created": "Nuevos activos ({{n}})",
+          "updated": "Activos actualizados ({{n}})",
+          "ambiguous": "Por decidir ({{n}})",
+          "skipped": "Omitidos ({{n}})",
+          "missing": "Ausentes de Netbox ({{n}})",
+          "warnings": "Avisos"
+        }
+      },
+      "skipReason": {
+        "unmapped_role": "Rol sin correspondencia",
+        "unmapped_site": "Sitio sin correspondencia",
+        "unnamed": "Sin nombre en Netbox",
+        "ignored": "Ignorado por usted"
+      },
+      "diffFields": {
+        "name": "Nombre",
+        "kind": "Tipo de activo",
+        "location": "Ubicación",
+        "status": "Ciclo de vida",
+        "hostname": "Nombre de host",
+        "domain": "Dominio",
+        "operating_system": "Sistema operativo",
+        "primary_ip": "Dirección IP principal",
+        "serial_number": "Número de serie",
+        "manufacturer": "Fabricante",
+        "model": "Modelo",
+        "rack_location": "Ubicación en el rack",
+        "rack_unit": "Unidad de rack"
+      },
+      "mappings": {
+        "intro": "Solo se importan los roles y los sitios con correspondencia. Todo lo que quede en «No importar» se deja fuera.",
+        "roles": "Roles de Netbox",
+        "sites": "Sitios de Netbox",
+        "doNotImport": "No importar",
+        "suggested": "Sugerido",
+        "save": "Guardar correspondencias",
+        "saved": "Correspondencias guardadas.",
+        "columns": {
+          "netboxRole": "Rol de Netbox",
+          "netboxSite": "Sitio de Netbox",
+          "objects": "Objetos",
+          "assetType": "Tipo de activo KANAP",
+          "location": "Ubicación KANAP"
+        },
+        "counts": {
+          "devices_one": "{{count}} equipo",
+          "devices_other": "{{count}} equipos",
+          "virtualMachines_one": "{{count}} máquina virtual",
+          "virtualMachines_other": "{{count}} máquinas virtuales",
+          "none": "Ninguno"
+        },
+        "reservedRoles": {
+          "virtualMachines": "Máquinas virtuales"
+        }
+      },
+      "retire": {
+        "title": "Marcar el activo como retirado",
+        "confirm": "Marcar como retirado",
+        "body": "{{name}} ya no está en Netbox. Su ciclo de vida pasa a retirado. La ficha del activo, sus vínculos y su historial se conservan."
+      },
+      "time": {
+        "justNow": "Ahora mismo",
+        "minutesAgo_one": "hace {{count}} minuto",
+        "minutesAgo_other": "hace {{count}} minutos",
+        "hoursAgo_one": "hace {{count}} hora",
+        "hoursAgo_other": "hace {{count}} horas",
+        "daysAgo_one": "hace {{count}} día",
+        "daysAgo_other": "hace {{count}} días"
+      },
+      "messages": {
+        "previewFailed": "No se ha podido preparar la vista previa.",
+        "syncFailed": "No se ha podido iniciar la sincronización.",
+        "alreadyRunning": "Ya hay una sincronización en curso.",
+        "actionFailed": "No se ha podido completar la acción.",
+        "mappingFailed": "No se han podido cargar los roles y los sitios de Netbox.",
+        "mappingSaveFailed": "No se han podido guardar las correspondencias."
+      },
+      "assetSource": {
+        "label": "Origen:",
+        "synchronised": "Netbox · sincronizado {{when}}",
+        "never": "Netbox · aún sin sincronizar",
+        "missing": "Ya no está en Netbox",
+        "open": "Abrir en Netbox",
+        "managed": "Gestionado por Netbox"
+      },
+      "notices": {
+        "ambiguous_candidates": "Varios activos podrían ser este objeto. Elija uno o cree un activo nuevo.",
+        "contested_asset": "Dos objetos de Netbox apuntan al mismo activo. Decida cuál conserva el vínculo.",
+        "missing_from_netbox": "Este objeto ya no está en Netbox. Decida si el activo debe pasar a retirado.",
+        "reevaluate_next_sync": "Este objeto se revisará de nuevo en la próxima sincronización.",
+        "os_not_in_catalog": "El sistema operativo «{{value}}» no está en su catálogo, así que el valor no se ha cambiado.",
+        "domain_not_in_catalog": "El dominio «{{value}}» no está en su catálogo, así que el valor no se ha cambiado.",
+        "hostname_invalid": "«{{value}}» no puede usarse como nombre de host, así que el nombre de host no se ha cambiado.",
+        "ipv6_skipped": "La dirección principal es una dirección IPv6, que todavía no se importa.",
+        "ip_conflict_skipped": "La dirección {{value}} ya la usa otro activo, así que se ha dejado fuera.",
+        "subnet_not_in_catalog": "La subred {{value}} no está en su catálogo, así que la dirección se ha guardado sin ella.",
+        "fetch_incomplete": "Netbox ha devuelto más páginas de las previstas. Algunos objetos no se han revisado.",
+        "save_failed": "No se ha podido guardar este objeto. Los detalles están en el registro del servidor.",
+        "validation_failed": "Este objeto se ha rechazado:",
+        "os_ambiguous": "El sistema operativo «{{value}}» coincide con varias entradas de su catálogo, así que el valor no se ha cambiado.",
+        "status_not_mapped": "El estado de Netbox «{{value}}» no tiene equivalente en KANAP, así que el ciclo de vida no se ha cambiado.",
+        "lifecycle_not_in_catalog": "El ciclo de vida «{{value}}» no está en su catálogo, así que el valor no se ha cambiado.",
+        "no_ip_address_type": "No hay ningún tipo de dirección IP definido en los ajustes de TI, así que la dirección no se ha importado."
+      }
     }
   },
   "workspace": {

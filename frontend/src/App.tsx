@@ -76,6 +76,7 @@ import LocationWorkspacePage from './pages/it/LocationWorkspacePage';
 import AssetsPage from './pages/it/AssetsPage';
 import AssetWorkspacePage from './pages/it/AssetWorkspacePage';
 import IncidentsPage from './pages/it/IncidentsPage';
+import NetboxSyncPage from './pages/it/NetboxSyncPage';
 import IncidentWorkspacePage from './pages/it/IncidentWorkspacePage';
 import BusinessProcessesPage from './pages/BusinessProcessesPage';
 import BusinessProcessWorkspacePage from './pages/business-processes/BusinessProcessWorkspacePage';
@@ -326,6 +327,7 @@ function AppRoutes() {
           <Route path="/it/interfaces/:id/:tab" element={<InterfaceWorkspacePage />} />
           <Route path="/it/interface-map" element={<InterfaceMapPage />} />
           <Route path="/it/connection-map" element={<ConnectionMapPage />} />
+          <Route path="/it/netbox" element={<NetboxSyncPage />} />
           <Route path="/it/settings" element={<ItOperationsSettingsPage />} />
           {/* Portfolio */}
           <Route path="/portfolio" element={<PortfolioDefaultRedirect />} />

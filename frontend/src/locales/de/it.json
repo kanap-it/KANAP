@@ -207,6 +207,189 @@
           "subtitle": "Listen für das Vorfallsregister."
         }
       }
+    },
+    "netbox": {
+      "title": "Netbox-Synchronisierung",
+      "notConfigured": "Netbox ist noch nicht verbunden.",
+      "disabledHint": "Aktivieren Sie die Integration in den Einstellungen, um eine Synchronisierung zu starten.",
+      "runningHint": "Eine Synchronisierung läuft.",
+      "tabs": {
+        "records": "Objekte",
+        "mappings": "Zuordnungen"
+      },
+      "actions": {
+        "syncNow": "Jetzt synchronisieren",
+        "preparing": "Vorschau wird vorbereitet...",
+        "openSettings": "Integrationseinstellungen öffnen",
+        "linkTo": "Verknüpfen mit...",
+        "createAsset": "Neues Asset anlegen",
+        "ignore": "Ignorieren",
+        "stopIgnoring": "Nicht mehr ignorieren",
+        "retire": "Asset als „Außer Betrieb“ markieren"
+      },
+      "strip": {
+        "lastSync": "Letzte Synchronisierung",
+        "never": "Nie ausgeführt",
+        "trigger": "Start",
+        "duration": "Dauer",
+        "seconds_one": "{{count}} Sekunde",
+        "seconds_other": "{{count}} Sekunden",
+        "result": "Ergebnis",
+        "records": "Objekte",
+        "recordCounts": "{{linked}} verknüpft · {{attention}} zu prüfen",
+        "lastRun": "Letzter Lauf: {{summary}}",
+        "createdCount_one": "{{count}} angelegt",
+        "createdCount_other": "{{count}} angelegt",
+        "updatedCount_one": "{{count}} aktualisiert",
+        "updatedCount_other": "{{count}} aktualisiert"
+      },
+      "trigger": {
+        "manual": "Manuell",
+        "scheduled": "Automatisch"
+      },
+      "syncStatus": {
+        "never": "Nie ausgeführt",
+        "running": "Läuft",
+        "success": "Erfolgreich",
+        "failure": "Fehlgeschlagen"
+      },
+      "states": {
+        "ambiguous": "Zu entscheiden",
+        "missing": "Fehlt in Netbox",
+        "error": "Fehler",
+        "ignored": "Ignoriert",
+        "linked": "Verknüpft"
+      },
+      "objectType": {
+        "device": "Gerät",
+        "vm": "Virtuelle Maschine"
+      },
+      "records": {
+        "empty": "Hier gibt es nichts anzuzeigen.",
+        "unnamed": "Ohne Namen",
+        "range": "{{from}} bis {{to}} von {{total}}",
+        "previous": "Zurück",
+        "next": "Weiter",
+        "columns": {
+          "netboxName": "Netbox-Name",
+          "type": "Typ",
+          "asset": "KANAP-Asset",
+          "message": "Meldung",
+          "lastSeen": "Zuletzt gesehen",
+          "actions": "Aktionen"
+        }
+      },
+      "preview": {
+        "title": "Vor dem Anwenden prüfen",
+        "apply": "Anwenden",
+        "empty": "Nicht gesetzt",
+        "summary": "{{created}} anzulegen, {{updated}} zu aktualisieren, {{unchanged}} ohne Änderung.",
+        "truncated": "Hier sind nur die ersten 500 Objekte aufgeführt. Angewendet wird alles.",
+        "sections": {
+          "created": "Neue Assets ({{n}})",
+          "updated": "Aktualisierte Assets ({{n}})",
+          "ambiguous": "Zu entscheiden ({{n}})",
+          "skipped": "Übersprungen ({{n}})",
+          "missing": "Fehlt in Netbox ({{n}})",
+          "warnings": "Warnungen"
+        }
+      },
+      "skipReason": {
+        "unmapped_role": "Rolle nicht zugeordnet",
+        "unmapped_site": "Standort nicht zugeordnet",
+        "unnamed": "Kein Name in Netbox",
+        "ignored": "Von Ihnen ignoriert"
+      },
+      "diffFields": {
+        "name": "Name",
+        "kind": "Asset-Typ",
+        "location": "Standort",
+        "status": "Lebenszyklus",
+        "hostname": "Hostname",
+        "domain": "Domäne",
+        "operating_system": "Betriebssystem",
+        "primary_ip": "Primäre IP-Adresse",
+        "serial_number": "Seriennummer",
+        "manufacturer": "Hersteller",
+        "model": "Modell",
+        "rack_location": "Rack-Position",
+        "rack_unit": "Höheneinheit"
+      },
+      "mappings": {
+        "intro": "Nur zugeordnete Rollen und Standorte werden importiert. Alles, was auf „Nicht importieren“ steht, bleibt außen vor.",
+        "roles": "Netbox-Rollen",
+        "sites": "Netbox-Standorte",
+        "doNotImport": "Nicht importieren",
+        "suggested": "Vorschlag",
+        "save": "Zuordnungen speichern",
+        "saved": "Zuordnungen gespeichert.",
+        "columns": {
+          "netboxRole": "Netbox-Rolle",
+          "netboxSite": "Netbox-Standort",
+          "objects": "Objekte",
+          "assetType": "KANAP-Asset-Typ",
+          "location": "KANAP-Standort"
+        },
+        "counts": {
+          "devices_one": "{{count}} Gerät",
+          "devices_other": "{{count}} Geräte",
+          "virtualMachines_one": "{{count}} virtuelle Maschine",
+          "virtualMachines_other": "{{count}} virtuelle Maschinen",
+          "none": "Keine"
+        },
+        "reservedRoles": {
+          "virtualMachines": "Virtuelle Maschinen"
+        }
+      },
+      "retire": {
+        "title": "Asset als „Außer Betrieb“ markieren",
+        "confirm": "Als „Außer Betrieb“ markieren",
+        "body": "{{name}} ist nicht mehr in Netbox. Der Lebenszyklus wird auf „Außer Betrieb“ gesetzt. Der Asset-Datensatz, seine Verknüpfungen und seine Historie bleiben erhalten."
+      },
+      "time": {
+        "justNow": "Gerade eben",
+        "minutesAgo_one": "vor {{count}} Minute",
+        "minutesAgo_other": "vor {{count}} Minuten",
+        "hoursAgo_one": "vor {{count}} Stunde",
+        "hoursAgo_other": "vor {{count}} Stunden",
+        "daysAgo_one": "vor {{count}} Tag",
+        "daysAgo_other": "vor {{count}} Tagen"
+      },
+      "messages": {
+        "previewFailed": "Die Vorschau konnte nicht erstellt werden.",
+        "syncFailed": "Die Synchronisierung konnte nicht gestartet werden.",
+        "alreadyRunning": "Es läuft bereits eine Synchronisierung.",
+        "actionFailed": "Die Aktion konnte nicht ausgeführt werden.",
+        "mappingFailed": "Die Netbox-Rollen und -Standorte konnten nicht geladen werden.",
+        "mappingSaveFailed": "Die Zuordnungen konnten nicht gespeichert werden."
+      },
+      "assetSource": {
+        "label": "Quelle:",
+        "synchronised": "Netbox · synchronisiert {{when}}",
+        "never": "Netbox · noch nicht synchronisiert",
+        "missing": "Nicht mehr in Netbox",
+        "open": "In Netbox öffnen",
+        "managed": "Wird von Netbox verwaltet"
+      },
+      "notices": {
+        "ambiguous_candidates": "Mehrere Assets kommen für dieses Objekt infrage. Wählen Sie eines aus oder legen Sie ein neues an.",
+        "contested_asset": "Zwei Netbox-Objekte verweisen auf dasselbe Asset. Entscheiden Sie, welches die Verknüpfung behält.",
+        "missing_from_netbox": "Dieses Objekt ist nicht mehr in Netbox. Entscheiden Sie, ob das Asset außer Betrieb genommen werden soll.",
+        "reevaluate_next_sync": "Dieses Objekt wird bei der nächsten Synchronisierung erneut geprüft.",
+        "os_not_in_catalog": "Das Betriebssystem „{{value}}“ steht nicht in Ihrem Katalog, der Wert blieb unverändert.",
+        "domain_not_in_catalog": "Die Domäne „{{value}}“ steht nicht in Ihrem Katalog, der Wert blieb unverändert.",
+        "hostname_invalid": "„{{value}}“ lässt sich nicht als Hostname verwenden, der Hostname blieb unverändert.",
+        "ipv6_skipped": "Die primäre Adresse ist eine IPv6-Adresse, die noch nicht importiert wird.",
+        "ip_conflict_skipped": "Die Adresse {{value}} wird bereits von einem anderen Asset genutzt und wurde ausgelassen.",
+        "subnet_not_in_catalog": "Das Subnetz {{value}} steht nicht in Ihrem Katalog, die Adresse wurde ohne es gespeichert.",
+        "fetch_incomplete": "Netbox hat mehr Seiten geliefert als erwartet. Einige Objekte wurden nicht geprüft.",
+        "save_failed": "Dieses Objekt konnte nicht gespeichert werden. Die Details stehen im Serverprotokoll.",
+        "validation_failed": "Dieses Objekt wurde abgelehnt:",
+        "os_ambiguous": "Das Betriebssystem „{{value}}“ passt zu mehreren Einträgen in Ihrem Katalog, der Wert blieb unverändert.",
+        "status_not_mapped": "Der Netbox-Status „{{value}}“ hat keine Entsprechung in KANAP, der Lebenszyklus blieb unverändert.",
+        "lifecycle_not_in_catalog": "Der Lebenszyklus „{{value}}“ steht nicht in Ihrem Katalog, der Wert blieb unverändert.",
+        "no_ip_address_type": "In den IT-Einstellungen ist kein IP-Adresstyp eingerichtet, die Adresse wurde nicht importiert."
+      }
     }
   },
   "workspace": {
