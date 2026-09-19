@@ -339,12 +339,12 @@ nav:
       - Assets: assets.md
       - Connections: connections.md
       - Connection Map: connection-map.md
+      - "Netbox synchronisation": netbox.md
     - Applications:
       - Applications: applications.md
       - Interfaces: interfaces.md
       - Interface Map: interface-map.md
     - Incidents: incidents.md
-    - "Netbox synchronisation": netbox.md
     - Settings: it-ops-settings.md
 
   - Knowledge:

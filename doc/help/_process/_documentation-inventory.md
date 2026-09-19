@@ -135,6 +135,7 @@ _Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect t
 | `/it/assets` | AssetsPage + AssetWorkspacePage | **DOCUMENTED** | `assets.md` |
 | `/it/connections` | ConnectionsPage + ConnectionWorkspacePage | **DOCUMENTED** | `connections.md` |
 | `/it/connection-map` | ConnectionMapPage | **DOCUMENTED** | `connection-map.md` |
+| `/it/netbox` | NetboxSyncPage | **DOCUMENTED** | `netbox.md` |
 
 **Applications**
 
@@ -143,12 +144,6 @@ _Note: `/my/dashboard` redirects to `/`. `/my/tasks` and `/ops/tasks` redirect t
 | `/it/applications` | ApplicationsPage + ApplicationWorkspacePage | **DOCUMENTED** | `applications.md` |
 | `/it/interfaces` | InterfacesPage + InterfaceWorkspacePage | **DOCUMENTED** | `interfaces.md` |
 | `/it/interface-map` | InterfaceMapPage | **DOCUMENTED** | `interface-map.md` |
-
-**Operations**
-
-| Route | Component | Status | Doc File |
-|-------|-----------|--------|----------|
-| `/it/netbox` | NetboxSyncPage | **DOCUMENTED** | `netbox.md` |
 
 **Settings**
 
