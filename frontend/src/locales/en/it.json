@@ -270,6 +270,8 @@
       "records": {
         "empty": "Nothing to show here.",
         "unnamed": "Without a name",
+        "searchLabel": "Search the objects",
+        "searchPlaceholder": "e.g., par-esx",
         "range": "{{from}} to {{to}} of {{total}}",
         "previous": "Previous",
         "next": "Next",
@@ -753,6 +755,7 @@
         "identity": "Identity",
         "hostname": "Hostname",
         "hostnameRequired": "Hostname is required when a domain is selected",
+        "hostnameInvalid": "A host name can use only letters, digits, hyphens and dots. Each part between dots must be 63 characters or less.",
         "domain": "Domain",
         "fqdn": "FQDN",
         "aliases": "Aliases",

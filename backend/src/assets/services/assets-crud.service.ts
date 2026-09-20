@@ -171,7 +171,7 @@ export class AssetsCrudService extends AssetsBaseService {
       }
     }
     if (hostname && !this.validation.validateHostname(hostname)) {
-      throw new BadRequestException('Invalid hostname format (RFC 1123)');
+      throw new BadRequestException('A host name can use only letters, digits, hyphens and dots. Each part between dots must be 63 characters or less.');
     }
 
     // Compute FQDN
@@ -274,7 +274,7 @@ export class AssetsCrudService extends AssetsBaseService {
         }
       }
       if (newHostname && !this.validation.validateHostname(newHostname)) {
-        throw new BadRequestException('Invalid hostname format (RFC 1123)');
+        throw new BadRequestException('A host name can use only letters, digits, hyphens and dots. Each part between dots must be 63 characters or less.');
       }
       existing.fqdn = await this.validation.computeFqdn(newHostname, newDomain, tenant, opts?.manager);
     }

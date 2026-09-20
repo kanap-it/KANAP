@@ -48,6 +48,7 @@ import { useLocale } from '../../i18n/useLocale';
 
 import { useTranslation } from 'react-i18next';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
+import { isValidHostname, sanitizeHostname } from '../../utils/hostname';
 import { KanapDialog, PropertyGroup, PropertyRow, useKanapDialogs } from '../../components/design';
 import { MONO_FONT_FAMILY } from '../../config/ThemeContext';
 import { drawerAutocompleteListboxSx, drawerFieldValueSx, drawerMenuItemSx, drawerSelectSx } from '../../theme/formSx';
@@ -597,16 +598,6 @@ export default function AssetWorkspacePage() {
     return cleanHostname;
   }, [hostname, domain, domainOptions]);
 
-  // Hostname sanitization function
-  const sanitizeHostname = React.useCallback((value: string): string => {
-    let result = value.toLowerCase();
-    result = result.replace(/[\s_]+/g, '-');
-    result = result.replace(/[^a-z0-9-]/g, '');
-    result = result.replace(/-+/g, '-');
-    result = result.replace(/^-+|-+$/g, '');
-    return result.slice(0, 63);
-  }, []);
-
   // Prefill hostname from sanitized name on create (keep syncing until user manually edits hostname)
   const [hostnameManuallyEdited, setHostnameManuallyEdited] = React.useState(false);
   React.useEffect(() => {
@@ -615,10 +606,12 @@ export default function AssetWorkspacePage() {
     if (!name) return;
     const sanitized = sanitizeHostname(name);
     setHostname(sanitized);
-  }, [isCreate, name, sanitizeHostname, hostnameManuallyEdited]);
+  }, [isCreate, name, hostnameManuallyEdited]);
 
   // Check if hostname is required (domain is a "real" domain)
   const hostnameRequired = domain && domain !== 'workgroup' && domain !== 'n-a';
+  // A host name may carry several dot-separated parts, so `dl3.robot-15ms.ie2000` is fine.
+  const hostnameMalformed = !!hostname.trim() && !isValidHostname(hostname.trim());
 
   const networkSegmentOptions = React.useMemo(
     () => (byField.networkSegment || []).map((o) => ({
@@ -825,6 +818,10 @@ export default function AssetWorkspacePage() {
     }
     if (!provider) {
       setError('Provider is required.');
+      return;
+    }
+    if (hostnameMalformed) {
+      setError(t('workspace.asset.technical.hostnameInvalid'));
       return;
     }
     setSaving(true);
@@ -2004,10 +2001,17 @@ export default function AssetWorkspacePage() {
                               : `${cleanHostname}.${domainOpt.dns_suffix}`)
                           : null;
                         setHostname(next);
+                        if (hostnameMalformed) return;
                         if (!isCreate && (next || '') !== (data?.hostname || '')) void patchAsset({ hostname: next || null, fqdn: nextFqdn });
                       }}
-                      error={!!hostnameRequired && !hostname}
-                      helperText={hostnameRequired && !hostname ? 'Hostname is required when a domain is selected' : undefined}
+                      error={(!!hostnameRequired && !hostname) || hostnameMalformed}
+                      helperText={
+                        hostnameRequired && !hostname
+                          ? t('workspace.asset.technical.hostnameRequired')
+                          : hostnameMalformed
+                            ? t('workspace.asset.technical.hostnameInvalid')
+                            : undefined
+                      }
                       placeholder="e.g., server1"
                       size="small"
                       variant="standard"

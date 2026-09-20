@@ -2,6 +2,7 @@ import { CatalogOptionLike, findCatalogOption } from '../it-ops-settings/catalog
 import { NetboxNotice, netboxNotice } from './netbox-notice';
 import { NetboxLocation, NetboxLocationIndex, NetboxObject, NetboxObjectType } from './netbox.types';
 import { isRecord } from '../common/object-guards';
+import { isValidHostname } from '../assets/hostname.util';
 
 // Pure normalisation and mapping: Netbox JSON in, a KANAP asset/hardware patch
 // out. No database, no HTTP, so the whole matrix is unit-testable.
@@ -117,8 +118,6 @@ const NETBOX_STATUS_MAP: Record<string, string> = {
  */
 const NETBOX_ATTENTION_STATUSES = new Set(['offline', 'failed', 'paused']);
 
-const HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i;
-
 function textOrNull(value: unknown): string | null {
   if (value == null) return null;
   const normalized = String(value).trim();
@@ -127,11 +126,6 @@ function textOrNull(value: unknown): string | null {
 
 function nestedText(value: unknown, key: string): string | null {
   return isRecord(value) ? textOrNull(value[key]) : null;
-}
-
-/** RFC 1123 single label, which is what the asset `hostname` column holds. */
-export function isValidHostname(value: string): boolean {
-  return value.length > 0 && value.length <= 63 && HOSTNAME_RE.test(value);
 }
 
 /**

@@ -68,7 +68,10 @@ const LINKED_ROW = {
   id: 'rec-2',
   external_name: 'par-nas-01',
   state: 'linked',
-  asset: { id: 'asset-2', name: 'PAR-NAS-01', asset_reference: 'AST-9', status: 'active' },
+  asset: {
+    id: 'asset-2', name: 'PAR-NAS-01', asset_reference: 'AST-9', status: 'active',
+    kind: 'network_switch', kind_label: 'Network switch',
+  },
   candidates: [],
   message: null,
 };
@@ -181,6 +184,9 @@ describe('NetboxSyncPage', () => {
     await screen.findByText('Review before applying');
   }
 
+  const recordCalls = () =>
+    (apiClient.get as any).mock.calls.filter((call: any[]) => call[0] === '/netbox/records');
+
   const previewCalls = () =>
     (apiClient.post as any).mock.calls.filter((call: unknown[]) => call[0] === '/netbox/sync/preview');
 
@@ -209,6 +215,51 @@ describe('NetboxSyncPage', () => {
 
     expect(await screen.findByText('par-nas-01')).toBeInTheDocument();
     expect(screen.getByText('AST-9')).toBeInTheDocument();
+  });
+
+  it('shows the KANAP asset type of a linked object, not the Netbox object type', async () => {
+    renderPage('/it/netbox?state=linked');
+
+    expect(await screen.findByText('par-nas-01')).toBeInTheDocument();
+    expect(screen.getByText('Network switch')).toBeInTheDocument();
+    // Every switch and every server is a "Device" on the Netbox side: useless here.
+    expect(screen.queryByText('Device')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the Netbox object type, muted, when no asset is linked yet', async () => {
+    renderPage();
+
+    expect(await screen.findByText('par-esx-01')).toBeInTheDocument();
+    expect(screen.getByText('Device')).toHaveClass('kanap-muted');
+  });
+
+  it('searches the list from the search field, starting again at the first page', async () => {
+    (apiClient.get as any).mockImplementation((url: string, config?: any) => {
+      if (url === '/netbox/status') return Promise.resolve(STATUS);
+      if (url === '/netbox/records') {
+        // More than one page, so the search has a page to reset.
+        return Promise.resolve({ items: [AMBIGUOUS_ROW], total: 120 });
+      }
+      throw new Error(`Unexpected GET ${url}`);
+    });
+
+    renderPage();
+    await screen.findByText('par-esx-01');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(recordCalls().at(-1)?.[1].params.page).toBe(2));
+
+    fireEvent.change(screen.getByLabelText('Search the objects'), { target: { value: 'esx' } });
+
+    await waitFor(() => {
+      const last = recordCalls().at(-1)?.[1].params;
+      expect(last.q).toBe('esx');
+      expect(last.page).toBe(1);
+    });
+
+    // Clearing the field lists everything again.
+    fireEvent.change(screen.getByLabelText('Search the objects'), { target: { value: '' } });
+    await waitFor(() => expect(recordCalls().at(-1)?.[1].params.q).toBeUndefined());
   });
 
   it('counts mapping rows as devices or virtual machines and translates the reserved row', async () => {

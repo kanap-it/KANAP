@@ -270,6 +270,8 @@
       "records": {
         "empty": "Rien à afficher ici.",
         "unnamed": "Sans nom",
+        "searchLabel": "Rechercher un objet",
+        "searchPlaceholder": "ex. : par-esx",
         "range": "{{from}} à {{to}} sur {{total}}",
         "previous": "Précédent",
         "next": "Suivant",
@@ -753,6 +755,7 @@
         "identity": "Identité",
         "hostname": "Nom d'hôte",
         "hostnameRequired": "Le nom d'hôte est requis lorsqu'un domaine est sélectionné",
+        "hostnameInvalid": "Un nom d'hôte ne peut contenir que des lettres, des chiffres, des traits d'union et des points. Chaque partie entre deux points doit faire 63 caractères au maximum.",
         "domain": "Domaine",
         "fqdn": "FQDN",
         "aliases": "Alias",

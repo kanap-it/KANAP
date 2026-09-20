@@ -155,7 +155,15 @@ export type NetboxRecordRow = {
   external_name: string | null;
   external_url: string;
   state: AssetExternalLinkState;
-  asset: { id: string; name: string; asset_reference: string | null; status: string } | null;
+  asset: {
+    id: string;
+    name: string;
+    asset_reference: string | null;
+    status: string;
+    /** The asset type code, and its label from the tenant's catalog. */
+    kind: string | null;
+    kind_label: string | null;
+  } | null;
   candidates: Array<{ id: string; name: string; asset_reference: string | null }>;
   /** The raw status the inventory reports; KANAP's lifecycle does not follow it. */
   external_status: string | null;
@@ -256,7 +264,20 @@ const HARDWARE_FIELDS: Array<keyof MappedHardwareFields> = [
 const RECORD_COLUMNS = `l.id, l.external_type, l.external_id, l.external_name, l.external_url, l.state,
               l.external_status, l.candidate_asset_ids, l.message_code, l.message_params,
               l.last_seen_at, l.last_synced_at,
-              a.id AS asset_id, a.name AS asset_name, a.asset_reference, a.status AS asset_status`;
+              a.id AS asset_id, a.name AS asset_name, a.asset_reference, a.status AS asset_status,
+              a.kind AS asset_kind`;
+
+/**
+ * The needle of a record search, ready to bind. `%`, `_` and `\` typed by the
+ * user are escaped so they match themselves instead of acting as wildcards;
+ * the value itself never reaches the SQL text.
+ */
+export function netboxRecordSearchNeedle(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim().slice(0, 100);
+  if (!trimmed) return null;
+  return `%${trimmed.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+}
 
 function emptyRecordCounts(): Record<AssetExternalLinkState, number> {
   return { linked: 0, ambiguous: 0, missing: 0, ignored: 0, error: 0 };
@@ -292,7 +313,7 @@ export function plainErrorMessage(error: unknown): string {
 
 /**
  * The notice one object's failure deserves. A rejection from the asset
- * services already reads plainly ("Invalid hostname format"), so it is passed
+ * services already reads plainly ("A host name can use only…"), so it is passed
  * through; anything else points at the server log rather than at the Netbox
  * connection, which is demonstrably working if we got this far.
  */
@@ -381,19 +402,34 @@ export class NetboxSyncService {
   async listRecords(
     manager: EntityManager,
     tenantId: string,
-    query: { state?: string; page?: string | number; limit?: string | number },
+    query: { state?: string; q?: string; page?: string | number; limit?: string | number },
   ): Promise<{ items: NetboxRecordRow[]; total: number }> {
     // Whole numbers only, and bound as parameters: neither value reaches the
     // SQL text, so a crafted query string cannot shape the statement.
     const page = Math.max(1, Math.floor(Number(query.page)) || 1);
     const limit = Math.min(200, Math.max(1, Math.floor(Number(query.limit)) || 50));
     const state = typeof query.state === 'string' && query.state.trim() ? query.state.trim() : null;
+    const needle = netboxRecordSearchNeedle(query.q);
 
-    const where = `WHERE l.tenant_id = $1 AND l.source = $2${state ? ' AND l.state = $3' : ''}`;
-    const params: unknown[] = state ? [tenantId, NETBOX_LINK_SOURCE, state] : [tenantId, NETBOX_LINK_SOURCE];
+    const params: unknown[] = [tenantId, NETBOX_LINK_SOURCE];
+    let where = 'WHERE l.tenant_id = $1 AND l.source = $2';
+    if (state) {
+      params.push(state);
+      where += ` AND l.state = $${params.length}`;
+    }
+    if (needle) {
+      params.push(needle);
+      // The needle is bound, never inlined; the asset side of the search is
+      // reached through the same tenant-scoped join as the page query.
+      where += ` AND (l.external_name ILIKE $${params.length}`
+        + ` OR a.name ILIKE $${params.length}`
+        + ` OR a.asset_reference ILIKE $${params.length})`;
+    }
+    // The count only needs the assets table when the search reads from it.
+    const countJoin = needle ? 'LEFT JOIN assets a ON a.id = l.asset_id AND a.tenant_id = $1' : '';
 
     const totalRows: Array<{ total: string }> = await manager.query(
-      `SELECT count(*)::text AS total FROM asset_external_links l ${where}`,
+      `SELECT count(*)::text AS total FROM asset_external_links l ${countJoin} ${where}`,
       params,
     );
     const rows = await manager.query(
@@ -428,6 +464,15 @@ export class NetboxSyncService {
       : [];
     const candidateById = new Map(candidates.map((asset) => [asset.id, asset]));
 
+    // The asset type the user knows ("Switch", "Physical server") lives in the
+    // tenant's catalog, not on the row. One read covers the whole page; a code
+    // the catalog does not hold falls back to itself.
+    const kindLabels = new Map<string, string>();
+    if (rows.some((row) => row.asset_kind)) {
+      const settings = await this.itOpsSettings.getSettings(tenantId, { manager });
+      for (const option of settings.serverKinds) kindLabels.set(option.code, option.label);
+    }
+
     return rows.map((row) => ({
       id: row.id,
       external_type: row.external_type,
@@ -437,7 +482,14 @@ export class NetboxSyncService {
       state: row.state,
       external_status: row.external_status ?? null,
       asset: row.asset_id
-        ? { id: row.asset_id, name: row.asset_name, asset_reference: row.asset_reference, status: row.asset_status }
+        ? {
+          id: row.asset_id,
+          name: row.asset_name,
+          asset_reference: row.asset_reference,
+          status: row.asset_status,
+          kind: row.asset_kind ?? null,
+          kind_label: row.asset_kind ? kindLabels.get(row.asset_kind) ?? row.asset_kind : null,
+        }
         : null,
       candidates: (Array.isArray(row.candidate_asset_ids) ? row.candidate_asset_ids : [])
         .map((id: string) => candidateById.get(id))
