@@ -56,6 +56,8 @@ Una fila adicional acompaña a los roles: **Máquinas virtuales**. Todas las má
 
 Cada fila muestra cuántos equipos y máquinas virtuales cubre, de modo que puede ver qué va a traer una elección. Cuando un nombre de Netbox coincide claramente con uno suyo, la fila viene rellenada y marcada como **Sugerido**. Una sugerencia es solo una propuesta: nada se usa hasta que pulse **Guardar correspondencias**.
 
+Asignar un sitio de Netbox también trae sus ubicaciones de Netbox como sub-ubicaciones de la ubicación que haya elegido. Solo las ubicaciones de primer nivel de ese sitio, y solo aquellas en las que realmente se encuentra un equipo importado. Un equipo situado más abajo, en «Edificio A > Planta 1 > Sala 101», se asocia a «Edificio A»: KANAP registra dónde está un equipo al nivel de un sitio y un edificio, no de una sala. No hay nada que configurar para esto.
+
 ---
 
 ## La primera sincronización
@@ -64,6 +66,7 @@ Pulse **Sincronizar ahora**. KANAP lee Netbox y muestra **Revisar antes de aplic
 
 La vista previa está agrupada:
 
+- **Sub-ubicaciones**: las filas compartidas que la ejecución crea, adopta o renombra, enumeradas una vez cada una con la ubicación a la que pertenecen y cuántos equipos acaban en ellas. Renombrar una ubicación de Netbox aparece aquí como una sola línea, no como el movimiento de cada activo.
 - **Por crear**: objetos sin equivalente en KANAP. Se van a crear.
 - **Por actualizar**: objetos asociados a un activo existente que difiere. Todavía no se ha modificado nada, los valores se escriben cuando usted aplica. Cada uno enumera los campos que cambian, campo por campo, como `antes → después`.
 - **Por decidir**: objetos sobre los que KANAP no decide por su cuenta. No les pasa nada hasta que los resuelva, aquí o más tarde en la página.
@@ -122,6 +125,7 @@ Otras dos reglas mantienen el resultado limpio:
 | Sistema operativo | Adjuntos, tareas, incidentes |
 | Ciclo de vida | Todo lo demás del activo |
 | Ubicación | |
+| Sub-ubicación | |
 
 En un activo vinculado a Netbox, los campos gestionados aparecen como **Gestionado por Netbox** y no se pueden editar en KANAP. Cámbielos en Netbox y la siguiente ejecución los trae. Todo lo demás del activo sigue siendo editable como siempre.
 
@@ -152,6 +156,18 @@ Una sincronización nunca pone un activo en **Retirado**. Retirar un equipo es u
 
 **Los valores que KANAP no conoce se omiten, nunca se inventan.** Un sistema operativo, un sufijo de dominio o un ciclo de vida que no esté en su catálogo (**Panorama IT > Configuración**) se deja sin cambios y se señala como aviso. Añada la entrada ahí y vuelva a ejecutar. Una dirección principal IPv6 se deja fuera igual, con el aviso «La dirección principal es una dirección IPv6, que todavía no se importa.».
 
+**Las sub-ubicaciones se comparten entre equipos.** Una sub-ubicación es una sola fila en una ubicación, y cada activo colocado ahí apunta a ella. Renombrar la ubicación de Netbox renombra esa única fila, así que todos los equipos que la llevan siguen a la vez, incluidos los que usted mismo haya clasificado ahí. Nada se mueve activo por activo.
+
+**Una sub-ubicación creada a mano se adopta, no se duplica.** Cuando una ubicación de Netbox tiene el mismo nombre que una sub-ubicación que ya usa en esa ubicación, KANAP vincula las dos: su fila conserva su identidad, adopta la grafía de Netbox y queda marcada como **Netbox** a partir de entonces. Sus activos se quedan donde están.
+
+**Nunca se elimina nada.** Una ubicación retirada de Netbox deja su sub-ubicación en su sitio, con los activos que la llevan. Una sub-ubicación vinculada a Netbox sigue siendo editable: renómbrela o elimínela en KANAP y la siguiente ejecución la vuelve a alinear, creándola de nuevo si un activo todavía la necesita.
+
+**Un equipo sin ubicación conserva su sub-ubicación.** Solo se escribe una ubicación que Netbox comunique de verdad, la misma regla que para cualquier otro campo gestionado. Las máquinas virtuales no reciben ninguna: una máquina virtual de Netbox no lleva ubicación.
+
+**Dos ubicaciones con el mismo nombre en un mismo sitio.** Netbox permite «Sala técnica» y «sala técnica» una junto a otra, KANAP no. La primera que se importa gana, y la otra se señala como aviso. Lo mismo ocurre cuando dos sitios de Netbox están asignados a la misma ubicación de KANAP y ambos contienen una ubicación con el mismo nombre.
+
+**Si Netbox no devuelve sus ubicaciones**, la ejecución continúa con los equipos y deja todas las sub-ubicaciones intactas, con una nota en la vista previa que lo indica. Una asignación parcial sería peor que ninguna.
+
 **Un activo nuevo toma el proveedor de su ubicación** cuando ese proveedor existe en su configuración IT, y «Otro» en caso contrario. Netbox no tiene noción de proveedor de alojamiento.
 
 **Una ejecución que falla sin parar se detiene.** Después de 10 objetos seguidos que no se han podido guardar, la ejecución se detiene y se declara fallida, en vez de llenar la lista de filas en error y luego anunciar que todo ha ido bien.
@@ -167,6 +183,8 @@ Una sincronización nunca pone un activo en **Retirado**. Retirar un equipo es u
 Active **Sincronización automática** en la tarjeta de la integración y KANAP ejecuta el mismo trabajo cada hora, aplicando los cambios sin vista previa. El conmutador es por espacio de trabajo, y solo se visitan los espacios de trabajo que lo han activado. El trabajo horario nunca hace la primera importación: empieza cuando usted ha aplicado una sincronización y esta ha terminado sin errores. Hasta entonces el conmutador puede estar activado sin que se ejecute nada.
 
 Los objetos que necesitan una decisión no se resuelven nunca de forma automática. Se acumulan en **Por decidir** y le esperan.
+
+Las sub-ubicaciones también las crea y renombra la ejecución automática. Un espacio de trabajo cuyo primer import ya está hecho las recibe en la siguiente ejecución horaria, sin vista previa previa.
 
 Una ejecución manual y una ejecución programada no pueden solaparse: si ya hay una en marcha, la otra no hace nada para ese espacio de trabajo y vuelve a intentarlo más tarde. En la edición en la nube, un espacio de trabajo con la suscripción congelada o con la prueba caducada se omite hasta que se resuelva la suscripción. Las instalaciones on-premise no se ven afectadas.
 
@@ -218,6 +236,8 @@ El widget no molesta cuando no hay nada que hacer: una línea que dice que la si
 | Un aviso dice que un sistema operativo no está en su catálogo | La plataforma de Netbox no tiene entrada correspondiente en **Panorama IT > Configuración**. Añádala ahí y vuelva a ejecutar; el campo se deja sin cambios hasta entonces. |
 | La ejecución ha fallado después de unos pocos objetos | Diez objetos seguidos no se han podido guardar, así que la ejecución se ha detenido. La causa suele ser la misma para todos, y los detalles están en el registro del servidor. |
 | «Netbox ha devuelto más páginas de las previstas. Algunos objetos no se han revisado.» | El inventario es más grande de lo que una ejecución lee. Lo leído se aplica, y no se marca nada como ausente. Reduzca el alcance en **Correspondencias** para que la ejecución cubra lo que le importa. |
+| Una sub-ubicación avisa de que su nombre ya está en uso | Dos ubicaciones de Netbox de ese sitio comparten el nombre, o dos sitios asignados apuntan a la misma ubicación de KANAP y cada uno contiene una ubicación con ese nombre. Renombre una de ellas en Netbox, o fusiónelas allí. Los equipos se importan en cualquier caso, sin sub-ubicación. |
+| «Netbox no ha devuelto sus ubicaciones» | El token de API no puede leer las ubicaciones. Déle permiso sobre `dcim.location` en Netbox, o déjelo así: la importación de equipos no se ve afectada. |
 
 ---
 

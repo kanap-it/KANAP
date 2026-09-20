@@ -454,4 +454,80 @@ describe('NetboxSyncPage', () => {
     await new Promise((resolve) => { setTimeout(resolve, 900); });
     expect(previewCalls()).toHaveLength(2);
   });
+  it('lists the sub-locations a run changes, once each', async () => {
+    (apiClient.post as any).mockImplementation((url: string) => {
+      if (url === '/netbox/sync/preview') {
+        return Promise.resolve({
+          ...PREVIEW,
+          // The equipment row says where the asset goes, in words: the field
+          // label is translated, never the raw diff key.
+          rows: PREVIEW.rows.map((row) => (row.external_id === '13'
+            ? { ...row, diffs: [{ field: 'sub_location', before: null, after: 'Salle serveurs' }] }
+            : row)),
+          sub_locations: {
+            available: true,
+            changes: [
+              {
+                action: 'create', sub_item_id: null, location_id: 'loc-1', location_name: 'Paris Data Center',
+                external_id: '6', external_url: 'https://netbox.internal/dcim/locations/6/',
+                name: 'Salle serveurs', previous_name: null, description: null, asset_count: 12,
+              },
+              {
+                action: 'rename', sub_item_id: 'sub-1', location_id: 'loc-1', location_name: 'Paris Data Center',
+                external_id: '7', external_url: 'https://netbox.internal/dcim/locations/7/',
+                name: 'Salle B', previous_name: 'Salle A', description: null, asset_count: 0,
+              },
+              {
+                action: 'conflict', sub_item_id: null, location_id: 'loc-2', location_name: 'Gouda Server Room',
+                external_id: '9', external_url: 'https://netbox.internal/dcim/locations/9/',
+                name: 'Local technique', previous_name: null, description: null, asset_count: 1,
+              },
+            ],
+          },
+        });
+      }
+      if (url === '/netbox/sync') return Promise.resolve(STATUS);
+      throw new Error(`Unexpected POST ${url}`);
+    });
+
+    await openPreview();
+
+    expect(await screen.findByText('Sub-locations (3)')).toBeInTheDocument();
+    expect(screen.getByText(/^Sub-location: .* → Salle serveurs$/)).toBeInTheDocument();
+    expect(screen.queryByText(/sub_location/)).not.toBeInTheDocument();
+    expect(screen.getByText('New')).toBeInTheDocument();
+    // A rename reads as one shared row changing, not as every asset moving.
+    expect(screen.getByText('Salle A → Salle B')).toBeInTheDocument();
+    expect(screen.getByText('Renamed')).toBeInTheDocument();
+    expect(screen.getByText('Name already used, left unchanged')).toBeInTheDocument();
+    expect(screen.getByText('12 assets')).toBeInTheDocument();
+    // A shared row nobody ends up in shows no count at all.
+    expect(screen.queryByText('0 assets')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Salle serveurs' }))
+      .toHaveAttribute('href', 'https://netbox.internal/dcim/locations/6/');
+  });
+
+  it('says nothing about sub-locations when the run changes none', async () => {
+    await openPreview();
+
+    expect(await screen.findByText('To create (1)')).toBeInTheDocument();
+    expect(screen.queryByText(/^Sub-locations/)).not.toBeInTheDocument();
+  });
+
+  it('says why sub-locations were left alone when Netbox refused its locations', async () => {
+    (apiClient.post as any).mockImplementation((url: string) => {
+      if (url === '/netbox/sync/preview') {
+        return Promise.resolve({ ...PREVIEW, sub_locations: { available: false, changes: [] } });
+      }
+      if (url === '/netbox/sync') return Promise.resolve(STATUS);
+      throw new Error(`Unexpected POST ${url}`);
+    });
+
+    await openPreview();
+
+    expect(await screen.findByText('Netbox did not return its locations. Sub-locations were left unchanged in this run.'))
+      .toBeInTheDocument();
+    // The equipment plan is untouched by it.
+    expect(screen.getByText('To create (1)')).toBeInTheDocument();
+  });
 });

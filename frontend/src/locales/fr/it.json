@@ -292,7 +292,17 @@
           "skipped": "Ignorés ({{n}})",
           "missing": "Absents de Netbox ({{n}})",
           "warnings": "Avertissements",
-          "decided": "Réglés par vous ({{n}})"
+          "decided": "Réglés par vous ({{n}})",
+          "subLocations": "Sous-sites ({{n}})"
+        },
+        "subLocations": {
+          "create": "Nouveau",
+          "adopt": "Existant, désormais lié à Netbox",
+          "rename": "Renommé",
+          "update": "Description mise à jour",
+          "conflict": "Nom déjà utilisé, laissé inchangé",
+          "assets_one": "{{count}} actif",
+          "assets_other": "{{count}} actifs"
         },
         "updating": "Mise à jour de l'aperçu...",
         "filterLabel": "Filtrer la liste",
@@ -349,6 +359,7 @@
         "name": "Nom",
         "kind": "Type d'actif",
         "location": "Site",
+        "sub_location": "Sous-site",
         "status": "Cycle de vie",
         "hostname": "Nom d'hôte",
         "domain": "Domaine",
@@ -384,7 +395,8 @@
         },
         "reservedRoles": {
           "virtualMachines": "Machines virtuelles"
-        }
+        },
+        "subLocationsHint": "Dans un site mis en correspondance, les emplacements Netbox de premier niveau deviennent des sous-sites ici. Un équipement placé plus bas est rattaché à l'emplacement de premier niveau au-dessus de lui."
       },
       "retire": {
         "title": "Passer l'actif en retiré",
@@ -436,7 +448,9 @@
         "lifecycle_not_in_catalog": "Le cycle de vie « {{value}} » ne figure pas dans votre catalogue, la valeur n'a pas été modifiée.",
         "no_ip_address_type": "Aucun type d'adresse IP n'est défini dans les paramètres IT, l'adresse n'a pas été importée.",
         "netbox_status_attention": "Netbox signale cet objet comme {{status}}.",
-        "ip_match_candidates": "Un actif utilise déjà l'adresse {{value}}. Indiquez s'il s'agit du même équipement."
+        "ip_match_candidates": "Un actif utilise déjà l'adresse {{value}}. Indiquez s'il s'agit du même équipement.",
+        "sub_location_name_taken": "Un sous-site nommé « {{value}} » existe déjà à ce site pour un autre emplacement Netbox. Le sous-site a été laissé inchangé.",
+        "locations_unavailable": "Netbox n'a pas renvoyé ses emplacements. Les sous-sites n'ont pas été modifiés lors de cette exécution."
       },
       "netboxStatus": {
         "active": "Actif",

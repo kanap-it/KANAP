@@ -56,6 +56,8 @@ Une ligne supplémentaire figure parmi les rôles : **Machines virtuelles**. Tou
 
 Chaque ligne indique combien d'équipements et de machines virtuelles elle représente, ce qui vous montre la portée réelle d'un choix. Quand un nom Netbox correspond clairement à l'un des vôtres, la ligne est préremplie et marquée **Suggéré**. Une suggestion n'est qu'une proposition : rien n'est pris en compte avant **Enregistrer les correspondances**.
 
+Mettre un site en correspondance fait aussi passer ses emplacements Netbox en sous-sites du site que vous avez choisi. Seuls les emplacements de premier niveau de ce site, et seulement ceux dans lesquels se trouve réellement un équipement importé. Un équipement placé plus bas, dans « Bâtiment A > Étage 1 > Salle 101 », est rattaché à « Bâtiment A » : KANAP enregistre où se trouve un équipement au niveau d'un site et d'un bâtiment, pas d'une salle. Rien n'est à configurer pour cela.
+
 ---
 
 ## La première synchronisation
@@ -64,6 +66,7 @@ Cliquez sur **Synchroniser maintenant**. KANAP lit Netbox et affiche **Vérifier
 
 L'aperçu est regroupé ainsi :
 
+- **Sous-sites** : les lignes partagées que l'exécution crée, adopte ou renomme, listées une fois chacune avec le site auquel elles appartiennent et le nombre d'équipements qui s'y retrouvent. Renommer un emplacement Netbox apparaît ici comme une seule ligne, et non comme un déplacement de chaque actif.
 - **À créer** : les objets sans équivalent dans KANAP. Ils seront créés.
 - **À mettre à jour** : les objets rapprochés d'un actif existant qui diffère. Rien n'est encore modifié, les valeurs sont écrites quand vous appliquez. Chacun liste les champs qui changent, champ par champ, sous la forme `avant → après`.
 - **À décider** : les objets que KANAP ne tranchera pas seul. Rien ne leur arrive tant que vous ne les traitez pas, ici ou plus tard sur la page.
@@ -122,6 +125,7 @@ Deux règles complètent le dispositif :
 | Système d'exploitation | Pièces jointes, tâches, incidents |
 | Cycle de vie | Tout le reste de la fiche |
 | Site | |
+| Sous-site | |
 
 Sur un actif lié à Netbox, les champs gérés portent la mention **Géré par Netbox** et ne sont pas modifiables dans KANAP. Modifiez-les dans Netbox : l'exécution suivante les reprend. Tout le reste de la fiche reste modifiable comme d'habitude.
 
@@ -152,6 +156,18 @@ Une synchronisation ne passe jamais un actif en **Retiré**. Retirer un équipem
 
 **Les valeurs inconnues de KANAP sont ignorées, jamais inventées.** Un système d'exploitation, un suffixe de domaine ou un cycle de vie sans entrée dans **Cartographie SI > Paramètres** reste inchangé et fait l'objet d'un avertissement. Ajoutez l'entrée, puis relancez. Une adresse principale en IPv6 est laissée de côté de la même manière, avec le message « L'adresse principale est une adresse IPv6, qui n'est pas encore importée. »
 
+**Les sous-sites sont partagés entre les équipements.** Un sous-site est une seule ligne sur un site, et chaque actif qui y est placé pointe vers elle. Renommer l'emplacement Netbox renomme cette ligne unique : tous les équipements qui la portent suivent d'un coup, y compris ceux que vous y avez classés vous-même. Rien ne bouge actif par actif.
+
+**Un sous-site créé à la main est adopté, pas dupliqué.** Quand un emplacement Netbox porte le même nom qu'un sous-site que vous utilisez déjà sur ce site, KANAP relie les deux : votre ligne garde son identité, prend l'orthographe de Netbox, et porte la mention **Netbox** à partir de là. Vos actifs restent où ils sont.
+
+**Rien n'est jamais supprimé.** Un emplacement retiré de Netbox laisse son sous-site en place, avec les actifs qui le portent. Un sous-site lié à Netbox reste modifiable : renommez-le ou supprimez-le dans KANAP, et l'exécution suivante le remet en ligne, en le recréant si un actif en a encore besoin.
+
+**Un équipement sans emplacement conserve son sous-site.** Seul un emplacement réellement présent dans Netbox est écrit, la même règle que pour tout autre champ géré. Les machines virtuelles n'en reçoivent jamais : une machine virtuelle Netbox ne porte aucun emplacement.
+
+**Deux emplacements de même nom sur un même site.** Netbox accepte « Local technique » et « local technique » côte à côte, KANAP non. Le premier importé l'emporte, et l'autre est signalé par un avertissement. Il en va de même quand deux sites Netbox sont mis en correspondance avec le même site KANAP et portent tous deux un emplacement de même nom.
+
+**Si Netbox ne renvoie pas ses emplacements**, l'exécution se poursuit avec les équipements et laisse tous les sous-sites intacts, avec une note en ce sens dans l'aperçu. Une affectation partielle serait pire que pas d'affectation du tout.
+
 **Un nouvel actif reprend le fournisseur de son site** quand ce fournisseur existe dans vos paramètres IT, et « Autre » sinon. Netbox n'a pas la notion de fournisseur d'hébergement.
 
 **Une exécution qui échoue en série s'arrête.** Après 10 objets consécutifs impossibles à enregistrer, l'exécution s'arrête et est signalée en échec, plutôt que de remplir la liste d'erreurs puis d'annoncer une réussite.
@@ -167,6 +183,8 @@ Une synchronisation ne passe jamais un actif en **Retiré**. Retirer un équipem
 Activez **Synchronisation automatique** sur la carte d'intégration : KANAP exécute le même traitement toutes les heures et applique les changements sans aperçu. L'interrupteur est propre à chaque organisation, et seules celles qui l'ont activé sont traitées. Le traitement horaire ne fait jamais le premier import : il démarre une fois que vous avez appliqué vous-même une synchronisation et qu'elle s'est terminée sans erreur. D'ici là, l'interrupteur peut être activé sans que rien ne s'exécute.
 
 Les objets qui demandent une décision ne sont jamais tranchés automatiquement. Ils s'accumulent dans **À décider** et vous attendent.
+
+Les sous-sites sont aussi créés et renommés par l'exécution automatique. Une organisation dont le premier import est déjà fait les reçoit à l'exécution horaire suivante, sans aperçu au préalable.
 
 Une exécution manuelle et une exécution automatique ne se chevauchent pas : si l'une est déjà en cours, l'autre ne fait rien et réessaie plus tard. Dans l'édition cloud, une organisation dont l'abonnement est suspendu ou dont la période d'essai est terminée est laissée de côté jusqu'à régularisation. Les installations on-premise ne sont pas concernées.
 
@@ -218,6 +236,8 @@ La tuile reste discrète quand il n'y a rien à faire : une ligne indiquant que 
 | Un avertissement signale un système d'exploitation absent de votre catalogue | La plateforme Netbox n'a pas d'entrée correspondante dans **Cartographie SI > Paramètres**. Ajoutez-la puis relancez ; d'ici là, le champ reste inchangé. |
 | L'exécution a échoué après quelques objets | Dix objets consécutifs n'ont pas pu être enregistrés, l'exécution s'est donc arrêtée. La cause est en général la même pour tous, et les détails figurent dans le journal du serveur. |
 | « Netbox a renvoyé plus de pages que prévu. Certains objets n'ont pas été examinés. » | L'inventaire est plus grand que ce qu'une exécution lit. Ce qui a été lu est appliqué, et rien n'est marqué absent. Restreignez le périmètre dans **Correspondances** pour que l'exécution couvre ce qui compte pour vous. |
+| Un sous-site signale que son nom est déjà utilisé | Deux emplacements Netbox de ce site portent le même nom, ou deux sites mis en correspondance pointent vers le même site KANAP et portent chacun un emplacement de ce nom. Renommez l'un des deux dans Netbox, ou fusionnez-les là-bas. Les équipements sont importés dans tous les cas, sans sous-site. |
+| « Netbox n'a pas renvoyé ses emplacements » | Le jeton d'API ne peut pas lire les emplacements. Accordez-lui la permission sur `dcim.location` dans Netbox, ou laissez-le ainsi : l'import des équipements n'est pas affecté. |
 
 ---
 

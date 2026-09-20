@@ -56,6 +56,8 @@ One extra row sits with the roles: **Virtual machines**. Every virtual machine N
 
 Each row shows how many devices and virtual machines it covers, so you can see what a choice is about to bring in. When a Netbox name clearly matches one of yours, the row is pre-filled and marked **Suggested**. A suggestion is only a proposal: nothing is used until you press **Save mappings**.
 
+Mapping a site also brings its Netbox Locations across as sub-locations of the location you chose. Only the top-level Locations of that site, and only the ones an imported device actually sits in. An equipment parked deeper, in "Building A > Floor 1 > Room 101", is attached to "Building A": KANAP records where equipment is at the level of a site and a building, not a room. There is nothing to configure for this.
+
 ---
 
 ## The first synchronisation
@@ -64,6 +66,7 @@ Press **Synchronise now**. KANAP reads Netbox and shows **Review before applying
 
 The preview is grouped:
 
+- **Sub-locations**: the shared rows the run creates, adopts or renames, listed once each with the location they belong to and how many equipment end up in them. Renaming a Location in Netbox shows up here as one line, not as every asset moving.
 - **To create**: objects with no counterpart in KANAP. They will be created.
 - **To update**: objects matched to an existing asset that differs. Nothing is changed yet, the values are written when you apply. Each one lists the fields that change, field by field, as `before → after`.
 - **Needs a decision**: objects KANAP will not decide on its own. Nothing happens to them until you settle them, here or later on the page.
@@ -122,6 +125,7 @@ Two further rules keep the result clean:
 | Operating system | Attachments, tasks, incidents |
 | Lifecycle status | Everything else on the asset |
 | Location | |
+| Sub-location | |
 
 On an asset that is linked to Netbox, the managed fields are shown as **Managed by Netbox** and cannot be edited in KANAP. Change them in Netbox and the next run brings them over. Everything else on the asset stays editable as usual.
 
@@ -152,6 +156,18 @@ A synchronisation never sets an asset to **Retired**. Retiring equipment is a de
 
 **Values KANAP does not know are skipped, never invented.** An operating system, a domain suffix or a lifecycle that has no entry in **IT Landscape > Settings** is left unchanged and reported as a warning. Add the entry there and run again. An IPv6 primary address is left out the same way, with the notice "The primary address is an IPv6 address, which is not imported yet."
 
+**Sub-locations are shared between equipment.** A sub-location is one row at a location, and every asset placed there points at it. Renaming the Location in Netbox renames that one row, so all the equipment carrying it follows at once, including equipment you filed there yourself. Nothing moves asset by asset.
+
+**A sub-location you created by hand is adopted, not duplicated.** When a Netbox Location has the same name as a sub-location you already use at that location, KANAP links the two: your row keeps its identity, takes the Netbox spelling, and is marked **Netbox** from then on. Your assets stay where they are.
+
+**Nothing is ever deleted.** A Location removed from Netbox leaves its sub-location in place, with the assets that carry it. A sub-location linked to Netbox stays editable: rename it or delete it in KANAP and the next run puts it back in line, creating it again if an asset still needs it.
+
+**A device with no Location keeps its sub-location.** Only a Location Netbox actually reports is written, the same rule as every other managed field. Virtual machines never receive one: a Netbox virtual machine carries no Location.
+
+**Two Locations with the same name at one site.** Netbox allows "Local technique" and "local technique" side by side, KANAP does not. The first one imported wins, and the other is reported as a warning. The same happens when two Netbox sites are mapped to the same KANAP location and both hold a Location of the same name.
+
+**If Netbox does not return its Locations**, the run carries on with the equipment and leaves every sub-location untouched, with a note in the preview saying so. A partial assignment would be worse than none.
+
 **A new asset takes the provider of its location** when that provider exists in your IT settings, and "Other" otherwise. Netbox has no notion of a hosting provider.
 
 **A run that keeps failing stops.** After 10 objects in a row fail to save, the run stops and is reported as failed, instead of filling the list with error rows and then claiming success.
@@ -167,6 +183,8 @@ A synchronisation never sets an asset to **Retired**. Retiring equipment is a de
 Turn **Automatic synchronisation** on in the integration card and KANAP runs the same job every hour, applying the changes without a preview. The switch is per tenant, and only tenants that turned it on are visited. The hourly job never does the first import: it starts once you have applied a synchronisation yourself and it finished without error. Until then the switch can be on and nothing runs.
 
 Objects that need a decision are never resolved automatically. They pile up under **To decide** and wait for you.
+
+Sub-locations are created and renamed by the automatic run too. A tenant whose first import is already done receives them at the next hourly run, without a preview beforehand.
 
 A manual run and a scheduled run cannot overlap: if one is already going, the other does nothing for that tenant and tries again later. In the cloud edition, a tenant whose subscription is frozen or whose trial has expired is skipped until the subscription is sorted out. On-premise installs are not concerned.
 
@@ -218,6 +236,8 @@ The tile stays out of the way when there is nothing to do: one line saying the s
 | A warning says an operating system is not in your catalogue | The Netbox platform has no matching entry in **IT Landscape > Settings**. Add it there and run again; the field is left unchanged until you do. |
 | The run failed after a handful of objects | Ten objects in a row could not be saved, so the run stopped. The cause is usually the same for all of them, and the details are in the server log. |
 | "Netbox returned more pages than expected. Some objects were not looked at." | The inventory is larger than one run reads. What was read is applied, and nothing is marked missing. Narrow the scope in **Mappings** so the run covers what matters to you. |
+| A sub-location warns that its name is already used | Two Netbox Locations of that site share the name, or two mapped sites point at the same KANAP location and each holds a Location of that name. Rename one of them in Netbox, or merge them there. The equipment is imported either way, without a sub-location. |
+| "Netbox did not return its locations" | The API token cannot read Locations. Give it permission on `dcim.location` in Netbox, or leave it: the equipment import is unaffected. |
 
 ---
 

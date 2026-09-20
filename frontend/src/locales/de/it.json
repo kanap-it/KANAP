@@ -292,7 +292,17 @@
           "skipped": "Übersprungen ({{n}})",
           "missing": "Fehlt in Netbox ({{n}})",
           "warnings": "Warnungen",
-          "decided": "Von Ihnen geklärt ({{n}})"
+          "decided": "Von Ihnen geklärt ({{n}})",
+          "subLocations": "Unterstandorte ({{n}})"
+        },
+        "subLocations": {
+          "create": "Neu",
+          "adopt": "Vorhanden, jetzt mit Netbox verknüpft",
+          "rename": "Umbenannt",
+          "update": "Beschreibung aktualisiert",
+          "conflict": "Name bereits vergeben, unverändert gelassen",
+          "assets_one": "{{count}} Asset",
+          "assets_other": "{{count}} Assets"
         },
         "updating": "Vorschau wird aktualisiert...",
         "filterLabel": "Liste filtern",
@@ -349,6 +359,7 @@
         "name": "Name",
         "kind": "Asset-Typ",
         "location": "Standort",
+        "sub_location": "Unterstandort",
         "status": "Lebenszyklus",
         "hostname": "Hostname",
         "domain": "Domäne",
@@ -384,7 +395,8 @@
         },
         "reservedRoles": {
           "virtualMachines": "Virtuelle Maschinen"
-        }
+        },
+        "subLocationsHint": "Innerhalb eines zugeordneten Standorts werden die übergeordneten Netbox-Locations hier zu Unterstandorten. Ein tiefer platziertes Gerät wird dem darüberliegenden Unterstandort der ersten Ebene zugeordnet."
       },
       "retire": {
         "title": "Asset als „Außer Betrieb“ markieren",
@@ -436,7 +448,9 @@
         "lifecycle_not_in_catalog": "Der Lebenszyklus „{{value}}“ steht nicht in Ihrem Katalog, der Wert blieb unverändert.",
         "no_ip_address_type": "In den IT-Einstellungen ist kein IP-Adresstyp eingerichtet, die Adresse wurde nicht importiert.",
         "netbox_status_attention": "Netbox meldet dieses Objekt als {{status}}.",
-        "ip_match_candidates": "Ein Asset nutzt die Adresse {{value}} bereits. Entscheiden Sie, ob es dasselbe Gerät ist."
+        "ip_match_candidates": "Ein Asset nutzt die Adresse {{value}} bereits. Entscheiden Sie, ob es dasselbe Gerät ist.",
+        "sub_location_name_taken": "Ein Unterstandort mit dem Namen „{{value}}“ existiert an diesem Standort bereits für eine andere Netbox-Location. Der Unterstandort wurde unverändert gelassen.",
+        "locations_unavailable": "Netbox hat seine Locations nicht zurückgegeben. Die Unterstandorte wurden in diesem Lauf nicht verändert."
       },
       "netboxStatus": {
         "active": "Aktiv",

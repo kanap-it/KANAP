@@ -40,6 +40,8 @@ import {
   type NetboxRecordRow,
   type NetboxRecordState,
   type NetboxStatus,
+  type NetboxSubLocationChange,
+  type NetboxSubLocationsView,
 } from '../../api/endpoints/netbox';
 
 const MONO_FONT = "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace";
@@ -50,7 +52,7 @@ const PAGE_SIZE = 50;
 
 /** Stable diff keys from the API; anything else falls back to the raw key. */
 const DIFF_FIELD_KEYS: string[] = [
-  'name', 'kind', 'location', 'status', 'hostname', 'domain', 'operating_system',
+  'name', 'kind', 'location', 'sub_location', 'status', 'hostname', 'domain', 'operating_system',
   'primary_ip', 'serial_number', 'manufacturer', 'model', 'rack_location', 'rack_unit',
 ];
 
@@ -479,6 +481,62 @@ function PreviewSection({ title, hint, rows, showDiffs, showNotices, action, ren
 }
 
 /**
+ * One line per sub-location the run touches, listed once each rather than once
+ * per asset. A first import creates them; a rename in Netbox renames a single
+ * shared row that every asset carrying it follows, which is why it must not be
+ * read as N machines moving.
+ */
+const subLocationLabelSx = { color: 'kanap.text.tertiary', fontSize: 12 } as const;
+const subLocationValueSx = { color: 'kanap.text.secondary', fontSize: 13 } as const;
+const subLocationRowSx = { display: 'flex', alignItems: 'baseline', gap: 0.75, flexWrap: 'wrap' } as const;
+
+function SubLocationsSection({ view }: { view: NetboxSubLocationsView }) {
+  const { t } = useTranslation('it');
+
+  if (!view.available) {
+    return <Alert severity="info">{t('pages.netbox.notices.locations_unavailable')}</Alert>;
+  }
+  if (view.changes.length === 0) return null;
+
+  /** A rename reads as one row changing, not as the equipment under it moving. */
+  const name = (change: NetboxSubLocationChange) =>
+    change.action === 'rename' && change.previous_name
+      ? `${change.previous_name} → ${change.name}`
+      : change.name;
+
+  return (
+    <Box>
+      <Box className="kanap-subhead">
+        {t('pages.netbox.preview.sections.subLocations', { n: view.changes.length })}
+      </Box>
+      <Stack spacing={0.25}>
+        {view.changes.map((change) => (
+          <Box key={`${change.action}:${change.external_id}`} sx={subLocationRowSx}>
+            <Box component="span" sx={subLocationLabelSx}>
+              {t(`pages.netbox.preview.subLocations.${change.action}`)}
+            </Box>
+            <Link href={change.external_url} target="_blank" rel="noreferrer" underline="hover" sx={{ fontSize: 13 }}>
+              {name(change)}
+            </Link>
+            <Box component="span" sx={subLocationLabelSx}>·</Box>
+            <Box component="span" sx={subLocationValueSx}>{change.location_name}</Box>
+            {/* A shared row nobody ends up in shows no count at all. */}
+            {change.asset_count > 0 ? (
+              <>
+                <Box component="span" sx={subLocationLabelSx}>·</Box>
+                <Box component="span" sx={subLocationValueSx}>
+                  {t('pages.netbox.preview.subLocations.assets', { count: change.asset_count })}
+                </Box>
+              </>
+            ) : null}
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
+/**
  * Review before applying. The person settles objects here: every decision is kept
  * in the dialog, travels with each re-preview so the plan reflects it, and is only
  * written when the run is applied.
@@ -707,6 +765,10 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
                 sx={{ width: 220 }}
               />
             </Stack>
+
+            {/* Sub-locations are a shared object: they are listed here, once
+                each, between the counters and the equipment rows. */}
+            {preview.sub_locations ? <SubLocationsSection view={preview.sub_locations} /> : null}
 
             {/* A first import lists hundreds of rows: scroll the body so the Apply
                 button in the shared dialog footer stays within reach. */}
@@ -1008,6 +1070,9 @@ function MappingsSection({ onError }: { onError: (message: string) => void }) {
             ))}
           </tbody>
         </Box>
+        <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
+          {t('pages.netbox.mappings.subLocationsHint')}
+        </Typography>
       </Box>
 
       {saved ? <Alert severity="success" onClose={() => setSaved(false)}>{t('pages.netbox.mappings.saved')}</Alert> : null}

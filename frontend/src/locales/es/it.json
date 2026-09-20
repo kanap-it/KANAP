@@ -292,7 +292,17 @@
           "skipped": "Omitidos ({{n}})",
           "missing": "Ausentes de Netbox ({{n}})",
           "warnings": "Avisos",
-          "decided": "Resueltos por usted ({{n}})"
+          "decided": "Resueltos por usted ({{n}})",
+          "subLocations": "Sub-ubicaciones ({{n}})"
+        },
+        "subLocations": {
+          "create": "Nueva",
+          "adopt": "Existente, ahora vinculada a Netbox",
+          "rename": "Renombrada",
+          "update": "Descripción actualizada",
+          "conflict": "Nombre ya utilizado, sin cambios",
+          "assets_one": "{{count}} activo",
+          "assets_other": "{{count}} activos"
         },
         "updating": "Actualizando la vista previa...",
         "filterLabel": "Filtrar la lista",
@@ -349,6 +359,7 @@
         "name": "Nombre",
         "kind": "Tipo de activo",
         "location": "Ubicación",
+        "sub_location": "Sub-ubicación",
         "status": "Ciclo de vida",
         "hostname": "Nombre de host",
         "domain": "Dominio",
@@ -384,7 +395,8 @@
         },
         "reservedRoles": {
           "virtualMachines": "Máquinas virtuales"
-        }
+        },
+        "subLocationsHint": "Dentro de un sitio con correspondencia, las ubicaciones de Netbox de primer nivel se convierten en sub-ubicaciones aquí. Un equipo colocado más abajo se asigna a la ubicación de primer nivel situada por encima."
       },
       "retire": {
         "title": "Marcar el activo como retirado",
@@ -436,7 +448,9 @@
         "lifecycle_not_in_catalog": "El ciclo de vida «{{value}}» no está en su catálogo, así que el valor no se ha cambiado.",
         "no_ip_address_type": "No hay ningún tipo de dirección IP definido en los ajustes de TI, así que la dirección no se ha importado.",
         "netbox_status_attention": "Netbox informa de que este objeto está {{status}}.",
-        "ip_match_candidates": "Un activo ya usa la dirección {{value}}. Decida si es el mismo equipo."
+        "ip_match_candidates": "Un activo ya usa la dirección {{value}}. Decida si es el mismo equipo.",
+        "sub_location_name_taken": "Ya existe una sub-ubicación llamada «{{value}}» en esta ubicación para otra ubicación de Netbox. La sub-ubicación se ha dejado sin cambios.",
+        "locations_unavailable": "Netbox no ha devuelto sus ubicaciones. Las sub-ubicaciones no se han modificado en esta ejecución."
       },
       "netboxStatus": {
         "active": "Activo",
