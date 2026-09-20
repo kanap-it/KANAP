@@ -445,6 +445,7 @@
         "missing": "Ya no está en Netbox",
         "open": "Abrir en Netbox",
         "managed": "Gestionado por Netbox",
+        "managedFields": "Netbox rellena los campos que proporciona. Los demás puede completarlos usted.",
         "netboxStatus": "Estado en Netbox: {{status}}"
       },
       "notices": {

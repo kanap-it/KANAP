@@ -55,9 +55,10 @@ export class AssetsCrudService extends AssetsBaseService {
       external_url: string | null;
       state: string;
       external_status: string | null;
+      managed_fields: string[] | null;
       last_synced_at: Date | null;
     }> = await this.getManager(opts).query(
-      `SELECT source, external_type, external_url, state, external_status, last_synced_at
+      `SELECT source, external_type, external_url, state, external_status, managed_fields, last_synced_at
        FROM asset_external_links
        WHERE tenant_id = $1 AND asset_id = $2 AND state IN ('linked', 'missing')
        ORDER BY source ASC, external_type ASC`,
@@ -72,6 +73,9 @@ export class AssetsCrudService extends AssetsBaseService {
         state: row.state,
         // The status the inventory reports; the asset's own lifecycle is its own.
         external_status: row.external_status ?? null,
+        // The fields the inventory provides for this object. Null means the
+        // record predates the list, and the workspace then locks all of them.
+        managed_fields: row.managed_fields ?? null,
         last_synced_at: row.last_synced_at ? new Date(row.last_synced_at).toISOString() : null,
       })),
     };

@@ -445,6 +445,7 @@
         "missing": "No longer in Netbox",
         "open": "Open in Netbox",
         "managed": "Managed by Netbox",
+        "managedFields": "Netbox fills in the fields it provides. The others are yours to complete.",
         "netboxStatus": "Netbox status: {{status}}"
       },
       "notices": {

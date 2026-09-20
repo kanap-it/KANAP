@@ -394,6 +394,42 @@ function mapPrimaryIp(
 }
 
 /**
+ * The fields this mapping actually carries a value for, which is exactly what
+ * a run would write for this object. Netbox has no domain notion, often no
+ * platform and sometimes no primary address: everything else stays the
+ * administrator's to fill in, and since an empty Netbox value never blanks a
+ * KANAP one, a value typed there is never overwritten.
+ *
+ * The domain follows the host name on purpose: a domain without a host name is
+ * refused by the asset service, so a run never writes one on its own. Locking
+ * it would leave the field empty and read-only, which is the very problem this
+ * list exists to solve.
+ *
+ * Sorted, so the stored list can be compared as it is.
+ */
+export function managedFieldsOf(
+  mapping: Pick<NetboxMapping, 'asset' | 'hardware' | 'subLocation'>,
+): string[] {
+  const { asset, hardware, subLocation } = mapping;
+  if (!asset) return [];
+  // Name, type and location are what makes the object importable at all: an
+  // object out of scope never gets here.
+  const fields = ['name', 'kind', 'location_id'];
+  if (asset.status) fields.push('status');
+  if (asset.hostname) fields.push('hostname');
+  if (asset.hostname && asset.domain) fields.push('domain');
+  if (asset.operating_system) fields.push('operating_system');
+  if (asset.ip_addresses && asset.ip_addresses.length > 0) fields.push('ip_addresses');
+  if (subLocation) fields.push('sub_location_id');
+  if (hardware) {
+    for (const field of ['serial_number', 'manufacturer', 'model', 'rack_location', 'rack_unit'] as const) {
+      if (hardware[field]) fields.push(field);
+    }
+  }
+  return fields.sort();
+}
+
+/**
  * Turns one Netbox object into the KANAP fields it owns. Returns a skip reason
  * instead of a patch when the object is out of scope: the role/site mapping is
  * the import filter, and an object without a name cannot become an asset.

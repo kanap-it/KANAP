@@ -27,11 +27,22 @@ type HardwareInfo = {
 type Props = {
   assetId: string;
   onDirtyChange?: (dirty: boolean) => void;
-  /** The asset is fed by Netbox: the inventory fields below become read-only. */
+  /** The asset is fed by Netbox, so the hint below applies to it. */
   netboxManaged?: boolean;
+  /**
+   * Tells whether Netbox provides this hardware field on this asset. Only the
+   * fields it fills are read-only; the others stay the administrator's, and
+   * the synchronisation never blanks what they type.
+   */
+  netboxOwns?: (field: 'serial_number' | 'manufacturer' | 'model' | 'rack_location' | 'rack_unit') => boolean;
 };
 
-export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoPanel({ assetId, onDirtyChange, netboxManaged = false }, ref) {
+export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoPanel({
+  assetId,
+  onDirtyChange,
+  netboxManaged = false,
+  netboxOwns = () => false,
+}, ref) {
   const { t } = useTranslation(['it', 'common']);
   const { hasLevel } = useAuth();
   const readOnly = !hasLevel('infrastructure', 'member');
@@ -165,7 +176,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
       {error && <Alert severity="error">{error}</Alert>}
       {netboxManaged ? (
         <Typography variant="caption" sx={{ color: 'kanap.text.tertiary' }}>
-          {t('pages.netbox.assetSource.managed')}
+          {t('pages.netbox.assetSource.managedFields')}
         </Typography>
       ) : null}
 
@@ -173,7 +184,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
         <TextField
           value={serialNumber}
           onChange={(e) => setSerialNumber(e.target.value)}
-          disabled={saving || readOnly || netboxManaged}
+          disabled={saving || readOnly || netboxOwns('serial_number')}
           placeholder="Serial number"
           size="small"
           variant="standard"
@@ -186,7 +197,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
         <TextField
           value={manufacturer}
           onChange={(e) => setManufacturer(e.target.value)}
-          disabled={saving || readOnly || netboxManaged}
+          disabled={saving || readOnly || netboxOwns('manufacturer')}
           placeholder="Manufacturer"
           size="small"
           variant="standard"
@@ -199,7 +210,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
         <TextField
           value={model}
           onChange={(e) => setModel(e.target.value)}
-          disabled={saving || readOnly || netboxManaged}
+          disabled={saving || readOnly || netboxOwns('model')}
           placeholder="Model"
           size="small"
           variant="standard"
@@ -224,7 +235,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
         <TextField
           value={rackLocation}
           onChange={(e) => setRackLocation(e.target.value)}
-          disabled={saving || readOnly || netboxManaged}
+          disabled={saving || readOnly || netboxOwns('rack_location')}
           placeholder="Rack location"
           size="small"
           variant="standard"
@@ -237,7 +248,7 @@ export default forwardRef<HardwareInfoPanelHandle, Props>(function HardwareInfoP
         <TextField
           value={rackUnit}
           onChange={(e) => setRackUnit(e.target.value)}
-          disabled={saving || readOnly || netboxManaged}
+          disabled={saving || readOnly || netboxOwns('rack_unit')}
           placeholder="Rack unit"
           size="small"
           variant="standard"
