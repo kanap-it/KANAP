@@ -113,20 +113,29 @@ export interface NetboxMappingEntry {
 export interface NetboxMappingOptions {
   roles: NetboxMappingEntry[];
   sites: NetboxMappingEntry[];
+  /** Netbox platforms. Absent on a server that does not match them yet. */
+  platforms?: NetboxMappingEntry[];
+  /** The token could not read the platforms; the roles and sites are unaffected. */
+  platforms_unavailable?: boolean;
   asset_kinds: Array<{ code: string; label: string }>;
   locations: Array<{ id: string; name: string }>;
+  operating_systems?: Array<{ code: string; label: string }>;
   /** Saved maps: role slug -> asset kind code, site slug -> location id. */
   role_map: Record<string, string>;
   site_map: Record<string, string>;
+  /** Platform slug -> operating system code. Never an import filter. */
+  os_map?: Record<string, string>;
   /** Label-match suggestions, for unmapped entries only. Not saved yet. */
   suggested_role_map: Record<string, string>;
   suggested_site_map: Record<string, string>;
+  suggested_os_map?: Record<string, string>;
 }
 
-/** Full replace. */
+/** Full replace of every map the body carries; an absent one keeps its saved value. */
 export interface NetboxMappingSaveInput {
   role_map: Record<string, string>;
   site_map: Record<string, string>;
+  os_map?: Record<string, string>;
 }
 
 export interface NetboxAssetRef {

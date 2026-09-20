@@ -975,6 +975,7 @@ function MappingsSection({ onError }: { onError: (message: string) => void }) {
   });
   const [roleMap, setRoleMap] = React.useState<Record<string, string>>({});
   const [siteMap, setSiteMap] = React.useState<Record<string, string>>({});
+  const [osMap, setOsMap] = React.useState<Record<string, string>>({});
   const [saved, setSaved] = React.useState(false);
   const data = optionsQuery.data;
 
@@ -983,10 +984,11 @@ function MappingsSection({ onError }: { onError: (message: string) => void }) {
     // Suggestions pre-fill the unmapped rows; the saved map always wins.
     setRoleMap({ ...data.suggested_role_map, ...data.role_map });
     setSiteMap({ ...data.suggested_site_map, ...data.site_map });
+    setOsMap({ ...(data.suggested_os_map ?? {}), ...(data.os_map ?? {}) });
   }, [data]);
 
   const saveMapping = useMutation({
-    mutationFn: () => netboxApi.saveMapping({ role_map: roleMap, site_map: siteMap }),
+    mutationFn: () => netboxApi.saveMapping({ role_map: roleMap, site_map: siteMap, os_map: osMap }),
     onSuccess: async () => {
       setSaved(true);
       await queryClient.invalidateQueries({ queryKey: ['netbox-mapping-options'] });
@@ -1010,7 +1012,9 @@ function MappingsSection({ onError }: { onError: (message: string) => void }) {
     Array.from(new Set([...Object.keys(current), ...Object.keys(savedMap)]))
       .filter((slug) => (current[slug] || '') !== (savedMap[slug] || '')).length
   );
-  const unsavedCount = unsavedIn(roleMap, data.role_map) + unsavedIn(siteMap, data.site_map);
+  const unsavedCount = unsavedIn(roleMap, data.role_map)
+    + unsavedIn(siteMap, data.site_map)
+    + unsavedIn(osMap, data.os_map ?? {});
   const saveButton = (variant: 'contained' | 'action') => (
     <Button
       variant={variant}
@@ -1033,6 +1037,10 @@ function MappingsSection({ onError }: { onError: (message: string) => void }) {
     }
     return parts.length > 0 ? parts.join(' · ') : t('pages.netbox.mappings.counts.none');
   };
+
+  // A server that does not match platforms yet sends none: the section then
+  // says so in one line rather than drawing an empty table.
+  const platforms = data.platforms ?? [];
 
   const entryLabel = (entry: NetboxMappingEntry): string => {
     const key = RESERVED_ROLE_LABEL_KEYS[entry.slug];
@@ -1155,6 +1163,65 @@ function MappingsSection({ onError }: { onError: (message: string) => void }) {
         <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
           {t('pages.netbox.mappings.subLocationsHint')}
         </Typography>
+      </Box>
+
+      <Box>
+        <Box className="kanap-subhead">{t('pages.netbox.mappings.operatingSystems')}</Box>
+        <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1 }}>
+          {t('pages.netbox.mappings.operatingSystemsHint')}
+        </Typography>
+        {data.platforms_unavailable ? (
+          <Box component="span" className="kanap-muted">{t('pages.netbox.mappings.platformsUnavailable')}</Box>
+        ) : platforms.length === 0 ? (
+          <Box component="span" className="kanap-muted">{t('pages.netbox.mappings.noPlatforms')}</Box>
+        ) : (
+          <Box component="table" className="kanap-table kanap-map-table">
+            <colgroup>
+              <col className="name" />
+              <col className="count" />
+              <col className="target" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>{t('pages.netbox.mappings.columns.netboxPlatform')}</th>
+                <th>{t('pages.netbox.mappings.columns.objects')}</th>
+                <th>{t('pages.netbox.mappings.columns.operatingSystem')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {platforms.map((platform) => (
+                <tr key={platform.slug}>
+                  <td>{platform.name}</td>
+                  <td>{countLabel(platform)}</td>
+                  <td>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <TextField
+                        select
+                        size="small"
+                        variant="standard"
+                        SelectProps={{ displayEmpty: true }}
+                        inputProps={{ 'aria-label': platform.name }}
+                        value={osMap[platform.slug] || ''}
+                        onChange={(event) => setOsMap((prev) => ({ ...prev, [platform.slug]: event.target.value }))}
+                        sx={pageSelectSx}
+                      >
+                        <MenuItem value="" sx={drawerMenuItemSx}>{t('pages.netbox.mappings.noOperatingSystem')}</MenuItem>
+                        {(data.operating_systems ?? []).map((option) => (
+                          <MenuItem key={option.code} value={option.code} sx={drawerMenuItemSx}>{option.label}</MenuItem>
+                        ))}
+                      </TextField>
+                      {suggestion(platform.slug, osMap, data.os_map ?? {}) ? (
+                        <Box component="span" className="kanap-muted" sx={{ fontSize: 11 }}>
+                          {t('pages.netbox.mappings.suggested')}
+                        </Box>
+                      ) : null}
+                    </Stack>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Box>
+        )}
       </Box>
 
       <Box>{saveButton('contained')}</Box>

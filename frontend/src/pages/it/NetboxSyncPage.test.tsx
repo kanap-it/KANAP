@@ -134,12 +134,29 @@ const MAPPING_OPTIONS = {
     { slug: 'pdu', name: 'PDU', device_count: 1, vm_count: 0 },
   ],
   sites: [{ slug: 'gouda', name: 'Gouda Server Room', device_count: 4, vm_count: 2 }],
+  // Platforms are matched too, but they never filter the import.
+  platforms: [
+    { slug: 'debian-12', name: 'Debian 12', device_count: 2, vm_count: 5 },
+    { slug: 'photon', name: 'Photon OS', device_count: 3, vm_count: 0 },
+  ],
   asset_kinds: [{ code: 'virtual_machine', label: 'Virtual machine' }, { code: 'network_switch', label: 'Network switch' }],
   locations: [{ id: 'loc-1', name: 'Gouda Server Room' }],
+  operating_systems: [
+    { code: 'debian_12_bookworm', label: 'Debian 12 (bookworm)' },
+    { code: 'windows_server_2022', label: 'Windows Server 2022' },
+  ],
   role_map: { 'kanap:virtual-machines': 'virtual_machine' },
   site_map: {},
+  os_map: { photon: 'windows_server_2022' },
   suggested_role_map: { switch: 'network_switch' },
   suggested_site_map: {},
+  suggested_os_map: {},
+};
+
+/** Netbox is less precise than KANAP, so the platform comes with a suggestion. */
+const MAPPING_OPTIONS_WITH_OS_SUGGESTION = {
+  ...MAPPING_OPTIONS,
+  suggested_os_map: { 'debian-12': 'debian_12_bookworm' },
 };
 
 function renderPage(initialPath = '/it/netbox') {
@@ -318,6 +335,76 @@ describe('NetboxSyncPage', () => {
     expect(await screen.findByText('Mappings saved.')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText(/not saved yet/)).not.toBeInTheDocument());
     expect((apiClient.put as any).mock.calls[0][1].role_map.switch).toBe('network_switch');
+  });
+
+  /** Mounts the page on the Mappings tab with the given mapping options. */
+  async function openMappings(options: unknown) {
+    (apiClient.get as any).mockImplementation((url: string) => {
+      if (url === '/netbox/status') return Promise.resolve(STATUS);
+      if (url === '/netbox/mapping-options') return Promise.resolve(options);
+      if (url === '/netbox/records') return Promise.resolve({ items: [], total: 0 });
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    renderPage();
+    fireEvent.click(await screen.findByText('Mappings'));
+  }
+
+  it('matches each Netbox platform with a KANAP operating system, suggestion included', async () => {
+    await openMappings(MAPPING_OPTIONS_WITH_OS_SUGGESTION);
+
+    expect(await screen.findByText('Operating systems')).toBeInTheDocument();
+    expect(screen.getByText(/does not block the import/)).toBeInTheDocument();
+    expect(screen.getByText('Netbox platform')).toBeInTheDocument();
+    expect(screen.getByText('2 devices · 5 virtual machines')).toBeInTheDocument();
+    // The saved match shows as chosen; the suggestion pre-fills its row and is
+    // tagged exactly like an unsaved role or site match.
+    expect(screen.getByText('Windows Server 2022')).toBeInTheDocument();
+    expect(screen.getByText('Debian 12 (bookworm)')).toBeInTheDocument();
+    expect(screen.getAllByText('Suggested')).toHaveLength(2);
+    // One unsaved role match plus one unsaved operating system match.
+    expect(screen.getByText('2 matches are not saved yet. They decide nothing until you save.'))
+      .toBeInTheDocument();
+  });
+
+  it('saves the operating system matches together with the roles and the sites', async () => {
+    (apiClient.put as any).mockImplementation((url: string, body: any) => {
+      if (url !== '/netbox/mapping') throw new Error(`Unexpected PUT ${url}`);
+      return Promise.resolve(body);
+    });
+
+    await openMappings(MAPPING_OPTIONS_WITH_OS_SUGGESTION);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Save mappings' }))[0]);
+
+    await waitFor(() => expect((apiClient.put as any).mock.calls).toHaveLength(1));
+    expect((apiClient.put as any).mock.calls[0][1].os_map).toEqual({
+      photon: 'windows_server_2022',
+      'debian-12': 'debian_12_bookworm',
+    });
+  });
+
+  it('keeps the roles and the sites when Netbox refuses to list its platforms', async () => {
+    // Netbox grants permissions per object type: the token may read devices,
+    // roles and sites and still be refused the platforms.
+    await openMappings({ ...MAPPING_OPTIONS, platforms: [], platforms_unavailable: true });
+
+    expect(await screen.findByText('Netbox roles')).toBeInTheDocument();
+    expect(screen.getByText('Netbox sites')).toBeInTheDocument();
+    expect(screen.getByText('6 devices')).toBeInTheDocument();
+    // The section says why, in one line, and offers nothing to match.
+    expect(screen.getByText(/Check that the API token can read platforms/)).toBeInTheDocument();
+    expect(screen.queryByText(/Netbox lists no platform/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Netbox platform')).not.toBeInTheDocument();
+  });
+
+  it('still shows the mappings on a server that does not match platforms yet', async () => {
+    const { platforms, operating_systems, os_map, suggested_os_map, ...older } = MAPPING_OPTIONS;
+    await openMappings(older);
+
+    expect(await screen.findByText('Netbox roles')).toBeInTheDocument();
+    // The section stays, as one line, rather than drawing an empty table.
+    expect(screen.getByText('Operating systems')).toBeInTheDocument();
+    expect(screen.getByText('Netbox lists no platform, so there is nothing to match here.')).toBeInTheDocument();
+    expect(screen.queryByText('Netbox platform')).not.toBeInTheDocument();
   });
 
   it('points at the mappings when no match is saved, instead of listing skipped objects', async () => {
