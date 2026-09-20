@@ -659,6 +659,21 @@ describe('NetboxSyncPage', () => {
       .toBeInTheDocument();
   });
 
+  it('does not announce writes when the preview lists none', async () => {
+    (apiClient.post as any).mockImplementation((url: string) => {
+      if (url === '/netbox/sync/preview') {
+        const rows = (PREVIEW as any).rows.filter((row: any) => row.action !== 'create' && row.action !== 'update');
+        return Promise.resolve({ ...PREVIEW, rows });
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
+
+    await openPreview();
+
+    expect(await screen.findByText(/^Nothing to create or update here/)).toBeInTheDocument();
+    expect(screen.queryByText(/and nothing else/)).not.toBeInTheDocument();
+  });
+
   it('offers the next batch while objects wait for review', async () => {
     (apiClient.get as any).mockImplementation((url: string) => {
       if (url === '/netbox/status') return Promise.resolve({ ...STATUS, review_pending: 830 });

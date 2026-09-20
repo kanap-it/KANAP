@@ -796,7 +796,9 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
               <Alert severity="error">{t('pages.netbox.preview.serverTooOld')}</Alert>
             ) : (
               <Typography variant="body2" color="text.secondary">
-                {t('pages.netbox.preview.scope', { count: listedWrites })}
+                {listedWrites === 0
+                  ? t('pages.netbox.preview.scopeNone')
+                  : t('pages.netbox.preview.scope', { count: listedWrites })}
               </Typography>
             )}
             {remaining > 0 ? (

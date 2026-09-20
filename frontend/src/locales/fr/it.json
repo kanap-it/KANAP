@@ -292,6 +292,7 @@
         "batch_one": "Ceci est un lot. {{count}} autre objet attend : Appliquer n'écrit que ce qui est listé ici et le laisse intact pour le lot suivant.",
         "batch_other": "Ceci est un lot. {{count}} autres objets attendent : Appliquer n'écrit que ce qui est listé ici et les laisse intacts pour le lot suivant.",
         "applyBatch": "Appliquer ce lot",
+        "scopeNone": "Rien à créer ni à mettre à jour ici. Appliquer enregistre seulement vos décisions et actualise la liste.",
         "scope_one": "Appliquer écrit la création ou mise à jour listée ici ({{count}}), et rien d'autre.",
         "scope_other": "Appliquer écrit les {{count}} créations et mises à jour listées ici, et rien d'autre.",
         "serverTooOld": "Le serveur est plus ancien que cette page : il appliquerait tous les objets, listés ici ou non. Rien ne peut être appliqué d'ici. Mettez à jour et redémarrez le serveur, puis rechargez cette page.",
