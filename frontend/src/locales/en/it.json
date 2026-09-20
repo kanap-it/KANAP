@@ -285,6 +285,12 @@
         "empty": "Not set",
         "summary": "{{created}} to create, {{updated}} to update, {{unchanged}} unchanged.",
         "truncated": "Only the first 500 objects are listed here. Everything is applied.",
+        "noMatches": {
+          "none": "No role or site match is saved yet, so nothing can be imported. Open the mappings, check the suggestions, then save them.",
+          "roles": "No role match is saved yet, so nothing can be imported. Open the mappings, check the suggestions, then save them.",
+          "sites": "No site match is saved yet, so nothing can be imported. Open the mappings, check the suggestions, then save them.",
+          "open": "Open the mappings"
+        },
         "sections": {
           "created": "To create ({{n}})",
           "updated": "To update ({{n}})",
@@ -379,6 +385,8 @@
         "suggested": "Suggested",
         "save": "Save mappings",
         "saved": "Mappings saved.",
+        "unsaved_one": "{{count}} match is not saved yet. It decides nothing until you save.",
+        "unsaved_other": "{{count}} matches are not saved yet. They decide nothing until you save.",
         "columns": {
           "netboxRole": "Netbox role",
           "netboxSite": "Netbox site",

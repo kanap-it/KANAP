@@ -285,6 +285,12 @@
         "empty": "Nicht gesetzt",
         "summary": "{{created}} anzulegen, {{updated}} zu aktualisieren, {{unchanged}} ohne Änderung.",
         "truncated": "Hier sind nur die ersten 500 Objekte aufgeführt. Angewendet wird alles.",
+        "noMatches": {
+          "none": "Es ist noch keine Rollen- oder Standortzuordnung gespeichert, daher kann nichts importiert werden. Öffnen Sie die Zuordnungen, prüfen Sie die Vorschläge und speichern Sie sie.",
+          "roles": "Es ist noch keine Rollenzuordnung gespeichert, daher kann nichts importiert werden. Öffnen Sie die Zuordnungen, prüfen Sie die Vorschläge und speichern Sie sie.",
+          "sites": "Es ist noch keine Standortzuordnung gespeichert, daher kann nichts importiert werden. Öffnen Sie die Zuordnungen, prüfen Sie die Vorschläge und speichern Sie sie.",
+          "open": "Zuordnungen öffnen"
+        },
         "sections": {
           "created": "Anzulegen ({{n}})",
           "updated": "Zu aktualisieren ({{n}})",
@@ -379,6 +385,8 @@
         "suggested": "Vorschlag",
         "save": "Zuordnungen speichern",
         "saved": "Zuordnungen gespeichert.",
+        "unsaved_one": "{{count}} Zuordnung ist noch nicht gespeichert. Sie wirkt erst, wenn Sie speichern.",
+        "unsaved_other": "{{count}} Zuordnungen sind noch nicht gespeichert. Sie wirken erst, wenn Sie speichern.",
         "columns": {
           "netboxRole": "Netbox-Rolle",
           "netboxSite": "Netbox-Standort",

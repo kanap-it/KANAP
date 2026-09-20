@@ -54,7 +54,7 @@ Anything left on **Do not import** is skipped: its objects are never created, ne
 
 One extra row sits with the roles: **Virtual machines**. Every virtual machine Netbox holds goes through that single row, whatever role Netbox gives it, so one decision covers the lot. A virtual machine takes its site from its cluster when it does not carry one itself.
 
-Each row shows how many devices and virtual machines it covers, so you can see what a choice is about to bring in. When a Netbox name clearly matches one of yours, the row is pre-filled and marked **Suggested**. A suggestion is only a proposal: nothing is used until you press **Save mappings**.
+Each row shows how many devices and virtual machines it covers, so you can see what a choice is about to bring in. When a Netbox name clearly matches one of yours, the row is pre-filled and marked **Suggested**. A suggestion is only a proposal: nothing is used until you press **Save mappings**. While matches are waiting to be saved, a notice at the top of the tab says how many, with the save button next to it. If you press **Synchronise now** before any role or any site is saved, the preview says so and sends you back to this tab instead of listing every object as skipped.
 
 Mapping a site also brings its Netbox Locations across as sub-locations of the location you chose. Only the top-level Locations of that site, and only the ones an imported device actually sits in. An equipment parked deeper, in "Building A > Floor 1 > Room 101", is attached to "Building A": KANAP records where equipment is at the level of a site and a building, not a room. There is nothing to configure for this.
 

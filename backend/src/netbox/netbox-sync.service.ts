@@ -140,6 +140,13 @@ export type NetboxPreviewResult = {
   rows: NetboxPlanRow[];
   rows_truncated: boolean;
   missing: NetboxRecordRow[];
+  /**
+   * How many role and site matches are SAVED. The Mappings tab pre-fills its
+   * rows with suggestions, which look like a filled form but decide nothing
+   * until they are saved; with none saved every object comes out skipped, and
+   * the dialog says that instead of listing hundreds of skipped objects.
+   */
+  saved_matches: { roles: number; sites: number };
   /** Changes to the shared sub-locations, listed once each. */
   sub_locations: {
     available: boolean;
@@ -688,6 +695,10 @@ export class NetboxSyncService {
   async preview(manager: EntityManager, tenantId: string, input: NetboxSyncInput = {}): Promise<NetboxPreviewResult> {
     const decisions = parseNetboxDecisions(input.decisions);
     const local = await this.loadLocalContext(manager, tenantId);
+    const savedMatches = {
+      roles: Object.keys(local.roleMap).length,
+      sites: Object.keys(local.siteMap).length,
+    };
     let fetched: FetchedInventory;
     try {
       const baseUrl = String(local.config.base_url ?? '');
@@ -710,6 +721,7 @@ export class NetboxSyncService {
         rows: [],
         rows_truncated: false,
         missing: [],
+        saved_matches: savedMatches,
         // Nothing was read, so nothing is known about the sub-locations either.
         sub_locations: { available: true, changes: [] },
       };
@@ -752,6 +764,7 @@ export class NetboxSyncService {
       rows: shown.slice(0, PREVIEW_ROW_LIMIT),
       rows_truncated: shown.length > PREVIEW_ROW_LIMIT,
       missing: missingRows,
+      saved_matches: savedMatches,
       sub_locations: {
         available: plan.subLocationsAvailable,
         changes: plan.subLocations,

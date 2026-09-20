@@ -285,6 +285,12 @@
         "empty": "Sin definir",
         "summary": "{{created}} por crear, {{updated}} por actualizar, {{unchanged}} sin cambios.",
         "truncated": "Aquí solo se enumeran los 500 primeros objetos. Se aplica todo.",
+        "noMatches": {
+          "none": "Aún no hay ninguna correspondencia de rol ni de sitio guardada, así que no se puede importar nada. Abra las correspondencias, revise las sugerencias y guárdelas.",
+          "roles": "Aún no hay ninguna correspondencia de rol guardada, así que no se puede importar nada. Abra las correspondencias, revise las sugerencias y guárdelas.",
+          "sites": "Aún no hay ninguna correspondencia de sitio guardada, así que no se puede importar nada. Abra las correspondencias, revise las sugerencias y guárdelas.",
+          "open": "Abrir las correspondencias"
+        },
         "sections": {
           "created": "Por crear ({{n}})",
           "updated": "Por actualizar ({{n}})",
@@ -379,6 +385,8 @@
         "suggested": "Sugerido",
         "save": "Guardar correspondencias",
         "saved": "Correspondencias guardadas.",
+        "unsaved_one": "{{count}} correspondencia aún no está guardada. No decide nada hasta que guarde.",
+        "unsaved_other": "{{count}} correspondencias aún no están guardadas. No deciden nada hasta que guarde.",
         "columns": {
           "netboxRole": "Rol de Netbox",
           "netboxSite": "Sitio de Netbox",
