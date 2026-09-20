@@ -74,7 +74,7 @@ La vista previa está agrupada:
 - **Ausentes de Netbox**: activos que una ejecución anterior vinculó y cuyo objeto de Netbox ha desaparecido.
 - **Avisos**: valores que Netbox devuelve y que KANAP no ha podido retomar, por ejemplo un sistema operativo que no está en su catálogo. Un objeto que no tiene nada que cambiar pero sí algo que señalar aparece también aquí.
 
-Léala y pulse **Aplicar**. Los objetos que ya son idénticos se cuentan como sin cambios y no se tocan en absoluto. En inventarios grandes, la vista previa enumera solo los 500 primeros objetos; la ejecución aplica todo. El filtro de la parte superior restringe la lista a un objeto o a un nombre de activo.
+Léala y pulse **Aplicar**. Los objetos que ya son idénticos se cuentan como sin cambios y no se tocan en absoluto. Un inventario grande se revisa en lotes de 500. **Aplicar este lote** solo escribe lo que la vista previa enumera; todo lo demás se deja exactamente como está. La página indica después cuántos objetos siguen en espera y ofrece **Revisar el lote siguiente**, hasta que no quede nada. Una sincronización que usted inicia nunca crea ni modifica un objeto que no se le haya mostrado. Los objetos fuera de alcance se cuentan por motivo y no se enumeran, de modo que nunca ocupan el lugar de un objeto que usted debe leer. El filtro de la parte superior restringe la lista a un objeto o a un nombre de activo.
 
 ### Corregir la vista previa antes de aplicar
 
@@ -180,7 +180,7 @@ Una sincronización nunca pone un activo en **Retirado**. Retirar un equipo es u
 
 ## Sincronización automática
 
-Active **Sincronización automática** en la tarjeta de la integración y KANAP ejecuta el mismo trabajo cada hora, aplicando los cambios sin vista previa. El conmutador es por espacio de trabajo, y solo se visitan los espacios de trabajo que lo han activado. El trabajo horario nunca hace la primera importación: empieza cuando usted ha aplicado una sincronización y esta ha terminado sin errores. Hasta entonces el conmutador puede estar activado sin que se ejecute nada.
+Active **Sincronización automática** en la tarjeta de la integración y KANAP ejecuta el mismo trabajo cada hora, aplicando los cambios sin vista previa. El conmutador es por espacio de trabajo, y solo se visitan los espacios de trabajo que lo han activado. El trabajo horario nunca hace la primera importación: empieza cuando usted ha aplicado una sincronización y esta ha terminado sin errores. Hasta entonces el conmutador puede estar activado sin que se ejecute nada. Lo mismo ocurre mientras una revisión no ha terminado: mientras haya objetos esperando su lote, el trabajo horario queda en pausa, porque importaría lo que nadie ha leído. Se reanuda en cuanto una sincronización que usted aplique no deje nada en espera.
 
 Los objetos que necesitan una decisión no se resuelven nunca de forma automática. Se acumulan en **Por decidir** y le esperan.
 

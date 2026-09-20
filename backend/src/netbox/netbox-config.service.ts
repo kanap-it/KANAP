@@ -64,6 +64,8 @@ export type NetboxIntegrationView = {
   auto_sync: boolean;
   /** A synchronisation was applied by hand at least once; the hourly run waits for it. */
   manual_sync_done: boolean;
+  /** Objects a manual run left for a later batch; automatic runs hold while it is not zero. */
+  review_pending: number;
   default_environment: string;
   secret_writable: boolean;
   updated_at: string | null;
@@ -212,7 +214,9 @@ export class NetboxConfigService {
       request_timeout_seconds: config?.timeout_seconds ?? null,
       insecure_tls: metadata?.insecure_tls === true,
       auto_sync: metadata?.auto_sync === true,
-      manual_sync_done: typeof metadata?.first_manual_sync_at === 'string',
+      manual_sync_done: typeof metadata?.first_manual_sync_at === 'string'
+        && !(Number(metadata?.review_pending) > 0),
+      review_pending: Math.max(0, Math.floor(Number(metadata?.review_pending)) || 0),
       default_environment: textOrNull(metadata?.default_environment) ?? 'prod',
       secret_writable: this.cipher.canEncrypt(),
       updated_at: config?.updated_at instanceof Date
@@ -394,9 +398,17 @@ export class NetboxConfigService {
     const metadata: Record<string, unknown> = { ...(asRecord(config.metadata_json) ?? {}) };
     metadata.sync_state = state;
     // The hourly run waits for this: a first import is read and applied by a
-    // person before anything is allowed to apply changes on its own.
-    if (state.status === 'success' && state.trigger === 'manual' && !metadata.first_manual_sync_at) {
-      metadata.first_manual_sync_at = state.finished_at ?? new Date().toISOString();
+    // person before anything is allowed to apply changes on its own. A manual
+    // run that left objects for a later batch has not finished that review:
+    // the hourly run would import them with nobody having read them. So the
+    // number still waiting is kept, the hourly run holds while it is not zero,
+    // and the first-import mark is only set by a run that left nothing behind.
+    if (state.status === 'success' && state.trigger === 'manual') {
+      const deferred = Number(state.counts?.deferred) || 0;
+      metadata.review_pending = deferred;
+      if (deferred === 0 && !metadata.first_manual_sync_at) {
+        metadata.first_manual_sync_at = state.finished_at ?? new Date().toISOString();
+      }
     }
     config.metadata_json = metadata;
     config.updated_at = new Date();

@@ -161,6 +161,11 @@ export interface NetboxDecision {
 export interface NetboxSyncInput {
   decisions?: NetboxDecision[];
   reuse_inventory?: boolean;
+  /**
+   * Manual run only: the objects the preview listed. The run creates and
+   * updates nothing else; the rest comes back in the next preview.
+   */
+  reviewed?: Array<{ external_type: NetboxObjectType; external_id: string }>;
 }
 
 export interface NetboxPlanRow {
@@ -189,6 +194,8 @@ export interface NetboxSyncCounts {
   skipped: number;
   missing: number;
   error: number;
+  /** Creations and updates a manual run left for a later batch. */
+  deferred?: number;
 }
 
 export interface NetboxPreviewResult {
@@ -198,6 +205,10 @@ export interface NetboxPreviewResult {
   /** `unchanged` rows are omitted; capped at 500. */
   rows: NetboxPlanRow[];
   rows_truncated: boolean;
+  /** This preview is one batch; `remaining` objects wait after it, untouched by Apply. */
+  batch?: { listed: number; remaining: number };
+  /** Out-of-scope objects by reason. They are counted, never listed. */
+  skipped_by_reason?: Record<string, number>;
   missing: NetboxRecordRow[];
   /**
    * Changes to the shared sub-locations, listed once each rather than once per
@@ -255,6 +266,8 @@ export interface NetboxStatus {
   auto_sync: boolean;
   sync: NetboxSyncState;
   records: Record<NetboxRecordState, number>;
+  /** Objects the last manual run left for a later batch; automatic runs hold meanwhile. */
+  review_pending?: number;
 }
 
 export interface NetboxRecordRow {

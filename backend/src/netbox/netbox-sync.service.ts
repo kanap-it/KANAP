@@ -42,9 +42,11 @@ import {
   NetboxPlanWrite,
   NetboxSubLocationChange,
   NetboxSyncCounts,
+  buildReviewBatch,
   claimedAssets,
   diffNetboxMapping,
   externalKey,
+  isWriteDeferred,
   planNetboxSync,
   resolveSubLocation,
   subLocationUpkeepNotices,
@@ -62,8 +64,14 @@ import { LocationsService, SubItemExternal } from '../locations/locations.servic
 // the audit source set to the Netbox sync instead of a user.
 
 const RUNNING_LOCK_PREFIX = 'netbox-sync';
-/** The preview sends at most this many rows to the browser. */
+/**
+ * One review batch. A manual run writes only what its preview listed, so this
+ * is how much a person is asked to read in one go, not a cap on what Netbox may
+ * hold: whatever does not fit comes back in the next preview.
+ */
 const PREVIEW_ROW_LIMIT = 500;
+/** Generous bound on the list of reviewed objects a run accepts. */
+const REVIEWED_LIMIT = PREVIEW_ROW_LIMIT * 4;
 /**
  * A run gives up after this many objects fail one after another. Writing
  * thousands of error rows and then reporting success helps nobody: something
@@ -117,6 +125,28 @@ export function parseNetboxDecisions(raw: unknown): NetboxDecision[] {
   return [...byKey.values()];
 }
 
+/**
+ * Reads the list of objects the preview showed. A manual run with no list has
+ * had nothing reviewed, so it creates and updates nothing: an older page, or a
+ * direct API call, must not be a way around the review.
+ */
+export function parseNetboxReviewed(raw: unknown): Set<string> {
+  if (raw == null) return new Set();
+  if (!Array.isArray(raw) || raw.length > REVIEWED_LIMIT) {
+    throw new BadRequestException('The list of reviewed objects could not be read. Open the preview again.');
+  }
+  const keys = new Set<string>();
+  for (const entry of raw) {
+    const type = String((entry as any)?.external_type ?? '');
+    const id = String((entry as any)?.external_id ?? '').trim();
+    if ((type !== 'device' && type !== 'vm') || !id) {
+      throw new BadRequestException('The list of reviewed objects could not be read. Open the preview again.');
+    }
+    keys.add(externalKey(type, id));
+  }
+  return keys;
+}
+
 export type NetboxRecordRow = {
   id: string;
   external_type: NetboxObjectType;
@@ -139,6 +169,13 @@ export type NetboxPreviewResult = {
   counts: NetboxSyncCounts;
   rows: NetboxPlanRow[];
   rows_truncated: boolean;
+  /**
+   * This preview is one batch. `remaining` objects still wait to be decided,
+   * created or updated after it; applying leaves them untouched.
+   */
+  batch: { listed: number; remaining: number };
+  /** Out-of-scope objects by reason; they are counted, never listed. */
+  skipped_by_reason: Record<string, number>;
   missing: NetboxRecordRow[];
   /**
    * How many role and site matches are SAVED. The Mappings tab pre-fills its
@@ -160,12 +197,19 @@ export type NetboxStatus = {
   auto_sync: boolean;
   sync: NetboxSyncStateView;
   records: Record<AssetExternalLinkState, number>;
+  /**
+   * Objects the last manual run left for a later batch. While it is not zero,
+   * automatic runs hold: they would import what nobody has read.
+   */
+  review_pending: number;
 };
 
 /** Body of a preview or of a manual run: the choices made in the dialog. */
 export type NetboxSyncInput = {
   decisions?: unknown;
   reuse_inventory?: unknown;
+  /** Manual run only: the objects the preview listed, `{external_type, external_id}`. */
+  reviewed?: unknown;
 };
 
 export type NetboxResolveInput = {
@@ -329,6 +373,7 @@ export class NetboxSyncService {
       auto_sync: view.auto_sync,
       sync: this.config.readSyncState(config),
       records,
+      review_pending: view.review_pending,
     };
   }
 
@@ -720,6 +765,8 @@ export class NetboxSyncService {
         counts: { create: 0, update: 0, unchanged: 0, ambiguous: 0, skipped: 0, missing: 0, error: 0 },
         rows: [],
         rows_truncated: false,
+        batch: { listed: 0, remaining: 0 },
+        skipped_by_reason: {},
         missing: [],
         saved_matches: savedMatches,
         // Nothing was read, so nothing is known about the sub-locations either.
@@ -734,12 +781,11 @@ export class NetboxSyncService {
         : null,
     );
     const { plan } = this.buildPlan(local, fetched, decisions);
-    // Rows that need nothing are left out, except when they carry a warning
-    // (an operating system missing from the catalog has to stay visible after
-    // the object itself has stopped changing) or a decision, which the person
-    // must be able to see and take back.
-    const shown = plan.rows.filter((row) =>
-      row.action !== 'unchanged' || row.warnings.length > 0 || row.decision != null);
+    // One batch a person can read. Rows that need nothing are left out, except
+    // when they carry a warning (an operating system missing from the catalog
+    // has to stay visible after the object itself has stopped changing) or a
+    // decision, which the person must be able to see and take back.
+    const batch = buildReviewBatch(plan.rows, PREVIEW_ROW_LIMIT);
     const missingIds = plan.missing.map((link) => link.id);
     const missingRows = missingIds.length > 0
       ? await this.decorateRecords(
@@ -761,8 +807,10 @@ export class NetboxSyncService {
       // A partial inventory is worth saying out loud before anyone applies it.
       message: fetched.complete ? null : netboxNotice('fetch_incomplete').text,
       counts: plan.counts,
-      rows: shown.slice(0, PREVIEW_ROW_LIMIT),
-      rows_truncated: shown.length > PREVIEW_ROW_LIMIT,
+      rows: batch.rows,
+      rows_truncated: batch.remaining > 0,
+      batch: { listed: batch.rows.length, remaining: batch.remaining },
+      skipped_by_reason: batch.skipped_by_reason,
       missing: missingRows,
       saved_matches: savedMatches,
       sub_locations: {
@@ -779,6 +827,7 @@ export class NetboxSyncService {
   /** Starts a manual run in the background; the page polls GET /netbox/status. */
   async startManualRun(manager: EntityManager, tenantId: string, input: NetboxSyncInput = {}): Promise<NetboxStatus> {
     const decisions = parseNetboxDecisions(input.decisions);
+    const reviewed = parseNetboxReviewed(input.reviewed);
     const status = await this.getStatus(manager, tenantId);
     if (!status.configured) {
       throw new BadRequestException('Set up the Netbox connection first, then run a synchronisation.');
@@ -815,7 +864,7 @@ export class NetboxSyncService {
     }
     const startedAt = new Date();
     await this.persistState(tenantId, this.runningState('manual', startedAt));
-    void this.runLocked(tenantId, 'manual', runner, startedAt, decisions).catch((error) => {
+    void this.runLocked(tenantId, 'manual', runner, startedAt, decisions, reviewed).catch((error) => {
       this.logger.error(`Netbox synchronisation could not start for tenant ${tenantId}: ${plainErrorMessage(error)}`);
     });
     return { ...status, sync: this.runningState('manual', startedAt) };
@@ -912,9 +961,11 @@ export class NetboxSyncService {
     runner: ReturnType<DataSource['createQueryRunner']>,
     startedAt: Date,
     decisions: NetboxDecision[] = [],
+    /** Objects a person was shown; null for the scheduled run, which has no reviewer. */
+    reviewed: Set<string> | null = null,
   ): Promise<{ status: 'skipped' | 'success' | 'failure'; counts?: NetboxSyncCounts; error?: string }> {
     try {
-      const result = await this.executeRun(tenantId, decisions);
+      const result = await this.executeRun(tenantId, decisions, reviewed);
       const finishedAt = new Date();
       await this.persistState(tenantId, {
         status: 'success',
@@ -955,6 +1006,7 @@ export class NetboxSyncService {
   private async executeRun(
     tenantId: string,
     decisions: NetboxDecision[] = [],
+    reviewed: Set<string> | null = null,
   ): Promise<{ counts: NetboxSyncCounts; warnings: NetboxNotice[] }> {
     // Read phase outside any transaction, then the HTTP calls with no database
     // connection held, then one short transaction per object.
@@ -968,7 +1020,7 @@ export class NetboxSyncService {
     // The inventory a preview kept is older than what this run is about to write.
     this.previewInventory.delete(tenantId);
     const { plan } = this.buildPlan(local, fetched, decisions);
-    const counts: NetboxSyncCounts = { ...plan.counts, create: 0, update: 0, unchanged: 0, error: 0 };
+    const counts: NetboxSyncCounts = { ...plan.counts, create: 0, update: 0, unchanged: 0, error: 0, deferred: 0 };
     const warnings: NetboxNotice[] = fetched.complete ? [] : [netboxNotice('fetch_incomplete')];
     if (!fetched.complete) {
       this.logger.warn(`Netbox returned more pages than KANAP reads for tenant ${tenantId}; the inventory is partial.`);
@@ -1032,6 +1084,13 @@ export class NetboxSyncService {
       }
       const write = plan.writes.get(key);
       if (!write) continue;
+      // A manual run writes only what its preview listed. Anything else is left
+      // exactly as it is and comes back in the next preview: a creation nobody
+      // read is how a duplicate gets in, and KANAP never deletes one.
+      if (isWriteDeferred(row, reviewed)) {
+        counts.deferred = (counts.deferred ?? 0) + 1;
+        continue;
+      }
 
       const outcome = await this.applyRow(tenantId, row, write, local.defaultEnvironment);
       if (outcome.action === 'error') {

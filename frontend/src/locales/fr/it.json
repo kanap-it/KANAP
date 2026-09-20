@@ -213,12 +213,15 @@
       "notConfigured": "Netbox n'est pas encore connecté.",
       "disabledHint": "Activez l'intégration dans les paramètres pour lancer une synchronisation.",
       "runningHint": "Une synchronisation est en cours.",
+      "reviewPending_one": "{{count}} objet attend encore d'être vérifié. La synchronisation automatique est suspendue tant qu'il ne l'est pas.",
+      "reviewPending_other": "{{count}} objets attendent encore d'être vérifiés. La synchronisation automatique est suspendue tant qu'ils ne le sont pas.",
       "tabs": {
         "records": "Objets",
         "mappings": "Correspondances"
       },
       "actions": {
         "syncNow": "Synchroniser maintenant",
+        "nextBatch": "Vérifier le lot suivant",
         "preparing": "Préparation de l'aperçu...",
         "openSettings": "Ouvrir les paramètres de l'intégration",
         "linkTo": "Lier à...",
@@ -284,7 +287,9 @@
         "apply": "Appliquer",
         "empty": "Non renseigné",
         "summary": "{{created}} à créer, {{updated}} à mettre à jour, {{unchanged}} sans changement.",
-        "truncated": "Seuls les 500 premiers objets sont listés ici. Tout est appliqué.",
+        "batch_one": "Ceci est un lot. {{count}} autre objet attend : Appliquer n'écrit que ce qui est listé ici et le laisse intact pour le lot suivant.",
+        "batch_other": "Ceci est un lot. {{count}} autres objets attendent : Appliquer n'écrit que ce qui est listé ici et les laisse intacts pour le lot suivant.",
+        "applyBatch": "Appliquer ce lot",
         "noMatches": {
           "none": "Aucune correspondance de rôle ni de site n'est encore enregistrée, donc rien ne peut être importé. Ouvrez les correspondances, vérifiez les suggestions, puis enregistrez-les.",
           "roles": "Aucune correspondance de rôle n'est encore enregistrée, donc rien ne peut être importé. Ouvrez les correspondances, vérifiez les suggestions, puis enregistrez-les.",

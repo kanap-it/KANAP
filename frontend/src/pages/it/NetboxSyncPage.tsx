@@ -679,11 +679,22 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
       .map(noticeText)
       .filter(Boolean),
   ));
-  const skippedByReason = plainSkipped.reduce<Record<string, number>>((acc, row) => {
+  // Out-of-scope objects are counted by the server and never listed: they
+  // would otherwise use up the room a batch has for what needs reading.
+  const skippedByReason = preview?.skipped_by_reason ?? plainSkipped.reduce<Record<string, number>>((acc, row) => {
     const key = row.skip_reason || 'ignored';
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
+  const skippedTotal = Object.values(skippedByReason).reduce((sum, count) => sum + count, 0);
+
+  // One preview is one batch. Applying writes only what is listed here; what
+  // did not fit is left untouched and comes in the next batch.
+  const remaining = preview?.batch?.remaining ?? 0;
+  /** "212 / 640" when this batch lists only part of a group; the plain count otherwise. */
+  const sectionCount = (listed: number, total: number): string | number => (
+    !needle && total > listed ? `${listed} / ${total}` : listed
+  );
 
   /** Objects with a single suggestion and no decision yet: one click settles them all. */
   const singleSuggestion = ambiguous.filter((row) => row.candidates.length === 1 && !decisionFor(row));
@@ -740,7 +751,7 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
         title={t('pages.netbox.preview.title')}
         onClose={onClose}
         onSave={() => onApply(decisions)}
-        saveLabel={t('pages.netbox.preview.apply')}
+        saveLabel={remaining > 0 ? t('pages.netbox.preview.applyBatch') : t('pages.netbox.preview.apply')}
         saveLoading={applying}
         saveDisabled={!preview?.ok || busy || nothingMatched}
         sx={[{ maxWidth: 880 }, previewClassSx]}
@@ -761,6 +772,9 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
             {preview.message ? <Alert severity={preview.ok ? 'info' : 'error'}>{preview.message}</Alert> : null}
             {decisionError ? (
               <Alert severity="error" onClose={() => setDecisionError(null)}>{decisionError}</Alert>
+            ) : null}
+            {remaining > 0 ? (
+              <Alert severity="info">{t('pages.netbox.preview.batch', { count: remaining })}</Alert>
             ) : null}
 
             <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -795,7 +809,7 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
                 button in the shared dialog footer stays within reach. */}
             <Stack spacing={2} sx={{ maxHeight: '56vh', overflowY: 'auto', pr: 1 }}>
               <PreviewSection
-                title={t('pages.netbox.preview.sections.created', { n: created.length })}
+                title={t('pages.netbox.preview.sections.created', { n: sectionCount(created.length, preview.counts.create) })}
                 hint={t('pages.netbox.preview.hints.created')}
                 rows={created}
                 showDiffs={false}
@@ -803,7 +817,7 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
                 renderRow={renderRow}
               />
               <PreviewSection
-                title={t('pages.netbox.preview.sections.updated', { n: updated.length })}
+                title={t('pages.netbox.preview.sections.updated', { n: sectionCount(updated.length, preview.counts.update) })}
                 hint={t('pages.netbox.preview.hints.updated')}
                 rows={updated}
                 showDiffs
@@ -811,7 +825,7 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
                 renderRow={renderRow}
               />
               <PreviewSection
-                title={t('pages.netbox.preview.sections.ambiguous', { n: ambiguous.length })}
+                title={t('pages.netbox.preview.sections.ambiguous', { n: sectionCount(ambiguous.length, preview.counts.ambiguous) })}
                 rows={ambiguous}
                 showDiffs={false}
                 showNotices
@@ -830,9 +844,9 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
                 renderRow={renderRow}
               />
 
-              {plainSkipped.length > 0 ? (
+              {skippedTotal > 0 ? (
                 <Box>
-                  <Box className="kanap-subhead">{t('pages.netbox.preview.sections.skipped', { n: plainSkipped.length })}</Box>
+                  <Box className="kanap-subhead">{t('pages.netbox.preview.sections.skipped', { n: skippedTotal })}</Box>
                   <Stack>
                     {Object.entries(skippedByReason).map(([reason, count]) => (
                       <Typography key={reason} variant="body2" color="text.secondary">
@@ -863,10 +877,6 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
                     ))}
                   </Stack>
                 </Box>
-              ) : null}
-
-              {preview.rows_truncated ? (
-                <Typography variant="caption" color="text.secondary">{t('pages.netbox.preview.truncated')}</Typography>
               ) : null}
             </Stack>
           </Stack>
@@ -1200,7 +1210,16 @@ export default function NetboxSyncPage() {
   });
 
   const applyMutation = useMutation({
-    mutationFn: (decisions: NetboxDecision[]) => netboxApi.startSync({ decisions }),
+    // The run writes only what this preview listed. The list is every row the
+    // server sent, not what the text filter currently shows: the filter is a
+    // way to find a row, not a way to leave one out.
+    mutationFn: (decisions: NetboxDecision[]) => netboxApi.startSync({
+      decisions,
+      reviewed: (preview?.rows ?? []).map((row) => ({
+        external_type: row.external_type,
+        external_id: row.external_id,
+      })),
+    }),
     onSuccess: async (next) => {
       setPreviewOpen(false);
       queryClient.setQueryData(['netbox-status'], next);
@@ -1276,6 +1295,24 @@ export default function NetboxSyncPage() {
 
           {pageError ? <Alert severity="error" onClose={() => setPageError(null)}>{pageError}</Alert> : null}
           {notice ? <Alert severity="info" onClose={() => setNotice(null)}>{notice}</Alert> : null}
+          {(status.review_pending ?? 0) > 0 && !isRunning ? (
+            <Alert
+              severity="warning"
+              sx={{ width: 'fit-content', maxWidth: '100%' }}
+              action={canManage ? (
+                <Button
+                  variant="action"
+                  onClick={() => previewMutation.mutate()}
+                  disabled={previewMutation.isPending || !status.enabled}
+                  sx={{ whiteSpace: 'nowrap' }}
+                >
+                  {t('pages.netbox.actions.nextBatch')}
+                </Button>
+              ) : undefined}
+            >
+              {t('pages.netbox.reviewPending', { count: status.review_pending })}
+            </Alert>
+          ) : null}
 
           <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
             <Button

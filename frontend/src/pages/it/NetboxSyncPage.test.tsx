@@ -454,9 +454,67 @@ describe('NetboxSyncPage', () => {
 
     fireEvent.click(screen.getByText('Apply'));
 
+    // The run is told what the preview listed, row by row: it writes nothing else.
     await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/netbox/sync', {
       decisions: [{ external_type: 'device', external_id: '12', action: 'ignore' }],
+      reviewed: PREVIEW.rows.map((row) => ({ external_type: row.external_type, external_id: row.external_id })),
     }));
+  });
+
+  it('presents a large inventory as a batch and applies that batch only', async () => {
+    (apiClient.post as any).mockImplementation((url: string) => {
+      if (url === '/netbox/sync/preview') {
+        return Promise.resolve({
+          ...PREVIEW,
+          counts: { ...PREVIEW.counts, create: 640, update: 310, skipped: 600 },
+          rows_truncated: true,
+          batch: { listed: PREVIEW.rows.length, remaining: 830 },
+          skipped_by_reason: { unmapped_role: 600 },
+        });
+      }
+      if (url === '/netbox/sync') return Promise.resolve(STATUS);
+      throw new Error(`Unexpected POST ${url}`);
+    });
+
+    await openPreview();
+
+    expect(await screen.findByText(/^This is one batch\. 830 more objects are waiting/)).toBeInTheDocument();
+    // Section titles say how much of each group this batch holds.
+    expect(screen.getByText('To create (1 / 640)')).toBeInTheDocument();
+    expect(screen.getByText('To update (1 / 310)')).toBeInTheDocument();
+    // Out-of-scope objects come as counts from the server, not as rows.
+    expect(screen.getByText('Skipped (600)')).toBeInTheDocument();
+    expect(screen.getByText('Role not mapped · 600')).toBeInTheDocument();
+    expect(screen.queryByText(/Everything is applied/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply this batch' }));
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/netbox/sync', {
+      decisions: [],
+      reviewed: PREVIEW.rows.map((row) => ({ external_type: row.external_type, external_id: row.external_id })),
+    }));
+  });
+
+  it('offers the next batch while objects wait for review', async () => {
+    (apiClient.get as any).mockImplementation((url: string) => {
+      if (url === '/netbox/status') return Promise.resolve({ ...STATUS, review_pending: 830 });
+      if (url === '/netbox/records') return Promise.resolve({ items: [], total: 0 });
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    (apiClient.post as any).mockImplementation((url: string) => {
+      if (url === '/netbox/sync/preview') return Promise.resolve(PREVIEW);
+      throw new Error(`Unexpected POST ${url}`);
+    });
+
+    renderPage();
+
+    expect(await screen.findByText(
+      '830 objects are still waiting for review. Automatic synchronisation is on hold until they are reviewed.',
+    )).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Review the next batch' }));
+
+    expect(await screen.findByText('Review before applying')).toBeInTheDocument();
   });
 
   it('links an object to an existing asset through the shared picker', async () => {
