@@ -285,6 +285,12 @@
         "empty": "Non renseigné",
         "summary": "{{created}} à créer, {{updated}} à mettre à jour, {{unchanged}} sans changement.",
         "truncated": "Seuls les 500 premiers objets sont listés ici. Tout est appliqué.",
+        "noMatches": {
+          "none": "Aucune correspondance de rôle ni de site n'est encore enregistrée, donc rien ne peut être importé. Ouvrez les correspondances, vérifiez les suggestions, puis enregistrez-les.",
+          "roles": "Aucune correspondance de rôle n'est encore enregistrée, donc rien ne peut être importé. Ouvrez les correspondances, vérifiez les suggestions, puis enregistrez-les.",
+          "sites": "Aucune correspondance de site n'est encore enregistrée, donc rien ne peut être importé. Ouvrez les correspondances, vérifiez les suggestions, puis enregistrez-les.",
+          "open": "Ouvrir les correspondances"
+        },
         "sections": {
           "created": "À créer ({{n}})",
           "updated": "À mettre à jour ({{n}})",
@@ -379,6 +385,8 @@
         "suggested": "Suggéré",
         "save": "Enregistrer les correspondances",
         "saved": "Correspondances enregistrées.",
+        "unsaved_one": "{{count}} correspondance n'est pas encore enregistrée. Elle ne décide de rien tant que vous n'avez pas enregistré.",
+        "unsaved_other": "{{count}} correspondances ne sont pas encore enregistrées. Elles ne décident de rien tant que vous n'avez pas enregistré.",
         "columns": {
           "netboxRole": "Rôle Netbox",
           "netboxSite": "Site Netbox",

@@ -232,6 +232,70 @@ describe('NetboxSyncPage', () => {
     expect(screen.getByText('Suggested')).toBeInTheDocument();
   });
 
+  it('says that suggestions are not saved, and offers to save them from the top', async () => {
+    let saved = false;
+    (apiClient.get as any).mockImplementation((url: string) => {
+      if (url === '/netbox/status') return Promise.resolve(STATUS);
+      if (url === '/netbox/mapping-options') {
+        return Promise.resolve(saved
+          ? { ...MAPPING_OPTIONS, role_map: { ...MAPPING_OPTIONS.role_map, switch: 'network_switch' }, suggested_role_map: {} }
+          : MAPPING_OPTIONS);
+      }
+      if (url === '/netbox/records') return Promise.resolve({ items: [], total: 0 });
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    (apiClient.put as any).mockImplementation((url: string, body: any) => {
+      if (url !== '/netbox/mapping') throw new Error(`Unexpected PUT ${url}`);
+      saved = true;
+      return Promise.resolve({ role_map: body.role_map, site_map: body.site_map });
+    });
+
+    renderPage();
+    fireEvent.click(await screen.findByText('Mappings'));
+
+    // One suggestion pre-fills its row; it looks chosen and is not saved.
+    expect(await screen.findByText('1 match is not saved yet. It decides nothing until you save.'))
+      .toBeInTheDocument();
+    // Two save buttons: the one next to the notice, and the one under the tables.
+    const buttons = screen.getAllByRole('button', { name: 'Save mappings' });
+    expect(buttons).toHaveLength(2);
+
+    fireEvent.click(buttons[0]);
+
+    expect(await screen.findByText('Mappings saved.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/not saved yet/)).not.toBeInTheDocument());
+    expect((apiClient.put as any).mock.calls[0][1].role_map.switch).toBe('network_switch');
+  });
+
+  it('points at the mappings when no match is saved, instead of listing skipped objects', async () => {
+    const defaultGet = (apiClient.get as any).getMockImplementation();
+    (apiClient.get as any).mockImplementation((url: string, config?: any) => (
+      url === '/netbox/mapping-options' ? Promise.resolve(MAPPING_OPTIONS) : defaultGet(url, config)
+    ));
+    (apiClient.post as any).mockImplementation((url: string) => {
+      if (url === '/netbox/sync/preview') {
+        return Promise.resolve({
+          ...PREVIEW,
+          counts: { ...PREVIEW.counts, create: 0, update: 0, unchanged: 0 },
+          saved_matches: { roles: 0, sites: 2 },
+        });
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
+
+    await openPreview();
+
+    expect(await screen.findByText(/^No role match is saved yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Skipped/)).not.toBeInTheDocument();
+    // Applying would import nothing and still open the automatic runs.
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open the mappings' }));
+
+    await waitFor(() => expect(screen.queryByText('Review before applying')).not.toBeInTheDocument());
+    expect(await screen.findByText('Netbox roles')).toBeInTheDocument();
+  });
+
   it('groups the preview by what will happen and shows the field diffs', async () => {
     renderPage();
     await screen.findByText('par-esx-01');

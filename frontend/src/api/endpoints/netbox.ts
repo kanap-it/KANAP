@@ -206,6 +206,12 @@ export interface NetboxPreviewResult {
    * backend, hence the `?`.
    */
   sub_locations?: NetboxSubLocationsView;
+  /**
+   * How many role and site matches are saved. Zero on either side means every
+   * object is skipped: suggestions shown in the Mappings tab decide nothing
+   * until they are saved. Optional for the same reason as above.
+   */
+  saved_matches?: { roles: number; sites: number };
 }
 
 /** What a run does to the tenant's sub-locations. */

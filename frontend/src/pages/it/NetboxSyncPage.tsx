@@ -541,13 +541,14 @@ function SubLocationsSection({ view }: { view: NetboxSubLocationsView }) {
  * in the dialog, travels with each re-preview so the plan reflects it, and is only
  * written when the run is applied.
  */
-function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewResult }: {
+function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewResult, onOpenMappings }: {
   open: boolean;
   preview: NetboxPreviewResult | null;
   applying: boolean;
   onClose: () => void;
   onApply: (decisions: NetboxDecision[]) => void;
   onPreviewResult: (result: NetboxPreviewResult) => void;
+  onOpenMappings: () => void;
 }) {
   const { t } = useTranslation(['it', 'common']);
   const noticeText = useNoticeText();
@@ -723,6 +724,15 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
   const menuRow = menu?.row;
   const busy = repreview.isPending || syncedRevision !== revision;
 
+  // With no role match or no site match saved, every object is out of scope.
+  // The Mappings tab pre-fills its rows with suggestions, which look saved and
+  // are not: say that, rather than list hundreds of skipped objects.
+  const savedMatches = preview?.ok ? preview.saved_matches : undefined;
+  const nothingMatched = !!savedMatches && (savedMatches.roles === 0 || savedMatches.sites === 0);
+  const nothingMatchedKey = !savedMatches || (savedMatches.roles === 0 && savedMatches.sites === 0)
+    ? 'none'
+    : savedMatches.roles === 0 ? 'roles' : 'sites';
+
   return (
     <>
       <KanapDialog
@@ -732,10 +742,21 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
         onSave={() => onApply(decisions)}
         saveLabel={t('pages.netbox.preview.apply')}
         saveLoading={applying}
-        saveDisabled={!preview?.ok || busy}
+        saveDisabled={!preview?.ok || busy || nothingMatched}
         sx={[{ maxWidth: 880 }, previewClassSx]}
       >
-        {!preview ? null : (
+        {!preview ? null : nothingMatched ? (
+          <Alert
+            severity="warning"
+            action={(
+              <Button variant="action" onClick={onOpenMappings} sx={{ whiteSpace: 'nowrap' }}>
+                {t('pages.netbox.preview.noMatches.open')}
+              </Button>
+            )}
+          >
+            {t(`pages.netbox.preview.noMatches.${nothingMatchedKey}`)}
+          </Alert>
+        ) : (
           <Stack spacing={1.5}>
             {preview.message ? <Alert severity={preview.ok ? 'info' : 'error'}>{preview.message}</Alert> : null}
             {decisionError ? (
@@ -951,6 +972,25 @@ function MappingsSection({ onError }: { onError: (message: string) => void }) {
     !!current[slug] && !savedMap[slug]
   );
 
+  // Rows whose value on screen is not the saved one: a suggestion never saved,
+  // or a choice just changed. Nothing here decides an import until it is saved,
+  // and the save button sits below two tables that can be long.
+  const unsavedIn = (current: Record<string, string>, savedMap: Record<string, string>) => (
+    Array.from(new Set([...Object.keys(current), ...Object.keys(savedMap)]))
+      .filter((slug) => (current[slug] || '') !== (savedMap[slug] || '')).length
+  );
+  const unsavedCount = unsavedIn(roleMap, data.role_map) + unsavedIn(siteMap, data.site_map);
+  const saveButton = (variant: 'contained' | 'action') => (
+    <Button
+      variant={variant}
+      onClick={() => saveMapping.mutate()}
+      disabled={saveMapping.isPending}
+      sx={{ whiteSpace: 'nowrap' }}
+    >
+      {saveMapping.isPending ? t('common:status.saving') : t('pages.netbox.mappings.save')}
+    </Button>
+  );
+
   /** Roles count devices, the reserved row counts virtual machines, a site can have both. */
   const countLabel = (entry: NetboxMappingEntry): string => {
     const parts: string[] = [];
@@ -971,6 +1011,17 @@ function MappingsSection({ onError }: { onError: (message: string) => void }) {
   return (
     <Stack spacing={2.5}>
       <Typography variant="body2" color="text.secondary">{t('pages.netbox.mappings.intro')}</Typography>
+
+      {unsavedCount > 0 ? (
+        // Sized to its text, so the button stays next to the sentence instead
+        // of drifting to the far edge of a wide page.
+        <Alert severity="warning" action={saveButton('action')} sx={{ width: 'fit-content', maxWidth: '100%' }}>
+          {t('pages.netbox.mappings.unsaved', { count: unsavedCount })}
+        </Alert>
+      ) : null}
+      {saved && unsavedCount === 0 ? (
+        <Alert severity="success" onClose={() => setSaved(false)}>{t('pages.netbox.mappings.saved')}</Alert>
+      ) : null}
 
       <Box>
         <Box className="kanap-subhead">{t('pages.netbox.mappings.roles')}</Box>
@@ -1075,13 +1126,7 @@ function MappingsSection({ onError }: { onError: (message: string) => void }) {
         </Typography>
       </Box>
 
-      {saved ? <Alert severity="success" onClose={() => setSaved(false)}>{t('pages.netbox.mappings.saved')}</Alert> : null}
-
-      <Box>
-        <Button variant="contained" onClick={() => saveMapping.mutate()} disabled={saveMapping.isPending}>
-          {saveMapping.isPending ? t('common:status.saving') : t('pages.netbox.mappings.save')}
-        </Button>
-      </Box>
+      <Box>{saveButton('contained')}</Box>
     </Stack>
   );
 }
@@ -1359,6 +1404,7 @@ export default function NetboxSyncPage() {
         onClose={() => setPreviewOpen(false)}
         onApply={(decisions) => applyMutation.mutate(decisions)}
         onPreviewResult={setPreview}
+        onOpenMappings={() => { setPreviewOpen(false); setTab('mappings'); }}
       />
     </Box>
   );
