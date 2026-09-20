@@ -754,6 +754,7 @@
         "identity": "Identity",
         "hostname": "Hostname",
         "hostnameRequired": "Hostname is required when a domain is selected",
+        "hostnameInvalid": "A host name can use only letters, digits, hyphens and dots. Each part between dots must be 63 characters or less.",
         "domain": "Domain",
         "fqdn": "FQDN",
         "aliases": "Aliases",
