@@ -10,7 +10,14 @@ import {
 } from '../netbox-mapper';
 import { ExistingAsset, buildMatcherIndex, matchNetboxObject } from '../netbox-matcher';
 import { primaryNotice } from '../netbox-notice';
-import { ExistingLink, ExistingSubLocation, NetboxDecision, NetboxPlanRow, planNetboxSync } from '../netbox-planner';
+import {
+  ExistingLink,
+  ExistingSubLocation,
+  NetboxDecision,
+  NetboxPlanRow,
+  planNetboxSync,
+  subLocationUpkeepNotices,
+} from '../netbox-planner';
 import { NetboxObject } from '../netbox.types';
 
 // Unit spec for the pure half of the Netbox sync: normalisation, mapping,
@@ -1176,6 +1183,13 @@ function subLocation(overrides: Partial<ExistingSubLocation> = {}): ExistingSubL
   assert.equal(conflicts[0].sub_item_id, 'sub-1');
   assert.equal(result.subLocations.some((change) => change.action === 'rename'), false);
   assert.deepEqual(row(result, '1').diffs, []);
+  // No equipment row carries this conflict, so the run has to say it itself:
+  // a scheduled run has no preview to show it in.
+  assert.deepEqual(row(result, '1').warnings, []);
+  const notices = subLocationUpkeepNotices(result.subLocations);
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].code, 'sub_location_name_taken');
+  assert.equal(notices[0].params.value, 'Atelier');
 }
 
 // An empty Netbox description never blanks the KANAP one, and a description
@@ -1301,6 +1315,27 @@ function subLocation(overrides: Partial<ExistingSubLocation> = {}): ExistingSubL
   assert.equal(created[0].external_id, '12', 'the lower id wins');
   assert.equal(conflicts.length, 1);
   assert.equal(conflicts[0].external_id, '30');
+  // The losing row comes FIRST and creates a new asset, which is when the
+  // apply step resolves a target against the database. It must have no target
+  // left, or "Atelier" would be created for id 30 before id 12 is reached and
+  // the run would contradict the preview.
+  assert.equal(row(result, '1').action, 'create');
+  assert.equal(result.writes.get('device:1')?.subLocation, null);
+  assert.equal(result.writes.get('device:2')?.subLocation?.externalId, '12');
+  // That conflict is on its equipment row already, not repeated for the run.
+  assert.equal(row(result, '1').warnings.some((notice) => notice.code === 'sub_location_name_taken'), true);
+  assert.deepEqual(subLocationUpkeepNotices(result.subLocations), []);
+}
+
+// A Location without a name is no target, and the equipment still imports.
+{
+  const result = plan({
+    objects: [deepDevice(1, 'a-machine', 7)],
+    locations: locationIndex([{ id: '7', name: '' }]),
+  });
+  assert.equal(row(result, '1').action, 'create');
+  assert.equal(result.writes.get('device:1')?.subLocation, null);
+  assert.deepEqual(result.subLocations, []);
 }
 
 // Replaying the plan on the state it produced changes nothing at all.

@@ -47,6 +47,7 @@ import {
   externalKey,
   planNetboxSync,
   resolveSubLocation,
+  subLocationUpkeepNotices,
 } from './netbox-planner';
 import { NetboxApiError, NetboxLocation, NetboxLocationIndex, NetboxObject, NetboxObjectType } from './netbox.types';
 import { LocationsService, SubItemExternal } from '../locations/locations.service';
@@ -249,6 +250,12 @@ export function objectFailureNotice(error: unknown): NetboxNotice {
     if (detail) return netboxNotice('validation_failed', { detail });
   }
   return netboxNotice('save_failed');
+}
+
+/** The locations service refusing a name another sub-location already holds. */
+function isSubLocationNameRejection(error: unknown): boolean {
+  return error instanceof BadRequestException
+    && /already exists at this location/i.test(httpExceptionMessage(error) ?? '');
 }
 
 function isDuplicateIpRejection(error: unknown): boolean {
@@ -969,6 +976,7 @@ export class NetboxSyncService {
     // produces no diff on the equipment rows, so without this step it would
     // never be written at all. Each change gets its own short transaction, and
     // a failure is reported without stopping the run.
+    warnings.push(...subLocationUpkeepNotices(plan.subLocations));
     for (const change of plan.subLocations) {
       if (change.action !== 'rename' && change.action !== 'update' && change.action !== 'adopt') continue;
       try {
@@ -977,9 +985,11 @@ export class NetboxSyncService {
         this.logger.warn(
           `Netbox location ${change.external_id} could not be kept in step: ${plainErrorMessage(error)}`,
         );
-        if (change.action !== 'update') {
-          warnings.push(netboxNotice('sub_location_name_taken', { value: change.name }));
-        }
+        // Only a refused name is a name conflict; anything else is reported
+        // for what it is.
+        warnings.push(isSubLocationNameRejection(error)
+          ? netboxNotice('sub_location_name_taken', { value: change.name })
+          : objectFailureNotice(error));
       }
     }
 
@@ -1185,15 +1195,9 @@ export class NetboxSyncService {
       audit: { source: 'system', sourceRef: NETBOX_LINK_SOURCE },
     };
 
-    if (resolution.kind === 'existing') {
-      // The deep link follows the connection's base URL, which may have moved.
-      if (target.url !== resolution.subItem.external_url) {
-        await this.locations.updateSubItem(
-          locationId, resolution.subItem.id, {}, tenantId, null, opts,
-        ).catch((error) => this.logRecordFailure(target as unknown as NetboxPlanRow, error));
-      }
-      return resolution.subItem.id;
-    }
+    // The deep link is refreshed by the upkeep step of a run, not here: a
+    // failure swallowed inside this transaction would leave it aborted.
+    if (resolution.kind === 'existing') return resolution.subItem.id;
 
     if (resolution.kind === 'adopt') {
       // A list built by hand is taken over rather than duplicated, so the
@@ -1534,11 +1538,14 @@ export class NetboxSyncService {
     // the same sub-location the next run would. Unavailable locations are not
     // worth failing the action over — the object is still linked or created,
     // and the following run fills the sub-location in.
-    try {
-      const page = await this.client.listLocations(connection);
-      locationIndex = page.complete ? indexNetboxLocations(page.locations) : null;
-    } catch (error) {
-      this.logger.warn(`Netbox locations could not be read while resolving one object: ${plainErrorMessage(error)}`);
+    // A virtual machine, or a device outside any Location, has nothing to walk.
+    if (object.locationId) {
+      try {
+        const page = await this.client.listLocations(connection);
+        locationIndex = page.complete ? indexNetboxLocations(page.locations) : null;
+      } catch (error) {
+        this.logger.warn(`Netbox locations could not be read while resolving one object: ${plainErrorMessage(error)}`);
+      }
     }
     // The role and site matches still decide what the object may become.
     const mapping = mapNetboxObject(object, {
