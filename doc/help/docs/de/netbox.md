@@ -45,7 +45,7 @@ Gehen Sie zu **Administration > Integrationen** und öffnen Sie die Karte **Netb
 
 ## Auswählen, was importiert wird
 
-Öffnen Sie auf der Netbox-Seite den Tab **Zuordnungen**. Zwei Tabellen bestimmen den gesamten Umfang des Imports.
+Öffnen Sie auf der Netbox-Seite den Tab **Zuordnungen**. Dort stehen drei Tabellen. Die ersten beiden bestimmen den gesamten Umfang des Imports.
 
 - **Netbox-Rolle > KANAP-Asset-Typ**. Jede Geräterolle, die Netbox kennt, erhält einen Asset-Typ oder **Nicht importieren**.
 - **Netbox-Standort > KANAP-Standort**. Jeder Netbox-Standort erhält einen Ihrer Standorte oder **Nicht importieren**.
@@ -57,6 +57,16 @@ Bei den Rollen steht eine zusätzliche Zeile: **Virtuelle Maschinen**. Jede virt
 Jede Zeile zeigt, wie viele Geräte und virtuelle Maschinen sie umfasst, damit Sie sehen, worum es bei einer Auswahl geht. Wenn ein Netbox-Name eindeutig einem Ihrer Namen entspricht, ist die Zeile vorbelegt und mit **Vorschlag** gekennzeichnet. Ein Vorschlag ist nur ein Vorschlag: Nichts wird verwendet, bevor Sie **Zuordnungen speichern** drücken. Solange Zuordnungen noch nicht gespeichert sind, zeigt ein Hinweis oben im Reiter an, wie viele es sind, mit der Schaltfläche zum Speichern daneben. Wenn Sie **Jetzt synchronisieren** drücken, bevor eine Rolle oder ein Standort gespeichert ist, sagt die Vorschau das und führt Sie zu diesem Reiter zurück, statt jedes Objekt als übersprungen aufzulisten.
 
 Wird ein Netbox-Standort zugeordnet, werden seine Netbox-Locations als Unterstandorte des gewählten Standorts übernommen. Nur die Locations der ersten Ebene dieses Netbox-Standorts, und nur die, in denen tatsächlich ein importiertes Gerät steht. Ein Gerät, das tiefer steht, in „Gebäude A > Etage 1 > Raum 101“, wird „Gebäude A“ zugeordnet: KANAP erfasst, wo sich ein Gerät befindet, auf der Ebene eines Standorts und eines Gebäudes, nicht eines Raums. Dafür gibt es nichts zu konfigurieren.
+
+### Betriebssysteme
+
+Die dritte Tabelle ordnet jeder Netbox-Plattform ein Betriebssystem aus Ihrem Katalog zu. Netbox sagt „Debian 12“, wo KANAP „Debian 12 (bookworm)“ führt, und hier werden beide zusammengebracht. Jede Zeile zeigt, wie viele Objekte diese Plattform nutzen.
+
+Die Zeilen sind vorbelegt, wenn KANAP die Antwort erkennt: derselbe Name oder das einzige Betriebssystem, dessen Name mit dem Plattformnamen beginnt. „Debian 12“ schlägt „Debian 12 (bookworm)“ vor. Wie bei den anderen Tabellen zählt ein Vorschlag erst, wenn Sie **Zuordnungen speichern** drücken.
+
+Diese Tabelle ist kein Filter. Eine Plattform, die auf **Keine Zuordnung** bleibt, hält nie etwas vom Import ab. Das Gerät kommt herein, und sein Betriebssystem bleibt in KANAP genau so, wie es ist. Ordnen Sie die Plattform später zu, und der nächste Lauf füllt das Feld.
+
+Netbox vergibt Leserechte je Objekttyp. Ein Token, das Geräte, Rollen und Standorte lesen darf, kann bei den Plattformen trotzdem abgewiesen werden. Rollen und Standorte funktionieren weiter, und der Import ist davon nicht betroffen. Nur dieser Abschnitt bleibt leer, und er nennt den Grund.
 
 ---
 
@@ -98,12 +108,17 @@ Ein erster Import in ein bereits gefülltes KANAP muss die vorhandenen Assets fi
 
 1. **Eine bestehende Verknüpfung**. Das Objekt wurde bei einem früheren Lauf bereits einem Asset zugeordnet.
 2. **Die Seriennummer**. Sie übersteht eine Umbenennung auf beiden Seiten.
-3. **Der Hostname**. Ein Kurzname und ein vollständiger Name gelten als dieselbe Maschine, `par-esx-01` in KANAP passt also zu `par-esx-01.example.com` in Netbox.
-4. **Der Asset-Name**, ohne Beachtung von Groß- und Kleinschreibung und der Domänenendung.
+3. **Der Hostname**, ganz genommen. `par-esx-01.example.com` in Netbox ist das Asset, dessen Hostname genau so geschrieben ist. Es ist auch das Asset `par-esx-01`, wenn `example.com` eine Ihrer Domänen ist, denn diese Endung haben Sie selbst hinterlegt.
+4. **Der Asset-Name**, ohne Beachtung von Groß- und Kleinschreibung, auf dieselbe Weise gelesen.
 
 Findet ein Schritt genau ein Asset, ist das die Zuordnung. Findet er mehrere, hält KANAP dort an und legt das Objekt unter **Zu entscheiden** ab, mit den aufgeführten Kandidaten. Auf Verdacht wird nie zusammengeführt.
 
-**Die IP-Adresse ist ein Sicherheitsnetz, nie eine Zuordnung.** Findet keiner der vier Schritte etwas, prüft KANAP, ob ein Asset die primäre Adresse des Objekts bereits trägt. Ist das der Fall, wird das Objekt nicht angelegt. Es geht unter **Zu entscheiden** mit diesem Asset als Vorschlag, und Sie bestätigen, ob es dasselbe Gerät ist. Eine Adresse allein verknüpft nie etwas, auch dann nicht, wenn nur ein einziges Asset sie trägt. Adressen werden wiederverwendet, unter Cluster-Mitgliedern geteilt oder sind schlicht veraltet, und eine falsche Verknüpfung ließe Netbox das falsche Asset überschreiben. Die automatische Synchronisierung folgt derselben Regel. Ein neues Netbox-Gerät auf einer bekannten Adresse wartet also auf Sie, statt zum Duplikat zu werden.
+**Zwei Hinweise sind Vorschläge, nie Zuordnungen.** Wenn keiner der vier Schritte das Objekt identifiziert, sucht KANAP nach einer Ähnlichkeit, statt sofort anzulegen.
+
+- **Ein Name, der gleich beginnt.** Ein Asset, dessen Name oder Hostname nur zum ersten Teil des Netbox-Namens passt, bis zum ersten Punkt, wird als Kandidat angeboten. In einem Inventar, das Geräte `dl3.robot-15ms.ie2000` nennt, ist dieser erste Teil ein Gebäude und keine Maschine, und ein einziges Asset namens `dl3` würde still die ganze Etage aufsaugen.
+- **Eine bereits getragene Adresse.** Ein Asset, das die primäre Adresse des Objekts bereits trägt, wird genauso angeboten. Adressen werden wiederverwendet, unter Cluster-Mitgliedern geteilt oder sind schlicht veraltet.
+
+In beiden Fällen wird das Objekt nicht angelegt. Es geht unter **Zu entscheiden** mit diesem Asset als Vorschlag, unter „Ein Asset hat einen ähnlichen Namen. Entscheiden Sie, ob es dasselbe Gerät ist.“ oder „Ein Asset nutzt die Adresse ... bereits.“, und ein Klick klärt die Sache. Keiner der beiden Hinweise verknüpft je von sich aus, auch dann nicht, wenn nur ein einziges Asset gefunden wird: Eine falsche Verknüpfung ließe Netbox das falsche Asset überschreiben. Die automatische Synchronisierung folgt derselben Regel und schreibt für ein solches Objekt nichts. Ein neues Netbox-Gerät wird also nie unbemerkt zum Duplikat.
 
 Zwei weitere Regeln halten das Ergebnis sauber:
 
@@ -127,7 +142,11 @@ Zwei weitere Regeln halten das Ergebnis sauber:
 | Standort | |
 | Unterstandort | |
 
-Bei einem Asset, das mit Netbox verknüpft ist, sind die verwalteten Felder mit **Wird von Netbox verwaltet** gekennzeichnet und können in KANAP nicht bearbeitet werden. Ändern Sie sie in Netbox, und der nächste Lauf übernimmt sie. Alles Übrige am Asset bleibt wie gewohnt bearbeitbar.
+Bei einem Asset, das mit Netbox verknüpft ist, ist ein verwaltetes Feld mit **Wird von Netbox verwaltet** gekennzeichnet und kann in KANAP nicht bearbeitet werden. Ändern Sie es in Netbox, und der nächste Lauf übernimmt es. Alles Übrige am Asset bleibt wie gewohnt bearbeitbar.
+
+**Gesperrt werden nur die Felder, die Netbox für dieses Objekt tatsächlich füllt.** Netbox kennt keine Domäne, ein Gerät hat oft keine Plattform und manchmal keine primäre Adresse. Diese Felder bleiben Ihnen zum Ausfüllen, und da eine Synchronisierung nie einen leeren Wert schreibt, wird das, was Sie dort eintragen, nie überschrieben. Die Asset-Seite sagt es in einer Zeile: „Netbox füllt die Felder, die es liefert. Die übrigen können Sie selbst ausfüllen.“
+
+Jeder Lauf aktualisiert diese Liste, auch bei einem Objekt, an dem sich nichts geändert hat. Legen Sie in Netbox eine Plattform an, wird das Betriebssystem beim nächsten Lauf übernommen und ist von da an gesperrt. Ein Asset, das vor diesem Verhalten importiert wurde, behält alle Felder gesperrt, bis es das nächste Mal synchronisiert wird.
 
 Die Asset-Seite trägt außerdem eine Zeile **Quelle**: wann die letzte Synchronisierung stattfand, ein Link **In Netbox öffnen** und ein Hinweis, wenn das Objekt nicht mehr vorhanden ist.
 
@@ -137,7 +156,11 @@ Die Asset-Seite trägt außerdem eine Zeile **Quelle**: wann die letzte Synchron
 
 **Manuelle Änderungen werden korrigiert.** Jeder Lauf vergleicht mit den tatsächlichen Werten am Asset. Ein verwaltetes Feld, das in KANAP auf anderem Weg geändert wurde, wird beim nächsten Lauf wieder angeglichen.
 
-**Umbenennungen werden verstanden.** Ein Unterschied in der Groß- und Kleinschreibung oder eine Domänenendung ist keine Umbenennung. `PAR-ESX-01` und `par-esx-01.example.com` sind dieselbe Maschine wie `par-esx-01`.
+**Ein Punkt ist nur dann eine Domäne, wenn Sie es sagen.** Ein Netbox-Name wird in Hostname und Domäne geteilt, wenn er auf eine DNS-Endung aus Ihrer Domänenliste in **IT-Landschaft > Einstellungen** endet. Die längste Endung gewinnt, ein Name auf `corp.example.com` nimmt also diese Domäne und nicht `example.com`. Alles andere ist schlicht ein Name: `dl3.robot-15ms.ie2000` wird so, wie er ist, zum Hostnamen, Punkte inbegriffen, und die Domäne bleibt unberührt. Gemeldet wird nichts, denn nichts ist falsch. Damit eine Endung erkannt wird, legen Sie die Domäne in den Einstellungen an. Der nächste Lauf teilt den Namen von selbst.
+
+Assets, die vor dieser Regel importiert wurden und deren Hostname am ersten Punkt abgeschnitten war, werden vom nächsten Lauf wieder angeglichen. Die Korrektur erscheint in der Vorschau als gewöhnliche Hostname-Änderung.
+
+**Umbenennungen werden verstanden.** Ein Unterschied in der Groß- und Kleinschreibung ist keine Umbenennung. Eine Domänenendung, die Sie hinterlegt haben, ebenso wenig: `PAR-ESX-01` und `par-esx-01.example.com` sind dieselbe Maschine wie `par-esx-01`, wenn `example.com` eine Ihrer Domänen ist.
 
 **Der Lebenszyklus folgt einer festen Tabelle.**
 
@@ -154,7 +177,7 @@ Eine Synchronisierung setzt ein Asset nie auf **Außer Betrieb**. Geräte außer
 
 **Die Umgebung wird einmal gesetzt.** Neue Assets erhalten die auf der Integrationskarte gewählte Umgebung. Spätere Läufe fassen sie nie an, Sie können sie also in KANAP korrigieren, und die Korrektur bleibt bestehen.
 
-**Werte, die KANAP nicht kennt, werden übersprungen, nie erfunden.** Ein Betriebssystem, eine Domänenendung oder ein Lebenszyklus ohne Eintrag in **IT-Landschaft > Einstellungen** bleibt unverändert und wird als Warnung gemeldet. Legen Sie den Eintrag dort an und starten Sie den Lauf erneut. Eine primäre IPv6-Adresse wird genauso ausgelassen, mit dem Hinweis „Die primäre Adresse ist eine IPv6-Adresse, die noch nicht importiert wird.“
+**Werte, die KANAP nicht kennt, werden übersprungen, nie erfunden.** Ein Lebenszyklus-Status ohne Entsprechung, oder ein Betriebssystem ohne Zuordnung unter **Zuordnungen** und ohne Eintrag dieses Namens in **IT-Landschaft > Einstellungen**, bleibt unverändert und wird als Warnung gemeldet. Ordnen Sie die Plattform zu oder legen Sie den Eintrag in den Einstellungen an, und starten Sie den Lauf erneut. Eine primäre IPv6-Adresse wird genauso ausgelassen, mit dem Hinweis „Die primäre Adresse ist eine IPv6-Adresse, die noch nicht importiert wird.“
 
 **Unterstandorte werden zwischen Geräten geteilt.** Ein Unterstandort ist eine Zeile an einem Standort, und jedes dort platzierte Asset verweist darauf. Wird die Netbox-Location umbenannt, wird diese eine Zeile umbenannt, sodass alle Geräte, die sie tragen, auf einmal folgen, auch die, die Sie selbst dort eingeordnet haben. Nichts verschiebt sich Asset für Asset.
 
@@ -196,9 +219,11 @@ Auf **IT-Landschaft > Netbox** findet die Arbeit statt, sobald die Verbindung ei
 
 Darunter listet der Tab **Objekte** jedes Netbox-Objekt im Umfang auf, gefiltert nach Status.
 
+Die Spalte **Typ** zeigt den KANAP-Asset-Typ des verknüpften Assets, also „Physischer Server“ oder „Virtuelle Maschine“ statt durchgehend das Wort „Gerät“. Ein Objekt ohne Asset zeigt seinen Netbox-Typ in Grau, denn mehr gibt es darüber vorerst nicht zu sagen. Neben den Statusfiltern grenzt ein Suchfeld die Liste ein. Es durchsucht den Netbox-Namen, den Asset-Namen und die Asset-Referenz, und die Liste folgt dem Feld kurz nachdem Sie aufhören zu tippen.
+
 | Status | Was er bedeutet | Was Sie tun können |
 |-------|---------------|-----------------|
-| **Zu entscheiden** | Mehrere Assets kommen für dieses Objekt infrage, zwei Objekte haben dasselbe Asset erreicht, oder ein Asset trägt bereits die IP-Adresse des Objekts. | **Verknüpfen mit...** einem der Kandidaten, **Neues Asset anlegen** oder **Ignorieren**. |
+| **Zu entscheiden** | Mehrere Assets kommen für dieses Objekt infrage, zwei Objekte haben dasselbe Asset erreicht, ein Asset hat einen ähnlichen Namen, oder ein Asset trägt bereits die IP-Adresse des Objekts. | **Verknüpfen mit...** einem der Kandidaten, **Neues Asset anlegen** oder **Ignorieren**. |
 | **Fehlt in Netbox** | Das Objekt ist in Netbox nicht mehr vorhanden. Das Asset bleibt unberührt. | **Asset als „Außer Betrieb“ markieren**, **Ignorieren** oder es so belassen. |
 | **Fehler** | Das Objekt konnte nicht geschrieben werden, mit dem Grund in der Spalte Meldung. | Ursache beheben und erneut ausführen oder das Objekt **Ignorieren**. |
 | **Ignoriert** | Sie haben KANAP angewiesen, dieses Objekt in Ruhe zu lassen. Jeder Lauf überspringt es. | **Nicht mehr ignorieren** stellt es wieder in die Liste. Hält der Datensatz nichts zu entscheiden bereit, wird er stattdessen entfernt, und das Objekt wird bei der nächsten Synchronisierung erneut geprüft. |
@@ -233,7 +258,9 @@ Die Kachel hält sich zurück, wenn es nichts zu tun gibt: eine Zeile, dass die 
 | Das Zertifikat konnte nicht überprüft werden | Netbox zeigt ein Zertifikat, dem KANAP nicht vertraut. Installieren Sie ein vertrauenswürdiges Zertifikat oder aktivieren Sie **Zertifikatsfehler ignorieren**, wenn das Zertifikat eines Ihrer eigenen ist. |
 | Der Netbox-Server hat nicht rechtzeitig geantwortet | Netbox ist langsam, nicht erreichbar oder hinter einer Firewall, die den Aufruf verwirft. Prüfen Sie es vom KANAP-Server aus und erhöhen Sie dann das Zeitlimit für Anfragen, wenn die Instanz einfach groß ist. |
 | Objekte erscheinen als übersprungen, Grund „Rolle nicht zugeordnet“ oder „Standort nicht zugeordnet“ | Erwartet für alles, was Sie auf **Nicht importieren** gelassen haben. War es nicht beabsichtigt, ordnen Sie die Rolle oder den Standort zu und führen Sie den Lauf erneut aus. |
-| Eine Warnung meldet, dass ein Betriebssystem nicht in Ihrem Katalog steht | Die Netbox-Plattform hat keinen passenden Eintrag in **IT-Landschaft > Einstellungen**. Legen Sie ihn dort an und führen Sie den Lauf erneut aus. Bis dahin bleibt das Feld unverändert. |
+| Eine Warnung meldet, dass ein Betriebssystem nicht in Ihrem Katalog steht | Die Netbox-Plattform hat keine Zuordnung unter **Zuordnungen > Betriebssysteme** und keinen Eintrag dieses Namens in **IT-Landschaft > Einstellungen**. Ordnen Sie sie im Tab Zuordnungen zu oder legen Sie das Betriebssystem in den Einstellungen an, und führen Sie den Lauf erneut aus. Bis dahin bleibt das Feld unverändert. |
+| „Netbox hat seine Plattformen nicht zurückgegeben“ | Das API-Token darf keine Plattformen lesen. Geben Sie ihm in Netbox die Berechtigung auf `dcim.platform`, oder lassen Sie es: Geräte werden weiterhin importiert, nur die Zuordnung der Betriebssysteme ist nicht möglich. |
+| Ein Asset trägt den vollständigen Netbox-Namen als Hostnamen | Der Name endet nicht auf eine DNS-Endung aus Ihrer Domänenliste, deshalb behält KANAP ihn unverändert. Für einen Namen, dessen Punkte zum Namen gehören, ist das genau das erwartete Ergebnis. Handelt es sich doch um eine Domäne, legen Sie sie unter **IT-Landschaft > Einstellungen** an und führen Sie den Lauf erneut aus. |
 | Der Lauf ist nach einer Handvoll Objekte fehlgeschlagen | Zehn Objekte nacheinander konnten nicht gespeichert werden, deshalb wurde der Lauf abgebrochen. Die Ursache ist meist bei allen dieselbe, die Details stehen im Serverprotokoll. |
 | „Netbox hat mehr Seiten geliefert als erwartet. Einige Objekte wurden nicht geprüft.“ | Das Inventar ist größer, als ein Lauf liest. Was gelesen wurde, wird angewendet, und nichts wird als fehlend markiert. Grenzen Sie den Umfang unter **Zuordnungen** ein, damit der Lauf das abdeckt, was für Sie zählt. |
 | Ein Unterstandort warnt, dass sein Name bereits verwendet wird | Zwei Netbox-Locations dieses Standorts teilen sich den Namen, oder zwei zugeordnete Netbox-Standorte zeigen auf denselben KANAP-Standort und führen jeweils eine Location dieses Namens. Benennen Sie eine davon in Netbox um oder führen Sie sie dort zusammen. Die Geräte werden in jedem Fall importiert, ohne Unterstandort. |
@@ -244,6 +271,7 @@ Die Kachel hält sich zurück, wenn es nichts zu tun gibt: eine Zeile, dass die 
 ## Tipps
 
 - **Erst zuordnen, dann synchronisieren.** Die Zuordnung ist der Umfang. Beginnen Sie mit den Rollen und Standorten, bei denen Sie sicher sind, lassen Sie einen Lauf laufen und erweitern Sie danach.
+- **Hinterlegen Sie zuerst Ihre DNS-Endungen.** Ein Netbox-Name wird nur dann in Hostname und Domäne geteilt, wenn er auf eine Endung aus **IT-Landschaft > Einstellungen** endet. Legen Sie die Domänen, die Sie nutzen, vor dem ersten Lauf an, dann kommen die Namen bereits geteilt an.
 - **Lesen Sie die Vorschau beim ersten Lauf.** Es ist der einzige Lauf, bei dem jede Zuordnung neu ist, also der eine, den es Zeile für Zeile zu lesen lohnt.
 - **Umbenannte Geräte: Prüfen Sie die Liste Anzulegen.** Alles, was Sie dort wiedererkennen, steht kurz davor, verdoppelt zu werden. Verknüpfen Sie es in der Vorschau mit seinem Asset, oder tragen Sie seine Seriennummer oder seinen Hostnamen in KANAP nach und öffnen Sie die Vorschau erneut.
 - **Pflegen Sie die Seriennummern.** Sie sind das stabilste Zuordnungsmerkmal. Assets mit Seriennummer überstehen Umbenennungen auf beiden Seiten, ohne je unter **Zu entscheiden** zu landen.
