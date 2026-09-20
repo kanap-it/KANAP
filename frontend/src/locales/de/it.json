@@ -752,6 +752,7 @@
         "identity": "Identität",
         "hostname": "Hostname",
         "hostnameRequired": "Hostname ist erforderlich, wenn eine Domäne ausgewählt ist",
+        "hostnameInvalid": "Ein Hostname darf nur Buchstaben, Ziffern, Bindestriche und Punkte enthalten. Jeder Teil zwischen zwei Punkten darf höchstens 63 Zeichen lang sein.",
         "domain": "Domäne",
         "fqdn": "FQDN",
         "aliases": "Aliase",

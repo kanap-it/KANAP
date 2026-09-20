@@ -752,6 +752,7 @@
         "identity": "Identidad",
         "hostname": "Nombre de host",
         "hostnameRequired": "El nombre de host es obligatorio cuando se selecciona un dominio",
+        "hostnameInvalid": "Un nombre de host solo puede contener letras, dígitos, guiones y puntos. Cada parte entre puntos debe tener 63 caracteres como máximo.",
         "domain": "Dominio",
         "fqdn": "FQDN",
         "aliases": "Alias",

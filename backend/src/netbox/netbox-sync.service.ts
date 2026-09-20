@@ -291,7 +291,7 @@ export function plainErrorMessage(error: unknown): string {
 
 /**
  * The notice one object's failure deserves. A rejection from the asset
- * services already reads plainly ("Invalid hostname format"), so it is passed
+ * services already reads plainly ("A host name can use only…"), so it is passed
  * through; anything else points at the server log rather than at the Netbox
  * connection, which is demonstrably working if we got this far.
  */

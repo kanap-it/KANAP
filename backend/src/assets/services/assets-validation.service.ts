@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
+import { isValidHostname } from '../hostname.util';
 
 /**
  * Service for validating asset fields against IT Ops settings.
@@ -85,9 +86,7 @@ export class AssetsValidationService {
     if (!value) return true;
     const hostname = value.trim();
     if (hostname.length === 0) return true;
-    if (hostname.length > 63) return false;
-    const pattern = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i;
-    return pattern.test(hostname);
+    return isValidHostname(hostname);
   }
 
   async computeFqdn(
