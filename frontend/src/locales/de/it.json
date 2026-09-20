@@ -443,6 +443,7 @@
         "missing": "Nicht mehr in Netbox",
         "open": "In Netbox öffnen",
         "managed": "Wird von Netbox verwaltet",
+        "managedFields": "Netbox füllt die Felder, die es liefert. Die übrigen können Sie selbst ausfüllen.",
         "netboxStatus": "Netbox-Status: {{status}}"
       },
       "notices": {

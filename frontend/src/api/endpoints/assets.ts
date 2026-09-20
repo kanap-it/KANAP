@@ -40,6 +40,12 @@ export interface AssetExternalLink {
   state: 'linked' | 'ambiguous' | 'missing' | 'ignored' | 'error';
   /** Raw Netbox status; absent on payloads from an older backend. */
   external_status?: string | null;
+  /**
+   * The asset and hardware fields the inventory provides for this object.
+   * Absent or null when the record has not been synchronised since the list
+   * existed: every field the inventory can own is then treated as managed.
+   */
+  managed_fields?: string[] | null;
   last_synced_at: string | null;
 }
 

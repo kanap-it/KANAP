@@ -28,6 +28,7 @@ import {
   NetboxCatalogs,
   NetboxMapping,
   NetboxSubLocationTarget,
+  managedFieldsOf,
   mapNetboxObject,
   matchCatalogOption,
 } from './netbox-mapper';
@@ -1209,6 +1210,9 @@ export class NetboxSyncService {
           // One record holds one notice; the preview carries the full list.
           notice: primaryNotice(warnings),
           synced: true,
+          // Refreshed even when nothing was written to the asset: a platform
+          // added in Netbox has to lock the field at the run that sees it.
+          managedFields: managedFieldsOf(write),
         }, manager);
 
         return { action, assetId } as ApplyOutcome;
@@ -1425,6 +1429,12 @@ export class NetboxSyncService {
       candidateAssetIds: string[];
       notice: NetboxNotice | null;
       synced: boolean;
+      /**
+       * The fields Netbox provides for this object, refreshed at every run,
+       * including on a row nothing was written to: the asset workspace locks
+       * exactly these. Only a linked record has any.
+       */
+      managedFields?: string[] | null;
     },
     manager?: EntityManager,
   ): Promise<void> {
@@ -1433,8 +1443,8 @@ export class NetboxSyncService {
         `INSERT INTO asset_external_links
            (tenant_id, source, external_type, external_id, external_name, external_url,
             asset_id, state, candidate_asset_ids, message_code, message_params, external_status,
-            last_seen_at, last_synced_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid[], $10, $11::jsonb, $12, now(), ${values.synced ? 'now()' : 'NULL'})
+            managed_fields, last_seen_at, last_synced_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid[], $10, $11::jsonb, $12, $13::text[], now(), ${values.synced ? 'now()' : 'NULL'})
          ON CONFLICT (tenant_id, source, external_type, external_id) DO UPDATE SET
            external_name = EXCLUDED.external_name,
            external_url = EXCLUDED.external_url,
@@ -1444,6 +1454,7 @@ export class NetboxSyncService {
            candidate_asset_ids = EXCLUDED.candidate_asset_ids,
            message_code = EXCLUDED.message_code,
            message_params = EXCLUDED.message_params,
+           managed_fields = EXCLUDED.managed_fields,
            last_seen_at = now(),
            last_synced_at = ${values.synced ? 'now()' : 'asset_external_links.last_synced_at'},
            updated_at = now()`,
@@ -1460,6 +1471,7 @@ export class NetboxSyncService {
           values.notice?.code ?? null,
           values.notice ? JSON.stringify(values.notice.params) : null,
           row.external_status,
+          values.managedFields ?? null,
         ],
       );
     };

@@ -60,6 +60,17 @@ export class AssetExternalLink {
   @Column('jsonb', { nullable: true })
   message_params!: Record<string, string> | null;
 
+  /**
+   * The asset and hardware fields this inventory actually provides a value for
+   * on THIS object, refreshed at every run. Netbox has no domain notion, often
+   * no platform and sometimes no primary address: a field it says nothing about
+   * stays editable in KANAP. NULL means "not known yet" (a record written by an
+   * older build, or not synchronised since), and the reader falls back to
+   * locking the whole list.
+   */
+  @Column('text', { array: true, nullable: true })
+  managed_fields!: string[] | null;
+
   @Column('timestamptz', { nullable: true })
   last_seen_at!: Date | null;
 

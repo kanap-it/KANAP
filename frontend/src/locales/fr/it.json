@@ -443,6 +443,7 @@
         "missing": "N'est plus dans Netbox",
         "open": "Ouvrir dans Netbox",
         "managed": "Géré par Netbox",
+        "managedFields": "Netbox renseigne les champs qu'il fournit. Les autres sont à vous de compléter.",
         "netboxStatus": "Statut Netbox : {{status}}"
       },
       "notices": {
