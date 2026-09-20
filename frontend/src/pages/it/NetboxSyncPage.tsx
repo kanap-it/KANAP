@@ -52,7 +52,7 @@ const PAGE_SIZE = 50;
 
 /** Stable diff keys from the API; anything else falls back to the raw key. */
 const DIFF_FIELD_KEYS: string[] = [
-  'name', 'kind', 'location', 'status', 'hostname', 'domain', 'operating_system',
+  'name', 'kind', 'location', 'sub_location', 'status', 'hostname', 'domain', 'operating_system',
   'primary_ip', 'serial_number', 'manufacturer', 'model', 'rack_location', 'rack_unit',
 ];
 

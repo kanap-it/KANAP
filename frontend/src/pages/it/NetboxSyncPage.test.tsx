@@ -459,6 +459,11 @@ describe('NetboxSyncPage', () => {
       if (url === '/netbox/sync/preview') {
         return Promise.resolve({
           ...PREVIEW,
+          // The equipment row says where the asset goes, in words: the field
+          // label is translated, never the raw diff key.
+          rows: PREVIEW.rows.map((row) => (row.external_id === '13'
+            ? { ...row, diffs: [{ field: 'sub_location', before: null, after: 'Salle serveurs' }] }
+            : row)),
           sub_locations: {
             available: true,
             changes: [
@@ -488,6 +493,8 @@ describe('NetboxSyncPage', () => {
     await openPreview();
 
     expect(await screen.findByText('Sub-locations (3)')).toBeInTheDocument();
+    expect(screen.getByText(/^Sub-location: .* → Salle serveurs$/)).toBeInTheDocument();
+    expect(screen.queryByText(/sub_location/)).not.toBeInTheDocument();
     expect(screen.getByText('New')).toBeInTheDocument();
     // A rename reads as one shared row changing, not as every asset moving.
     expect(screen.getByText('Salle A → Salle B')).toBeInTheDocument();
