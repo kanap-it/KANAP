@@ -30,6 +30,7 @@ export type NetboxNoticeCode =
   | 'ipv6_skipped'
   | 'ip_conflict_skipped'
   | 'ip_match_candidates'
+  | 'similar_name_candidates'
   | 'subnet_not_in_catalog'
   | 'no_ip_address_type'
   | 'sub_location_name_taken'

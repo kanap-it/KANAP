@@ -373,12 +373,12 @@ function row(result: ReturnType<typeof plan>, externalId: string): NetboxPlanRow
 }
 
 {
-  // An unknown DNS suffix leaves the domain alone.
+  // An unknown DNS suffix is not a domain: the whole name is the host name,
+  // and nothing is reported. The full matrix lives in netbox-hostname.spec.ts.
   const mapped = mapNetboxObject(device({ name: 'par-esx-09.other.lan' }), MAP_OPTIONS);
-  assert.equal(mapped.asset?.hostname, 'par-esx-09');
+  assert.equal(mapped.asset?.hostname, 'par-esx-09.other.lan');
   assert.equal(mapped.asset?.domain, null);
-  assert.deepEqual(mapped.warnings.map((notice) => notice.code), ['domain_not_in_catalog']);
-  assert.equal(mapped.warnings[0].params.value, 'other.lan');
+  assert.deepEqual(mapped.warnings.map((notice) => notice.code), []);
 }
 
 {

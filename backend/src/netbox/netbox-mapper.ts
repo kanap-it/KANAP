@@ -405,31 +405,52 @@ function mapProvider(location: LocationOption, providers: CatalogOption[]): stri
   return providers.find((option) => option.code === 'other')?.code ?? providers[0]?.code ?? null;
 }
 
-/** Splits a Netbox name into a hostname and, when the suffix is known, a domain. */
+/**
+ * Splits a Netbox name into a host name and, when the name ends with a DNS
+ * suffix KANAP knows, a domain.
+ *
+ * A dot is NOT assumed to introduce a domain. Inventories name equipment with
+ * dots that mean something else entirely — `DL3.ROBOT-15MS.IE2000` is
+ * building, machine and model — so the name is only split when it ends with a
+ * `dns_suffix` from the domain catalog, on a dot boundary and with something
+ * left of it. The longest matching suffix wins, so a tenant holding both
+ * `example.com` and `corp.example.com` gets the more precise one. A catalog
+ * entry with no DNS suffix (`workgroup`, `n-a`) never matches.
+ *
+ * Nothing matched means the whole name, dots included, is the host name and
+ * the domain is left alone. That is not worth a notice: an unknown suffix is
+ * simply part of the name. A host name may hold several labels since the asset
+ * services accept them.
+ */
 function mapHostname(
   name: string,
   domains: DomainCatalogOption[],
   warnings: NetboxNotice[],
 ): { hostname: string | null; domain: string | null } {
   const lowered = name.trim().toLowerCase();
-  const dot = lowered.indexOf('.');
-  const shortname = dot > 0 ? lowered.slice(0, dot) : lowered;
-  const suffix = dot > 0 ? lowered.slice(dot + 1) : null;
 
   let domain: string | null = null;
-  if (suffix) {
-    const match = domains.find((option) => String(option.dns_suffix || '').trim().toLowerCase() === suffix);
-    if (match) {
-      domain = match.code;
-    } else {
-      warnings.push(netboxNotice('domain_not_in_catalog', { value: suffix }));
-    }
+  let hostname = lowered;
+  let bestSuffix = '';
+  for (const option of domains) {
+    // A suffix is stored with or without its leading dot, depending on who
+    // typed it in; both mean the same domain.
+    const suffix = String(option.dns_suffix || '').trim().toLowerCase().replace(/^\.+/, '').replace(/\.+$/, '');
+    if (!suffix || suffix.length <= bestSuffix.length) continue;
+    if (!lowered.endsWith(`.${suffix}`)) continue;
+    const left = lowered.slice(0, lowered.length - suffix.length - 1);
+    // A name that IS the suffix has no host name left: not a split.
+    if (!left) continue;
+    bestSuffix = suffix;
+    domain = option.code;
+    hostname = left;
   }
-  if (!isValidHostname(shortname)) {
+
+  if (!isValidHostname(hostname)) {
     warnings.push(netboxNotice('hostname_invalid', { value: name }));
     return { hostname: null, domain };
   }
-  return { hostname: shortname, domain };
+  return { hostname, domain };
 }
 
 function mapPrimaryIp(

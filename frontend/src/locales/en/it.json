@@ -475,6 +475,7 @@
         "no_ip_address_type": "No IP address type is set up in the IT settings, so the address was not imported.",
         "netbox_status_attention": "Netbox reports this object as {{status}}.",
         "ip_match_candidates": "An asset already uses the address {{value}}. Choose whether it is the same equipment.",
+        "similar_name_candidates": "An asset has a similar name. Choose whether it is the same equipment.",
         "sub_location_name_taken": "A sub-location named \"{{value}}\" already exists at this location for another Netbox location. The sub-location was left unchanged.",
         "locations_unavailable": "Netbox did not return its locations. Sub-locations were left unchanged in this run."
       },
