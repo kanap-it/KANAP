@@ -290,6 +290,9 @@
         "batch_one": "This is one batch. {{count}} more object is waiting: applying writes only what is listed here, and leaves it untouched for the next batch.",
         "batch_other": "This is one batch. {{count}} more objects are waiting: applying writes only what is listed here, and leaves them untouched for the next batch.",
         "applyBatch": "Apply this batch",
+        "scope_one": "Applying writes the {{count}} creation or update listed here, and nothing else.",
+        "scope_other": "Applying writes the {{count}} creations and updates listed here, and nothing else.",
+        "serverTooOld": "The server is older than this page: it would apply every object, listed here or not. Nothing can be applied from here. Update and restart the server, then reload this page.",
         "noMatches": {
           "none": "No role or site match is saved yet, so nothing can be imported. Open the mappings, check the suggestions, then save them.",
           "roles": "No role match is saved yet, so nothing can be imported. Open the mappings, check the suggestions, then save them.",

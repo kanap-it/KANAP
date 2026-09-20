@@ -691,6 +691,13 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
   // One preview is one batch. Applying writes only what is listed here; what
   // did not fit is left untouched and comes in the next batch.
   const remaining = preview?.batch?.remaining ?? 0;
+  // The promise "only what is listed is written" is kept by the server. A server
+  // older than this page ignores the list and applies everything, listed or not,
+  // and says nothing about it. It is recognised by the missing `batch` field,
+  // and applying is refused outright rather than trusted.
+  const serverTooOld = !!preview?.ok && preview.batch === undefined;
+  /** What Apply is about to write: the creations and updates this batch lists. */
+  const listedWrites = allRows.filter((row) => row.action === 'create' || row.action === 'update').length;
   /** "212 / 640" when this batch lists only part of a group; the plain count otherwise. */
   const sectionCount = (listed: number, total: number): string | number => (
     !needle && total > listed ? `${listed} / ${total}` : listed
@@ -753,7 +760,7 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
         onSave={() => onApply(decisions)}
         saveLabel={remaining > 0 ? t('pages.netbox.preview.applyBatch') : t('pages.netbox.preview.apply')}
         saveLoading={applying}
-        saveDisabled={!preview?.ok || busy || nothingMatched}
+        saveDisabled={!preview?.ok || busy || nothingMatched || serverTooOld}
         sx={[{ maxWidth: 880 }, previewClassSx]}
       >
         {!preview ? null : nothingMatched ? (
@@ -773,6 +780,13 @@ function PreviewDialog({ open, preview, applying, onClose, onApply, onPreviewRes
             {decisionError ? (
               <Alert severity="error" onClose={() => setDecisionError(null)}>{decisionError}</Alert>
             ) : null}
+            {serverTooOld ? (
+              <Alert severity="error">{t('pages.netbox.preview.serverTooOld')}</Alert>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {t('pages.netbox.preview.scope', { count: listedWrites })}
+              </Typography>
+            )}
             {remaining > 0 ? (
               <Alert severity="info">{t('pages.netbox.preview.batch', { count: remaining })}</Alert>
             ) : null}

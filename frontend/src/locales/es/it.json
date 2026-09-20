@@ -290,6 +290,9 @@
         "batch_one": "Este es un lote. Queda {{count}} objeto más en espera: Aplicar solo escribe lo que aparece aquí y lo deja intacto para el lote siguiente.",
         "batch_other": "Este es un lote. Quedan {{count}} objetos más en espera: Aplicar solo escribe lo que aparece aquí y los deja intactos para el lote siguiente.",
         "applyBatch": "Aplicar este lote",
+        "scope_one": "Aplicar escribe la creación o actualización enumerada aquí ({{count}}), y nada más.",
+        "scope_other": "Aplicar escribe las {{count}} creaciones y actualizaciones enumeradas aquí, y nada más.",
+        "serverTooOld": "El servidor es más antiguo que esta página: aplicaría todos los objetos, aparezcan aquí o no. Desde aquí no se puede aplicar nada. Actualice y reinicie el servidor y después recargue esta página.",
         "noMatches": {
           "none": "Aún no hay ninguna correspondencia de rol ni de sitio guardada, así que no se puede importar nada. Abra las correspondencias, revise las sugerencias y guárdelas.",
           "roles": "Aún no hay ninguna correspondencia de rol guardada, así que no se puede importar nada. Abra las correspondencias, revise las sugerencias y guárdelas.",
