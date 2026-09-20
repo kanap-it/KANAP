@@ -270,6 +270,8 @@
       "records": {
         "empty": "Rien à afficher ici.",
         "unnamed": "Sans nom",
+        "searchLabel": "Rechercher un objet",
+        "searchPlaceholder": "ex. : par-esx",
         "range": "{{from}} à {{to}} sur {{total}}",
         "previous": "Précédent",
         "next": "Suivant",
