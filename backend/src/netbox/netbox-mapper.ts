@@ -480,7 +480,9 @@ export function mapNetboxObject(object: NetboxObject, options: NetboxMapOptions)
   // top-level location above it, which is why the walk happens here and not on
   // the raw `_depth`.
   const root = rootNetboxLocation(options.locations, object.locationId);
-  const subLocation: NetboxSubLocationTarget | null = root
+  // A Location without a name cannot become a sub-location, and must not cost
+  // the equipment its import.
+  const subLocation: NetboxSubLocationTarget | null = root && root.name
     ? {
       externalId: root.id,
       name: root.name,

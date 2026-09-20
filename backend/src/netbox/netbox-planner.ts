@@ -553,6 +553,12 @@ export function planNetboxSync(input: {
     const warnings = resolution?.kind === 'conflict'
       ? [...base.warnings, netboxNotice('sub_location_name_taken', { value: mapping.subLocation?.name ?? '' })]
       : base.warnings;
+    // A conflict is settled here, once, by Netbox id. The write must not carry
+    // the target any further: the apply step resolves a new asset's target
+    // against the database, and rows are applied in the order Netbox listed
+    // them, so the losing Location would be created whenever its equipment
+    // happened to come first, and the run would contradict its own preview.
+    if (resolution?.kind === 'conflict') write.subLocation = null;
 
     if (!write.assetId) {
       rows.push({ ...base, action: 'create', warnings });
@@ -740,6 +746,19 @@ function resolveSubLocationTargets(
   }
 
   return { resolutions, changes };
+}
+
+/**
+ * Run-level notices for the upkeep conflicts: a Location renamed in Netbox onto
+ * a name already taken in KANAP. No equipment row carries that conflict (the
+ * assets keep their sub-location, so they have no diff), and a scheduled run
+ * has no preview, so without this nothing would ever say the rename is stuck.
+ * A conflict on a target of this run is already on its equipment rows.
+ */
+export function subLocationUpkeepNotices(changes: NetboxSubLocationChange[]): NetboxNotice[] {
+  return changes
+    .filter((change) => change.action === 'conflict' && change.asset_count === 0)
+    .map((change) => netboxNotice('sub_location_name_taken', { value: change.name }));
 }
 
 /**
