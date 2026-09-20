@@ -270,6 +270,8 @@
       "records": {
         "empty": "Nothing to show here.",
         "unnamed": "Without a name",
+        "searchLabel": "Search the objects",
+        "searchPlaceholder": "e.g., par-esx",
         "range": "{{from}} to {{to}} of {{total}}",
         "previous": "Previous",
         "next": "Next",

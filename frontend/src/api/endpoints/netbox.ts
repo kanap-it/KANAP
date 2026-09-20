@@ -277,7 +277,12 @@ export interface NetboxRecordRow {
   external_name: string | null;
   external_url: string;
   state: NetboxRecordState;
-  asset: (NetboxAssetRef & { status: string }) | null;
+  asset: (NetboxAssetRef & {
+    status: string;
+    /** The KANAP asset type, resolved against the tenant catalog. Absent on payloads from an older backend. */
+    kind?: string | null;
+    kind_label?: string | null;
+  }) | null;
   candidates: NetboxAssetRef[];
   /** Raw Netbox status; absent on payloads from an older backend. */
   external_status?: string | null;
@@ -315,7 +320,8 @@ export const netboxApi = {
 
   getStatus: (): Promise<NetboxStatus> => api.get<NetboxStatus>('/netbox/status'),
 
-  listRecords: (params: { state?: NetboxRecordState; page?: number; limit?: number }): Promise<{ items: NetboxRecordRow[]; total: number }> =>
+  /** `q` searches the Netbox name, the asset name and the asset reference. */
+  listRecords: (params: { state?: NetboxRecordState; q?: string; page?: number; limit?: number }): Promise<{ items: NetboxRecordRow[]; total: number }> =>
     api.get<{ items: NetboxRecordRow[]; total: number }>('/netbox/records', { params }),
 
   resolveRecord: (id: string, data: NetboxRecordResolveInput): Promise<NetboxRecordRow> =>

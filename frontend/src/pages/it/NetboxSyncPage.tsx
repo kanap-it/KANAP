@@ -249,7 +249,14 @@ function RecordRow({ row, onLink, onCreate, onIgnore, onUnignore, onRetire }: {
           </Link>
         </Stack>
       </td>
-      <td className="shrink">{t(`pages.netbox.objectType.${row.external_type}`)}</td>
+      {/* The KANAP asset type is what the user recognises ("Switch"), and
+          every device reads "Device" on the Netbox side. The Netbox type is
+          kept, muted, for the objects that have no asset yet. */}
+      <td className="shrink">
+        {row.asset?.kind_label ? row.asset.kind_label : (
+          <Box component="span" className="kanap-muted">{t(`pages.netbox.objectType.${row.external_type}`)}</Box>
+        )}
+      </td>
       <td>
         {row.asset ? (
           <Stack direction="row" spacing={0.75} alignItems="center">
@@ -1168,6 +1175,10 @@ export default function NetboxSyncPage() {
 
   const [tab, setTab] = React.useState<'records' | 'mappings'>('records');
   const [page, setPage] = React.useState(1);
+  // What is typed, and what is actually searched: hundreds of objects are
+  // listed, so the list follows the field a moment after the last keystroke.
+  const [search, setSearch] = React.useState('');
+  const [needle, setNeedle] = React.useState('');
   const [preview, setPreview] = React.useState<NetboxPreviewResult | null>(null);
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [pageError, setPageError] = React.useState<string | null>(null);
@@ -1203,9 +1214,22 @@ export default function NetboxSyncPage() {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setNeedle(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  // A new needle lists a different set: page 2 of the previous one means nothing.
+  React.useEffect(() => { setPage(1); }, [needle]);
+
   const recordsQuery = useQuery({
-    queryKey: ['netbox-records', activeState, page],
-    queryFn: () => netboxApi.listRecords({ state: activeState, page, limit: PAGE_SIZE }),
+    queryKey: ['netbox-records', activeState, needle, page],
+    queryFn: () => netboxApi.listRecords({
+      state: activeState,
+      ...(needle ? { q: needle } : {}),
+      page,
+      limit: PAGE_SIZE,
+    }),
     enabled: canManage && !!status?.configured,
   });
 
@@ -1351,7 +1375,7 @@ export default function NetboxSyncPage() {
 
           {tab === 'records' ? (
             <Stack spacing={1.5}>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 {RECORD_STATES.map((state) => (
                   <Chip
                     key={state}
@@ -1364,6 +1388,17 @@ export default function NetboxSyncPage() {
                     onClick={() => selectState(state)}
                   />
                 ))}
+                {/* A filter, not a form field: it narrows the list next to the
+                    state chips, the same way the preview dialog filters its rows. */}
+                <TextField
+                  size="small"
+                  variant="standard"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={t('pages.netbox.records.searchPlaceholder')}
+                  inputProps={{ 'aria-label': t('pages.netbox.records.searchLabel') }}
+                  sx={{ width: 220, ml: 'auto' }}
+                />
               </Stack>
 
               {items.length === 0 ? (
