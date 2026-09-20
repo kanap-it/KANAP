@@ -76,6 +76,8 @@ const LINKED_ROW = {
 const PREVIEW = {
   ok: true,
   message: null,
+  // A current server always says what the batch holds; its absence means an old one.
+  batch: { listed: 5, remaining: 0 },
   counts: { create: 1, update: 1, unchanged: 5, ambiguous: 1, skipped: 2, missing: 0, error: 0 },
   rows: [
     {
@@ -493,6 +495,30 @@ describe('NetboxSyncPage', () => {
       decisions: [],
       reviewed: PREVIEW.rows.map((row) => ({ external_type: row.external_type, external_id: row.external_id })),
     }));
+  });
+
+  it('refuses to apply against a server that would ignore the reviewed list', async () => {
+    (apiClient.post as any).mockImplementation((url: string) => {
+      if (url === '/netbox/sync/preview') {
+        // An older server: truncated rows, no `batch`, and it applies everything.
+        const { batch: _batch, ...older } = PREVIEW as any;
+        return Promise.resolve({ ...older, rows_truncated: true });
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
+
+    await openPreview();
+
+    expect(await screen.findByText(/^The server is older than this page/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+    expect(screen.queryByText(/and nothing else/)).not.toBeInTheDocument();
+  });
+
+  it('says exactly what Apply is about to write', async () => {
+    await openPreview();
+    // PREVIEW lists one creation and one update.
+    expect(await screen.findByText('Applying writes the 2 creations and updates listed here, and nothing else.'))
+      .toBeInTheDocument();
   });
 
   it('offers the next batch while objects wait for review', async () => {

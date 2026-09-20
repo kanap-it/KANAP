@@ -290,6 +290,9 @@
         "batch_one": "Dies ist ein Stapel. {{count}} weiteres Objekt wartet: Anwenden schreibt nur, was hier aufgeführt ist, und lässt es für den nächsten Stapel unberührt.",
         "batch_other": "Dies ist ein Stapel. {{count}} weitere Objekte warten: Anwenden schreibt nur, was hier aufgeführt ist, und lässt sie für den nächsten Stapel unberührt.",
         "applyBatch": "Diesen Stapel anwenden",
+        "scope_one": "Anwenden schreibt die {{count}} hier aufgeführte Anlage oder Änderung und sonst nichts.",
+        "scope_other": "Anwenden schreibt die {{count}} hier aufgeführten Anlagen und Änderungen und sonst nichts.",
+        "serverTooOld": "Der Server ist älter als diese Seite: Er würde jedes Objekt anwenden, ob hier aufgeführt oder nicht. Von hier aus kann nichts angewendet werden. Aktualisieren und starten Sie den Server neu und laden Sie dann diese Seite neu.",
         "noMatches": {
           "none": "Es ist noch keine Rollen- oder Standortzuordnung gespeichert, daher kann nichts importiert werden. Öffnen Sie die Zuordnungen, prüfen Sie die Vorschläge und speichern Sie sie.",
           "roles": "Es ist noch keine Rollenzuordnung gespeichert, daher kann nichts importiert werden. Öffnen Sie die Zuordnungen, prüfen Sie die Vorschläge und speichern Sie sie.",
