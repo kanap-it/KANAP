@@ -257,9 +257,9 @@ function sameText(left: string | null, right: string | null): boolean {
 
 /**
  * Whether a Netbox name is a real rename of the asset name. A difference in
- * case is not one, and neither is the DNS suffix: KANAP names assets by their
- * short name and keeps the domain in its own field, so "par-esx-01" and
- * "par-esx-01.fromage.lan" are the same machine, not a rename.
+ * case is not one, and neither is what follows the first dot: an asset a
+ * person named "par-esx-01" is the same machine as the Netbox object
+ * "par-esx-01.fromage.lan", and renaming it on a suffix alone would be noise.
  */
 function isRename(currentName: string, netboxName: string): boolean {
   const current = currentName.trim().toLowerCase();
@@ -583,11 +583,12 @@ export function planNetboxSync(input: {
     }
 
     const contestedAsset = match.assetId && contested.has(match.assetId) ? match.assetId : null;
-    // An address suggestion pointing at an asset another object of this run
-    // reaches on firmer ground is not worth a question: that asset is taken.
+    // A suggestion (an address, or a name that only resembles) pointing at an
+    // asset another object of this run reaches on firmer ground is not worth a
+    // question: that asset is taken.
     const candidateIds = contestedAsset
       ? [contestedAsset]
-      : match.suggestedByIp
+      : match.suggestedByIp || match.suggestedByName
         ? match.candidateAssetIds.filter((id) => !reachedBy.has(id))
         : match.candidateAssetIds;
     if (candidateIds.length > 0) {
@@ -603,7 +604,9 @@ export function planNetboxSync(input: {
             ? netboxNotice('contested_asset')
             : match.suggestedByIp
               ? netboxNotice('ip_match_candidates', { value: match.suggestedByIp })
-              : netboxNotice('ambiguous_candidates'),
+              : match.suggestedByName
+                ? netboxNotice('similar_name_candidates')
+                : netboxNotice('ambiguous_candidates'),
         ],
       });
       counts.ambiguous += 1;

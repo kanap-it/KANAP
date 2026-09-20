@@ -475,6 +475,7 @@
         "no_ip_address_type": "No hay ningún tipo de dirección IP definido en los ajustes de TI, así que la dirección no se ha importado.",
         "netbox_status_attention": "Netbox informa de que este objeto está {{status}}.",
         "ip_match_candidates": "Un activo ya usa la dirección {{value}}. Decida si es el mismo equipo.",
+        "similar_name_candidates": "Un activo tiene un nombre parecido. Decida si es el mismo equipo.",
         "sub_location_name_taken": "Ya existe una sub-ubicación llamada «{{value}}» en esta ubicación para otra ubicación de Netbox. La sub-ubicación se ha dejado sin cambios.",
         "locations_unavailable": "Netbox no ha devuelto sus ubicaciones. Las sub-ubicaciones no se han modificado en esta ejecución."
       },

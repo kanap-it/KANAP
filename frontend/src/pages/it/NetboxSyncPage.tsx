@@ -324,7 +324,12 @@ const previewClassSx = (theme: Theme) => ({
 });
 
 /** Notices that ask the person for a decision; shown on the row itself, not in the warnings list. */
-const DECISION_NOTICE_CODES: string[] = ['ambiguous_candidates', 'contested_asset', 'ip_match_candidates'];
+const DECISION_NOTICE_CODES: string[] = [
+  'ambiguous_candidates',
+  'contested_asset',
+  'ip_match_candidates',
+  'similar_name_candidates',
+];
 
 /** One object is settled by its Netbox type and id; the preview never repeats a pair. */
 function rowKey(row: { external_type: string; external_id: string }): string {

@@ -12,6 +12,7 @@ export type NetboxNoticeCode =
   | 'ambiguous_candidates'
   | 'contested_asset'
   | 'ip_match_candidates'
+  | 'similar_name_candidates'
   | 'missing_from_netbox'
   | 'reevaluate_next_sync'
   // --- worth a look, but nothing is blocked ---
@@ -19,6 +20,9 @@ export type NetboxNoticeCode =
   // --- values KANAP could not take over ---
   | 'os_not_in_catalog'
   | 'os_ambiguous'
+  // No longer emitted: a name whose end is not a known DNS suffix is kept
+  // whole as the host name. Records written by earlier builds still carry the
+  // code, so it stays readable.
   | 'domain_not_in_catalog'
   | 'hostname_invalid'
   | 'status_not_mapped'
@@ -56,6 +60,8 @@ const TEXTS: Record<NetboxNoticeCode, (params: Record<string, string>) => string
     'Two Netbox objects match this asset. Choose which one it is.',
   ip_match_candidates: (params) =>
     `An asset already uses the address ${params.value || ''}. Choose whether it is the same equipment.`.replace('  ', ' '),
+  similar_name_candidates: () =>
+    'An asset has a similar name. Choose whether it is the same equipment.',
   missing_from_netbox: () =>
     'This object is no longer in Netbox. Decide whether the asset should be retired.',
   reevaluate_next_sync: () =>
@@ -112,6 +118,7 @@ const NOTICE_PRIORITY: Record<NetboxNoticeCode, 1 | 2 | 3> = {
   ambiguous_candidates: 3,
   contested_asset: 3,
   ip_match_candidates: 3,
+  similar_name_candidates: 3,
   missing_from_netbox: 3,
   reevaluate_next_sync: 3,
   save_failed: 3,

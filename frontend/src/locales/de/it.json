@@ -475,6 +475,7 @@
         "no_ip_address_type": "In den IT-Einstellungen ist kein IP-Adresstyp eingerichtet, die Adresse wurde nicht importiert.",
         "netbox_status_attention": "Netbox meldet dieses Objekt als {{status}}.",
         "ip_match_candidates": "Ein Asset nutzt die Adresse {{value}} bereits. Entscheiden Sie, ob es dasselbe Gerät ist.",
+        "similar_name_candidates": "Ein Asset hat einen ähnlichen Namen. Entscheiden Sie, ob es dasselbe Gerät ist.",
         "sub_location_name_taken": "Ein Unterstandort mit dem Namen „{{value}}“ existiert an diesem Standort bereits für eine andere Netbox-Location. Der Unterstandort wurde unverändert gelassen.",
         "locations_unavailable": "Netbox hat seine Locations nicht zurückgegeben. Die Unterstandorte wurden in diesem Lauf nicht verändert."
       },
