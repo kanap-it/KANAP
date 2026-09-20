@@ -40,6 +40,12 @@ export type NetboxMapOptions = {
   roleMap: Record<string, string>;
   /** Netbox site slug -> KANAP location id. An unmapped site is out of scope. */
   siteMap: Record<string, string>;
+  /**
+   * Netbox platform slug -> KANAP operating system code. Unlike the two maps
+   * above this is NOT an import filter: an unmatched platform leaves the
+   * operating system alone, it never puts the object out of scope.
+   */
+  osMap?: Record<string, string>;
   /** Written once, when the asset is created; never rewritten afterwards. */
   defaultEnvironment: string;
   catalogs: NetboxCatalogs;
@@ -145,12 +151,66 @@ export function matchCatalogOption<T extends CatalogOptionLike>(
   }
 }
 
-/** The operating system, with the notice a value KANAP cannot place deserves. */
+/**
+ * Lower-cased, with every run of non-alphanumeric characters reduced to a
+ * single space, so "Debian 12 (bookworm)" and "debian_12" compare on the same
+ * footing.
+ */
+function normalizeOsText(value: unknown): string {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/** True when `text` is `prefix`, or `prefix` followed by a boundary. */
+function startsWithOsPrefix(text: string, prefix: string): boolean {
+  return text === prefix || text.startsWith(`${prefix} `);
+}
+
+/**
+ * The KANAP operating system a Netbox platform should be pre-filled with. The
+ * exact match comes first; failing that, the catalog entry whose name or code
+ * starts with the platform name at a word boundary, so "Debian 12" suggests
+ * "Debian 12 (bookworm)" while "Debian 1" suggests nothing. Only a single
+ * candidate is ever suggested: two mean the choice is the administrator's.
+ */
+export function suggestOperatingSystem<T extends CatalogOptionLike>(
+  platformName: unknown,
+  options: T[],
+): T | null {
+  const { option } = matchCatalogOption(platformName, options);
+  if (option) return option;
+  const prefix = normalizeOsText(platformName);
+  if (!prefix) return null;
+  const candidates = new Map<string, T>();
+  for (const candidate of options) {
+    const texts = [normalizeOsText(candidate.label), normalizeOsText(candidate.code)];
+    if (texts.some((text) => startsWithOsPrefix(text, prefix))) {
+      candidates.set(candidate.code, candidate);
+    }
+  }
+  return candidates.size === 1 ? [...candidates.values()][0] : null;
+}
+
+/**
+ * The operating system, with the notice a value KANAP cannot place deserves.
+ * A saved match on the platform slug decides first; a match pointing at a code
+ * the catalog no longer holds falls through to the name comparison, exactly as
+ * if it had never been saved.
+ */
 function resolveOperatingSystem<T extends CatalogOptionLike>(
-  value: string,
+  object: NetboxObject,
+  osMap: Record<string, string>,
   options: T[],
   warnings: NetboxNotice[],
 ): T | null {
+  const mappedCode = object.platformSlug ? osMap[object.platformSlug] : undefined;
+  if (mappedCode) {
+    const mapped = options.find((option) => option.code === mappedCode);
+    if (mapped) return mapped;
+  }
+  const value = object.platformName ?? object.platformSlug ?? '';
   const { option, ambiguous } = matchCatalogOption(value, options);
   if (option) return option;
   warnings.push(netboxNotice(ambiguous ? 'os_ambiguous' : 'os_not_in_catalog', { value }));
@@ -269,6 +329,7 @@ export function normalizeNetboxDevice(raw: Record<string, unknown>, baseUrl: str
     siteName: nestedText(raw.site, 'name'),
     status: nestedText(raw.status, 'value') ?? textOrNull(raw.status),
     platformName: nestedText(raw.platform, 'name'),
+    platformSlug: nestedText(raw.platform, 'slug'),
     manufacturer: deviceType ? nestedText(deviceType.manufacturer, 'name') : null,
     model: deviceType ? textOrNull(deviceType.model) : null,
     rack: nestedText(raw.rack, 'name'),
@@ -315,6 +376,7 @@ export function normalizeNetboxVirtualMachine(raw: Record<string, unknown>, base
     siteName: nestedText(site, 'name'),
     status: nestedText(raw.status, 'value') ?? textOrNull(raw.status),
     platformName: nestedText(raw.platform, 'name'),
+    platformSlug: nestedText(raw.platform, 'slug'),
     manufacturer: null,
     model: null,
     rack: null,
@@ -480,8 +542,8 @@ export function mapNetboxObject(object: NetboxObject, options: NetboxMapOptions)
     status = mappedStatus;
   }
 
-  const operatingSystem = object.platformName
-    ? resolveOperatingSystem(object.platformName, catalogs.operatingSystems, warnings)?.code ?? null
+  const operatingSystem = object.platformName || object.platformSlug
+    ? resolveOperatingSystem(object, options.osMap ?? {}, catalogs.operatingSystems, warnings)?.code ?? null
     : null;
 
   const ipAddresses = object.primaryIp ? mapPrimaryIp(object.primaryIp, catalogs, warnings) : null;

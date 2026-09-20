@@ -391,6 +391,11 @@
         "intro": "Only mapped roles and sites are imported. Anything left on \"Do not import\" is skipped.",
         "roles": "Netbox roles",
         "sites": "Netbox sites",
+        "operatingSystems": "Operating systems",
+        "operatingSystemsHint": "Choose the KANAP operating system for each Netbox platform. A platform left without a match does not block the import: the operating system is simply left as it is.",
+        "noPlatforms": "Netbox lists no platform, so there is nothing to match here.",
+        "platformsUnavailable": "Netbox did not return its platforms, so operating systems cannot be matched here. Check that the API token can read platforms.",
+        "noOperatingSystem": "No match",
         "doNotImport": "Do not import",
         "suggested": "Suggested",
         "save": "Save mappings",
@@ -402,7 +407,9 @@
           "netboxSite": "Netbox site",
           "objects": "Objects",
           "assetType": "KANAP asset type",
-          "location": "KANAP location"
+          "netboxPlatform": "Netbox platform",
+          "location": "KANAP location",
+          "operatingSystem": "KANAP operating system"
         },
         "counts": {
           "devices_one": "{{count}} device",

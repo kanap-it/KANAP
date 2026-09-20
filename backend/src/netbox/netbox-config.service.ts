@@ -91,6 +91,8 @@ export type NetboxTestInput = {
 export type NetboxMappingView = {
   role_map: Record<string, string>;
   site_map: Record<string, string>;
+  /** Netbox platform slug -> KANAP operating system code. Not an import filter. */
+  os_map: Record<string, string>;
 };
 
 const NEVER_RAN: NetboxSyncStateView = {
@@ -233,7 +235,11 @@ export class NetboxConfigService {
     if (roleMap[NETBOX_LEGACY_VM_ROLE_SLUG] && !roleMap[NETBOX_VIRTUAL_MACHINES_SLUG]) {
       roleMap[NETBOX_VIRTUAL_MACHINES_SLUG] = roleMap[NETBOX_LEGACY_VM_ROLE_SLUG];
     }
-    return { role_map: roleMap, site_map: stringMap(metadata?.site_map) };
+    return {
+      role_map: roleMap,
+      site_map: stringMap(metadata?.site_map),
+      os_map: stringMap(metadata?.os_map),
+    };
   }
 
   /** Partial save: a key that is not sent keeps its stored value. */
@@ -314,11 +320,11 @@ export class NetboxConfigService {
     return this.toView(await repo.save(entity));
   }
 
-  /** Full replacement of both mapping tables. */
+  /** Full replacement of the mapping tables the body carries. */
   async saveMapping(
     manager: EntityManager,
     tenantId: string,
-    input: { role_map?: unknown; site_map?: unknown },
+    input: { role_map?: unknown; site_map?: unknown; os_map?: unknown },
   ): Promise<NetboxMappingView> {
     const existing = await this.getConfig(manager, tenantId);
     if (!existing) {
@@ -332,6 +338,15 @@ export class NetboxConfigService {
     const metadata: Record<string, unknown> = { ...(asRecord(existing.metadata_json) ?? {}) };
     metadata.role_map = stringMap(input.role_map);
     metadata.site_map = stringMap(input.site_map);
+    // The operating system matches came later: a page that does not know about
+    // them sends nothing, and that must keep the saved ones rather than clear
+    // them. Sent, they are replaced in full like the other two.
+    if (input.os_map !== undefined) {
+      if (asRecord(input.os_map) == null) {
+        throw new BadRequestException('Send the operating system matches as a list of matches, or leave them out to keep the saved ones.');
+      }
+      metadata.os_map = stringMap(input.os_map);
+    }
     existing.metadata_json = metadata;
     existing.updated_at = new Date();
     await this.repo(manager).save(existing);

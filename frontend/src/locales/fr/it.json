@@ -391,6 +391,11 @@
         "intro": "Seuls les rôles et les sites mis en correspondance sont importés. Tout ce qui reste sur « Ne pas importer » est laissé de côté.",
         "roles": "Rôles Netbox",
         "sites": "Sites Netbox",
+        "operatingSystems": "Systèmes d'exploitation",
+        "operatingSystemsHint": "Choisissez le système d'exploitation KANAP pour chaque plateforme Netbox. Une plateforme laissée sans correspondance ne bloque pas l'import : le système d'exploitation est simplement laissé tel quel.",
+        "noPlatforms": "Netbox ne liste aucune plateforme, il n'y a donc rien à mettre en correspondance ici.",
+        "platformsUnavailable": "Netbox n'a pas renvoyé ses plateformes, les systèmes d'exploitation ne peuvent donc pas être mis en correspondance ici. Vérifiez que le jeton d'API peut lire les plateformes.",
+        "noOperatingSystem": "Aucune correspondance",
         "doNotImport": "Ne pas importer",
         "suggested": "Suggéré",
         "save": "Enregistrer les correspondances",
@@ -402,7 +407,9 @@
           "netboxSite": "Site Netbox",
           "objects": "Objets",
           "assetType": "Type d'actif KANAP",
-          "location": "Site KANAP"
+          "netboxPlatform": "Plateforme Netbox",
+          "location": "Site KANAP",
+          "operatingSystem": "Système d'exploitation KANAP"
         },
         "counts": {
           "devices_one": "{{count}} équipement",

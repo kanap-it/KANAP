@@ -31,6 +31,7 @@ import {
   managedFieldsOf,
   mapNetboxObject,
   matchCatalogOption,
+  suggestOperatingSystem,
 } from './netbox-mapper';
 import { ExistingAsset } from './netbox-matcher';
 import { NetboxNotice, netboxNotice, netboxNoticeFromStore, primaryNotice } from './netbox-notice';
@@ -235,6 +236,7 @@ type LocalContext = {
   defaultEnvironment: string;
   roleMap: Record<string, string>;
   siteMap: Record<string, string>;
+  osMap: Record<string, string>;
 };
 
 type ApplyOutcome =
@@ -556,9 +558,9 @@ export class NetboxSyncService {
   }
 
   /**
-   * Roles and sites as Netbox reports them, next to the KANAP asset types and
-   * locations they can be matched with, plus a suggestion for every role or
-   * site whose name already matches one.
+   * Roles, sites and platforms as Netbox reports them, next to the KANAP asset
+   * types, locations and operating systems they can be matched with, plus a
+   * suggestion for every entry whose name already points at one.
    */
   async mappingOptions(manager: EntityManager, tenantId: string) {
     const config = await this.config.getConfig(manager, tenantId);
@@ -569,11 +571,22 @@ export class NetboxSyncService {
     const connection = this.config.buildConnection(config);
     let deviceRoles;
     let sites;
+    let platforms;
     let virtualMachineCount;
     try {
-      [deviceRoles, sites, virtualMachineCount] = await Promise.all([
+      [deviceRoles, sites, platforms, virtualMachineCount] = await Promise.all([
         this.client.listRoles(connection),
         this.client.listSites(connection),
+        // Netbox permissions are granted per object type: a token that reads
+        // devices, roles and sites may still be refused the platforms. That
+        // must cost the operating systems alone — failing the whole tab would
+        // take the role and site matches down with it, on a setup that works.
+        this.client.listPlatforms(connection).catch((error) => {
+          this.logger.warn(
+            `Netbox platforms could not be read for tenant ${tenantId}: ${plainErrorMessage(error)}`,
+          );
+          return null;
+        }),
         this.client.countVirtualMachines(connection),
       ]);
     } catch (error) {
@@ -616,16 +629,31 @@ export class NetboxSyncService {
       const match = locations.find((location) => location.name.trim().toLowerCase() === site.name.trim().toLowerCase());
       if (match) suggestedSiteMap[site.slug] = match.id;
     }
+    // A platform nobody matches costs the object nothing: its operating system
+    // is simply left as it is. So the suggestion may be generous where the two
+    // maps above cannot be — "Debian 12" pre-fills "Debian 12 (bookworm)".
+    const suggestedOsMap: Record<string, string> = {};
+    for (const platform of platforms ?? []) {
+      if (saved.os_map[platform.slug]) continue;
+      const match = suggestOperatingSystem(platform.name, settings.operatingSystems);
+      if (match) suggestedOsMap[platform.slug] = match.code;
+    }
 
     return {
       roles,
       sites,
+      platforms: platforms ?? [],
+      /** The token could not read them; the operating systems cannot be matched. */
+      platforms_unavailable: platforms == null,
       asset_kinds: assetKinds,
       locations,
+      operating_systems: settings.operatingSystems.map((option) => ({ code: option.code, label: option.label })),
       role_map: saved.role_map,
       site_map: saved.site_map,
+      os_map: saved.os_map,
       suggested_role_map: suggestedRoleMap,
       suggested_site_map: suggestedSiteMap,
+      suggested_os_map: suggestedOsMap,
     };
   }
 
@@ -693,6 +721,7 @@ export class NetboxSyncService {
       defaultEnvironment: view.default_environment,
       roleMap: mapping.role_map,
       siteMap: mapping.site_map,
+      osMap: mapping.os_map,
     };
   }
 
@@ -736,6 +765,7 @@ export class NetboxSyncService {
     const mappings = fetched.objects.map((object) => mapNetboxObject(object, {
       roleMap: local.roleMap,
       siteMap: local.siteMap,
+      osMap: local.osMap,
       defaultEnvironment: local.defaultEnvironment,
       catalogs: local.catalogs,
       locations: fetched.locations,
@@ -1687,6 +1717,7 @@ export class NetboxSyncService {
     const mapping = mapNetboxObject(object, {
       roleMap: local.roleMap,
       siteMap: local.siteMap,
+      osMap: local.osMap,
       defaultEnvironment: local.defaultEnvironment,
       catalogs: local.catalogs,
       locations: locationIndex,

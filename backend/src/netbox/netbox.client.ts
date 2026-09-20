@@ -267,6 +267,16 @@ export class NetboxClient {
   }
 
   /**
+   * GET /api/dcim/platforms/ — the platforms Netbox uses to say what an object
+   * runs. Devices and virtual machines share the same list, so both counts are
+   * reported.
+   */
+  async listPlatforms(connection: NetboxConnection): Promise<NetboxReferenceOption[]> {
+    const { rows } = await this.listAll(connection, '/api/dcim/platforms/', {});
+    return rows.map((row) => this.toReferenceOption(row));
+  }
+
+  /**
    * GET /api/dcim/locations/ — the Location tree under each site. `complete`
    * matters as much as the rows: the caller only imports sub-locations from a
    * list it knows is whole, and a truncated tree would attach equipment to the

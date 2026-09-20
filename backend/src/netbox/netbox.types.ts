@@ -57,6 +57,8 @@ export type NetboxObject = {
   /** Raw Netbox status value, e.g. 'active', 'decommissioning'. */
   status: string | null;
   platformName: string | null;
+  /** The platform's slug, which the operating system matches are keyed on. */
+  platformSlug: string | null;
   manufacturer: string | null;
   model: string | null;
   rack: string | null;
@@ -83,7 +85,7 @@ export type NetboxLocation = {
 /** Every Netbox Location by id. `null` stands for "not available this run". */
 export type NetboxLocationIndex = Map<string, NetboxLocation>;
 
-/** A Netbox device role or site, with how many objects reference it. */
+/** A Netbox device role, site or platform, with how many objects reference it. */
 export type NetboxReferenceOption = {
   slug: string;
   name: string;

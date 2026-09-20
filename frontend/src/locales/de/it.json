@@ -391,6 +391,11 @@
         "intro": "Nur zugeordnete Rollen und Standorte werden importiert. Alles, was auf „Nicht importieren“ steht, bleibt außen vor.",
         "roles": "Netbox-Rollen",
         "sites": "Netbox-Standorte",
+        "operatingSystems": "Betriebssysteme",
+        "operatingSystemsHint": "Wählen Sie für jede Netbox-Plattform das KANAP-Betriebssystem. Eine Plattform ohne Zuordnung blockiert den Import nicht: Das Betriebssystem bleibt einfach unverändert.",
+        "noPlatforms": "Netbox führt keine Plattform, hier gibt es also nichts zuzuordnen.",
+        "platformsUnavailable": "Netbox hat seine Plattformen nicht zurückgegeben, daher lassen sich hier keine Betriebssysteme zuordnen. Prüfen Sie, ob das API-Token Plattformen lesen darf.",
+        "noOperatingSystem": "Keine Zuordnung",
         "doNotImport": "Nicht importieren",
         "suggested": "Vorschlag",
         "save": "Zuordnungen speichern",
@@ -402,7 +407,9 @@
           "netboxSite": "Netbox-Standort",
           "objects": "Objekte",
           "assetType": "KANAP-Asset-Typ",
-          "location": "KANAP-Standort"
+          "netboxPlatform": "Netbox-Plattform",
+          "location": "KANAP-Standort",
+          "operatingSystem": "KANAP-Betriebssystem"
         },
         "counts": {
           "devices_one": "{{count}} Gerät",
