@@ -213,12 +213,15 @@
       "notConfigured": "Netbox aún no está conectado.",
       "disabledHint": "Activa la integración en la configuración para lanzar una sincronización.",
       "runningHint": "Hay una sincronización en curso.",
+      "reviewPending_one": "{{count}} objeto sigue pendiente de revisión. La sincronización automática queda en pausa hasta que se revise.",
+      "reviewPending_other": "{{count}} objetos siguen pendientes de revisión. La sincronización automática queda en pausa hasta que se revisen.",
       "tabs": {
         "records": "Objetos",
         "mappings": "Correspondencias"
       },
       "actions": {
         "syncNow": "Sincronizar ahora",
+        "nextBatch": "Revisar el lote siguiente",
         "preparing": "Preparando la vista previa...",
         "openSettings": "Abrir la configuración de la integración",
         "linkTo": "Vincular a...",
@@ -284,7 +287,9 @@
         "apply": "Aplicar",
         "empty": "Sin definir",
         "summary": "{{created}} por crear, {{updated}} por actualizar, {{unchanged}} sin cambios.",
-        "truncated": "Aquí solo se enumeran los 500 primeros objetos. Se aplica todo.",
+        "batch_one": "Este es un lote. Queda {{count}} objeto más en espera: Aplicar solo escribe lo que aparece aquí y lo deja intacto para el lote siguiente.",
+        "batch_other": "Este es un lote. Quedan {{count}} objetos más en espera: Aplicar solo escribe lo que aparece aquí y los deja intactos para el lote siguiente.",
+        "applyBatch": "Aplicar este lote",
         "noMatches": {
           "none": "Aún no hay ninguna correspondencia de rol ni de sitio guardada, así que no se puede importar nada. Abra las correspondencias, revise las sugerencias y guárdelas.",
           "roles": "Aún no hay ninguna correspondencia de rol guardada, así que no se puede importar nada. Abra las correspondencias, revise las sugerencias y guárdelas.",

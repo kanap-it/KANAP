@@ -74,7 +74,7 @@ The preview is grouped:
 - **Missing from Netbox**: assets a previous run linked whose Netbox object is gone.
 - **Warnings**: values Netbox reports that KANAP could not take over, for example an operating system that is not in your catalogue. An object with nothing to change but something to report appears here too.
 
-Read it, then press **Apply**. Objects that are already identical are counted as unchanged and not touched at all. Large inventories list only the first 500 rows in the preview; the run itself applies everything. The filter at the top narrows the list to an object or an asset name.
+Read it, then press **Apply**. Objects that are already identical are counted as unchanged and not touched at all. A large inventory is reviewed in batches of 500. **Apply this batch** writes only what the preview lists; everything else is left exactly as it is. The page then says how many objects still wait and offers **Review the next batch**, until nothing is left. Nothing you have not been shown is ever created or updated by a run you start yourself. Objects out of scope are counted by reason and not listed, so they never take the place of an object you need to read. The filter at the top narrows the list to an object or an asset name.
 
 ### Correct the preview before applying
 
@@ -180,7 +180,7 @@ A synchronisation never sets an asset to **Retired**. Retiring equipment is a de
 
 ## Automatic synchronisation
 
-Turn **Automatic synchronisation** on in the integration card and KANAP runs the same job every hour, applying the changes without a preview. The switch is per tenant, and only tenants that turned it on are visited. The hourly job never does the first import: it starts once you have applied a synchronisation yourself and it finished without error. Until then the switch can be on and nothing runs.
+Turn **Automatic synchronisation** on in the integration card and KANAP runs the same job every hour, applying the changes without a preview. The switch is per tenant, and only tenants that turned it on are visited. The hourly job never does the first import: it starts once you have applied a synchronisation yourself and it finished without error. Until then the switch can be on and nothing runs. The same holds while a review is unfinished: as long as objects wait for their batch, the hourly job stays on hold, because it would import what nobody has read. It resumes once a synchronisation you apply leaves nothing waiting.
 
 Objects that need a decision are never resolved automatically. They pile up under **To decide** and wait for you.
 

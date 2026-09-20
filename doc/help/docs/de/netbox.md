@@ -74,7 +74,7 @@ Die Vorschau ist gruppiert:
 - **Fehlt in Netbox**: Assets, die ein früherer Lauf verknüpft hat und deren Netbox-Objekt verschwunden ist.
 - **Warnungen**: Werte, die Netbox meldet und die KANAP nicht übernehmen konnte, zum Beispiel ein Betriebssystem, das nicht in Ihrem Katalog steht. Ein Objekt, an dem nichts zu ändern, aber etwas zu melden ist, erscheint ebenfalls hier.
 
-Lesen Sie die Vorschau und drücken Sie dann **Anwenden**. Objekte, die bereits identisch sind, werden als unverändert gezählt und gar nicht angefasst. Bei großen Inventaren listet die Vorschau nur die ersten 500 Zeilen auf. Der Lauf selbst wendet alles an. Der Filter oben schränkt die Liste auf ein Objekt oder einen Asset-Namen ein.
+Lesen Sie die Vorschau und drücken Sie dann **Anwenden**. Objekte, die bereits identisch sind, werden als unverändert gezählt und gar nicht angefasst. Ein großes Inventar wird in Stapeln von 500 geprüft. **Diesen Stapel anwenden** schreibt nur, was die Vorschau auflistet. Alles andere bleibt genau so, wie es ist. Die Seite zeigt danach, wie viele Objekte noch warten, und bietet **Nächsten Stapel prüfen** an, bis nichts mehr übrig ist. Ein Lauf, den Sie selbst starten, legt nie ein Objekt an oder ändert es, das Ihnen nicht gezeigt wurde. Objekte außerhalb des Umfangs werden nach Grund gezählt und nicht aufgelistet, sodass sie nie den Platz eines Objekts einnehmen, das Sie lesen müssen. Der Filter oben schränkt die Liste auf ein Objekt oder einen Asset-Namen ein.
 
 ### Die Vorschau vor dem Anwenden korrigieren
 
@@ -180,7 +180,7 @@ Eine Synchronisierung setzt ein Asset nie auf **Außer Betrieb**. Geräte außer
 
 ## Automatische Synchronisierung
 
-Aktivieren Sie **Automatische Synchronisierung** auf der Integrationskarte, und KANAP führt denselben Lauf stündlich aus und wendet die Änderungen ohne Vorschau an. Der Schalter gilt pro Mandant, und nur Mandanten, die ihn aktiviert haben, werden angefahren. Der stündliche Lauf übernimmt nie den ersten Import: Er startet, sobald Sie selbst eine Synchronisierung angewendet haben und diese fehlerfrei beendet wurde. Bis dahin kann der Schalter eingeschaltet sein, ohne dass etwas läuft.
+Aktivieren Sie **Automatische Synchronisierung** auf der Integrationskarte, und KANAP führt denselben Lauf stündlich aus und wendet die Änderungen ohne Vorschau an. Der Schalter gilt pro Mandant, und nur Mandanten, die ihn aktiviert haben, werden angefahren. Der stündliche Lauf übernimmt nie den ersten Import: Er startet, sobald Sie selbst eine Synchronisierung angewendet haben und diese fehlerfrei beendet wurde. Bis dahin kann der Schalter eingeschaltet sein, ohne dass etwas läuft. Dasselbe gilt, solange eine Prüfung nicht abgeschlossen ist: Solange Objekte auf ihren Stapel warten, bleibt der stündliche Lauf ausgesetzt, denn er würde importieren, was niemand gelesen hat. Er läuft wieder, sobald eine von Ihnen angewendete Synchronisierung nichts mehr warten lässt.
 
 Objekte, die eine Entscheidung brauchen, werden nie automatisch aufgelöst. Sie sammeln sich unter **Zu entscheiden** und warten auf Sie.
 

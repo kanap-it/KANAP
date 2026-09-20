@@ -213,12 +213,15 @@
       "notConfigured": "Netbox is not connected yet.",
       "disabledHint": "Turn the integration on in the settings to run a synchronisation.",
       "runningHint": "A synchronisation is running.",
+      "reviewPending_one": "{{count}} object is still waiting for review. Automatic synchronisation is on hold until it is reviewed.",
+      "reviewPending_other": "{{count}} objects are still waiting for review. Automatic synchronisation is on hold until they are reviewed.",
       "tabs": {
         "records": "Objects",
         "mappings": "Mappings"
       },
       "actions": {
         "syncNow": "Synchronise now",
+        "nextBatch": "Review the next batch",
         "preparing": "Preparing the preview...",
         "openSettings": "Open the integration settings",
         "linkTo": "Link to...",
@@ -284,7 +287,9 @@
         "apply": "Apply",
         "empty": "Not set",
         "summary": "{{created}} to create, {{updated}} to update, {{unchanged}} unchanged.",
-        "truncated": "Only the first 500 objects are listed here. Everything is applied.",
+        "batch_one": "This is one batch. {{count}} more object is waiting: applying writes only what is listed here, and leaves it untouched for the next batch.",
+        "batch_other": "This is one batch. {{count}} more objects are waiting: applying writes only what is listed here, and leaves them untouched for the next batch.",
+        "applyBatch": "Apply this batch",
         "noMatches": {
           "none": "No role or site match is saved yet, so nothing can be imported. Open the mappings, check the suggestions, then save them.",
           "roles": "No role match is saved yet, so nothing can be imported. Open the mappings, check the suggestions, then save them.",

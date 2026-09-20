@@ -213,12 +213,15 @@
       "notConfigured": "Netbox ist noch nicht verbunden.",
       "disabledHint": "Aktivieren Sie die Integration in den Einstellungen, um eine Synchronisierung zu starten.",
       "runningHint": "Eine Synchronisierung läuft.",
+      "reviewPending_one": "{{count}} Objekt wartet noch auf die Prüfung. Die automatische Synchronisierung ist ausgesetzt, bis es geprüft ist.",
+      "reviewPending_other": "{{count}} Objekte warten noch auf die Prüfung. Die automatische Synchronisierung ist ausgesetzt, bis sie geprüft sind.",
       "tabs": {
         "records": "Objekte",
         "mappings": "Zuordnungen"
       },
       "actions": {
         "syncNow": "Jetzt synchronisieren",
+        "nextBatch": "Nächsten Stapel prüfen",
         "preparing": "Vorschau wird vorbereitet...",
         "openSettings": "Integrationseinstellungen öffnen",
         "linkTo": "Verknüpfen mit...",
@@ -284,7 +287,9 @@
         "apply": "Anwenden",
         "empty": "Nicht gesetzt",
         "summary": "{{created}} anzulegen, {{updated}} zu aktualisieren, {{unchanged}} ohne Änderung.",
-        "truncated": "Hier sind nur die ersten 500 Objekte aufgeführt. Angewendet wird alles.",
+        "batch_one": "Dies ist ein Stapel. {{count}} weiteres Objekt wartet: Anwenden schreibt nur, was hier aufgeführt ist, und lässt es für den nächsten Stapel unberührt.",
+        "batch_other": "Dies ist ein Stapel. {{count}} weitere Objekte warten: Anwenden schreibt nur, was hier aufgeführt ist, und lässt sie für den nächsten Stapel unberührt.",
+        "applyBatch": "Diesen Stapel anwenden",
         "noMatches": {
           "none": "Es ist noch keine Rollen- oder Standortzuordnung gespeichert, daher kann nichts importiert werden. Öffnen Sie die Zuordnungen, prüfen Sie die Vorschläge und speichern Sie sie.",
           "roles": "Es ist noch keine Rollenzuordnung gespeichert, daher kann nichts importiert werden. Öffnen Sie die Zuordnungen, prüfen Sie die Vorschläge und speichern Sie sie.",

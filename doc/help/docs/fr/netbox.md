@@ -74,7 +74,7 @@ L'aperçu est regroupé ainsi :
 - **Absents de Netbox** : les actifs liés lors d'une exécution précédente dont l'objet Netbox a disparu.
 - **Avertissements** : les valeurs signalées par Netbox que KANAP n'a pas pu reprendre, par exemple un système d'exploitation absent de votre catalogue. Un objet sans changement mais avec quelque chose à signaler y figure également.
 
-Lisez l'aperçu, puis cliquez sur **Appliquer**. Les objets déjà identiques sont comptés comme sans changement et ne sont pas touchés. Sur un gros inventaire, l'aperçu ne liste que les 500 premières lignes ; l'exécution, elle, applique tout. Le filtre en haut restreint la liste à un objet ou à un nom d'actif.
+Lisez l'aperçu, puis cliquez sur **Appliquer**. Les objets déjà identiques sont comptés comme sans changement et ne sont pas touchés. Un gros inventaire se vérifie par lots de 500. **Appliquer ce lot** n'écrit que ce que l'aperçu liste ; tout le reste est laissé exactement en l'état. La page indique ensuite combien d'objets attendent encore et propose **Vérifier le lot suivant**, jusqu'à ce qu'il ne reste rien. Une synchronisation que vous lancez vous-même ne crée et ne modifie jamais un objet qui ne vous a pas été montré. Les objets hors périmètre sont comptés par raison et ne sont pas listés : ils ne prennent jamais la place d'un objet que vous devez lire. Le filtre en haut restreint la liste à un objet ou à un nom d'actif.
 
 ### Corriger l'aperçu avant d'appliquer
 
@@ -180,7 +180,7 @@ Une synchronisation ne passe jamais un actif en **Retiré**. Retirer un équipem
 
 ## Synchronisation automatique
 
-Activez **Synchronisation automatique** sur la carte d'intégration : KANAP exécute le même traitement toutes les heures et applique les changements sans aperçu. L'interrupteur est propre à chaque organisation, et seules celles qui l'ont activé sont traitées. Le traitement horaire ne fait jamais le premier import : il démarre une fois que vous avez appliqué vous-même une synchronisation et qu'elle s'est terminée sans erreur. D'ici là, l'interrupteur peut être activé sans que rien ne s'exécute.
+Activez **Synchronisation automatique** sur la carte d'intégration : KANAP exécute le même traitement toutes les heures et applique les changements sans aperçu. L'interrupteur est propre à chaque organisation, et seules celles qui l'ont activé sont traitées. Le traitement horaire ne fait jamais le premier import : il démarre une fois que vous avez appliqué vous-même une synchronisation et qu'elle s'est terminée sans erreur. D'ici là, l'interrupteur peut être activé sans que rien ne s'exécute. Il en va de même tant qu'une vérification n'est pas terminée : aussi longtemps que des objets attendent leur lot, le traitement horaire reste suspendu, car il importerait ce que personne n'a lu. Il reprend dès qu'une synchronisation que vous appliquez ne laisse plus rien en attente.
 
 Les objets qui demandent une décision ne sont jamais tranchés automatiquement. Ils s'accumulent dans **À décider** et vous attendent.
 

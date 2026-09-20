@@ -15,6 +15,8 @@ import {
   ExistingSubLocation,
   NetboxDecision,
   NetboxPlanRow,
+  buildReviewBatch,
+  isWriteDeferred,
   planNetboxSync,
   subLocationUpkeepNotices,
 } from '../netbox-planner';
@@ -1364,6 +1366,108 @@ function subLocation(overrides: Partial<ExistingSubLocation> = {}): ExistingSubL
   assert.deepEqual(second.subLocations, []);
   assert.deepEqual(row(second, '1').diffs, []);
   assert.equal(row(second, '1').action, 'unchanged');
+}
+
+// ---------------------------------------------------------------------------
+// Review batches: a manual run writes only what its preview listed.
+// ---------------------------------------------------------------------------
+
+function batchRow(id: number, overrides: Partial<NetboxPlanRow> = {}): NetboxPlanRow {
+  return {
+    external_type: 'device',
+    external_id: String(id),
+    external_name: `object-${id}`,
+    external_url: `${BASE_URL}/dcim/devices/${id}/`,
+    external_status: 'active',
+    action: 'create',
+    asset: null,
+    matched_by: null,
+    candidates: [],
+    diffs: [],
+    skip_reason: null,
+    warnings: [],
+    decision: null,
+    ...overrides,
+  };
+}
+
+// Out-of-scope objects are counted, never listed: five hundred patch panels
+// must not push the one server that needs a decision out of the batch.
+{
+  const rows = [
+    ...Array.from({ length: 600 }, (_, index) => batchRow(index + 1, { action: 'skipped', skip_reason: 'unmapped_role' })),
+    batchRow(901, { action: 'skipped', skip_reason: 'unmapped_site' }),
+    batchRow(902, { action: 'skipped', skip_reason: 'ignored' }),
+    batchRow(1000, { action: 'ambiguous' }),
+  ];
+  const batch = buildReviewBatch(rows, 500);
+  assert.deepEqual(batch.rows.map((entry) => entry.external_id), ['1000']);
+  assert.equal(batch.remaining, 0);
+  assert.deepEqual(batch.skipped_by_reason, { unmapped_role: 600, unmapped_site: 1, ignored: 1 });
+}
+
+// Order inside a batch: what the person settled, then creations, then updates,
+// then what waits for a decision, then the merely informative. Netbox order is
+// kept inside a group, so a batch is stable between two previews.
+{
+  const rows = [
+    batchRow(1, { action: 'unchanged', warnings: [netboxNoticeOf('os_not_in_catalog')] }),
+    batchRow(2, { action: 'update' }),
+    batchRow(3, { action: 'create' }),
+    batchRow(4, { action: 'ambiguous' }),
+    batchRow(5, { action: 'skipped', skip_reason: 'ignored', decision: 'ignore' }),
+    batchRow(6, { action: 'create' }),
+    batchRow(7, { action: 'unchanged' }),
+  ];
+  const batch = buildReviewBatch(rows, 500);
+  assert.deepEqual(batch.rows.map((entry) => entry.external_id), ['5', '3', '6', '2', '4', '1']);
+  assert.deepEqual(batch.skipped_by_reason, {});
+}
+
+// What does not fit is counted as remaining, and only writes count: an
+// undecided or informative object beyond the cut holds nothing up.
+{
+  const rows = [
+    batchRow(1, { action: 'create' }),
+    batchRow(2, { action: 'create' }),
+    batchRow(3, { action: 'update' }),
+    batchRow(4, { action: 'ambiguous' }),
+    batchRow(5, { action: 'unchanged', warnings: [netboxNoticeOf('os_not_in_catalog')] }),
+  ];
+  const batch = buildReviewBatch(rows, 2);
+  assert.deepEqual(batch.rows.map((entry) => entry.external_id), ['1', '2']);
+  assert.equal(batch.remaining, 1);
+}
+
+// Batches always move forward. An object left undecided stays undecided from
+// one preview to the next: ahead of the writes it would keep its place in
+// every batch and could shut them out for good.
+{
+  const undecided = Array.from({ length: 3 }, (_, index) => batchRow(index + 1, { action: 'ambiguous' }));
+  const writes = [batchRow(10, { action: 'create' }), batchRow(11, { action: 'update' })];
+  const first = buildReviewBatch([...undecided, ...writes], 2);
+  assert.deepEqual(first.rows.map((entry) => entry.external_id), ['10', '11']);
+  assert.equal(first.remaining, 0);
+  // Once applied, the writes are gone and the undecided objects get the room.
+  const second = buildReviewBatch(undecided, 2);
+  assert.deepEqual(second.rows.map((entry) => entry.external_id), ['1', '2']);
+  assert.equal(second.remaining, 0);
+}
+
+// The rule itself. A creation or an update outside the reviewed list is left
+// alone; the scheduled run, which has no reviewer, holds nothing back; an
+// object waiting for a decision is never held back, recording it writes no
+// asset and is what puts it in the "to decide" list.
+{
+  const reviewed = new Set(['device:1']);
+  assert.equal(isWriteDeferred(batchRow(1, { action: 'create' }), reviewed), false);
+  assert.equal(isWriteDeferred(batchRow(2, { action: 'create' }), reviewed), true);
+  assert.equal(isWriteDeferred(batchRow(2, { action: 'update' }), reviewed), true);
+  assert.equal(isWriteDeferred(batchRow(2, { action: 'ambiguous' }), reviewed), false);
+  assert.equal(isWriteDeferred(batchRow(2, { action: 'unchanged' }), reviewed), false);
+  assert.equal(isWriteDeferred(batchRow(2, { action: 'create' }), null), false);
+  // Nothing reviewed at all (an older page, a direct API call): nothing written.
+  assert.equal(isWriteDeferred(batchRow(1, { action: 'create' }), new Set()), true);
 }
 
 console.log('netbox-planner.spec.ts OK');

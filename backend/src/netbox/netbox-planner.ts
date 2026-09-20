@@ -64,6 +64,12 @@ export type NetboxSyncCounts = {
   skipped: number;
   missing: number;
   error: number;
+  /**
+   * Creations and updates a manual run left alone because the person had not
+   * been shown them yet. They come back in the next preview. Absent on states
+   * stored by an earlier build, which reads as zero.
+   */
+  deferred?: number;
 };
 
 export type ExistingLink = {
@@ -134,6 +140,83 @@ export type NetboxPlanWrite = {
 
 export function externalKey(type: string, id: string): string {
   return `${type}:${id}`;
+}
+
+/** What one preview hands to the browser: a batch a person can actually read. */
+export type NetboxReviewBatch = {
+  rows: NetboxPlanRow[];
+  /** Creations and updates that did not fit in this batch. */
+  remaining: number;
+  /** Out-of-scope objects, counted by reason: they are never listed one by one. */
+  skipped_by_reason: Record<string, number>;
+};
+
+/**
+ * Cuts the plan down to one reviewable batch.
+ *
+ * The rule the whole feature rests on: a manual run writes only what the person
+ * was shown. So the batch must spend its room on what needs eyes, and nothing
+ * else:
+ *
+ *  - an object out of scope (role or site not matched, no name, ignored
+ *    earlier) is counted by reason and never listed. Hundreds of patch panels
+ *    must not push a server that needs a decision out of the batch;
+ *  - an object the person settled in this dialog always comes first, so it can
+ *    be seen and taken back whatever else changes;
+ *  - then what would be created and what would be updated: the writes, which
+ *    are what the review is for. Every applied batch takes them out of the
+ *    next one, so the batches always move forward;
+ *  - then what waits for a decision. It comes after the writes on purpose: an
+ *    object left undecided stays undecided from one preview to the next, and
+ *    ahead of the writes it would hold its place in every batch and could keep
+ *    them out for good. Nothing is lost by listing it late: it writes no asset,
+ *    every run records it, and it can be settled from the page at any time;
+ *  - last, the objects with nothing to write but something to say.
+ *
+ * `remaining` counts writes only, for the same reason: it is what holds the
+ * automatic runs, and an undecided object must not hold them for ever.
+ *
+ * Inside a group the Netbox order is kept, so a batch is stable from one
+ * preview to the next.
+ */
+export function buildReviewBatch(rows: NetboxPlanRow[], limit: number): NetboxReviewBatch {
+  const skippedByReason: Record<string, number> = {};
+  const listed: Array<{ row: NetboxPlanRow; rank: number; index: number }> = [];
+  rows.forEach((row, index) => {
+    if (row.action === 'skipped' && row.decision == null) {
+      const reason = row.skip_reason ?? 'ignored';
+      skippedByReason[reason] = (skippedByReason[reason] ?? 0) + 1;
+      return;
+    }
+    if (row.action === 'unchanged' && row.warnings.length === 0 && row.decision == null) return;
+    const rank = row.decision != null ? 0
+      : row.action === 'create' ? 1
+        : row.action === 'update' ? 2
+          : row.action === 'ambiguous' ? 3
+            : 4;
+    listed.push({ row, rank, index });
+  });
+  listed.sort((left, right) => left.rank - right.rank || left.index - right.index);
+  const isWrite = (row: NetboxPlanRow) => row.action === 'create' || row.action === 'update';
+  return {
+    rows: listed.slice(0, limit).map((entry) => entry.row),
+    remaining: listed.slice(limit).filter((entry) => isWrite(entry.row)).length,
+    skipped_by_reason: skippedByReason,
+  };
+}
+
+/**
+ * Whether a manual run must leave this row alone. `reviewed` holds the objects
+ * the preview listed; null means the run has no reviewer at all (the scheduled
+ * run), and nothing is held back. Only a creation or an update is held back:
+ * those are the writes a person has to have seen. An object waiting for a
+ * decision is still recorded, which writes no asset and is what puts it in the
+ * "to decide" list.
+ */
+export function isWriteDeferred(row: NetboxPlanRow, reviewed: Set<string> | null): boolean {
+  if (reviewed == null) return false;
+  if (row.action !== 'create' && row.action !== 'update') return false;
+  return !reviewed.has(externalKey(row.external_type, row.external_id));
 }
 
 /**
