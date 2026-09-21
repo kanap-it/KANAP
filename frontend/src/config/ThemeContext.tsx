@@ -56,6 +56,13 @@ function getComponentOverrides(mode: PaletteMode): ThemeOptions['components'] {
           color: theme.palette.primary.main,
           '&:visited': { color: theme.palette.primary.main },
         },
+        // Native date/time inputs paint their own picker icon and text from the
+        // UA colour scheme. Without this the black-on-transparent calendar icon
+        // is all but invisible on a dark field (reported on the report filter
+        // bars). `color-scheme` is the only way to reach that shadow-DOM icon.
+        'input[type="date"], input[type="datetime-local"], input[type="time"], input[type="month"], input[type="week"]': {
+          colorScheme: isDark ? 'dark' : 'light',
+        },
         // Subtle, theme-aware scrollbars on every scrollable region.
         // The previous defaults rendered as bright white tracks in dark mode,
         // visually clashing with the surface palette. Components are free to

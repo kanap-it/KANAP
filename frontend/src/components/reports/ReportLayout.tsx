@@ -1,9 +1,91 @@
-import React, { useEffect } from 'react';
-import { Box, Stack, Typography, Paper, Divider, IconButton, Tooltip, Breadcrumbs, Link as MLink } from '@mui/material';
+import React, { useEffect, useRef, useState } from 'react';
+import { Box, Stack, Typography, IconButton, Tooltip, Breadcrumbs, Link as MLink } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import PrintIcon from '@mui/icons-material/Print';
 import ImageIcon from '@mui/icons-material/Image';
 import { Link as RouterLink } from 'react-router-dom';
+import { FieldLabel } from '../design';
+import { compactSelectMenuProps } from '../../theme/formSx';
+
+/**
+ * Label-above wrapper for a filter control in a report filter bar. The charter bans
+ * `FormControl` + `InputLabel` (and the `label` prop that builds one), so the label is
+ * a plain block above the field, exactly like `PropertyRow` in drawers and dialogs.
+ */
+export function ReportFilter({
+  label,
+  width = 220,
+  children,
+}: {
+  label: string;
+  width?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: width }}>
+      <FieldLabel>{label}</FieldLabel>
+      {children}
+    </Box>
+  );
+}
+
+/** Shared sizing/typography for the `<Select>` of a report filter. The theme draws the box. */
+export const reportFilterSelectSx = {
+  width: '100%',
+  '& .MuiSelect-select': { fontSize: 13, lineHeight: 1.4 },
+} as const;
+
+/** Menu props every report filter select uses, so field and menu read as one object. */
+export const reportFilterMenuProps = compactSelectMenuProps;
+
+/**
+ * Height of a report grid: everything left between its top edge and the bottom of the
+ * viewport, so a report fills the screen the way the list pages do instead of showing a
+ * fixed slice with empty space below. Re-measured on resize and after every render (the
+ * filter bar wraps, alerts appear), and only committed when it actually moved.
+ */
+export function useFillViewportHeight(minHeight = 320, bottomPad = 16) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [height, setHeight] = useState<number>(minHeight);
+
+  const measure = () => {
+    const node = ref.current;
+    if (!node) return;
+    const { top } = node.getBoundingClientRect();
+    const next = Math.max(minHeight, Math.floor(window.innerHeight - top - bottomPad));
+    setHeight((prev) => (Math.abs(prev - next) > 1 ? next : prev));
+  };
+
+  // No dependency array on purpose: a re-render can move the grid (filter bar wrapping,
+  // an alert appearing), and `measure` is a no-op once the value has converged.
+  useEffect(measure);
+
+  useEffect(() => {
+    const onResize = () => measure();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minHeight, bottomPad]);
+
+  return { ref, height };
+}
+
+/** Matches `--ag-row-height` / `--ag-header-height` in `ag-grid-overrides.css`. */
+const GRID_ROW_HEIGHT = 38;
+const GRID_HEADER_HEIGHT = 36;
+
+/**
+ * Grid height: the screen space available, but never more than the rows actually need,
+ * so a short report does not leave a tall empty grid and a long one fills the viewport.
+ */
+export function reportGridHeight(fillHeight: number, rowCount: number, minHeight = 320) {
+  const contentHeight = GRID_HEADER_HEIGHT + Math.max(rowCount, 1) * GRID_ROW_HEIGHT + 2;
+  return Math.max(minHeight, Math.min(fillHeight, contentHeight));
+}
 
 export default function ReportLayout({
   title,
@@ -35,26 +117,39 @@ export default function ReportLayout({
   }, []);
 
   return (
-    <Stack spacing={2} sx={{ width: '100%', alignSelf: 'stretch' }} className="report-print-frame">
+    <Stack spacing={1.5} sx={{ width: '100%', alignSelf: 'stretch' }} className="report-print-frame">
       <Box>
-        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 0.5 }}>
-          <MLink component={RouterLink} to={rootTo} underline="hover" color="inherit">
+        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 0.5, fontSize: 12 }}>
+          <MLink component={RouterLink} to={rootTo} underline="hover" color="inherit" sx={{ fontSize: 12 }}>
             {rootLabel}
           </MLink>
-          <Typography color="text.primary">{title}</Typography>
+          <Typography sx={{ fontSize: 12, color: 'kanap.text.secondary' }}>{title}</Typography>
         </Breadcrumbs>
-        <Typography variant="h5" sx={{ fontWeight: 500 }}>{title}</Typography>
+        <Typography sx={{ fontSize: 22, fontWeight: 500, lineHeight: 1.3, color: 'kanap.text.primary' }}>
+          {title}
+        </Typography>
         {subtitle && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{subtitle}</Typography>
+          <Typography sx={{ mt: 0.5, fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
+            {subtitle}
+          </Typography>
         )}
       </Box>
-      <Paper variant="outlined" sx={{ p: 2 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
+      <Box
+        sx={{
+          bgcolor: 'kanap.bg.drawer',
+          border: '1px solid',
+          borderColor: 'kanap.border.soft',
+          borderRadius: '8px',
+          px: 2,
+          py: 1.5,
+        }}
+      >
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'flex-end' }} justifyContent="space-between">
           <Stack
             direction="row"
             spacing={2}
             useFlexGap
-            alignItems="flex-start"
+            alignItems="flex-end"
             sx={{ flexWrap: 'wrap', rowGap: { xs: 1, md: 1.5 } }}
           >
             {filters}
@@ -63,27 +158,26 @@ export default function ReportLayout({
             {actions}
             {onExportTableCsv && (
               <Tooltip title="Export table as CSV">
-                <IconButton size="small" onClick={onExportTableCsv} aria-label="Export table as CSV">
+                <IconButton size="small" onClick={onExportTableCsv} aria-label="Export table as CSV" sx={{ color: 'kanap.text.secondary' }}>
                   <DownloadIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             )}
             {onExportChartPng && (
               <Tooltip title="Export chart as PNG">
-                <IconButton size="small" onClick={onExportChartPng} aria-label="Export chart as PNG">
+                <IconButton size="small" onClick={onExportChartPng} aria-label="Export chart as PNG" sx={{ color: 'kanap.text.secondary' }}>
                   <ImageIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             )}
             <Tooltip title="Print / Save as PDF">
-              <IconButton size="small" onClick={() => window.print()} aria-label="Print report">
+              <IconButton size="small" onClick={() => window.print()} aria-label="Print report" sx={{ color: 'kanap.text.secondary' }}>
                 <PrintIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           </Stack>
         </Stack>
-      </Paper>
-      <Divider />
+      </Box>
       {children}
     </Stack>
   );

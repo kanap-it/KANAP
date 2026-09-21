@@ -22,13 +22,13 @@ type ProjectBreakdownRow = {
   contributorDays: number;
 };
 
-const formatNumber = (value: number | null | undefined, locale: string): string => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
+const formatNumber = (value: number | null | undefined, locale: string, notAvailable: string): string => {
+  if (value == null || !Number.isFinite(value)) return notAvailable;
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
 };
 
-const formatPercent = (value: number | null | undefined): string => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
+const formatPercent = (value: number | null | undefined, notAvailable: string): string => {
+  if (value == null || !Number.isFinite(value)) return notAvailable;
   return `${value.toFixed(1)}%`;
 };
 
@@ -65,6 +65,7 @@ export default function ContributorDrilldownDialog({
   });
 
   const rows = data?.projects ?? [];
+  const notAvailable = t('reports.capacityHeatmap.values.notAvailable');
 
   const openProject = useCallback((projectId?: string) => {
     if (!projectId) return;
@@ -99,41 +100,41 @@ export default function ContributorDrilldownDialog({
       headerName: t('dialogs.contributorDrilldown.columns.estimatedEffort'),
       width: 130,
       type: 'rightAligned',
-      valueFormatter: (p) => formatNumber(p.value, locale),
+      valueFormatter: (p) => formatNumber(p.value, locale, notAvailable),
     },
     {
       field: 'executionProgress',
       headerName: t('dialogs.contributorDrilldown.columns.progress'),
       width: 120,
       type: 'rightAligned',
-      valueFormatter: (p) => formatPercent(p.value),
+      valueFormatter: (p) => formatPercent(p.value, notAvailable),
     },
     {
       field: 'remainingEffort',
       headerName: t('dialogs.contributorDrilldown.columns.remaining'),
       width: 130,
       type: 'rightAligned',
-      valueFormatter: (p) => formatNumber(p.value, locale),
+      valueFormatter: (p) => formatNumber(p.value, locale, notAvailable),
     },
     {
       field: 'allocationPct',
       headerName: t('dialogs.contributorDrilldown.columns.allocationPct'),
       width: 130,
       type: 'rightAligned',
-      valueFormatter: (p) => formatPercent(p.value),
+      valueFormatter: (p) => formatPercent(p.value, notAvailable),
     },
     {
       field: 'contributorDays',
       headerName: t('dialogs.contributorDrilldown.columns.contributorDays'),
       width: 120,
       type: 'rightAligned',
-      valueFormatter: (p) => formatNumber(p.value, locale),
+      valueFormatter: (p) => formatNumber(p.value, locale, notAvailable),
     },
   ]), [locale, openProject, t]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle sx={{ pr: 6 }}>
+      <DialogTitle sx={{ pr: 6, fontSize: 16, fontWeight: 500, color: 'kanap.text.primary' }}>
         {contributorName
           ? t('dialogs.contributorDrilldown.titleWithName', { name: contributorName })
           : t('dialogs.contributorDrilldown.title')}
@@ -147,7 +148,7 @@ export default function ContributorDrilldownDialog({
         </IconButton>
       </DialogTitle>
       <DialogContent sx={{ pt: 1.5 }}>
-        <Box component={AgGridBox} sx={{ height: 360, width: '100%' }}>
+        <Box component={AgGridBox} sx={{ height: '60vh', minHeight: 320, width: '100%' }}>
           <AgGridReact
             rowData={rows}
             columnDefs={columns}

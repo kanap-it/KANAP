@@ -4,11 +4,10 @@ import {
   ButtonBase,
   Collapse,
   MenuItem,
-  Paper,
   Stack,
+  Tab,
+  Tabs,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
   Checkbox,
   ListItemText,
@@ -17,8 +16,15 @@ import {
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, CellStyle } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import ReportLayout from '../../components/reports/ReportLayout';
+import ReportLayout, {
+  ReportFilter,
+  reportFilterMenuProps,
+  reportFilterSelectSx,
+  reportGridHeight,
+  useFillViewportHeight,
+} from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
+import { drawerMenuItemSx, textTabSx, textTabsSx } from '../../theme/formSx';
 import api from '../../api';
 import ContributorDrilldownDialog from './components/ContributorDrilldownDialog';
 import { useTranslation } from 'react-i18next';
@@ -70,12 +76,13 @@ type CapacityHeatmapResponse = {
 type TeamOption = { id: string; name: string };
 
 const NO_TEAM_ID = 'no-team';
+// Sentence case: these labels are only the fallback when a translation is missing.
 const STATUS_OPTIONS = [
-  { value: 'waiting_list', label: 'Waiting List' },
+  { value: 'waiting_list', label: 'Waiting list' },
   { value: 'planned', label: 'Planned' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'in_testing', label: 'In Testing' },
-  { value: 'on_hold', label: 'On Hold' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'in_testing', label: 'In testing' },
+  { value: 'on_hold', label: 'On hold' },
   { value: 'done', label: 'Done' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
@@ -101,6 +108,19 @@ const HEATMAP_COLORS: Record<CapacityColorBand, string> = {
 const HEATMAP_TEXT_COLOR = '#111827';
 
 const HEATMAP_LEGEND_BANDS: CapacityColorBand[] = ['green', 'yellow', 'orange', 'red', 'violet', 'na'];
+
+/** Charter card: 8px radius, 1px border, no shadow at rest, 16px padding. */
+const cardSx = {
+  bgcolor: 'kanap.bg.primary',
+  border: '1px solid',
+  borderColor: 'kanap.border.default',
+  borderRadius: '8px',
+  p: 2,
+  transition: 'box-shadow 160ms ease, transform 160ms ease',
+} as const;
+
+/** Same surface, used for the two content sections of the report. */
+const sectionSurfaceSx = cardSx;
 
 const exportElementAsPng = async (node: HTMLElement, fileName: string) => {
   const width = node.scrollWidth;
@@ -165,6 +185,9 @@ export default function CapacityHeatmapReport() {
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
   const [unassignedOpen, setUnassignedOpen] = useState(false);
   const [drilldownContributor, setDrilldownContributor] = useState<{ id: string; name: string } | null>(null);
+
+  // The legend, the profileless note and the page gutter live under the grid.
+  const { ref: gridRef, height: fillHeight } = useFillViewportHeight(320, 120);
 
   const heatmapGridRef = useRef<any>(null);
   const unassignedGridRef = useRef<any>(null);
@@ -394,7 +417,8 @@ export default function CapacityHeatmapReport() {
       rootLabel={t('reports.title')}
       filters={(
         <>
-          <Autocomplete
+          <ReportFilter label={t('reports.capacityHeatmap.filters.teams')} width={240}>
+            <Autocomplete
             multiple
             size="small"
             disableCloseOnSelect
@@ -413,7 +437,7 @@ export default function CapacityHeatmapReport() {
             renderOption={(props, option, { selected }) => (
               <li {...props}>
                 <Checkbox size="small" checked={selected} sx={{ mr: 1 }} />
-                <ListItemText primary={option.name} />
+                <ListItemText primary={option.name} primaryTypographyProps={{ fontSize: 13 }} />
               </li>
             )}
             renderTags={() => []}
@@ -425,59 +449,57 @@ export default function CapacityHeatmapReport() {
               return (
                 <TextField
                   {...params}
-                  label={t('reports.capacityHeatmap.filters.teams')}
                   placeholder={label}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ minWidth: 220 }}
+                  sx={{ '& input': { fontSize: 13 } }}
                 />
               );
             }}
-            sx={{ minWidth: 240 }}
-          />
-          <TextField
-            select
-            size="small"
-            label={t('reports.capacityHeatmap.filters.status')}
-            value={statuses}
-            SelectProps={{
-              multiple: true,
-              renderValue: (sel: any) => (sel as string[]).map((s) => statusLabelMap[s] || s).join(', '),
-            }}
-            onChange={(e) => {
-              const value = e.target.value as unknown as string[];
-              const arr = Array.isArray(value) ? value : [value];
-              if (arr.length === 0) setStatuses(DEFAULT_STATUSES);
-              else setStatuses(arr);
-            }}
-            sx={{ minWidth: 240 }}
-          >
-            {statusOptions.map((s) => (
-              <MenuItem key={s.value} value={s.value}>
-                <Checkbox checked={statuses.includes(s.value)} />
-                <ListItemText primary={s.label} />
-              </MenuItem>
-            ))}
-          </TextField>
-          <ToggleButtonGroup
-            size="small"
-            color="primary"
-            exclusive
+            sx={{ width: '100%' }}
+            />
+          </ReportFilter>
+          <ReportFilter label={t('reports.capacityHeatmap.filters.status')} width={240}>
+            <TextField
+              select
+              size="small"
+              value={statuses}
+              SelectProps={{
+                multiple: true,
+                MenuProps: reportFilterMenuProps,
+                renderValue: (sel: any) => (sel as string[]).map((s) => statusLabelMap[s] || s).join(', '),
+              }}
+              onChange={(e) => {
+                const value = e.target.value as unknown as string[];
+                const arr = Array.isArray(value) ? value : [value];
+                if (arr.length === 0) setStatuses(DEFAULT_STATUSES);
+                else setStatuses(arr);
+              }}
+              sx={reportFilterSelectSx}
+            >
+              {statusOptions.map((s) => (
+                <MenuItem key={s.value} value={s.value} sx={drawerMenuItemSx}>
+                  <Checkbox size="small" checked={statuses.includes(s.value)} />
+                  <ListItemText primary={s.label} primaryTypographyProps={{ fontSize: 13 }} />
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
+          {/* Charter: compact text tabs, never a ToggleButtonGroup (uppercase, heavy boxes). */}
+          <Tabs
             value={capacityMode}
             onChange={(_, v) => { if (v) setCapacityMode(v); }}
+            sx={{ ...textTabsSx, alignSelf: 'flex-end', mb: '6px' }}
           >
-            <ToggleButton value="historical">{t('reports.capacityHeatmap.filters.historical')}</ToggleButton>
-            <ToggleButton value="theoretical">{t('reports.capacityHeatmap.filters.theoretical')}</ToggleButton>
-          </ToggleButtonGroup>
-          <ToggleButtonGroup
-            size="small"
-            color="primary"
-            exclusive
+            <Tab value="historical" label={t('reports.capacityHeatmap.filters.historical')} sx={textTabSx(capacityMode === 'historical')} />
+            <Tab value="theoretical" label={t('reports.capacityHeatmap.filters.theoretical')} sx={textTabSx(capacityMode === 'theoretical')} />
+          </Tabs>
+          <Tabs
             value={groupBy}
             onChange={(_, v) => { if (v) setGroupBy(v); }}
+            sx={{ ...textTabsSx, alignSelf: 'flex-end', mb: '6px' }}
           >
-            <ToggleButton value="contributor">{t('reports.capacityHeatmap.filters.contributors')}</ToggleButton>
-            <ToggleButton value="team">{t('reports.capacityHeatmap.filters.teamsGroup')}</ToggleButton>
-          </ToggleButtonGroup>
+            <Tab value="contributor" label={t('reports.capacityHeatmap.filters.contributors')} sx={textTabSx(groupBy === 'contributor')} />
+            <Tab value="team" label={t('reports.capacityHeatmap.filters.teamsGroup')} sx={textTabSx(groupBy === 'team')} />
+          </Tabs>
         </>
       )}
       onExportTableCsv={handleExportCsv}
@@ -504,12 +526,14 @@ export default function CapacityHeatmapReport() {
             />
           </Stack>
 
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 500 }}>
+          <Box sx={sectionSurfaceSx}>
+            <Typography sx={{ mb: 1, fontSize: 16, fontWeight: 500, color: 'kanap.text.primary' }}>
               {groupBy === 'team' ? t('reports.capacityHeatmap.sections.teamCapacity') : t('reports.capacityHeatmap.sections.contributorCapacity')}
             </Typography>
             <Box ref={heatmapExportRef} sx={{ width: '100%' }}>
-              <Box component={AgGridBox} sx={{ height: 420 }}>
+              {/* The grid fills what is left of the viewport; the legend and footnotes below
+                  are reserved by `useFillViewportHeight`'s bottom padding. */}
+              <Box component={AgGridBox} ref={gridRef} sx={{ height: reportGridHeight(fillHeight, rows.length) }}>
                 <AgGridReact
                   rowData={rows}
                   columnDefs={groupBy === 'team' ? teamColumns : contributorColumns}
@@ -552,13 +576,13 @@ export default function CapacityHeatmapReport() {
                 {t('reports.capacityHeatmap.states.empty')}
               </Typography>
             )}
-          </Paper>
+          </Box>
 
-          <Paper variant="outlined" sx={{ p: 2 }}>
+          <Box sx={sectionSurfaceSx}>
             <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{t('reports.capacityHeatmap.sections.unassignedWork')}</Typography>
-              <ButtonBase onClick={() => setUnassignedOpen((v) => !v)} sx={{ px: 1, py: 0.5, borderRadius: 1 }}>
-                <Typography variant="body2" color="text.secondary">
+              <Typography sx={{ fontSize: 16, fontWeight: 500, color: 'kanap.text.primary' }}>{t('reports.capacityHeatmap.sections.unassignedWork')}</Typography>
+              <ButtonBase onClick={() => setUnassignedOpen((v) => !v)} sx={{ px: 1, py: 0.5, borderRadius: '5px' }}>
+                <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.secondary' }}>
                   {unassignedOpen ? t('reports.capacityHeatmap.actions.hideDetails') : t('reports.capacityHeatmap.actions.showDetails')}
                 </Typography>
               </ButtonBase>
@@ -580,7 +604,7 @@ export default function CapacityHeatmapReport() {
                 )}
               </Box>
             </Collapse>
-          </Paper>
+          </Box>
         </Stack>
       </Box>
 
@@ -607,20 +631,20 @@ function SummaryCard({
   onClick?: () => void;
 }) {
   const content = (
-    <Stack spacing={0.5}>
-      <Typography variant="caption" color="text.secondary">{label}</Typography>
-      <Typography variant="h6">{value}</Typography>
+    <Stack spacing={0.25} sx={{ alignItems: 'flex-start' }}>
+      <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.tertiary' }}>{label}</Typography>
+      <Typography sx={{ fontSize: 18, fontWeight: 500, color: 'kanap.text.primary' }}>{value}</Typography>
       {helper && (
-        <Typography variant="body2" color="text.secondary">{helper}</Typography>
+        <Typography sx={{ fontSize: 12, fontWeight: 400, color: 'kanap.text.secondary' }}>{helper}</Typography>
       )}
     </Stack>
   );
   return (
-    <Paper variant="outlined" sx={{ flex: 1, minWidth: 200 }}>
+    <Box sx={{ ...cardSx, flex: 1, minWidth: 200, p: 0 }}>
       {onClick ? (
         <ButtonBase
           onClick={onClick}
-          sx={{ width: '100%', textAlign: 'left', p: 2, alignItems: 'flex-start' }}
+          sx={{ width: '100%', textAlign: 'left', p: 2, alignItems: 'flex-start', borderRadius: '8px' }}
         >
           {content}
         </ButtonBase>
@@ -629,6 +653,6 @@ function SummaryCard({
           {content}
         </Box>
       )}
-    </Paper>
+    </Box>
   );
 }

@@ -84,10 +84,12 @@ type Tone = 'neutral' | 'attention' | 'muted';
 
 type Figure = { key: string; label: string; to: string | null; tone?: Tone };
 
+// `muted` uses the secondary ink rather than the tertiary one: a tertiary figure sitting on the
+// dark strip surface fell under the readable contrast, and these zeros still have to be read.
 const TONE_COLOR: Record<Tone, string> = {
   neutral: 'kanap.text.primary',
   attention: 'warning.main',
-  muted: 'kanap.text.tertiary',
+  muted: 'kanap.text.secondary',
 };
 
 /** A figure opens a list only when that list can show exactly the population it counts. */
@@ -264,7 +266,7 @@ export default function SteeringStrip() {
     if (net === 0) return null;
     return (
       <Tooltip title={t('reports.steering.flow.netTooltip')}>
-        <Typography component="span" sx={{ ...figureSx, color: 'kanap.text.tertiary' }}>
+        <Typography component="span" sx={{ ...figureSx, color: 'kanap.text.secondary' }}>
           ({net > 0 ? '+' : ''}
           {net})
         </Typography>
