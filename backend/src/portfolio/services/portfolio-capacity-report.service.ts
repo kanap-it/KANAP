@@ -116,8 +116,8 @@ export class PortfolioCapacityReportService {
         u.email as user_email,
         pt.name as team_name
       FROM portfolio_team_member_configs tmc
-      LEFT JOIN users u ON u.id = tmc.user_id
-      LEFT JOIN portfolio_teams pt ON pt.id = tmc.team_id
+      LEFT JOIN users u ON u.id = tmc.user_id AND u.tenant_id = tmc.tenant_id
+      LEFT JOIN portfolio_teams pt ON pt.id = tmc.team_id AND pt.tenant_id = tmc.tenant_id
       WHERE ${contributorWhere.join(' AND ')}
       ORDER BY u.first_name ASC, u.last_name ASC, u.email ASC
     `,
@@ -128,6 +128,11 @@ export class PortfolioCapacityReportService {
     const contributorSet = new Set(contributorUserIds);
 
     const allocationsByUser = new Map<string, number>();
+    // Load carried by people staffed on a project who have no contributor profile. It used to be
+    // dropped without reaching any row nor the unassigned total, which hid it from the report.
+    const profilelessLoadByUser = new Map<string, number>();
+    const profilelessNameByUser = new Map<string, string>();
+    const showProfileless = !teamFilter.isActive || teamFilter.includeNoTeam;
     const unassignedProjects: UnassignedProjectRow[] = [];
     let totalUnallocatedDays = 0;
 
@@ -186,8 +191,8 @@ export class PortfolioCapacityReportService {
 
       const userRows = userIds.size > 0
         ? await mg.query(
-          `SELECT id, first_name, last_name, email FROM users WHERE id = ANY($1)`,
-          [Array.from(userIds)],
+          `SELECT id, first_name, last_name, email FROM users WHERE tenant_id = $1 AND id = ANY($2)`,
+          [tenantId, Array.from(userIds)],
         )
         : [];
 
@@ -231,6 +236,9 @@ export class PortfolioCapacityReportService {
       }
       for (const row of manualAllocRows) eligibleUserIds.add(row.user_id);
 
+      // With a team filter, contributorSet only holds the filtered teams: someone outside it may
+      // still have a profile in another team.
+      const profiledUserIds = new Set(contributorUserIds);
       const teamByUserId = new Map<string, string | null>();
       if (teamFilter.isActive && eligibleUserIds.size > 0) {
         const teamConfigRows = await mg.query(
@@ -239,6 +247,7 @@ export class PortfolioCapacityReportService {
         );
         for (const row of teamConfigRows) {
           teamByUserId.set(row.user_id, row.team_id ?? null);
+          profiledUserIds.add(row.user_id);
         }
         for (const id of eligibleUserIds) {
           if (!teamByUserId.has(id)) teamByUserId.set(id, null);
@@ -267,15 +276,18 @@ export class PortfolioCapacityReportService {
           ? businessManual
           : (businessManual.length > 0 ? businessManual : computeAutoAllocations(businessLead, members.business));
 
+        const addLoad = (userId: string, days: number) => {
+          if (contributorSet.has(userId)) {
+            allocationsByUser.set(userId, (allocationsByUser.get(userId) ?? 0) + days);
+          } else if (showProfileless && !profiledUserIds.has(userId)) {
+            profilelessLoadByUser.set(userId, (profilelessLoadByUser.get(userId) ?? 0) + days);
+          }
+        };
         for (const alloc of itAllocations) {
-          if (!contributorSet.has(alloc.user_id)) continue;
-          const prev = allocationsByUser.get(alloc.user_id) ?? 0;
-          allocationsByUser.set(alloc.user_id, prev + remainingIt * (alloc.allocation_pct / 100.0));
+          addLoad(alloc.user_id, remainingIt * (alloc.allocation_pct / 100.0));
         }
         for (const alloc of businessAllocations) {
-          if (!contributorSet.has(alloc.user_id)) continue;
-          const prev = allocationsByUser.get(alloc.user_id) ?? 0;
-          allocationsByUser.set(alloc.user_id, prev + remainingBusiness * (alloc.allocation_pct / 100.0));
+          addLoad(alloc.user_id, remainingBusiness * (alloc.allocation_pct / 100.0));
         }
 
         if (remainingTotal <= 0) continue;
@@ -330,6 +342,12 @@ export class PortfolioCapacityReportService {
         });
         totalUnallocatedDays += unallocatedDays;
       }
+
+      for (const userId of profilelessLoadByUser.keys()) {
+        const user = getUser(userId);
+        const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+        profilelessNameByUser.set(userId, displayName || user.email || 'Unknown user');
+      }
     }
 
     const stats = capacityMode === 'historical'
@@ -369,8 +387,28 @@ export class PortfolioCapacityReportService {
         capacitySource,
         monthsOfWork,
         colorBand: colorBandFor(monthsOfWork),
+        hasContributorProfile: true,
       };
     });
+
+    const profilelessEntries = Array.from(profilelessLoadByUser.entries()).sort((a, b) =>
+      (profilelessNameByUser.get(a[0]) ?? '').localeCompare(profilelessNameByUser.get(b[0]) ?? ''),
+    );
+    for (const [userId, remaining] of profilelessEntries) {
+      if (remaining <= 0.0001) continue;
+      contributors.push({
+        contributorId: userId,
+        contributorName: profilelessNameByUser.get(userId) ?? 'Unknown user',
+        teamId: null,
+        teamName: null,
+        remainingDays: round1(remaining),
+        capacityDaysPerMonth: null,
+        capacitySource: null,
+        monthsOfWork: null,
+        colorBand: 'na',
+        hasContributorProfile: false,
+      });
+    }
 
     const teamMap = new Map<string, TeamCapacityRow>();
     for (const row of contributors) {
@@ -512,8 +550,8 @@ export class PortfolioCapacityReportService {
 
     const userRows = userIds.size > 0
       ? await mg.query(
-        `SELECT id, first_name, last_name, email FROM users WHERE id = ANY($1)`,
-        [Array.from(userIds)],
+        `SELECT id, first_name, last_name, email FROM users WHERE tenant_id = $1 AND id = ANY($2)`,
+        [tenantId, Array.from(userIds)],
       )
       : [];
 

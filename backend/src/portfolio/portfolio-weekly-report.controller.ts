@@ -5,11 +5,10 @@ import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { contentDisposition } from '../common/content-disposition';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
+import { isCalendarDate } from '../common/report-period';
 import { resolveAppBaseUrl, resolveNotificationBaseUrl } from '../common/url';
 import { Features } from '../config/features';
 import { PortfolioWeeklyReportService, WeeklyReportQuery } from './services/portfolio-weekly-report.service';
-
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const parseCsv = (value?: unknown): string[] => {
   if (value == null) return [];
@@ -96,10 +95,10 @@ export class PortfolioWeeklyReportController {
     const startDate = String(query?.startDate || '').trim();
     const endDate = String(query?.endDate || '').trim();
 
-    if (!DATE_PATTERN.test(startDate)) {
+    if (!isCalendarDate(startDate)) {
       throw new BadRequestException('startDate is required and must use YYYY-MM-DD format');
     }
-    if (!DATE_PATTERN.test(endDate)) {
+    if (!isCalendarDate(endDate)) {
       throw new BadRequestException('endDate is required and must use YYYY-MM-DD format');
     }
     if (startDate > endDate) {
@@ -110,6 +109,7 @@ export class PortfolioWeeklyReportController {
       tenantId: ctx.tenantId,
       startDate,
       endDate,
+      timeZone: String(query?.tz || '').trim() || undefined,
       sourceIds: parseCsv(query?.sourceIds),
       categoryIds: parseCsv(query?.categoryIds),
       streamIds: parseCsv(query?.streamIds),

@@ -46,6 +46,7 @@ Utilisez ce rapport pour suivre les éléments dont le statut a changé pendant 
 - L'élément n'est inclus que si son statut a changé pendant la période sélectionnée.
 - Pour les tâches, seules les **tâches autonomes** sont incluses (les tâches liées à un projet sont exclues).
 - Le filtrage de statut s'applique au statut atteint après le changement.
+- La période et la date **Dernière modification** suivent le fuseau horaire de votre navigateur.
 
 ### Colonnes du tableau
 - **Nom** (cliquable ; ouvre l'élément)
@@ -75,6 +76,7 @@ Utilisez ce rapport pour comprendre la charge de travail actuelle, la pression s
 - **Capacité** par contributeur (historique ou théorique).
 - **Mois de travail** (jours restants / jours de capacité par mois).
 - **Travail non assigné** lorsque la charge n'est pas entièrement allouée.
+- **Les personnes sans fiche contributeur** affectées à un projet. Elles apparaissent en fin de liste avec leurs jours restants et sans capacité, pour que leur charge reste visible. Créez leur fiche contributeur pour leur donner une capacité.
 
 ### Filtres
 - **Équipes** (multi-sélection, inclut **Aucune équipe**)

@@ -1134,7 +1134,9 @@
       "states": {
         "loading": "Cargando datos de capacidad...",
         "empty": "No hay datos de capacidad para los filtros seleccionados.",
-        "noUnassignedWork": "No hay trabajo sin asignar para los filtros seleccionados."
+        "noUnassignedWork": "No hay trabajo sin asignar para los filtros seleccionados.",
+        "profilelessLoad_one": "{{count}} persona lleva {{days}} días de trabajo de proyecto sin ficha de colaborador. Cree su ficha para asignarle una capacidad.",
+        "profilelessLoad_other": "{{count}} personas llevan {{days}} días de trabajo de proyecto sin ficha de colaborador. Cree sus fichas para asignarles una capacidad."
       },
       "columns": {
         "contributor": "Colaborador",
@@ -1156,7 +1158,16 @@
         "historical": "Histórico",
         "theoretical": "Teórico",
         "notAvailable": "N/D",
-        "contributorFallback": "Colaborador"
+        "contributorFallback": "Colaborador",
+        "noContributorProfile": "Sin ficha de colaborador"
+      },
+      "legend": {
+        "green": "Hasta 1 mes",
+        "yellow": "De 1 a 3 meses",
+        "orange": "De 3 a 6 meses",
+        "red": "De 6 a 12 meses",
+        "violet": "Más de 12 meses",
+        "na": "Capacidad no definida"
       }
     },
     "weekly": {

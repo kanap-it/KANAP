@@ -129,6 +129,7 @@ const buildParams = (args: {
   const params: Record<string, string> = {
     startDate: args.startDate,
     endDate: args.endDate,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
 
   if (args.sourceIds && args.sourceIds.length > 0) params.sourceIds = args.sourceIds.join(',');

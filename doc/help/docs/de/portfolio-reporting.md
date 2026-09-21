@@ -46,6 +46,7 @@ Verwenden Sie diesen Bericht, um Elemente zu verfolgen, deren Status sich währe
 - Das Element wird nur eingeschlossen, wenn sich sein Status während des ausgewählten Zeitraums geändert hat.
 - Bei Aufgaben werden nur **eigenständige Aufgaben** eingeschlossen (projektverknüpfte Aufgaben sind ausgeschlossen).
 - Die Statusfilterung gilt für den Status, der nach der Änderung erreicht wurde.
+- Der Zeitraum und das Datum **Zuletzt geändert** richten sich nach der Zeitzone Ihres Browsers.
 
 ### Tabellenspalten
 - **Name** (klickbar; öffnet das Element)
@@ -75,6 +76,7 @@ Verwenden Sie diesen Bericht, um aktuelle Arbeitslast, Kapazitätsdruck und nich
 - **Kapazität** pro Mitwirkendem (historisch oder theoretisch).
 - **Arbeitsmonate** (verbleibende Tage / Kapazitätstage pro Monat).
 - **Nicht zugewiesene Arbeit**, wenn Aufwand nicht vollständig zugeordnet ist.
+- **Personen ohne Mitwirkendenprofil**, die in einem Projekt eingeplant sind. Sie erscheinen am Ende der Liste mit ihren verbleibenden Tagen und ohne Kapazität, damit ihre Last sichtbar bleibt. Legen Sie ihr Mitwirkendenprofil an, um ihnen eine Kapazität zu geben.
 
 ### Filter
 - **Teams** (Mehrfachauswahl, einschließlich **Kein Team**)

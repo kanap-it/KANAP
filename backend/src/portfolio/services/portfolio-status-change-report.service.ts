@@ -3,6 +3,7 @@ import { format } from '@fast-csv/format';
 import AdmZip = require('adm-zip');
 import { EntityManager } from 'typeorm';
 import { neutralizeCsvRow } from '../../common/csv/csv-export.service';
+import { normalizeReportTimeZone } from '../../common/report-period';
 
 export type StatusChangeItemType = 'task' | 'request' | 'project';
 
@@ -10,6 +11,8 @@ export type StatusChangeReportQuery = {
   tenantId: string;
   startDate: string;
   endDate: string;
+  /** IANA zone of the viewer: the period and the "last changed" day are read in it. */
+  timeZone?: string;
   statuses?: string[];
   itemTypes?: StatusChangeItemType[];
   sourceIds?: string[];
@@ -30,6 +33,8 @@ export type StatusChangeReportRow = {
   categoryName: string | null;
   streamId: string | null;
   streamName: string | null;
+  /** Category the stream belongs to, which is not always the item's own category. */
+  streamCategoryId: string | null;
   companyName: string | null;
   lastChangedAt: string | null;
 };
@@ -61,6 +66,7 @@ type RawRow = {
   category_name: string | null;
   stream_id: string | null;
   stream_name: string | null;
+  stream_category_id: string | null;
   company_name: string | null;
   last_changed_at: string | Date | null;
 };
@@ -133,7 +139,7 @@ export class PortfolioStatusChangeReportService {
         streamsById.set(row.streamId, {
           id: row.streamId,
           name: row.streamName,
-          categoryId: row.categoryId,
+          categoryId: row.streamCategoryId,
         });
       }
     }
@@ -226,7 +232,13 @@ export class PortfolioStatusChangeReportService {
     const categoryIds = this.normalizeStringArray(query.categoryIds);
     const streamIds = this.normalizeStringArray(query.streamIds);
 
-    const sqlParams: any[] = [query.tenantId, tableNames, query.startDate, query.endDate];
+    const sqlParams: any[] = [
+      query.tenantId,
+      tableNames,
+      query.startDate,
+      query.endDate,
+      normalizeReportTimeZone(query.timeZone),
+    ];
     const filters: string[] = [];
 
     if (statuses.length > 0) {
@@ -273,11 +285,11 @@ export class PortfolioStatusChangeReportService {
           AND al.before_json->>'status' IS NOT NULL
           AND al.after_json->>'status' IS NOT NULL
           AND al.before_json->>'status' IS DISTINCT FROM al.after_json->>'status'
-          AND al.created_at >= $3::date
-          AND al.created_at < ($4::date + INTERVAL '1 day')
+          AND al.created_at >= ($3::date::timestamp AT TIME ZONE $5)
+          AND al.created_at < (($4::date + 1)::timestamp AT TIME ZONE $5)
       ),
       latest_events AS (
-        SELECT e.item_type, e.item_id, e.status, e.created_at AS last_changed_at
+        SELECT e.item_type, e.item_id, e.status, (e.created_at AT TIME ZONE $5)::date::text AS last_changed_at
         FROM (
           SELECT
             se.*,
@@ -309,6 +321,7 @@ export class PortfolioStatusChangeReportService {
           pc.name AS category_name,
           t.stream_id,
           pst.name AS stream_name,
+          pst.category_id AS stream_category_id,
           comp.name AS company_name,
           le.last_changed_at
         FROM latest_events le
@@ -333,6 +346,7 @@ export class PortfolioStatusChangeReportService {
           pc.name AS category_name,
           r.stream_id,
           pst.name AS stream_name,
+          pst.category_id AS stream_category_id,
           comp.name AS company_name,
           le.last_changed_at
         FROM latest_events le
@@ -356,6 +370,7 @@ export class PortfolioStatusChangeReportService {
           pc.name AS category_name,
           p.stream_id,
           pst.name AS stream_name,
+          pst.category_id AS stream_category_id,
           comp.name AS company_name,
           le.last_changed_at
         FROM latest_events le
@@ -377,6 +392,7 @@ export class PortfolioStatusChangeReportService {
         rr.category_name,
         rr.stream_id,
         rr.stream_name,
+        rr.stream_category_id,
         rr.company_name,
         rr.last_changed_at
       FROM report_rows rr
@@ -403,6 +419,7 @@ export class PortfolioStatusChangeReportService {
       categoryName: row.category_name ?? null,
       streamId: row.stream_id ?? null,
       streamName: row.stream_name ?? null,
+      streamCategoryId: row.stream_category_id ?? null,
       companyName: row.company_name ?? null,
       lastChangedAt: toIsoDate(row.last_changed_at),
     };

@@ -1134,7 +1134,9 @@
       "states": {
         "loading": "Kapazitätsdaten werden geladen...",
         "empty": "Keine Kapazitätsdaten für die ausgewählten Filter.",
-        "noUnassignedWork": "Keine nicht zugeordnete Arbeit für die ausgewählten Filter."
+        "noUnassignedWork": "Keine nicht zugeordnete Arbeit für die ausgewählten Filter.",
+        "profilelessLoad_one": "{{count}} Person trägt {{days}} Tage Projektarbeit ohne Mitwirkendenprofil. Legen Sie das Profil an, um ihr eine Kapazität zu geben.",
+        "profilelessLoad_other": "{{count}} Personen tragen {{days}} Tage Projektarbeit ohne Mitwirkendenprofil. Legen Sie die Profile an, um ihnen eine Kapazität zu geben."
       },
       "columns": {
         "contributor": "Mitwirkender",
@@ -1156,7 +1158,16 @@
         "historical": "Historisch",
         "theoretical": "Theoretisch",
         "notAvailable": "k. A.",
-        "contributorFallback": "Mitwirkender"
+        "contributorFallback": "Mitwirkender",
+        "noContributorProfile": "Kein Mitwirkendenprofil"
+      },
+      "legend": {
+        "green": "Bis 1 Monat",
+        "yellow": "1 bis 3 Monate",
+        "orange": "3 bis 6 Monate",
+        "red": "6 bis 12 Monate",
+        "violet": "Über 12 Monate",
+        "na": "Keine Kapazität festgelegt"
       }
     },
     "weekly": {

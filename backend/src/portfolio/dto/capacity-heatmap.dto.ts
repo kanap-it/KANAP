@@ -14,6 +14,8 @@ export interface ContributorCapacityRow {
   capacitySource: CapacityMode | null;
   monthsOfWork: number | null;
   colorBand: CapacityColorBand;
+  /** False for someone staffed on projects who has no contributor profile, hence no capacity. */
+  hasContributorProfile: boolean;
 }
 
 export interface TeamCapacityRow {

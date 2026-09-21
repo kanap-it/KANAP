@@ -2,11 +2,14 @@ import { Injectable } from '@nestjs/common';
 import AdmZip = require('adm-zip');
 import { EntityManager } from 'typeorm';
 import { neutralizeCsvFormulaValue } from '../../common/csv/csv-export.service';
+import { normalizeReportTimeZone } from '../../common/report-period';
 
 export type WeeklyReportQuery = {
   tenantId: string;
   startDate: string;
   endDate: string;
+  /** IANA zone of the viewer: the period and the "last changed" day are read in it. */
+  timeZone?: string;
   sourceIds?: string[];
   categoryIds?: string[];
   streamIds?: string[];
@@ -396,7 +399,12 @@ export class PortfolioWeeklyReportService {
     const categoryIds = this.normalizeStringArray(query.categoryIds);
     const streamIds = this.normalizeStringArray(query.streamIds);
 
-    const sqlParams: any[] = [query.tenantId, query.startDate, query.endDate];
+    const sqlParams: any[] = [
+      query.tenantId,
+      query.startDate,
+      query.endDate,
+      normalizeReportTimeZone(query.timeZone),
+    ];
     const filters: string[] = [];
 
     if (sourceIds.length > 0) {
@@ -426,8 +434,8 @@ export class PortfolioWeeklyReportService {
         WHERE al.tenant_id = $1
           AND al.table_name = 'portfolio_projects'
           AND al.record_id IS NOT NULL
-          AND al.created_at >= $2::date
-          AND al.created_at < ($3::date + INTERVAL '1 day')
+          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
+          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
           AND (
             (
               al.action = 'update'
@@ -439,7 +447,7 @@ export class PortfolioWeeklyReportService {
           )
       ),
       latest_events AS (
-        SELECT e.project_id, e.status, e.created_at AS last_changed_at
+        SELECT e.project_id, e.status, (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at
         FROM (
           SELECT
             pe.*,
@@ -504,7 +512,12 @@ export class PortfolioWeeklyReportService {
     const streamIds = this.normalizeStringArray(query.streamIds);
     const taskTypeIds = this.normalizeStringArray(query.taskTypeIds);
 
-    const sqlParams: any[] = [query.tenantId, query.startDate, query.endDate];
+    const sqlParams: any[] = [
+      query.tenantId,
+      query.startDate,
+      query.endDate,
+      normalizeReportTimeZone(query.timeZone),
+    ];
     const filters: string[] = [];
 
     if (taskTypeIds.length > 0) {
@@ -543,11 +556,11 @@ export class PortfolioWeeklyReportService {
           AND al.before_json->>'status' IS NOT NULL
           AND al.after_json->>'status' IS NOT NULL
           AND al.before_json->>'status' IS DISTINCT FROM al.after_json->>'status'
-          AND al.created_at >= $2::date
-          AND al.created_at < ($3::date + INTERVAL '1 day')
+          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
+          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
       ),
       latest_events AS (
-        SELECT e.task_id, e.status, e.created_at AS last_changed_at
+        SELECT e.task_id, e.status, (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at
         FROM (
           SELECT
             te.*,
@@ -621,7 +634,12 @@ export class PortfolioWeeklyReportService {
     const categoryIds = this.normalizeStringArray(query.categoryIds);
     const streamIds = this.normalizeStringArray(query.streamIds);
 
-    const sqlParams: any[] = [query.tenantId, query.startDate, query.endDate];
+    const sqlParams: any[] = [
+      query.tenantId,
+      query.startDate,
+      query.endDate,
+      normalizeReportTimeZone(query.timeZone),
+    ];
     const filters: string[] = [];
 
     if (sourceIds.length > 0) {
@@ -651,8 +669,8 @@ export class PortfolioWeeklyReportService {
         WHERE al.tenant_id = $1
           AND al.table_name = 'portfolio_requests'
           AND al.record_id IS NOT NULL
-          AND al.created_at >= $2::date
-          AND al.created_at < ($3::date + INTERVAL '1 day')
+          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
+          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
           AND (
             (
               al.action = 'update'
@@ -664,7 +682,7 @@ export class PortfolioWeeklyReportService {
           )
       ),
       latest_events AS (
-        SELECT e.request_id, e.status, e.created_at AS last_changed_at
+        SELECT e.request_id, e.status, (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at
         FROM (
           SELECT
             re.*,
