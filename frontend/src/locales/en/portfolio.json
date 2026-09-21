@@ -1134,7 +1134,9 @@
       "states": {
         "loading": "Loading capacity data...",
         "empty": "No capacity data for the selected filters.",
-        "noUnassignedWork": "No unassigned work for the selected filters."
+        "noUnassignedWork": "No unassigned work for the selected filters.",
+        "profilelessLoad_one": "{{count}} person carries {{days}} days of project work without a contributor profile. Create the profile to give them a capacity.",
+        "profilelessLoad_other": "{{count}} people carry {{days}} days of project work without a contributor profile. Create their profiles to give them a capacity."
       },
       "columns": {
         "contributor": "Contributor",
@@ -1156,7 +1158,16 @@
         "historical": "Historical",
         "theoretical": "Theoretical",
         "notAvailable": "N/A",
-        "contributorFallback": "Contributor"
+        "contributorFallback": "Contributor",
+        "noContributorProfile": "No contributor profile"
+      },
+      "legend": {
+        "green": "Up to 1 month",
+        "yellow": "1 to 3 months",
+        "orange": "3 to 6 months",
+        "red": "6 to 12 months",
+        "violet": "Over 12 months",
+        "na": "No capacity set"
       }
     },
     "weekly": {

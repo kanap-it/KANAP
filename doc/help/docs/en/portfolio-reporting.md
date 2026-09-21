@@ -46,6 +46,7 @@ Use this report to track items whose status changed during a selected period.
 - The item is included only if its status changed during the selected period.
 - For tasks, only **standalone tasks** are included (project-linked tasks are excluded).
 - Status filtering applies to the status reached after the change.
+- The period and the **Last changed** date follow your browser's time zone.
 
 ### Table columns
 - **Name** (clickable; opens the item)
@@ -75,6 +76,7 @@ Use this report to understand current workload, capacity pressure, and unassigne
 - **Capacity** per contributor (historical or theoretical).
 - **Months of work** (remaining days / capacity days per month).
 - **Unassigned work** when effort is not fully allocated.
+- **People without a contributor profile** who are staffed on a project. They appear at the end of the list with their remaining days and no capacity, so their load stays visible. Create their contributor profile to give them a capacity.
 
 ### Filters
 - **Teams** (multi-select, includes **No team**)

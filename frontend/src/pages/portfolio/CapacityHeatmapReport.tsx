@@ -36,6 +36,7 @@ type ContributorCapacityRow = {
   capacitySource: 'historical' | 'theoretical' | null;
   monthsOfWork: number | null;
   colorBand: CapacityColorBand;
+  hasContributorProfile: boolean;
 };
 
 type TeamCapacityRow = {
@@ -94,6 +95,12 @@ const HEATMAP_COLORS: Record<CapacityColorBand, string> = {
   violet: '#E1BEE7',
   na: '#E0E0E0',
 };
+
+// The bands are pale fills in both themes (and in the PNG export, which is always light), so the
+// figure on top keeps a dark ink instead of following the theme's text colour.
+const HEATMAP_TEXT_COLOR = '#111827';
+
+const HEATMAP_LEGEND_BANDS: CapacityColorBand[] = ['green', 'yellow', 'orange', 'red', 'violet', 'na'];
 
 const exportElementAsPng = async (node: HTMLElement, fileName: string) => {
   const width = node.scrollWidth;
@@ -228,9 +235,18 @@ export default function CapacityHeatmapReport() {
     return total / values.length;
   }, [data?.contributors]);
 
+  const profiledContributorCount = useMemo(
+    () => (data?.contributors ?? []).filter((c) => c.hasContributorProfile !== false).length,
+    [data?.contributors],
+  );
+  const profileless = useMemo(() => {
+    const list = (data?.contributors ?? []).filter((c) => c.hasContributorProfile === false);
+    return { count: list.length, days: list.reduce((sum, c) => sum + c.remainingDays, 0) };
+  }, [data?.contributors]);
+
   const heatmapCellStyle = useCallback((params: any): CellStyle => {
     const band: CapacityColorBand = params.data?.colorBand ?? 'na';
-    return { backgroundColor: HEATMAP_COLORS[band], fontWeight: 500 };
+    return { backgroundColor: HEATMAP_COLORS[band], color: HEATMAP_TEXT_COLOR, fontWeight: 500 };
   }, []);
 
   const formatNumberLabel = useCallback((value: number | null | undefined): string => {
@@ -254,8 +270,11 @@ export default function CapacityHeatmapReport() {
     {
       field: 'teamName',
       headerName: t('reports.capacityHeatmap.columns.team'),
-      width: 160,
-      valueGetter: (p) => p.data?.teamName || t('reports.capacityHeatmap.values.noTeam'),
+      width: 200,
+      valueGetter: (p) => {
+        if (p.data?.hasContributorProfile === false) return t('reports.capacityHeatmap.values.noContributorProfile');
+        return p.data?.teamName || t('reports.capacityHeatmap.values.noTeam');
+      },
     },
     {
       field: 'remainingDays',
@@ -469,7 +488,7 @@ export default function CapacityHeatmapReport() {
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
             <SummaryCard
               label={t('reports.capacityHeatmap.summary.totalContributors')}
-              value={formatNumberLabel((data?.contributors ?? []).length)}
+              value={formatNumberLabel(profiledContributorCount)}
               helper={groupBy === 'team' ? t('reports.capacityHeatmap.summary.totalContributorsHelper', { count: (data?.teams ?? []).length }) : undefined}
             />
             <SummaryCard
@@ -505,6 +524,24 @@ export default function CapacityHeatmapReport() {
                 />
               </Box>
             </Box>
+            <Stack direction="row" flexWrap="wrap" sx={{ mt: 1, columnGap: 2, rowGap: 0.5 }}>
+              {HEATMAP_LEGEND_BANDS.map((band) => (
+                <Stack key={band} direction="row" alignItems="center" spacing={0.75}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '2px', bgcolor: HEATMAP_COLORS[band] }} />
+                  <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                    {t(`reports.capacityHeatmap.legend.${band}`)}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+            {groupBy === 'contributor' && profileless.count > 0 && (
+              <Typography sx={{ mt: 1, fontSize: 12, color: 'text.secondary' }}>
+                {t('reports.capacityHeatmap.states.profilelessLoad', {
+                  count: profileless.count,
+                  days: formatNumberLabel(profileless.days),
+                })}
+              </Typography>
+            )}
             {(isLoading || isFetching) && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                 {t('reports.capacityHeatmap.states.loading')}

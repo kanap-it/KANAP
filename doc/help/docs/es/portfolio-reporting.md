@@ -46,6 +46,7 @@ Use este informe para rastrear elementos cuyo estado cambió durante un período
 - El elemento se incluye solo si su estado cambió durante el período seleccionado.
 - Para tareas, solo se incluyen **tareas independientes** (las tareas vinculadas a proyectos se excluyen).
 - El filtrado de estado se aplica al estado alcanzado después del cambio.
+- El periodo y la fecha **Última modificación** siguen la zona horaria de su navegador.
 
 ### Columnas de la tabla
 - **Nombre** (cliclable; abre el elemento)
@@ -75,6 +76,7 @@ Use este informe para comprender la carga de trabajo actual, la presión de capa
 - **Capacidad** por colaborador (histórica o teórica).
 - **Meses de trabajo** (días restantes / días de capacidad por mes).
 - **Trabajo sin asignar** cuando el esfuerzo no está completamente asignado.
+- **Las personas sin ficha de colaborador** asignadas a un proyecto. Aparecen al final de la lista con sus días restantes y sin capacidad, para que su carga siga siendo visible. Cree su ficha de colaborador para asignarles una capacidad.
 
 ### Filtros
 - **Equipos** (selección múltiple, incluye **Sin equipo**)

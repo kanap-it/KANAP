@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DocumentExportService, ExportImageFetchOptions } from '../../common/document-export.service';
+import { normalizeReportTimeZone } from '../../common/report-period';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
 import { INCIDENT_REVIEW_TEMPLATE_CONTENT_MARKDOWN } from '../../knowledge/integrated-document.constants';
 import { incidentRef } from './incidents-base.service';
@@ -404,16 +405,7 @@ function toDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function normalizeReportTimeZone(timeZone?: string | null): string {
-  const value = String(timeZone || '').trim();
-  if (!value) return 'UTC';
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: value }).format(0);
-    return value;
-  } catch {
-    return 'UTC';
-  }
-}
+export { normalizeReportTimeZone };
 
 export function formatDateTime(
   value: Date | string | null | undefined,

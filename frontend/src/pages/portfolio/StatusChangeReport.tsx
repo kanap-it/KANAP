@@ -101,6 +101,7 @@ const buildParams = (args: {
   const params: Record<string, string> = {
     startDate: args.startDate,
     endDate: args.endDate,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
 
   if (args.statuses && args.statuses.length > 0) params.statuses = args.statuses.join(',');
@@ -129,7 +130,7 @@ export default function StatusChangeReport() {
 
   const isValidPeriod = Boolean(startDate && endDate && startDate <= endDate);
 
-  const { data: filterValuesData } = useQuery<FilterValuesResponse>({
+  const { data: filterValuesData, isPlaceholderData: isStaleFilterValues } = useQuery<FilterValuesResponse>({
     queryKey: ['portfolio-status-change-filter-values', startDate, endDate, itemTypes],
     queryFn: async () => {
       const params = buildParams({ startDate, endDate, itemTypes });
@@ -224,6 +225,19 @@ export default function StatusChangeReport() {
       return next.length === prev.length ? prev : next;
     });
   }, [categoryIds, scopedStreamOptions]);
+
+  // A selection whose option left the list (other period, item type unticked) could no longer be
+  // unticked and kept emptying the grid: drop it as soon as the fresh options are in.
+  useEffect(() => {
+    if (!filterValuesData || isStaleFilterValues) return;
+    const prune = (allowed: Set<string>) => (prev: string[]) => {
+      const next = prev.filter((value) => allowed.has(value));
+      return next.length === prev.length ? prev : next;
+    };
+    setStatuses(prune(new Set(filterValuesData.statuses)));
+    setSourceIds(prune(new Set(filterValuesData.sources.map((option) => option.id))));
+    setCategoryIds(prune(new Set(filterValuesData.categories.map((option) => option.id))));
+  }, [filterValuesData, isStaleFilterValues]);
 
   const sourceOptionById = useMemo(() => new Map(sourceOptions.map((option) => [option.id, option])), [sourceOptions]);
   const categoryOptionById = useMemo(() => new Map(categoryOptions.map((option) => [option.id, option])), [categoryOptions]);
