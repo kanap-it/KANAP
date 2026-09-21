@@ -1034,6 +1034,42 @@
   "reports": {
     "title": "Reportes del portafolio",
     "subtitle": "Explore los reportes del portafolio centrados en la capacidad, el esfuerzo y las tendencias de estado.",
+    "steering": {
+      "period_one": "Último {{count}} día",
+      "period_other": "Últimos {{count}} días",
+      "periodLabel": "Periodo",
+      "periodOption_one": "{{count}} día",
+      "periodOption_other": "{{count}} días",
+      "entities": {
+        "tasks": "Tareas",
+        "requests": "Solicitudes",
+        "projects": "Proyectos"
+      },
+      "flow": {
+        "created_one": "{{count}} creada",
+        "created_other": "{{count}} creadas",
+        "closed_one": "{{count}} cerrada",
+        "closed_other": "{{count}} cerradas",
+        "open_one": "{{count}} abierta",
+        "open_other": "{{count}} abiertas",
+        "netTooltip": "Creadas, más reabiertas, menos cerradas"
+      },
+      "attention": {
+        "title": "Requiere atención",
+        "overdue_one": "{{count}} tarea vencida",
+        "overdue_other": "{{count}} tareas vencidas",
+        "unassigned_one": "{{count}} tarea sin responsable",
+        "unassigned_other": "{{count}} tareas sin responsable",
+        "stale_one": "{{count}} proyecto sin actividad desde hace {{days}} días",
+        "stale_other": "{{count}} proyectos sin actividad desde hace {{days}} días"
+      },
+      "stale": {
+        "dialogTitle": "Proyectos sin actividad",
+        "lastActivity": "Última actividad el {{date}}",
+        "never": "Sin actividad registrada",
+        "close": "Cerrar"
+      }
+    },
     "toClassify": {
       "title": "Por clasificar",
       "entities": {

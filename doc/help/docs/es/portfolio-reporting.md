@@ -24,6 +24,40 @@ Actualmente disponibles:
 
 ---
 
+## Pilotaje
+
+La primera franja encima de las tarjetas de informes es la vista de pilotaje diario. Responde a dos preguntas: qué se ha movido últimamente y qué espera a alguien.
+
+### El periodo
+
+La cabecera muestra el periodo en uso y permite cambiar entre los últimos 7, 30 y 90 días. El periodo termina siempre hoy y se lee en su propia zona horaria. Su elección se recuerda en este navegador.
+
+### Flujo
+
+Una línea por entidad se lee así: **14 creadas · 9 cerradas · 52 abiertas (+5)**.
+
+- **Creadas**: elementos creados durante el periodo y todavía presentes hoy.
+- **Cerradas**: elementos que pasaron de un estado abierto a uno cerrado durante el periodo. Cerrado significa Hecho o Cancelado para tareas y proyectos, Rechazado o Convertido para solicitudes.
+- **Abiertas**: elementos abiertos ahora mismo, pase lo que pase durante el periodo. Esta cifra es un enlace a la lista correspondiente.
+- **(+5)**: la variación neta, visible solo cuando no es cero. Es creadas, más reabiertas, menos cerradas. Los elementos reabiertos son los que volvieron de un estado cerrado a uno abierto. Pase el cursor sobre la cifra para ver la fórmula.
+
+Creadas y cerradas proceden del historial de cambios, así que cubren todas las formas de escribir un elemento: la aplicación, una importación CSV y los agentes. Ningún filtro de lista reproduce ese historial, por eso esas dos cifras no son enlaces.
+
+### Qué tareas cuentan
+
+Cada cifra de tareas cuenta solo las tareas independientes y las tareas de proyecto. Las tareas vinculadas a un contrato, a una partida de gasto, a una partida CAPEX o a un incidente pertenecen a esos procesos y quedan fuera en toda la franja.
+
+### Requiere atención
+
+La última línea aparece solo cuando algo necesita una decisión:
+- **Tareas vencidas**: tareas abiertas cuya fecha de vencimiento es anterior a hoy. La cifra abre la lista de tareas filtrada por los mismos elementos.
+- **Tareas sin responsable**: tareas abiertas que nadie asume. La lista de tareas no tiene filtro para un responsable vacío, por eso esta cifra no es un enlace.
+- **Proyectos sin actividad desde hace 30 días**: proyectos en curso o en pruebas donde no ha pasado nada desde hace un mes. Al hacer clic se abre una lista breve de esos proyectos con la fecha de su última actividad, y cada nombre abre el proyecto.
+
+La actividad se lee en sentido amplio. Un proyecto cuenta como activo en cuanto algo cambia en él o en una de sus tareas, en cuanto alguien escribe en su diario, o en cuanto se registra tiempo en el proyecto o en una de sus tareas. Un proyecto solo aparece aquí cuando todo eso es más antiguo que 30 días.
+
+---
+
 ## Por clasificar
 
 Encima de las tarjetas de informes, una franja compacta muestra cuánto de su trabajo abierto sigue sin un valor de clasificación. Úsela como ayuda de pilotaje diario: vea la brecha, haga clic y corríjala.

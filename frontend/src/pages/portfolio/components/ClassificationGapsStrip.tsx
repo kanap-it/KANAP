@@ -1,7 +1,7 @@
 import { Box, Stack, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
-import { ACTIVE_TASK_STATUSES } from '../../tasks/task.constants';
+import { BLANK, FilterModel, projectsPath, requestsPath, tasksPath } from './portfolioListLinks';
 
 export type GapCounts = {
   open: number;
@@ -17,40 +17,6 @@ export type ClassificationGaps = {
   projects: GapCounts;
   categoriesWithStreams: string[];
 };
-
-type SetFilter = { filterType: 'set'; values: Array<string | null> };
-type FilterModel = Record<string, SetFilter>;
-
-const BLANK: SetFilter = { filterType: 'set', values: [null] };
-
-/**
- * The statuses each figure counts, mirroring the backend report. They are spelled out rather
- * than derived: the list pages restore the exact model they are given, so the link population
- * only matches the figure while these lists stay identical to the ones in the SQL.
- */
-const OPEN_REQUEST_STATUSES = ['pending_review', 'candidate', 'approved', 'on_hold'];
-const OPEN_PROJECT_STATUSES = ['waiting_list', 'planned', 'in_progress', 'in_testing', 'on_hold'];
-
-/**
- * Classification only exists on standalone and project tasks; it is cleared on the tasks that
- * hang off a contract, a spend item, a capex item or an incident, so they are left out here
- * exactly as they are left out of the counts.
- */
-const TASK_SCOPE: FilterModel = {
-  status: { filterType: 'set', values: ACTIVE_TASK_STATUSES },
-  related_object_type: { filterType: 'set', values: [null, 'project'] },
-};
-
-const listPath = (base: string, scopeParam: string, filters: FilterModel): string => {
-  const params = new URLSearchParams({ [scopeParam]: 'all', filters: JSON.stringify(filters) });
-  return `${base}?${params.toString()}`;
-};
-
-const tasksPath = (extra: FilterModel) => listPath('/portfolio/tasks', 'taskScope', { ...TASK_SCOPE, ...extra });
-const requestsPath = (extra: FilterModel) =>
-  listPath('/portfolio/requests', 'requestScope', { status: { filterType: 'set', values: OPEN_REQUEST_STATUSES }, ...extra });
-const projectsPath = (extra: FilterModel) =>
-  listPath('/portfolio/projects', 'projectScope', { status: { filterType: 'set', values: OPEN_PROJECT_STATUSES }, ...extra });
 
 /**
  * A missing stream is only counted for items whose category actually offers one, so the link

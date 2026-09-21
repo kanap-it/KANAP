@@ -1034,6 +1034,42 @@
   "reports": {
     "title": "Reporting du portefeuille",
     "subtitle": "Explorez les rapports du portefeuille axés sur la capacité, la charge de travail et les tendances de statut.",
+    "steering": {
+      "period_one": "{{count}} dernier jour",
+      "period_other": "{{count}} derniers jours",
+      "periodLabel": "Période",
+      "periodOption_one": "{{count}} jour",
+      "periodOption_other": "{{count}} jours",
+      "entities": {
+        "tasks": "Tâches",
+        "requests": "Demandes",
+        "projects": "Projets"
+      },
+      "flow": {
+        "created_one": "{{count}} créé",
+        "created_other": "{{count}} créés",
+        "closed_one": "{{count}} clôturé",
+        "closed_other": "{{count}} clôturés",
+        "open_one": "{{count}} ouvert",
+        "open_other": "{{count}} ouverts",
+        "netTooltip": "Créés, plus rouverts, moins clôturés"
+      },
+      "attention": {
+        "title": "À traiter",
+        "overdue_one": "{{count}} tâche en retard",
+        "overdue_other": "{{count}} tâches en retard",
+        "unassigned_one": "{{count}} tâche sans responsable",
+        "unassigned_other": "{{count}} tâches sans responsable",
+        "stale_one": "{{count}} projet sans activité depuis {{days}} jours",
+        "stale_other": "{{count}} projets sans activité depuis {{days}} jours"
+      },
+      "stale": {
+        "dialogTitle": "Projets sans activité",
+        "lastActivity": "Dernière activité le {{date}}",
+        "never": "Aucune activité enregistrée",
+        "close": "Fermer"
+      }
+    },
     "toClassify": {
       "title": "À classer",
       "entities": {
