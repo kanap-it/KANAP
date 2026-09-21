@@ -24,6 +24,37 @@ Actualmente disponibles:
 
 ---
 
+## Por clasificar
+
+Encima de las tarjetas de informes, una franja compacta muestra cuánto de su trabajo abierto sigue sin un valor de clasificación. Úsela como ayuda de pilotaje diario: vea la brecha, haga clic y corríjala.
+
+### Qué cuenta
+
+Una línea por entidad, solo para elementos abiertos:
+- **Tareas**: estado distinto de Hecho y Cancelado.
+- **Solicitudes**: estado distinto de Rechazado y Convertido.
+- **Proyectos**: estado distinto de Hecho y Cancelado.
+
+Cada línea indica cuántos de esos elementos no tienen Origen, ni Categoría, ni Línea. Las tareas indican además cuántas no tienen Tipo de tarea.
+
+### Qué tareas se excluyen
+
+Solo se cuentan las tareas independientes y las tareas de proyecto. Las tareas vinculadas a un contrato, a una partida de gasto, a una partida CAPEX o a un incidente nunca llevan clasificación. Contarlas señalaría una brecha que nadie puede cerrar.
+
+Una tarea de proyecto sin clasificación propia hereda la de su proyecto, y la lista de tareas muestra ese valor heredado. Los recuentos siguen la misma regla, así que una cifra nunca le lleva a una lista donde la columna ya está rellenada.
+
+### Líneas
+
+Una Línea ausente solo se cuenta cuando el elemento ya tiene una Categoría y esa Categoría ofrece al menos una línea activa. Muchas categorías no ofrecen ninguna línea. Un elemento sin categoría ya se cuenta bajo Categoría.
+
+### Abrir la lista
+
+Cada cifra mayor que cero es un enlace. Al hacer clic se abre la lista correspondiente, ya filtrada exactamente por los elementos detrás de la cifra, en todo el inquilino. El total de la lista coincide con la cifra en la que hizo clic. Los ceros se muestran como contexto pero no son enlaces.
+
+Cuando no falta nada, la franja muestra una sola línea confirmando que todo lo abierto está clasificado.
+
+---
+
 ## Informe de cambios de estado
 
 Use este informe para rastrear elementos creados durante un período seleccionado, o cuyo estado cambió en ese período.

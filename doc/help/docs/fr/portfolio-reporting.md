@@ -24,6 +24,37 @@ Actuellement disponibles :
 
 ---
 
+## À classer
+
+Au-dessus des cartes de rapports, un bandeau compact indique la part de votre travail ouvert à laquelle il manque encore une valeur de classification. Utilisez-le comme aide au pilotage quotidien : voyez l'écart, cliquez, corrigez.
+
+### Ce qui est compté
+
+Une ligne par entité, pour les éléments ouverts uniquement :
+- **Tâches** : statut autre que Terminé et Annulé.
+- **Demandes** : statut autre que Rejeté et Converti.
+- **Projets** : statut autre que Terminé et Annulé.
+
+Chaque ligne indique combien de ces éléments n'ont ni Source, ni Catégorie, ni Filière. Les tâches indiquent en plus combien n'ont pas de Type de tâche.
+
+### Quelles tâches sont exclues
+
+Seules les tâches autonomes et les tâches de projet sont comptées. Les tâches rattachées à un contrat, à une ligne de dépense, à une ligne CAPEX ou à un incident ne portent jamais de classification. Les compter signalerait un écart que personne ne peut combler.
+
+Une tâche de projet sans classification propre hérite de celle de son projet, et la liste des tâches affiche cette valeur héritée. Les compteurs suivent la même règle : un chiffre ne vous envoie donc jamais vers une liste où la colonne est déjà remplie.
+
+### Filières
+
+Une Filière manquante n'est comptée que si l'élément a déjà une Catégorie et que cette Catégorie propose au moins une filière active. Beaucoup de catégories n'offrent aucune filière. Un élément sans catégorie est déjà compté sous Catégorie.
+
+### Ouvrir la liste
+
+Chaque chiffre supérieur à zéro est un lien. Un clic ouvre la liste correspondante, déjà filtrée sur exactement les éléments derrière le chiffre, pour tout le locataire. Le total de la liste correspond au chiffre cliqué. Les zéros sont affichés pour le contexte mais ne sont pas cliquables.
+
+Quand rien ne manque, le bandeau affiche une seule ligne confirmant que tout ce qui est ouvert est classé.
+
+---
+
 ## Rapport de changements de statut
 
 Utilisez ce rapport pour suivre les éléments créés pendant une période sélectionnée, ou dont le statut a changé pendant cette période.

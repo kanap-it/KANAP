@@ -63,6 +63,7 @@ import { PortfolioClassificationService } from './portfolio-classification.servi
 import { PortfolioTeamsService } from './portfolio-teams.service';
 import { PortfolioEmploymentTypesService } from './portfolio-employment-types.service';
 import { PortfolioCapacityReportService } from './services/portfolio-capacity-report.service';
+import { PortfolioClassificationGapsService } from './services/portfolio-classification-gaps.service';
 import { PortfolioStatusChangeReportService } from './services/portfolio-status-change-report.service';
 import { PortfolioWeeklyReportService } from './services/portfolio-weekly-report.service';
 
@@ -94,6 +95,7 @@ import { PortfolioProjectTasksController } from './portfolio-project-tasks.contr
 import { PortfolioTeamsController } from './portfolio-teams.controller';
 import { PortfolioEmploymentTypesController } from './portfolio-employment-types.controller';
 import { PortfolioCapacityReportController } from './portfolio-capacity-report.controller';
+import { PortfolioClassificationGapsController } from './portfolio-classification-gaps.controller';
 import { PortfolioRoadmapController } from './portfolio-roadmap.controller';
 import { PortfolioStatusChangeReportController } from './portfolio-status-change-report.controller';
 import { PortfolioWeeklyReportController } from './portfolio-weekly-report.controller';
@@ -178,6 +180,7 @@ const entities = [
     PortfolioTeamsService,
     PortfolioEmploymentTypesService,
     PortfolioCapacityReportService,
+    PortfolioClassificationGapsService,
     PortfolioStatusChangeReportService,
     PortfolioWeeklyReportService,
     // CSV services
@@ -210,6 +213,7 @@ const entities = [
     PortfolioTeamsController,
     PortfolioEmploymentTypesController,
     PortfolioCapacityReportController,
+    PortfolioClassificationGapsController,
     PortfolioStatusChangeReportController,
     PortfolioWeeklyReportController,
     PortfolioRoadmapController,

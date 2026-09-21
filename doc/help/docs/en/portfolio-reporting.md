@@ -24,6 +24,37 @@ Currently available:
 
 ---
 
+## To classify
+
+Above the report cards, a compact strip shows how much of your open work is still missing a classification value. Use it as a daily steering aid: see the gap, click it, fix it.
+
+### What it counts
+
+One line per entity, for open items only:
+- **Tasks**: status other than Done and Cancelled.
+- **Requests**: status other than Rejected and Converted.
+- **Projects**: status other than Done and Cancelled.
+
+Each line reports how many of those items have no Source, no Category and no Stream. Tasks also report how many have no Task Type.
+
+### Which tasks are excluded
+
+Only standalone tasks and project tasks are counted. Tasks attached to a contract, a spend item, a capex item or an incident never carry a classification, so counting them would report a gap nobody can close.
+
+A project task with no classification of its own inherits the one of its project, and the task list shows that inherited value. The counts follow the same rule, so a figure never sends you to a list where the column is already filled.
+
+### Streams
+
+A missing Stream is only counted when the item already has a Category and that Category offers at least one active Stream. Many categories have no stream to choose from. An item with no category at all is already counted under Category.
+
+### Opening the list
+
+Every figure above zero is a link. Clicking it opens the matching list, already filtered on exactly the items behind the figure, across the whole tenant. The list total matches the figure you clicked. Zeros are shown for context but are not clickable.
+
+When nothing is missing, the strip shows a single line confirming that everything open is classified.
+
+---
+
 ## Status Change report
 
 Use this report to track items created during a selected period, or whose status changed in it.
