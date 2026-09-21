@@ -270,7 +270,7 @@ export default function CapacityHeatmapReport() {
     {
       field: 'teamName',
       headerName: t('reports.capacityHeatmap.columns.team'),
-      width: 160,
+      width: 200,
       valueGetter: (p) => {
         if (p.data?.hasContributorProfile === false) return t('reports.capacityHeatmap.values.noContributorProfile');
         return p.data?.teamName || t('reports.capacityHeatmap.values.noTeam');
