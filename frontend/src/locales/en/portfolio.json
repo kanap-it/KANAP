@@ -1037,7 +1037,7 @@
     "cards": {
       "statusChange": {
         "title": "Status change report",
-        "description": "Track standalone tasks, requests, and projects with status changes over a period."
+        "description": "Track standalone tasks, requests, and projects created or with status changes over a period."
       },
       "capacityHeatmap": {
         "title": "Capacity heatmap",
@@ -1045,7 +1045,7 @@
       },
       "weekly": {
         "title": "Weekly report",
-        "description": "Weekly summary of project updates, closed tasks, and request changes."
+        "description": "Weekly summary of project updates, task activity, and request changes."
       }
     },
     "itemTypes": {
@@ -1058,7 +1058,7 @@
     },
     "statusChange": {
       "title": "Status change report",
-      "subtitle": "Items whose status changed during a selected period (latest status change per item in period).",
+      "subtitle": "Items created during a selected period, or whose status changed in it (latest event per item in period).",
       "filters": {
         "startDate": "Start date",
         "endDate": "End date",
@@ -1082,6 +1082,7 @@
         "category": "Category",
         "stream": "Stream",
         "company": "Company",
+        "created": "Created",
         "lastChanged": "Last changed"
       },
       "actions": {
@@ -1172,7 +1173,7 @@
     },
     "weekly": {
       "title": "Weekly report",
-      "subtitle": "Weekly stakeholder summary across project updates, closed tasks, and request updates.",
+      "subtitle": "Weekly stakeholder summary across project updates, task activity, and request updates.",
       "filters": {
         "startDate": "Start date",
         "endDate": "End date",
@@ -1199,14 +1200,16 @@
       "summary": {
         "projectUpdates_one": "{{count}} project update",
         "projectUpdates_other": "{{count}} project updates",
-        "closedTasks_one": "{{count}} closed task",
-        "closedTasks_other": "{{count}} closed tasks",
+        "tasksCreated_one": "{{count}} task created",
+        "tasksCreated_other": "{{count}} tasks created",
+        "tasksClosed_one": "{{count}} closed",
+        "tasksClosed_other": "{{count}} closed",
         "requestUpdates_one": "{{count}} request update",
         "requestUpdates_other": "{{count}} request updates"
       },
       "sections": {
         "projectUpdates": "Project updates",
-        "closedTasks": "Closed tasks",
+        "taskActivity": "Task activity",
         "requestUpdates": "Request updates"
       },
       "columns": {
@@ -1219,7 +1222,8 @@
         "category": "Category",
         "stream": "Stream",
         "progress": "Effort",
-        "status": "Status"
+        "status": "Status",
+        "created": "Created"
       }
     }
   },

@@ -36,6 +36,8 @@ export type StatusChangeReportRow = {
   /** Category the stream belongs to, which is not always the item's own category. */
   streamCategoryId: string | null;
   companyName: string | null;
+  /** Day the item was created, when that creation falls inside the period. */
+  createdAt: string | null;
   lastChangedAt: string | null;
 };
 
@@ -68,6 +70,7 @@ type RawRow = {
   stream_name: string | null;
   stream_category_id: string | null;
   company_name: string | null;
+  created_at: string | Date | null;
   last_changed_at: string | Date | null;
 };
 
@@ -171,6 +174,7 @@ export class PortfolioStatusChangeReportService {
       'Category',
       'Stream',
       'Company',
+      'Created',
       'Last Changed',
     ];
 
@@ -191,6 +195,7 @@ export class PortfolioStatusChangeReportService {
           Category: row.categoryName ?? '',
           Stream: row.streamName ?? '',
           Company: row.companyName ?? '',
+          Created: row.createdAt ?? '',
           'Last Changed': row.lastChangedAt ?? '',
         });
       }
@@ -280,16 +285,45 @@ export class PortfolioStatusChangeReportService {
         FROM audit_log al
         WHERE al.tenant_id = $1
           AND al.table_name = ANY($2::text[])
-          AND al.action = 'update'
           AND al.record_id IS NOT NULL
-          AND al.before_json->>'status' IS NOT NULL
-          AND al.after_json->>'status' IS NOT NULL
-          AND al.before_json->>'status' IS DISTINCT FROM al.after_json->>'status'
           AND al.created_at >= ($3::date::timestamp AT TIME ZONE $5)
           AND al.created_at < (($4::date + 1)::timestamp AT TIME ZONE $5)
+          AND (
+            (
+              al.action = 'update'
+              AND al.before_json->>'status' IS NOT NULL
+              AND al.after_json->>'status' IS NOT NULL
+              AND al.before_json->>'status' IS DISTINCT FROM al.after_json->>'status'
+            )
+            OR (al.action = 'create' AND al.after_json->>'status' IS NOT NULL)
+          )
+      ),
+      created_events AS (
+        SELECT
+          CASE
+            WHEN al.table_name = 'tasks' THEN 'task'
+            WHEN al.table_name = 'portfolio_requests' THEN 'request'
+            WHEN al.table_name = 'portfolio_projects' THEN 'project'
+            ELSE NULL
+          END AS item_type,
+          al.record_id AS item_id,
+          MIN(al.created_at) AS created_at
+        FROM audit_log al
+        WHERE al.tenant_id = $1
+          AND al.table_name = ANY($2::text[])
+          AND al.action = 'create'
+          AND al.record_id IS NOT NULL
+          AND al.created_at >= ($3::date::timestamp AT TIME ZONE $5)
+          AND al.created_at < (($4::date + 1)::timestamp AT TIME ZONE $5)
+        GROUP BY 1, 2
       ),
       latest_events AS (
-        SELECT e.item_type, e.item_id, e.status, (e.created_at AT TIME ZONE $5)::date::text AS last_changed_at
+        SELECT
+          e.item_type,
+          e.item_id,
+          e.status,
+          (e.created_at AT TIME ZONE $5)::date::text AS last_changed_at,
+          (ce.created_at AT TIME ZONE $5)::date::text AS created_at
         FROM (
           SELECT
             se.*,
@@ -299,6 +333,7 @@ export class PortfolioStatusChangeReportService {
             ) AS rn
           FROM status_events se
         ) e
+        LEFT JOIN created_events ce ON ce.item_type = e.item_type AND ce.item_id = e.item_id
         WHERE e.rn = 1
       ),
       report_rows AS (
@@ -323,6 +358,7 @@ export class PortfolioStatusChangeReportService {
           pst.name AS stream_name,
           pst.category_id AS stream_category_id,
           comp.name AS company_name,
+          le.created_at,
           le.last_changed_at
         FROM latest_events le
         JOIN tasks t ON le.item_type = 'task' AND t.id = le.item_id AND t.tenant_id = $1
@@ -348,6 +384,7 @@ export class PortfolioStatusChangeReportService {
           pst.name AS stream_name,
           pst.category_id AS stream_category_id,
           comp.name AS company_name,
+          le.created_at,
           le.last_changed_at
         FROM latest_events le
         JOIN portfolio_requests r ON le.item_type = 'request' AND r.id = le.item_id AND r.tenant_id = $1
@@ -372,6 +409,7 @@ export class PortfolioStatusChangeReportService {
           pst.name AS stream_name,
           pst.category_id AS stream_category_id,
           comp.name AS company_name,
+          le.created_at,
           le.last_changed_at
         FROM latest_events le
         JOIN portfolio_projects p ON le.item_type = 'project' AND p.id = le.item_id AND p.tenant_id = $1
@@ -394,6 +432,7 @@ export class PortfolioStatusChangeReportService {
         rr.stream_name,
         rr.stream_category_id,
         rr.company_name,
+        rr.created_at,
         rr.last_changed_at
       FROM report_rows rr
       ${whereSql}
@@ -421,6 +460,7 @@ export class PortfolioStatusChangeReportService {
       streamName: row.stream_name ?? null,
       streamCategoryId: row.stream_category_id ?? null,
       companyName: row.company_name ?? null,
+      createdAt: toIsoDate(row.created_at),
       lastChangedAt: toIsoDate(row.last_changed_at),
     };
   }
@@ -459,6 +499,7 @@ export class PortfolioStatusChangeReportService {
       'Category',
       'Stream',
       'Company',
+      'Created',
       'Last Changed',
     ];
 
@@ -499,7 +540,8 @@ export class PortfolioStatusChangeReportService {
       addCell(cells, rowNumber, 6, row.categoryName);
       addCell(cells, rowNumber, 7, row.streamName);
       addCell(cells, rowNumber, 8, row.companyName);
-      addCell(cells, rowNumber, 9, row.lastChangedAt);
+      addCell(cells, rowNumber, 9, row.createdAt);
+      addCell(cells, rowNumber, 10, row.lastChangedAt);
 
       const normalizedBase = String(appBaseUrl || '').trim().replace(/\/$/, '');
       const target = normalizedBase ? `${normalizedBase}${row.itemPath}` : row.itemPath;

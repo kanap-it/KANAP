@@ -1037,7 +1037,7 @@
     "cards": {
       "statusChange": {
         "title": "Reporte de cambios de estado",
-        "description": "Rastree las tareas independientes, solicitudes y proyectos con cambios de estado en un período."
+        "description": "Rastree las tareas independientes, solicitudes y proyectos creados o con cambios de estado en un período."
       },
       "capacityHeatmap": {
         "title": "Mapa de calor de capacidad",
@@ -1045,7 +1045,7 @@
       },
       "weekly": {
         "title": "Reporte semanal",
-        "description": "Resumen semanal de actualizaciones de proyectos, tareas cerradas y cambios de solicitudes."
+        "description": "Resumen semanal de actualizaciones de proyectos, actividad de tareas y cambios de solicitudes."
       }
     },
     "itemTypes": {
@@ -1058,7 +1058,7 @@
     },
     "statusChange": {
       "title": "Reporte de cambios de estado",
-      "subtitle": "Elementos cuyo estado cambió durante un período seleccionado (último cambio de estado por elemento en el período).",
+      "subtitle": "Elementos creados durante un período seleccionado o cuyo estado cambió en él (último evento por elemento en el período).",
       "filters": {
         "startDate": "Fecha de inicio",
         "endDate": "Fecha de fin",
@@ -1082,6 +1082,7 @@
         "category": "Categoría",
         "stream": "Línea",
         "company": "Empresa",
+        "created": "Creado",
         "lastChanged": "Última modificación"
       },
       "actions": {
@@ -1172,7 +1173,7 @@
     },
     "weekly": {
       "title": "Reporte semanal",
-      "subtitle": "Resumen semanal para las partes interesadas: actualizaciones de proyectos, tareas cerradas y cambios de solicitudes.",
+      "subtitle": "Resumen semanal para las partes interesadas: actualizaciones de proyectos, actividad de tareas y cambios de solicitudes.",
       "filters": {
         "startDate": "Fecha de inicio",
         "endDate": "Fecha de fin",
@@ -1199,14 +1200,16 @@
       "summary": {
         "projectUpdates_one": "{{count}} actualización de proyecto",
         "projectUpdates_other": "{{count}} actualizaciones de proyectos",
-        "closedTasks_one": "{{count}} tarea cerrada",
-        "closedTasks_other": "{{count}} tareas cerradas",
+        "tasksCreated_one": "{{count}} tarea creada",
+        "tasksCreated_other": "{{count}} tareas creadas",
+        "tasksClosed_one": "{{count}} cerrada",
+        "tasksClosed_other": "{{count}} cerradas",
         "requestUpdates_one": "{{count}} actualización de solicitud",
         "requestUpdates_other": "{{count}} actualizaciones de solicitudes"
       },
       "sections": {
         "projectUpdates": "Actualizaciones de proyectos",
-        "closedTasks": "Tareas cerradas",
+        "taskActivity": "Actividad de tareas",
         "requestUpdates": "Actualizaciones de solicitudes"
       },
       "columns": {
@@ -1219,7 +1222,8 @@
         "category": "Categoría",
         "stream": "Línea",
         "progress": "Esfuerzo",
-        "status": "Estado"
+        "status": "Estado",
+        "created": "Creado"
       }
     }
   },

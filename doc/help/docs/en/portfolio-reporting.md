@@ -26,13 +26,14 @@ Currently available:
 
 ## Status Change report
 
-Use this report to track items whose status changed during a selected period.
+Use this report to track items created during a selected period, or whose status changed in it.
 
 ### What it shows
 - **One row per item** (standalone task, request, or project).
-- **Latest in-period status change only** for each item.
-- **Final status reached in the selected period** (if multiple changes happened in-range).
-- **Last changed** date for the retained status-change event.
+- **Latest in-period event only** for each item, whether that event is the creation or a status change.
+- **Status reached by that event**. For a creation, this is the status the item was created with.
+- **Created** date, filled when the item was created inside the period, and empty otherwise.
+- **Last changed** date for the retained event.
 
 ### Filters
 - **Start Date** and **End Date** (required period)
@@ -43,10 +44,11 @@ Use this report to track items whose status changed during a selected period.
 - **Stream** (multi-select; available when at least one category is selected)
 
 ### Inclusion rules
-- The item is included only if its status changed during the selected period.
+- The item is included if it was created during the selected period, or if its status changed during it.
+- An item created and then moved to another status in the same period appears once, with the status of its latest event.
 - For tasks, only **standalone tasks** are included (project-linked tasks are excluded).
-- Status filtering applies to the status reached after the change.
-- The period and the **Last changed** date follow your browser's time zone.
+- Status filtering applies to the status carried by the retained event.
+- The period, the **Created** date and the **Last changed** date follow your browser's time zone.
 
 ### Table columns
 - **Name** (clickable; opens the item)
@@ -57,6 +59,7 @@ Use this report to track items whose status changed during a selected period.
 - **Category**
 - **Stream**
 - **Company**
+- **Created**
 - **Last Changed**
 
 Default sort is by **Priority** (highest first). You can sort by any column.
@@ -118,17 +121,19 @@ Click a contributor row to open a project breakdown:
 
 ## Weekly Report
 
-Use this report to produce a weekly stakeholder summary covering project updates, closed tasks, and request changes over a selected period.
+Use this report to produce a weekly stakeholder summary covering project updates, task activity, and request changes over a selected period.
 
 ### What it shows
 
 The report is split into three tables:
 
-- **Project Updates** — projects whose status changed during the period.
-- **Closed Tasks** — standalone tasks that were closed during the period.
-- **Request Updates** — requests whose status changed during the period.
+- **Project Updates** — projects created during the period, or whose status changed in it.
+- **Task Activity** — tasks created during the period, or closed (done or cancelled) in it.
+- **Request Updates** — requests created during the period, or whose status changed in it.
 
-A summary line above the tables shows the count for each section.
+Every table has a **Created** column. It carries the creation day when the item was created inside the period, and stays empty for items that only changed status.
+
+A summary line above the tables shows the counts: project updates, tasks created, tasks closed, and request updates.
 
 ### Filters
 
@@ -136,15 +141,17 @@ A summary line above the tables shows the count for each section.
 - **Source** (multi-select)
 - **Category** (multi-select)
 - **Stream** (multi-select; scoped to selected categories)
-- **Task Types** (multi-select; applies to the Closed Tasks table)
+- **Task Types** (multi-select; applies to the Task Activity table)
 
 ### Table columns
 
-**Project Updates**: Project Name (clickable), Priority, Source, Category, Stream, Progress, Status
+**Project Updates**: Project Name (clickable), Priority, Source, Category, Stream, Progress, Status, Created
 
-**Closed Tasks**: Task Name (clickable), Task Type, Priority, Source, Category, Stream, Status
+**Task Activity**: Task Name (clickable), Task Type, Priority, Source, Category, Stream, Status, Created
 
-**Request Updates**: Request Name (clickable), Source, Category, Stream, Status
+**Request Updates**: Request Name (clickable), Source, Category, Stream, Status, Created
+
+The CSV and XLSX exports carry the same columns, plus a **Last Changed** column after **Created**.
 
 Default sort is by **Priority** (highest first). Clicking a name opens the item.
 

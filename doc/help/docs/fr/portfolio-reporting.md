@@ -26,13 +26,14 @@ Actuellement disponibles :
 
 ## Rapport de changements de statut
 
-Utilisez ce rapport pour suivre les éléments dont le statut a changé pendant une période sélectionnée.
+Utilisez ce rapport pour suivre les éléments créés pendant une période sélectionnée, ou dont le statut a changé pendant cette période.
 
 ### Ce qu'il affiche
 - **Une ligne par élément** (tâche autonome, demande ou projet).
-- **Dernier changement de statut dans la période** uniquement pour chaque élément.
-- **Statut final atteint dans la période sélectionnée** (si plusieurs changements ont eu lieu dans l'intervalle).
-- **Date de dernière modification** pour l'événement de changement de statut retenu.
+- **Dernier événement de la période** uniquement pour chaque élément, qu'il s'agisse de la création ou d'un changement de statut.
+- **Statut porté par cet événement**. Pour une création, il s'agit du statut avec lequel l'élément a été créé.
+- **Date de création**, renseignée lorsque l'élément a été créé dans la période, vide sinon.
+- **Date de dernière modification** pour l'événement retenu.
 
 ### Filtres
 - **Date de début** et **Date de fin** (période obligatoire)
@@ -43,10 +44,11 @@ Utilisez ce rapport pour suivre les éléments dont le statut a changé pendant 
 - **Flux** (multi-sélection ; disponible lorsqu'au moins une catégorie est sélectionnée)
 
 ### Règles d'inclusion
-- L'élément n'est inclus que si son statut a changé pendant la période sélectionnée.
+- L'élément est inclus s'il a été créé pendant la période sélectionnée, ou si son statut a changé pendant cette période.
+- Un élément créé puis passé à un autre statut dans la même période apparaît une seule fois, avec le statut de son dernier événement.
 - Pour les tâches, seules les **tâches autonomes** sont incluses (les tâches liées à un projet sont exclues).
-- Le filtrage de statut s'applique au statut atteint après le changement.
-- La période et la date **Dernière modification** suivent le fuseau horaire de votre navigateur.
+- Le filtrage de statut s'applique au statut porté par l'événement retenu.
+- La période, la date **Créé le** et la date **Dernière modification** suivent le fuseau horaire de votre navigateur.
 
 ### Colonnes du tableau
 - **Nom** (cliquable ; ouvre l'élément)
@@ -57,6 +59,7 @@ Utilisez ce rapport pour suivre les éléments dont le statut a changé pendant 
 - **Catégorie**
 - **Flux**
 - **Société**
+- **Créé le**
 - **Dernière modification**
 
 Tri par défaut par **Priorité** (la plus haute en premier). Vous pouvez trier par n'importe quelle colonne.
@@ -118,17 +121,19 @@ Cliquez sur une ligne de contributeur pour ouvrir un détail par projet :
 
 ## Rapport hebdomadaire
 
-Utilisez ce rapport pour produire un résumé hebdomadaire à destination des parties prenantes couvrant les mises à jour de projets, les tâches fermées et les changements de demandes sur une période sélectionnée.
+Utilisez ce rapport pour produire un résumé hebdomadaire à destination des parties prenantes couvrant les mises à jour de projets, l'activité des tâches et les changements de demandes sur une période sélectionnée.
 
 ### Ce qu'il affiche
 
 Le rapport est divisé en trois tableaux :
 
-- **Mises à jour des projets** — projets dont le statut a changé pendant la période.
-- **Tâches fermées** — tâches autonomes qui ont été fermées pendant la période.
-- **Mises à jour des demandes** — demandes dont le statut a changé pendant la période.
+- **Mises à jour des projets** — projets créés pendant la période, ou dont le statut a changé pendant cette période.
+- **Activité des tâches** — tâches créées pendant la période, ou clôturées (terminées ou annulées) pendant cette période.
+- **Mises à jour des demandes** — demandes créées pendant la période, ou dont le statut a changé pendant cette période.
 
-Une ligne récapitulative au-dessus des tableaux affiche le nombre pour chaque section.
+Chaque tableau comporte une colonne **Créé le**. Elle porte le jour de création lorsque l'élément a été créé dans la période, et reste vide pour les éléments qui ont seulement changé de statut.
+
+Une ligne récapitulative au-dessus des tableaux affiche les nombres : mises à jour de projets, tâches créées, tâches clôturées et mises à jour de demandes.
 
 ### Filtres
 
@@ -136,15 +141,17 @@ Une ligne récapitulative au-dessus des tableaux affiche le nombre pour chaque s
 - **Source** (multi-sélection)
 - **Catégorie** (multi-sélection)
 - **Flux** (multi-sélection ; limité aux catégories sélectionnées)
-- **Types de tâches** (multi-sélection ; s'applique au tableau des tâches fermées)
+- **Types de tâches** (multi-sélection ; s'applique au tableau Activité des tâches)
 
 ### Colonnes des tableaux
 
-**Mises à jour des projets** : Nom du projet (cliquable), Priorité, Source, Catégorie, Flux, Avancement, Statut
+**Mises à jour des projets** : Nom du projet (cliquable), Priorité, Source, Catégorie, Flux, Avancement, Statut, Créé le
 
-**Tâches fermées** : Nom de la tâche (cliquable), Type de tâche, Priorité, Source, Catégorie, Flux, Statut
+**Activité des tâches** : Nom de la tâche (cliquable), Type de tâche, Priorité, Source, Catégorie, Flux, Statut, Créé le
 
-**Mises à jour des demandes** : Nom de la demande (cliquable), Source, Catégorie, Flux, Statut
+**Mises à jour des demandes** : Nom de la demande (cliquable), Source, Catégorie, Flux, Statut, Créé le
+
+Les exports CSV et XLSX reprennent les mêmes colonnes, plus une colonne **Dernière modification** après **Créé le**.
 
 Tri par défaut par **Priorité** (la plus haute en premier). Cliquer sur un nom ouvre l'élément.
 

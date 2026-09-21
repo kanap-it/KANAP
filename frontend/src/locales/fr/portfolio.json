@@ -1037,7 +1037,7 @@
     "cards": {
       "statusChange": {
         "title": "Rapport de changement de statut",
-        "description": "Suivez les tâches autonomes, demandes et projets dont le statut a changé sur une période."
+        "description": "Suivez les tâches autonomes, demandes et projets créés ou dont le statut a changé sur une période."
       },
       "capacityHeatmap": {
         "title": "Carte de chaleur de la capacité",
@@ -1045,7 +1045,7 @@
       },
       "weekly": {
         "title": "Rapport hebdomadaire",
-        "description": "Synthèse hebdomadaire des mises à jour de projets, des tâches clôturées et des changements de demandes."
+        "description": "Synthèse hebdomadaire des mises à jour de projets, de l'activité des tâches et des changements de demandes."
       }
     },
     "itemTypes": {
@@ -1058,7 +1058,7 @@
     },
     "statusChange": {
       "title": "Rapport de changement de statut",
-      "subtitle": "Éléments dont le statut a changé au cours d'une période sélectionnée (dernier changement de statut par élément sur la période).",
+      "subtitle": "Éléments créés au cours d'une période sélectionnée ou dont le statut a changé (dernier événement par élément sur la période).",
       "filters": {
         "startDate": "Date de début",
         "endDate": "Date de fin",
@@ -1082,6 +1082,7 @@
         "category": "Catégorie",
         "stream": "Filière",
         "company": "Société",
+        "created": "Créé le",
         "lastChanged": "Dernière modification"
       },
       "actions": {
@@ -1172,7 +1173,7 @@
     },
     "weekly": {
       "title": "Rapport hebdomadaire",
-      "subtitle": "Synthèse hebdomadaire pour les parties prenantes : mises à jour de projets, tâches clôturées et changements de demandes.",
+      "subtitle": "Synthèse hebdomadaire pour les parties prenantes : mises à jour de projets, activité des tâches et changements de demandes.",
       "filters": {
         "startDate": "Date de début",
         "endDate": "Date de fin",
@@ -1199,14 +1200,16 @@
       "summary": {
         "projectUpdates_one": "{{count}} mise à jour de projet",
         "projectUpdates_other": "{{count}} mises à jour de projets",
-        "closedTasks_one": "{{count}} tâche clôturée",
-        "closedTasks_other": "{{count}} tâches clôturées",
+        "tasksCreated_one": "{{count}} tâche créée",
+        "tasksCreated_other": "{{count}} tâches créées",
+        "tasksClosed_one": "{{count}} clôturée",
+        "tasksClosed_other": "{{count}} clôturées",
         "requestUpdates_one": "{{count}} mise à jour de demande",
         "requestUpdates_other": "{{count}} mises à jour de demandes"
       },
       "sections": {
         "projectUpdates": "Mises à jour de projets",
-        "closedTasks": "Tâches clôturées",
+        "taskActivity": "Activité des tâches",
         "requestUpdates": "Mises à jour de demandes"
       },
       "columns": {
@@ -1219,7 +1222,8 @@
         "category": "Catégorie",
         "stream": "Filière",
         "progress": "Charge",
-        "status": "Statut"
+        "status": "Statut",
+        "created": "Créé le"
       }
     }
   },

@@ -1037,7 +1037,7 @@
     "cards": {
       "statusChange": {
         "title": "Statusänderungsbericht",
-        "description": "Verfolgen Sie eigenständige Aufgaben, Anfragen und Projekte mit Statusänderungen über einen Zeitraum."
+        "description": "Verfolgen Sie eigenständige Aufgaben, Anfragen und Projekte, die in einem Zeitraum erstellt wurden oder deren Status sich geändert hat."
       },
       "capacityHeatmap": {
         "title": "Kapazitäts-Heatmap",
@@ -1045,7 +1045,7 @@
       },
       "weekly": {
         "title": "Wochenbericht",
-        "description": "Wöchentliche Zusammenfassung von Projektaktualisierungen, geschlossenen Aufgaben und Anfrageänderungen."
+        "description": "Wöchentliche Zusammenfassung von Projektaktualisierungen, Aufgabenaktivität und Anfrageänderungen."
       }
     },
     "itemTypes": {
@@ -1058,7 +1058,7 @@
     },
     "statusChange": {
       "title": "Statusänderungsbericht",
-      "subtitle": "Elemente, deren Status sich innerhalb eines ausgewählten Zeitraums geändert hat (letzte Statusänderung pro Element im Zeitraum).",
+      "subtitle": "Elemente, die in einem ausgewählten Zeitraum erstellt wurden oder deren Status sich geändert hat (letztes Ereignis pro Element im Zeitraum).",
       "filters": {
         "startDate": "Startdatum",
         "endDate": "Enddatum",
@@ -1082,6 +1082,7 @@
         "category": "Kategorie",
         "stream": "Stream",
         "company": "Unternehmen",
+        "created": "Erstellt",
         "lastChanged": "Zuletzt geändert"
       },
       "actions": {
@@ -1172,7 +1173,7 @@
     },
     "weekly": {
       "title": "Wochenbericht",
-      "subtitle": "Wöchentliche Stakeholder-Zusammenfassung: Projektaktualisierungen, geschlossene Aufgaben und Anfrageaktualisierungen.",
+      "subtitle": "Wöchentliche Stakeholder-Zusammenfassung: Projektaktualisierungen, Aufgabenaktivität und Anfrageaktualisierungen.",
       "filters": {
         "startDate": "Startdatum",
         "endDate": "Enddatum",
@@ -1199,14 +1200,16 @@
       "summary": {
         "projectUpdates_one": "{{count}} Projektaktualisierung",
         "projectUpdates_other": "{{count}} Projektaktualisierungen",
-        "closedTasks_one": "{{count}} geschlossene Aufgabe",
-        "closedTasks_other": "{{count}} geschlossene Aufgaben",
+        "tasksCreated_one": "{{count}} Aufgabe erstellt",
+        "tasksCreated_other": "{{count}} Aufgaben erstellt",
+        "tasksClosed_one": "{{count}} geschlossen",
+        "tasksClosed_other": "{{count}} geschlossen",
         "requestUpdates_one": "{{count}} Anfrageaktualisierung",
         "requestUpdates_other": "{{count}} Anfrageaktualisierungen"
       },
       "sections": {
         "projectUpdates": "Projektaktualisierungen",
-        "closedTasks": "Geschlossene Aufgaben",
+        "taskActivity": "Aufgabenaktivität",
         "requestUpdates": "Anfrageaktualisierungen"
       },
       "columns": {
@@ -1219,7 +1222,8 @@
         "category": "Kategorie",
         "stream": "Stream",
         "progress": "Aufwand",
-        "status": "Status"
+        "status": "Status",
+        "created": "Erstellt"
       }
     }
   },

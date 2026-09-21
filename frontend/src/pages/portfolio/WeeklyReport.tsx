@@ -20,6 +20,8 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
 import api from '../../api';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../i18n/useLocale';
+import { formatShortDate } from '../../lib/dateFormat';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
 
 type WeeklyProjectRow = {
@@ -35,6 +37,7 @@ type WeeklyProjectRow = {
   streamName: string | null;
   progress: number | null;
   status: string;
+  createdAt: string | null;
   lastChangedAt: string | null;
 };
 
@@ -52,6 +55,7 @@ type WeeklyTaskRow = {
   streamId: string | null;
   streamName: string | null;
   status: string;
+  createdAt: string | null;
   lastChangedAt: string | null;
 };
 
@@ -66,6 +70,7 @@ type WeeklyRequestRow = {
   streamId: string | null;
   streamName: string | null;
   status: string;
+  createdAt: string | null;
   lastChangedAt: string | null;
 };
 
@@ -143,6 +148,7 @@ const buildParams = (args: {
 export default function WeeklyReport() {
   const navigate = useNavigate();
   const { t } = useTranslation(['portfolio', 'errors']);
+  const locale = useLocale();
   const today = useMemo(() => toIsoDate(new Date()), []);
 
   const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
@@ -219,6 +225,8 @@ export default function WeeklyReport() {
   const tasks = reportData?.tasks ?? [];
   const requests = reportData?.requests ?? [];
   const totalRows = projects.length + tasks.length + requests.length;
+  const tasksCreatedCount = tasks.filter((row) => Boolean(row.createdAt)).length;
+  const tasksClosedCount = tasks.filter((row) => row.status === 'done' || row.status === 'cancelled').length;
 
   const getStatusLabel = useCallback((status: string) => {
     if (TASK_STATUSES.has(status)) {
@@ -414,8 +422,14 @@ export default function WeeklyReport() {
         width: 150,
         valueFormatter: (params) => getStatusLabel(String(params.value || '')),
       },
+      {
+        field: 'createdAt',
+        headerName: t('reports.weekly.columns.created'),
+        width: 130,
+        valueFormatter: (params) => formatShortDate(params.value || null, locale),
+      },
     ];
-  }, [getStatusLabel, navigate, t]);
+  }, [getStatusLabel, locale, navigate, t]);
 
   const taskColumns = useMemo<ColDef<WeeklyTaskRow>[]>(() => {
     const ClickableNameCell: React.FC<ICellRendererParams<WeeklyTaskRow, string>> = (params) => (
@@ -467,8 +481,14 @@ export default function WeeklyReport() {
         width: 150,
         valueFormatter: (params) => getStatusLabel(String(params.value || '')),
       },
+      {
+        field: 'createdAt',
+        headerName: t('reports.weekly.columns.created'),
+        width: 130,
+        valueFormatter: (params) => formatShortDate(params.value || null, locale),
+      },
     ];
-  }, [getStatusLabel, navigate, t]);
+  }, [getStatusLabel, locale, navigate, t]);
 
   const requestColumns = useMemo<ColDef<WeeklyRequestRow>[]>(() => {
     const ClickableNameCell: React.FC<ICellRendererParams<WeeklyRequestRow, string>> = (params) => (
@@ -501,8 +521,14 @@ export default function WeeklyReport() {
         width: 160,
         valueFormatter: (params) => getStatusLabel(String(params.value || '')),
       },
+      {
+        field: 'createdAt',
+        headerName: t('reports.weekly.columns.created'),
+        width: 130,
+        valueFormatter: (params) => formatShortDate(params.value || null, locale),
+      },
     ];
-  }, [getStatusLabel, navigate, t]);
+  }, [getStatusLabel, locale, navigate, t]);
 
   const handleDownload = async (format: 'csv' | 'xlsx') => {
     if (!isValidPeriod) return;
@@ -739,7 +765,7 @@ export default function WeeklyReport() {
 
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography variant="body2" color="text.secondary">
-            {t('reports.weekly.summary.projectUpdates', { count: projects.length })} · {t('reports.weekly.summary.closedTasks', { count: tasks.length })} · {t('reports.weekly.summary.requestUpdates', { count: requests.length })}
+            {t('reports.weekly.summary.projectUpdates', { count: projects.length })} · {t('reports.weekly.summary.tasksCreated', { count: tasksCreatedCount })} · {t('reports.weekly.summary.tasksClosed', { count: tasksClosedCount })} · {t('reports.weekly.summary.requestUpdates', { count: requests.length })}
           </Typography>
           {(isLoading || isFetching) && <CircularProgress size={18} />}
         </Stack>
@@ -765,7 +791,7 @@ export default function WeeklyReport() {
         </Paper>
 
         <Paper variant="outlined" sx={{ p: 1.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 1 }}>{t('reports.weekly.sections.closedTasks')}</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 1 }}>{t('reports.weekly.sections.taskActivity')}</Typography>
           <Box component={AgGridBox} sx={{ width: '100%' }}>
             <AgGridReact<WeeklyTaskRow>
               rowData={tasks}
