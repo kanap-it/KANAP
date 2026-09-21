@@ -24,6 +24,40 @@ Currently available:
 
 ---
 
+## Steering
+
+The first strip above the report cards is the daily steering view. It answers two questions: what moved lately, and what is waiting for someone.
+
+### The period
+
+The header shows the period in use and lets you switch between the last 7, 30 and 90 days. The period always ends today and is read in your own time zone. Your choice is remembered on this browser.
+
+### Flow
+
+One line per entity reads like this: **14 created · 9 closed · 52 open (+5)**.
+
+- **Created**: items created during the period and still present today.
+- **Closed**: items that moved from an open status to a closed one during the period. Closed means Done or Cancelled for tasks and projects, Rejected or Converted for requests.
+- **Open**: items open right now, whatever happened during the period. This figure is a link to the matching list.
+- **(+5)**: the net change, shown only when it is not zero. It is created, plus reopened, minus closed. Reopened items are items that went from a closed status back to an open one. Hover the figure to see the formula.
+
+Created and closed come from the change history, so they include every way an item can be written: the app, a CSV import and the agents. No list filter reproduces that history, so those two figures are not links.
+
+### Which tasks count
+
+Every task figure counts standalone tasks and project tasks only. Tasks attached to a contract, a spend item, a capex item or an incident belong to those workflows and are left out everywhere in this strip.
+
+### Needs attention
+
+The last line appears only when something needs a decision:
+- **Overdue tasks**: open tasks whose due date is before today. The figure opens the task list filtered on the same items.
+- **Tasks without assignee**: open tasks nobody owns. The task list has no filter for an empty assignee, so this figure is not a link.
+- **Projects without activity for 30 days**: projects in progress or in testing where nothing has happened for a month. Clicking it opens a short list of those projects with their last activity date, and each name opens the project.
+
+Activity is read widely. A project counts as active when anything changed on it or on one of its tasks, when someone wrote in its journal, or when time was logged on the project or on one of its tasks. A project only appears here when all of those are older than 30 days.
+
+---
+
 ## To classify
 
 Above the report cards, a compact strip shows how much of your open work is still missing a classification value. Use it as a daily steering aid: see the gap, click it, fix it.

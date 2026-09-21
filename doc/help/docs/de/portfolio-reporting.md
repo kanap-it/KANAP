@@ -24,6 +24,40 @@ Derzeit verfügbar:
 
 ---
 
+## Steuerung
+
+Der erste Streifen über den Berichtskarten ist die tägliche Steuerungsansicht. Er beantwortet zwei Fragen: Was hat sich zuletzt bewegt, und was wartet auf jemanden.
+
+### Der Zeitraum
+
+Die Kopfzeile zeigt den verwendeten Zeitraum und erlaubt den Wechsel zwischen den letzten 7, 30 und 90 Tagen. Der Zeitraum endet immer heute und wird in Ihrer eigenen Zeitzone gelesen. Ihre Wahl wird in diesem Browser gemerkt.
+
+### Fluss
+
+Eine Zeile je Entität liest sich so: **14 erstellt · 9 abgeschlossen · 52 offen (+5)**.
+
+- **Erstellt**: Elemente, die im Zeitraum angelegt wurden und heute noch vorhanden sind.
+- **Abgeschlossen**: Elemente, die im Zeitraum von einem offenen in einen geschlossenen Status gewechselt sind. Geschlossen heißt Erledigt oder Abgebrochen bei Aufgaben und Projekten, Abgelehnt oder Umgewandelt bei Anfragen.
+- **Offen**: Elemente, die gerade offen sind, unabhängig davon, was im Zeitraum geschah. Diese Zahl ist ein Link auf die passende Liste.
+- **(+5)**: die Nettoveränderung, nur sichtbar, wenn sie nicht null ist. Sie ist erstellt, plus wieder geöffnet, minus abgeschlossen. Wieder geöffnet sind Elemente, die aus einem geschlossenen Status zurück in einen offenen gewechselt sind. Fahren Sie über die Zahl, um die Formel zu sehen.
+
+Erstellt und abgeschlossen stammen aus der Änderungshistorie. Sie erfassen damit jeden Schreibweg: die Anwendung, einen CSV-Import und die Agenten. Kein Listenfilter bildet diese Historie nach, deshalb sind diese beiden Zahlen keine Links.
+
+### Welche Aufgaben zählen
+
+Jede Aufgabenzahl zählt nur eigenständige Aufgaben und Projektaufgaben. Aufgaben an einem Vertrag, einer Ausgabenposition, einer CAPEX-Position oder einem Vorfall gehören zu jenen Abläufen und bleiben in diesem Streifen überall außen vor.
+
+### Handlungsbedarf
+
+Die letzte Zeile erscheint nur, wenn etwas eine Entscheidung braucht:
+- **Überfällige Aufgaben**: offene Aufgaben, deren Fälligkeitsdatum vor heute liegt. Die Zahl öffnet die Aufgabenliste, gefiltert auf dieselben Elemente.
+- **Aufgaben ohne zuständige Person**: offene Aufgaben, die niemand trägt. Die Aufgabenliste kennt keinen Filter auf eine leere Zuständigkeit, deshalb ist diese Zahl kein Link.
+- **Projekte seit 30 Tagen ohne Aktivität**: Projekte in Arbeit oder im Test, bei denen seit einem Monat nichts geschehen ist. Ein Klick öffnet eine kurze Liste dieser Projekte mit dem Datum ihrer letzten Aktivität, und jeder Name öffnet das Projekt.
+
+Aktivität wird weit gefasst. Ein Projekt gilt als aktiv, sobald sich etwas an ihm oder an einer seiner Aufgaben geändert hat, sobald jemand in sein Journal geschrieben hat, oder sobald Zeit auf das Projekt oder auf eine seiner Aufgaben gebucht wurde. Ein Projekt erscheint hier nur, wenn all das älter als 30 Tage ist.
+
+---
+
 ## Zu klassifizieren
 
 Über den Berichtskarten zeigt ein kompakter Streifen, wie viel Ihrer offenen Arbeit noch keinen Klassifizierungswert hat. Nutzen Sie ihn als tägliche Steuerungshilfe: Lücke sehen, anklicken, schließen.

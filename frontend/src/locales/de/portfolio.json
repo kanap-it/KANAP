@@ -1034,6 +1034,42 @@
   "reports": {
     "title": "Portfolio-Reporting",
     "subtitle": "Entdecken Sie Portfolio-Berichte zu Kapazität, Aufwand und Statustrends.",
+    "steering": {
+      "period_one": "Letzter {{count}} Tag",
+      "period_other": "Letzte {{count}} Tage",
+      "periodLabel": "Zeitraum",
+      "periodOption_one": "{{count}} Tag",
+      "periodOption_other": "{{count}} Tage",
+      "entities": {
+        "tasks": "Aufgaben",
+        "requests": "Anfragen",
+        "projects": "Projekte"
+      },
+      "flow": {
+        "created_one": "{{count}} erstellt",
+        "created_other": "{{count}} erstellt",
+        "closed_one": "{{count}} abgeschlossen",
+        "closed_other": "{{count}} abgeschlossen",
+        "open_one": "{{count}} offen",
+        "open_other": "{{count}} offen",
+        "netTooltip": "Erstellt, plus wieder geöffnet, minus abgeschlossen"
+      },
+      "attention": {
+        "title": "Handlungsbedarf",
+        "overdue_one": "{{count}} überfällige Aufgabe",
+        "overdue_other": "{{count}} überfällige Aufgaben",
+        "unassigned_one": "{{count}} Aufgabe ohne zuständige Person",
+        "unassigned_other": "{{count}} Aufgaben ohne zuständige Person",
+        "stale_one": "{{count}} Projekt seit {{days}} Tagen ohne Aktivität",
+        "stale_other": "{{count}} Projekte seit {{days}} Tagen ohne Aktivität"
+      },
+      "stale": {
+        "dialogTitle": "Projekte ohne Aktivität",
+        "lastActivity": "Letzte Aktivität am {{date}}",
+        "never": "Keine Aktivität erfasst",
+        "close": "Schließen"
+      }
+    },
     "toClassify": {
       "title": "Zu klassifizieren",
       "entities": {
