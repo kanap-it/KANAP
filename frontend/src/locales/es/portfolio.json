@@ -773,7 +773,9 @@
           "stream": "Línea",
           "taskType": "Tipo de tarea",
           "timeLogged": "Tiempo registrado",
-          "title": "Título"
+          "title": "Título",
+          "owners": "Responsables",
+          "viewers": "Observadores"
         },
         "values": {
           "empty": "(vacío)",
@@ -1094,7 +1096,7 @@
       },
       "weekly": {
         "title": "Reporte semanal",
-        "description": "Resumen semanal de actualizaciones de proyectos, actividad de tareas y cambios de solicitudes."
+        "description": "Solicitudes, proyectos y tareas creadas, modificadas y cerradas en un periodo."
       }
     },
     "itemTypes": {
@@ -1222,7 +1224,7 @@
     },
     "weekly": {
       "title": "Reporte semanal",
-      "subtitle": "Resumen semanal para las partes interesadas: actualizaciones de proyectos, actividad de tareas y cambios de solicitudes.",
+      "subtitle": "Solicitudes, proyectos y tareas del periodo: lo que se creó, se modificó y se cerró.",
       "filters": {
         "startDate": "Fecha de inicio",
         "endDate": "Fecha de fin",
@@ -1246,33 +1248,63 @@
         "loadFailed": "Error al cargar los datos del reporte.",
         "exportFailed": "Error en la exportación"
       },
-      "summary": {
-        "projectUpdates_one": "{{count}} actualización de proyecto",
-        "projectUpdates_other": "{{count}} actualizaciones de proyectos",
-        "tasksCreated_one": "{{count}} tarea creada",
-        "tasksCreated_other": "{{count}} tareas creadas",
-        "tasksClosed_one": "{{count}} cerrada",
-        "tasksClosed_other": "{{count}} cerradas",
-        "requestUpdates_one": "{{count}} actualización de solicitud",
-        "requestUpdates_other": "{{count}} actualizaciones de solicitudes"
-      },
       "sections": {
-        "projectUpdates": "Actualizaciones de proyectos",
-        "taskActivity": "Actividad de tareas",
-        "requestUpdates": "Actualizaciones de solicitudes"
+        "requests": "Solicitudes",
+        "projects": "Proyectos",
+        "tasks": "Tareas"
+      },
+      "lists": {
+        "created": "Creaciones",
+        "modified": "Modificaciones",
+        "closed": "Cierres"
+      },
+      "summary": {
+        "created_one": "{{count}} creación",
+        "created_other": "{{count}} creaciones",
+        "modified_one": "{{count}} modificación",
+        "modified_other": "{{count}} modificaciones",
+        "closed_one": "{{count}} cierre",
+        "closed_other": "{{count}} cierres"
+      },
+      "empty": {
+        "requests": {
+          "created": "Ninguna solicitud creada en este periodo.",
+          "modified": "Ninguna solicitud modificada en este periodo.",
+          "closed": "Ninguna solicitud cerrada en este periodo."
+        },
+        "projects": {
+          "created": "Ningún proyecto creado en este periodo.",
+          "modified": "Ningún proyecto modificado en este periodo.",
+          "closed": "Ningún proyecto cerrado en este periodo."
+        },
+        "tasks": {
+          "created": "Ninguna tarea creada en este periodo.",
+          "modified": "Ninguna tarea modificada en este periodo.",
+          "closed": "Ninguna tarea cerrada en este periodo."
+        }
+      },
+      "origin": {
+        "direct": "Creado directamente"
       },
       "columns": {
+        "reference": "Referencia",
+        "requestName": "Nombre de la solicitud",
         "projectName": "Nombre del proyecto",
         "taskName": "Nombre de la tarea",
-        "requestName": "Nombre de la solicitud",
         "taskType": "Tipo de tarea",
+        "origin": "Procedencia",
         "priority": "Prioridad",
         "source": "Origen",
         "category": "Categoría",
         "stream": "Línea",
         "progress": "Esfuerzo",
         "status": "Estado",
-        "created": "Creado"
+        "changes": "Cambios",
+        "date": {
+          "created": "Creado",
+          "modified": "Último cambio",
+          "closed": "Cerrado"
+        }
       }
     }
   },
@@ -1530,7 +1562,10 @@
         "targetDeliveryDate": "Fecha de entrega objetivo",
         "taskCreated": "Tarea creada",
         "itTeam": "Equipo IT",
-        "businessEffortAllocationMode": "Modo de asignación de esfuerzo de negocio"
+        "businessEffortAllocationMode": "Modo de asignación de esfuerzo de negocio",
+        "actualStart": "Inicio real",
+        "actualEnd": "Fin real",
+        "convertedDate": "Convertido el"
       },
       "values": {
         "allDimensionsNotAssessed": "Todas las dimensiones no evaluadas",

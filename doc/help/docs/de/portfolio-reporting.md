@@ -186,46 +186,76 @@ Klicken Sie auf eine Mitwirkenden-Zeile, um eine Projektaufschlüsselung zu öff
 
 ## Wochenbericht
 
-Verwenden Sie diesen Bericht, um eine wöchentliche Stakeholder-Zusammenfassung mit Projektaktualisierungen, Aufgabenaktivität und Anfrageänderungen über einen ausgewählten Zeitraum zu erstellen.
+Mit diesem Bericht sehen Sie, was in einem Zeitraum mit Anfragen, Projekten und Aufgaben geschehen ist. Der Bericht folgt dem Portfolio-Trichter: zuerst die Anfragen, dann die Projekte, dann die Aufgaben.
 
-### Was er zeigt
+### Was der Bericht zeigt
 
-Der Bericht ist in drei Tabellen aufgeteilt:
+Jeder der drei Abschnitte enthält dieselben drei Listen.
 
-- **Projektaktualisierungen** -- Projekte, die während des Zeitraums erstellt wurden oder deren Status sich in diesem Zeitraum geändert hat.
-- **Aufgabenaktivität** -- Aufgaben, die während des Zeitraums erstellt oder abgeschlossen (erledigt oder abgebrochen) wurden.
-- **Anfrageaktualisierungen** -- Anfragen, die während des Zeitraums erstellt wurden oder deren Status sich in diesem Zeitraum geändert hat.
+- **Erstellt** — im Zeitraum erstellte Elemente.
+- **Geändert** — Elemente, die im Zeitraum geändert, aber weder erstellt noch geschlossen wurden.
+- **Geschlossen** — Elemente, die im Zeitraum in einen Abschlussstatus gewechselt sind.
 
-Jede Tabelle hat eine Spalte **Erstellt**. Sie trägt den Erstellungstag, wenn das Element innerhalb des Zeitraums erstellt wurde, und bleibt leer für Elemente, die nur ihren Status geändert haben.
+Ein Element, das im selben Zeitraum erstellt und geschlossen wurde, erscheint in beiden Listen. Unter Geändert erscheint es nie: Geändert ist das, was nach Erstellungen und Abschlüssen übrig bleibt.
 
-Eine Zusammenfassungszeile über den Tabellen zeigt die Anzahlen: Projektaktualisierungen, erstellte Aufgaben, abgeschlossene Aufgaben und Anfrageaktualisierungen.
+Geschlossen bedeutet je nach Typ andere Status:
+
+- **Anfragen**: umgewandelt oder abgelehnt. Eine Anfrage hat keinen Status "storniert".
+- **Projekte**: erledigt oder storniert.
+- **Aufgaben**: erledigt oder storniert.
+
+Jede Liste zeigt ihre Anzahl in der Überschrift. Eine leere Liste bleibt einzeilig, damit ein Bericht mit wenig Aktivität kurz bleibt.
+
+### Welche Aufgaben zählen
+
+Der Abschnitt Aufgaben umfasst nur Portfolio-Aufgaben: eigenständige Aufgaben und Aufgaben an einem Projekt. Aufgaben an einem Vertrag, einer Ausgabenposition, einer CAPEX-Zeile oder einem Vorfall bleiben außen vor. Das ist enger gefasst als in früheren Fassungen des Berichts, die jede Aufgabe gezählt haben.
+
+### Woher ein Projekt stammt
+
+Die Liste der erstellten Projekte enthält eine Spalte **Herkunft**.
+
+- Ein aus einer Anfrage umgewandeltes Projekt zeigt diese Anfrage, zum Beispiel `REQ-12 Cave climate digital twin`. Ein Klick öffnet die Anfrage.
+- Ein direkt in der Projektliste erstelltes Projekt zeigt **Direkt erstellt**.
+
+### Was sich geändert hat
+
+Die Listen Geändert enthalten eine Spalte **Änderungen**. Sie liest den Audit-Trail des Zeitraums und zeigt:
+
+- den Statuswechsel, sofern sich der Status geändert hat, als `In Bearbeitung -> Im Test`;
+- danach die geänderten Felder in klarer Sprache, durch Kommas getrennt.
+
+Die Formulierung entspricht dem Verlauf am Element selbst. Felder, die bei jedem Speichern neu geschrieben werden, etwa der technische Aktualisierungszeitstempel, bleiben unberücksichtigt.
 
 ### Filter
 
-- **Startdatum** und **Enddatum** (Standard: letzte 7 Tage)
+- **Startdatum** und **Enddatum** (Standard: die letzten 7 Tage)
 - **Quelle** (Mehrfachauswahl)
 - **Kategorie** (Mehrfachauswahl)
-- **Stream** (Mehrfachauswahl; auf ausgewählte Kategorien beschränkt)
-- **Aufgabentypen** (Mehrfachauswahl; gilt für die Tabelle Aufgabenaktivität)
+- **Stream** (Mehrfachauswahl; beschränkt auf die gewählten Kategorien)
+- **Aufgabentypen** (Mehrfachauswahl; gilt für den Abschnitt Aufgaben)
+
+Die Filter gelten für alle neun Listen.
 
 ### Tabellenspalten
 
-**Projektaktualisierungen**: Projektname (klickbar), Priorität, Quelle, Kategorie, Stream, Fortschritt, Status, Erstellt
+Jede Liste beginnt mit der Geschäftsreferenz (`REQ-12`, `PRJ-3`, `T-4`) und dem Namen. Ein Klick auf den Namen öffnet das Element.
 
-**Aufgabenaktivität**: Aufgabenname (klickbar), Aufgabentyp, Priorität, Quelle, Kategorie, Stream, Status, Erstellt
+**Anfragen**: Referenz, Anfragenname, Quelle, Kategorie, Stream, Status, Datum des Ereignisses.
 
-**Anfrageaktualisierungen**: Anfragename (klickbar), Quelle, Kategorie, Stream, Status, Erstellt
+**Projekte**: Referenz, Projektname, Herkunft (Liste der Erstellungen), Priorität, Quelle, Kategorie, Stream, Aufwand, Status, Datum des Ereignisses.
 
-Die CSV- und XLSX-Exporte enthalten dieselben Spalten sowie eine Spalte **Zuletzt geändert** nach **Erstellt**.
+**Aufgaben**: Referenz, Aufgabenname, Aufgabentyp, Priorität, Quelle, Kategorie, Stream, Status, Datum des Ereignisses.
 
-Standardsortierung ist nach **Priorität** (höchste zuerst). Das Klicken eines Namens öffnet das Element.
+Die Datumsspalte trägt den Erstellungstag in den Erstellt-Listen, den Tag der letzten Änderung in den Geändert-Listen und den Abschlusstag in den Geschlossen-Listen. Die Tage werden in Ihrer eigenen Zeitzone gelesen.
+
+Die Geändert-Listen ergänzen am Ende die Spalte **Änderungen**.
 
 ### Exporte
 
-- **CSV**-Export
-- **XLSX**-Export
+- **CSV** — neun Blöcke in der Reihenfolge der Seite, jeder mit eigener Überschrift und Kopfzeile.
+- **XLSX** — drei Blätter: Requests, Projects und Tasks. Die Zeilen laufen von den Erstellungen über die Änderungen zu den Abschlüssen, mit einer führenden Spalte **Event**, die angibt, aus welcher Liste eine Zeile stammt. Die Namenszelle verweist zurück auf das Element.
 
----
+Beide Exporte enthalten die Referenz, die Herkunft eines Projekts, die Änderungen einer geänderten Zeile und das Datum des Ereignisses.
 
 ## Tipps
 - **Mitwirkenden-Profile aktuell halten**: Die Kapazität basiert auf der Verfügbarkeit und den historischen Zeitstatistiken der Mitwirkenden.

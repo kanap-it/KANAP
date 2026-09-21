@@ -773,7 +773,9 @@
           "stream": "Stream",
           "taskType": "Aufgabentyp",
           "timeLogged": "Erfasste Zeit",
-          "title": "Titel"
+          "title": "Titel",
+          "owners": "Verantwortliche",
+          "viewers": "Beobachter"
         },
         "values": {
           "empty": "(leer)",
@@ -1094,7 +1096,7 @@
       },
       "weekly": {
         "title": "Wochenbericht",
-        "description": "Wöchentliche Zusammenfassung von Projektaktualisierungen, Aufgabenaktivität und Anfrageänderungen."
+        "description": "Anfragen, Projekte und Aufgaben, die in einem Zeitraum erstellt, geändert und geschlossen wurden."
       }
     },
     "itemTypes": {
@@ -1222,7 +1224,7 @@
     },
     "weekly": {
       "title": "Wochenbericht",
-      "subtitle": "Wöchentliche Stakeholder-Zusammenfassung: Projektaktualisierungen, Aufgabenaktivität und Anfrageaktualisierungen.",
+      "subtitle": "Anfragen, Projekte und Aufgaben im Zeitraum: was erstellt, geändert und geschlossen wurde.",
       "filters": {
         "startDate": "Startdatum",
         "endDate": "Enddatum",
@@ -1246,33 +1248,63 @@
         "loadFailed": "Berichtsdaten konnten nicht geladen werden.",
         "exportFailed": "Export fehlgeschlagen"
       },
-      "summary": {
-        "projectUpdates_one": "{{count}} Projektaktualisierung",
-        "projectUpdates_other": "{{count}} Projektaktualisierungen",
-        "tasksCreated_one": "{{count}} Aufgabe erstellt",
-        "tasksCreated_other": "{{count}} Aufgaben erstellt",
-        "tasksClosed_one": "{{count}} geschlossen",
-        "tasksClosed_other": "{{count}} geschlossen",
-        "requestUpdates_one": "{{count}} Anfrageaktualisierung",
-        "requestUpdates_other": "{{count}} Anfrageaktualisierungen"
-      },
       "sections": {
-        "projectUpdates": "Projektaktualisierungen",
-        "taskActivity": "Aufgabenaktivität",
-        "requestUpdates": "Anfrageaktualisierungen"
+        "requests": "Anfragen",
+        "projects": "Projekte",
+        "tasks": "Aufgaben"
+      },
+      "lists": {
+        "created": "Erstellt",
+        "modified": "Geändert",
+        "closed": "Geschlossen"
+      },
+      "summary": {
+        "created_one": "{{count}} erstellt",
+        "created_other": "{{count}} erstellt",
+        "modified_one": "{{count}} geändert",
+        "modified_other": "{{count}} geändert",
+        "closed_one": "{{count}} geschlossen",
+        "closed_other": "{{count}} geschlossen"
+      },
+      "empty": {
+        "requests": {
+          "created": "In diesem Zeitraum wurde keine Anfrage erstellt.",
+          "modified": "In diesem Zeitraum wurde keine Anfrage geändert.",
+          "closed": "In diesem Zeitraum wurde keine Anfrage geschlossen."
+        },
+        "projects": {
+          "created": "In diesem Zeitraum wurde kein Projekt erstellt.",
+          "modified": "In diesem Zeitraum wurde kein Projekt geändert.",
+          "closed": "In diesem Zeitraum wurde kein Projekt geschlossen."
+        },
+        "tasks": {
+          "created": "In diesem Zeitraum wurde keine Aufgabe erstellt.",
+          "modified": "In diesem Zeitraum wurde keine Aufgabe geändert.",
+          "closed": "In diesem Zeitraum wurde keine Aufgabe geschlossen."
+        }
+      },
+      "origin": {
+        "direct": "Direkt erstellt"
       },
       "columns": {
+        "reference": "Referenz",
+        "requestName": "Anfragenname",
         "projectName": "Projektname",
         "taskName": "Aufgabenname",
-        "requestName": "Anfragenname",
         "taskType": "Aufgabentyp",
+        "origin": "Herkunft",
         "priority": "Priorität",
         "source": "Quelle",
         "category": "Kategorie",
         "stream": "Stream",
         "progress": "Aufwand",
         "status": "Status",
-        "created": "Erstellt"
+        "changes": "Änderungen",
+        "date": {
+          "created": "Erstellt",
+          "modified": "Letzte Änderung",
+          "closed": "Geschlossen"
+        }
       }
     }
   },
@@ -1530,7 +1562,10 @@
         "targetDeliveryDate": "Ziellieferdatum",
         "taskCreated": "Aufgabe erstellt",
         "itTeam": "IT-Team",
-        "businessEffortAllocationMode": "Zuordnungsmodus Fachbereichs-Aufwand"
+        "businessEffortAllocationMode": "Zuordnungsmodus Fachbereichs-Aufwand",
+        "actualStart": "Tatsächlicher Beginn",
+        "actualEnd": "Tatsächliches Ende",
+        "convertedDate": "Umgewandelt am"
       },
       "values": {
         "allDimensionsNotAssessed": "Alle Dimensionen nicht bewertet",

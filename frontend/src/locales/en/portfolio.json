@@ -773,7 +773,9 @@
           "stream": "Stream",
           "taskType": "Task type",
           "timeLogged": "Time logged",
-          "title": "Title"
+          "title": "Title",
+          "owners": "Owners",
+          "viewers": "Viewers"
         },
         "values": {
           "empty": "(empty)",
@@ -1094,7 +1096,7 @@
       },
       "weekly": {
         "title": "Weekly report",
-        "description": "Weekly summary of project updates, task activity, and request changes."
+        "description": "Requests, projects and tasks created, modified and closed over a period."
       }
     },
     "itemTypes": {
@@ -1222,7 +1224,7 @@
     },
     "weekly": {
       "title": "Weekly report",
-      "subtitle": "Weekly stakeholder summary across project updates, task activity, and request updates.",
+      "subtitle": "Requests, projects and tasks over the period: what was created, modified and closed.",
       "filters": {
         "startDate": "Start date",
         "endDate": "End date",
@@ -1246,33 +1248,63 @@
         "loadFailed": "Failed to load report data.",
         "exportFailed": "Export failed"
       },
-      "summary": {
-        "projectUpdates_one": "{{count}} project update",
-        "projectUpdates_other": "{{count}} project updates",
-        "tasksCreated_one": "{{count}} task created",
-        "tasksCreated_other": "{{count}} tasks created",
-        "tasksClosed_one": "{{count}} closed",
-        "tasksClosed_other": "{{count}} closed",
-        "requestUpdates_one": "{{count}} request update",
-        "requestUpdates_other": "{{count}} request updates"
-      },
       "sections": {
-        "projectUpdates": "Project updates",
-        "taskActivity": "Task activity",
-        "requestUpdates": "Request updates"
+        "requests": "Requests",
+        "projects": "Projects",
+        "tasks": "Tasks"
+      },
+      "lists": {
+        "created": "Created",
+        "modified": "Modified",
+        "closed": "Closed"
+      },
+      "summary": {
+        "created_one": "{{count}} created",
+        "created_other": "{{count}} created",
+        "modified_one": "{{count}} modified",
+        "modified_other": "{{count}} modified",
+        "closed_one": "{{count}} closed",
+        "closed_other": "{{count}} closed"
+      },
+      "empty": {
+        "requests": {
+          "created": "No request created in this period.",
+          "modified": "No request modified in this period.",
+          "closed": "No request closed in this period."
+        },
+        "projects": {
+          "created": "No project created in this period.",
+          "modified": "No project modified in this period.",
+          "closed": "No project closed in this period."
+        },
+        "tasks": {
+          "created": "No task created in this period.",
+          "modified": "No task modified in this period.",
+          "closed": "No task closed in this period."
+        }
+      },
+      "origin": {
+        "direct": "Created directly"
       },
       "columns": {
+        "reference": "Reference",
+        "requestName": "Request name",
         "projectName": "Project name",
         "taskName": "Task name",
-        "requestName": "Request name",
         "taskType": "Task type",
+        "origin": "Origin",
         "priority": "Priority",
         "source": "Source",
         "category": "Category",
         "stream": "Stream",
         "progress": "Effort",
         "status": "Status",
-        "created": "Created"
+        "changes": "Changes",
+        "date": {
+          "created": "Created",
+          "modified": "Last change",
+          "closed": "Closed"
+        }
       }
     }
   },
@@ -1530,7 +1562,10 @@
         "targetDeliveryDate": "Target delivery date",
         "taskCreated": "Task created",
         "itTeam": "IT team",
-        "businessEffortAllocationMode": "Business effort allocation mode"
+        "businessEffortAllocationMode": "Business effort allocation mode",
+        "actualStart": "Actual start",
+        "actualEnd": "Actual end",
+        "convertedDate": "Converted on"
       },
       "values": {
         "allDimensionsNotAssessed": "All dimensions not assessed",

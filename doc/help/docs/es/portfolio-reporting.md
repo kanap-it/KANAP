@@ -186,46 +186,76 @@ Haga clic en una fila de colaborador para abrir un desglose por proyecto:
 
 ## Informe semanal
 
-Use este informe para producir un resumen semanal para interesados que cubre actualizaciones de proyectos, actividad de tareas y cambios de solicitudes durante un período seleccionado.
+Utilice este informe para ver qué ha ocurrido con las solicitudes, los proyectos y las tareas durante un periodo. El informe sigue el embudo del portafolio: primero las solicitudes, después los proyectos y después las tareas.
 
 ### Qué muestra
 
-El informe se divide en tres tablas:
+Cada una de las tres secciones contiene las mismas tres listas.
 
-- **Actualizaciones de proyectos** — proyectos creados durante el período, o cuyo estado cambió en ese período.
-- **Actividad de tareas** — tareas creadas durante el período, o cerradas (terminadas o canceladas) en ese período.
-- **Actualizaciones de solicitudes** — solicitudes creadas durante el período, o cuyo estado cambió en ese período.
+- **Creaciones** — elementos creados durante el periodo.
+- **Modificaciones** — elementos modificados durante el periodo sin haber sido creados ni cerrados en él.
+- **Cierres** — elementos que pasaron a un estado de cierre durante el periodo.
 
-Cada tabla tiene una columna **Creado**. Lleva el día de creación cuando el elemento se creó dentro del período, y queda vacía para los elementos que solo cambiaron de estado.
+Un elemento creado y cerrado dentro del mismo periodo aparece en ambas listas. Nunca aparece en Modificaciones: Modificaciones es lo que queda una vez contabilizadas las creaciones y los cierres.
 
-Una línea de resumen sobre las tablas muestra los recuentos: actualizaciones de proyectos, tareas creadas, tareas cerradas y actualizaciones de solicitudes.
+El cierre se apoya en estados distintos según el tipo:
+
+- **Solicitudes**: convertida o rechazada. Una solicitud no tiene estado cancelado.
+- **Proyectos**: terminado o cancelado.
+- **Tareas**: terminada o cancelada.
+
+Cada lista indica su recuento en el título. Una lista vacía ocupa una sola línea, de modo que un informe con poca actividad se mantiene corto.
+
+### Qué tareas cuentan
+
+La sección Tareas cubre solo las tareas del portafolio: las tareas independientes y las tareas asociadas a un proyecto. Las tareas asociadas a un contrato, a una partida de gasto, a una línea CAPEX o a un incidente quedan fuera. Es más restrictivo que en versiones anteriores del informe, que contaban todas las tareas.
+
+### De dónde viene un proyecto
+
+La lista de proyectos creados incluye una columna **Procedencia**.
+
+- Un proyecto convertido a partir de una solicitud muestra esa solicitud, por ejemplo `REQ-12 Cave climate digital twin`. Haga clic para abrir la solicitud.
+- Un proyecto creado directamente en la lista de proyectos muestra **Creado directamente**.
+
+### Qué ha cambiado
+
+Las listas de Modificaciones incluyen una columna **Cambios**. Lee la pista de auditoría del periodo y muestra:
+
+- el cambio de estado, cuando el estado ha cambiado, como `En curso -> En pruebas`;
+- después los campos modificados, en lenguaje claro, separados por comas.
+
+La redacción coincide con el historial del propio elemento. Los campos que se reescriben en cada guardado, como la marca de tiempo técnica de actualización, quedan excluidos.
 
 ### Filtros
 
-- **Fecha de inicio** y **Fecha de fin** (predeterminado: últimos 7 días)
+- **Fecha de inicio** y **Fecha de fin** (por defecto, los últimos 7 días)
 - **Origen** (selección múltiple)
 - **Categoría** (selección múltiple)
-- **Flujo** (selección múltiple; limitado a categorías seleccionadas)
-- **Tipos de tarea** (selección múltiple; se aplica a la tabla Actividad de tareas)
+- **Línea** (selección múltiple; limitada a las categorías seleccionadas)
+- **Tipos de tarea** (selección múltiple; se aplica a la sección Tareas)
+
+Los filtros se aplican a las nueve listas.
 
 ### Columnas de la tabla
 
-**Actualizaciones de proyectos**: Nombre del proyecto (cliclable), Prioridad, Origen, Categoría, Flujo, Progreso, Estado, Creado
+Cada lista empieza por la referencia de negocio (`REQ-12`, `PRJ-3`, `T-4`) y el nombre. Al hacer clic en el nombre se abre el elemento.
 
-**Actividad de tareas**: Nombre de la tarea (cliclable), Tipo de tarea, Prioridad, Origen, Categoría, Flujo, Estado, Creado
+**Solicitudes**: Referencia, Nombre de la solicitud, Origen, Categoría, Línea, Estado, fecha del evento.
 
-**Actualizaciones de solicitudes**: Nombre de la solicitud (cliclable), Origen, Categoría, Flujo, Estado, Creado
+**Proyectos**: Referencia, Nombre del proyecto, Procedencia (lista de creaciones), Prioridad, Origen, Categoría, Línea, Esfuerzo, Estado, fecha del evento.
 
-Las exportaciones CSV y XLSX incluyen las mismas columnas, más una columna **Última modificación** después de **Creado**.
+**Tareas**: Referencia, Nombre de la tarea, Tipo de tarea, Prioridad, Origen, Categoría, Línea, Estado, fecha del evento.
 
-El orden predeterminado es por **Prioridad** (mayor primero). Al hacer clic en un nombre se abre el elemento.
+La columna de fecha lleva el día de creación en las listas de creaciones, el día del último cambio en las listas de modificaciones y el día de cierre en las listas de cierres. Los días se leen en su propia zona horaria.
+
+Las listas de modificaciones añaden la columna **Cambios** al final.
 
 ### Exportaciones
 
-- Exportación **CSV**
-- Exportación **XLSX**
+- **CSV** — nueve bloques en el orden de la página, cada uno con su propio título y su fila de encabezado.
+- **XLSX** — tres hojas: Requests, Projects y Tasks. Las filas van de las creaciones a las modificaciones y después a los cierres, con una columna **Event** inicial que indica de qué lista procede cada fila. La celda del nombre enlaza con el elemento.
 
----
+Ambas exportaciones llevan la referencia, la procedencia de un proyecto, los cambios de una fila modificada y la fecha del evento.
 
 ## Consejos
 - **Mantenga los perfiles de colaboradores actualizados**: La capacidad se basa en la disponibilidad de colaboradores y estadísticas históricas de tiempo.

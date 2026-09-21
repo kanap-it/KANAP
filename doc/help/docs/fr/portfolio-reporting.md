@@ -186,46 +186,76 @@ Cliquez sur une ligne de contributeur pour ouvrir un détail par projet :
 
 ## Rapport hebdomadaire
 
-Utilisez ce rapport pour produire un résumé hebdomadaire à destination des parties prenantes couvrant les mises à jour de projets, l'activité des tâches et les changements de demandes sur une période sélectionnée.
+Utilisez ce rapport pour voir ce qui est arrivé aux demandes, aux projets et aux tâches sur une période. Le rapport suit l'entonnoir du portefeuille : les demandes d'abord, puis les projets, puis les tâches.
 
 ### Ce qu'il affiche
 
-Le rapport est divisé en trois tableaux :
+Chacune des trois sections contient les trois mêmes listes.
 
-- **Mises à jour des projets** — projets créés pendant la période, ou dont le statut a changé pendant cette période.
-- **Activité des tâches** — tâches créées pendant la période, ou clôturées (terminées ou annulées) pendant cette période.
-- **Mises à jour des demandes** — demandes créées pendant la période, ou dont le statut a changé pendant cette période.
+- **Créations** — les éléments créés pendant la période.
+- **Modifications** — les éléments modifiés pendant la période sans y avoir été créés ni clôturés.
+- **Clôtures** — les éléments passés à un statut de clôture pendant la période.
 
-Chaque tableau comporte une colonne **Créé le**. Elle porte le jour de création lorsque l'élément a été créé dans la période, et reste vide pour les éléments qui ont seulement changé de statut.
+Un élément créé et clôturé dans la même période apparaît dans les deux listes. Il n'apparaît jamais sous Modifications : Modifications correspond à ce qui reste une fois les créations et les clôtures prises en compte.
 
-Une ligne récapitulative au-dessus des tableaux affiche les nombres : mises à jour de projets, tâches créées, tâches clôturées et mises à jour de demandes.
+La clôture repose sur des statuts différents selon le type :
+
+- **Demandes** : convertie ou rejetée. Une demande n'a pas de statut annulé.
+- **Projets** : terminé ou annulé.
+- **Tâches** : terminée ou annulée.
+
+Chaque liste indique son nombre dans son titre. Une liste vide tient sur une seule ligne, ce qui garde le rapport court quand l'activité est faible.
+
+### Quelles tâches sont comptées
+
+La section Tâches ne couvre que les tâches du portefeuille : les tâches autonomes et les tâches rattachées à un projet. Les tâches rattachées à un contrat, à une ligne de dépense, à une ligne CAPEX ou à un incident sont exclues. C'est plus restreint que dans les versions précédentes du rapport, qui comptaient toutes les tâches.
+
+### D'où vient un projet
+
+La liste des projets créés comporte une colonne **Origine**.
+
+- Un projet issu de la conversion d'une demande affiche cette demande, par exemple `REQ-12 Cave climate digital twin`. Cliquez dessus pour ouvrir la demande.
+- Un projet créé directement dans la liste des projets affiche **Créé directement**.
+
+### Ce qui a changé
+
+Les listes Modifications comportent une colonne **Modifications**. Elle lit la piste d'audit de la période et affiche :
+
+- le changement de statut, lorsque le statut a changé, sous la forme `En cours -> En test` ;
+- puis les champs modifiés, en langage clair, séparés par des virgules.
+
+La formulation reprend celle du fil d'historique de l'élément. Les champs réécrits à chaque enregistrement, comme l'horodatage technique de mise à jour, sont exclus.
 
 ### Filtres
 
-- **Date de début** et **Date de fin** (par défaut les 7 derniers jours)
-- **Source** (multi-sélection)
-- **Catégorie** (multi-sélection)
-- **Flux** (multi-sélection ; limité aux catégories sélectionnées)
-- **Types de tâches** (multi-sélection ; s'applique au tableau Activité des tâches)
+- **Date de début** et **Date de fin** (7 derniers jours par défaut)
+- **Source** (sélection multiple)
+- **Catégorie** (sélection multiple)
+- **Filière** (sélection multiple ; limitée aux catégories sélectionnées)
+- **Types de tâche** (sélection multiple ; s'applique à la section Tâches)
 
-### Colonnes des tableaux
+Les filtres s'appliquent aux neuf listes.
 
-**Mises à jour des projets** : Nom du projet (cliquable), Priorité, Source, Catégorie, Flux, Avancement, Statut, Créé le
+### Colonnes du tableau
 
-**Activité des tâches** : Nom de la tâche (cliquable), Type de tâche, Priorité, Source, Catégorie, Flux, Statut, Créé le
+Chaque liste commence par la référence métier (`REQ-12`, `PRJ-3`, `T-4`) et le nom. Un clic sur le nom ouvre l'élément.
 
-**Mises à jour des demandes** : Nom de la demande (cliquable), Source, Catégorie, Flux, Statut, Créé le
+**Demandes** : Référence, Nom de la demande, Source, Catégorie, Filière, Statut, date de l'événement.
 
-Les exports CSV et XLSX reprennent les mêmes colonnes, plus une colonne **Dernière modification** après **Créé le**.
+**Projets** : Référence, Nom du projet, Origine (liste des créations), Priorité, Source, Catégorie, Filière, Charge, Statut, date de l'événement.
 
-Tri par défaut par **Priorité** (la plus haute en premier). Cliquer sur un nom ouvre l'élément.
+**Tâches** : Référence, Nom de la tâche, Type de tâche, Priorité, Source, Catégorie, Filière, Statut, date de l'événement.
+
+La colonne de date porte le jour de création sur les listes de créations, le jour de la dernière modification sur les listes de modifications et le jour de clôture sur les listes de clôtures. Les jours sont lus dans votre propre fuseau horaire.
+
+Les listes de modifications ajoutent la colonne **Modifications** à la fin.
 
 ### Exports
 
-- Export **CSV**
-- Export **XLSX**
+- **CSV** — neuf blocs dans l'ordre de la page, chacun avec son propre titre et sa ligne d'en-tête.
+- **XLSX** — trois feuilles : Requests, Projects et Tasks. Les lignes vont des créations aux modifications puis aux clôtures, avec une colonne **Event** en tête qui indique de quelle liste vient la ligne. La cellule du nom renvoie vers l'élément.
 
----
+Les deux exports portent la référence, l'origine d'un projet, les modifications d'une ligne modifiée et la date de l'événement.
 
 ## Conseils
 - **Gardez les profils de contributeurs à jour** : La capacité est basée sur la disponibilité des contributeurs et les statistiques de temps historiques.
