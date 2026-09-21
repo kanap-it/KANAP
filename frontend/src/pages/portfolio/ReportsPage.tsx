@@ -29,7 +29,10 @@ const reportCardSx: SxProps<Theme> = {
 function ReportCard({ title, description, onClick }: { title: string; description: string; onClick: () => void }) {
   return (
     <Card variant="outlined" sx={reportCardSx}>
-      <CardActionArea onClick={onClick} sx={{ height: '100%', alignItems: 'flex-start' }}>
+      <CardActionArea
+        onClick={onClick}
+        sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start' }}
+      >
         <CardContent sx={{ p: 2 }}>
           <Typography sx={{ fontSize: 14, fontWeight: 500, color: 'kanap.text.primary' }}>{title}</Typography>
           <Typography sx={{ mt: 0.5, fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
