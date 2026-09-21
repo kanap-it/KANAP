@@ -1,17 +1,26 @@
 import { Box, Card, CardActionArea, CardContent, Grid, Typography } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import { useTranslation } from 'react-i18next';
+import api from '../../api';
+import ClassificationGapsStrip, { ClassificationGaps } from './components/ClassificationGapsStrip';
 
 export default function ReportsPage() {
   const navigate = useNavigate();
   const { t } = useTranslation('portfolio');
+  const { data: gaps } = useQuery({
+    queryKey: ['portfolio-classification-gaps'],
+    queryFn: async () => (await api.get<ClassificationGaps>('/portfolio/reports/classification-gaps')).data,
+    staleTime: 2 * 60 * 1000,
+  });
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <PageHeader title={t('reports.title')} />
       <Typography variant="body1" sx={{ color: 'text.secondary' }}>
         {t('reports.subtitle')}
       </Typography>
+      <ClassificationGapsStrip data={gaps} />
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={4} lg={3}>
           <Card variant="outlined">

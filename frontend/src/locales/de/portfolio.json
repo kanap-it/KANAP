@@ -1034,6 +1034,19 @@
   "reports": {
     "title": "Portfolio-Reporting",
     "subtitle": "Entdecken Sie Portfolio-Berichte zu Kapazität, Aufwand und Statustrends.",
+    "toClassify": {
+      "title": "Zu klassifizieren",
+      "entities": {
+        "tasks": "Aufgaben",
+        "requests": "Anfragen",
+        "projects": "Projekte"
+      },
+      "source": "{{n}} ohne Quelle",
+      "category": "{{n}} ohne Kategorie",
+      "stream": "{{n}} ohne Stream",
+      "taskType": "{{n}} ohne Typ",
+      "allClassified": "Alles Offene ist klassifiziert"
+    },
     "cards": {
       "statusChange": {
         "title": "Statusänderungsbericht",

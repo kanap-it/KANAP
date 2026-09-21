@@ -1034,6 +1034,19 @@
   "reports": {
     "title": "Reportes del portafolio",
     "subtitle": "Explore los reportes del portafolio centrados en la capacidad, el esfuerzo y las tendencias de estado.",
+    "toClassify": {
+      "title": "Por clasificar",
+      "entities": {
+        "tasks": "Tareas",
+        "requests": "Solicitudes",
+        "projects": "Proyectos"
+      },
+      "source": "{{n}} sin origen",
+      "category": "{{n}} sin categoría",
+      "stream": "{{n}} sin línea",
+      "taskType": "{{n}} sin tipo",
+      "allClassified": "Todo lo abierto está clasificado"
+    },
     "cards": {
       "statusChange": {
         "title": "Reporte de cambios de estado",

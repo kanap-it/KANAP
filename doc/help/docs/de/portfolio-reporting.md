@@ -24,6 +24,37 @@ Derzeit verfügbar:
 
 ---
 
+## Zu klassifizieren
+
+Über den Berichtskarten zeigt ein kompakter Streifen, wie viel Ihrer offenen Arbeit noch keinen Klassifizierungswert hat. Nutzen Sie ihn als tägliche Steuerungshilfe: Lücke sehen, anklicken, schließen.
+
+### Was gezählt wird
+
+Eine Zeile je Entität, nur für offene Elemente:
+- **Aufgaben**: Status außer Erledigt und Abgebrochen.
+- **Anfragen**: Status außer Abgelehnt und Umgewandelt.
+- **Projekte**: Status außer Erledigt und Abgebrochen.
+
+Jede Zeile nennt, wie viele dieser Elemente keine Quelle, keine Kategorie und keinen Stream haben. Bei Aufgaben kommt hinzu, wie viele keinen Aufgabentyp haben.
+
+### Welche Aufgaben ausgeschlossen sind
+
+Gezählt werden nur eigenständige Aufgaben und Projektaufgaben. Aufgaben an einem Vertrag, einer Ausgabenposition, einer CAPEX-Position oder einem Vorfall tragen nie eine Klassifizierung. Sie zu zählen würde eine Lücke melden, die niemand schließen kann.
+
+Eine Projektaufgabe ohne eigene Klassifizierung erbt die ihres Projekts, und die Aufgabenliste zeigt diesen geerbten Wert. Die Zähler folgen derselben Regel. Eine Zahl führt Sie daher nie zu einer Liste, in der die Spalte bereits gefüllt ist.
+
+### Streams
+
+Ein fehlender Stream wird nur gezählt, wenn das Element bereits eine Kategorie hat und diese Kategorie mindestens einen aktiven Stream anbietet. Viele Kategorien bieten gar keinen Stream. Ein Element ganz ohne Kategorie ist bereits unter Kategorie gezählt.
+
+### Die Liste öffnen
+
+Jede Zahl über null ist ein Link. Ein Klick öffnet die passende Liste, bereits auf genau die Elemente hinter der Zahl gefiltert, über den gesamten Mandanten. Die Gesamtzahl der Liste entspricht der angeklickten Zahl. Nullen werden zur Einordnung angezeigt, sind aber nicht anklickbar.
+
+Fehlt nichts, zeigt der Streifen eine einzige Zeile, die bestätigt, dass alles Offene klassifiziert ist.
+
+---
+
 ## Statusänderungsbericht
 
 Verwenden Sie diesen Bericht, um Elemente zu verfolgen, die in einem ausgewählten Zeitraum erstellt wurden oder deren Status sich in diesem Zeitraum geändert hat.

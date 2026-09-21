@@ -1034,6 +1034,19 @@
   "reports": {
     "title": "Reporting du portefeuille",
     "subtitle": "Explorez les rapports du portefeuille axés sur la capacité, la charge de travail et les tendances de statut.",
+    "toClassify": {
+      "title": "À classer",
+      "entities": {
+        "tasks": "Tâches",
+        "requests": "Demandes",
+        "projects": "Projets"
+      },
+      "source": "{{n}} sans source",
+      "category": "{{n}} sans catégorie",
+      "stream": "{{n}} sans filière",
+      "taskType": "{{n}} sans type",
+      "allClassified": "Tout ce qui est ouvert est classé"
+    },
     "cards": {
       "statusChange": {
         "title": "Rapport de changement de statut",

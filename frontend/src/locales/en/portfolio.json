@@ -1034,6 +1034,19 @@
   "reports": {
     "title": "Portfolio reporting",
     "subtitle": "Explore portfolio reports focused on capacity, workload, and portfolio status trends.",
+    "toClassify": {
+      "title": "To classify",
+      "entities": {
+        "tasks": "Tasks",
+        "requests": "Requests",
+        "projects": "Projects"
+      },
+      "source": "{{n}} without source",
+      "category": "{{n}} without category",
+      "stream": "{{n}} without stream",
+      "taskType": "{{n}} without type",
+      "allClassified": "Everything open is classified"
+    },
     "cards": {
       "statusChange": {
         "title": "Status change report",
