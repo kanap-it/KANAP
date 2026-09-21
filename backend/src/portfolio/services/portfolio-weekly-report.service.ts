@@ -29,6 +29,8 @@ export type WeeklyProjectRow = {
   streamName: string | null;
   progress: number | null;
   status: string;
+  /** Day the item was created, when that creation falls inside the period. */
+  createdAt: string | null;
   lastChangedAt: string | null;
 };
 
@@ -46,6 +48,8 @@ export type WeeklyTaskRow = {
   streamId: string | null;
   streamName: string | null;
   status: string;
+  /** Day the item was created, when that creation falls inside the period. */
+  createdAt: string | null;
   lastChangedAt: string | null;
 };
 
@@ -60,6 +64,8 @@ export type WeeklyRequestRow = {
   streamId: string | null;
   streamName: string | null;
   status: string;
+  /** Day the item was created, when that creation falls inside the period. */
+  createdAt: string | null;
   lastChangedAt: string | null;
 };
 
@@ -89,6 +95,7 @@ type RawProjectRow = {
   stream_name: string | null;
   progress: number | string | null;
   status: string | null;
+  created_at: string | Date | null;
   last_changed_at: string | Date | null;
 };
 
@@ -105,6 +112,7 @@ type RawTaskRow = {
   stream_id: string | null;
   stream_name: string | null;
   status: string | null;
+  created_at: string | Date | null;
   last_changed_at: string | Date | null;
 };
 
@@ -118,6 +126,7 @@ type RawRequestRow = {
   stream_id: string | null;
   stream_name: string | null;
   status: string | null;
+  created_at: string | Date | null;
   last_changed_at: string | Date | null;
 };
 
@@ -275,7 +284,7 @@ export class PortfolioWeeklyReportService {
     };
 
     addRow(['Project Updates']);
-    addRow(['Project Name', 'Priority', 'Source', 'Category', 'Stream', 'Effort', 'Status', 'Last Changed']);
+    addRow(['Project Name', 'Priority', 'Source', 'Category', 'Stream', 'Effort', 'Status', 'Created', 'Last Changed']);
     projects.forEach((row) => {
       addRow([
         row.name,
@@ -285,14 +294,15 @@ export class PortfolioWeeklyReportService {
         row.streamName ?? '',
         row.progress == null ? '' : `${Math.round(row.progress)}%`,
         row.status,
+        row.createdAt ?? '',
         row.lastChangedAt ?? '',
       ]);
     });
 
     lines.push('');
 
-    addRow(['Closed Tasks']);
-    addRow(['Task Name', 'Task Type', 'Priority', 'Source', 'Category', 'Stream', 'Status', 'Last Changed']);
+    addRow(['Task Activity']);
+    addRow(['Task Name', 'Task Type', 'Priority', 'Source', 'Category', 'Stream', 'Status', 'Created', 'Last Changed']);
     tasks.forEach((row) => {
       addRow([
         row.name,
@@ -302,6 +312,7 @@ export class PortfolioWeeklyReportService {
         row.categoryName ?? '',
         row.streamName ?? '',
         row.status,
+        row.createdAt ?? '',
         row.lastChangedAt ?? '',
       ]);
     });
@@ -309,7 +320,7 @@ export class PortfolioWeeklyReportService {
     lines.push('');
 
     addRow(['Request Updates']);
-    addRow(['Request Name', 'Source', 'Category', 'Stream', 'Status', 'Last Changed']);
+    addRow(['Request Name', 'Source', 'Category', 'Stream', 'Status', 'Created', 'Last Changed']);
     requests.forEach((row) => {
       addRow([
         row.name,
@@ -317,6 +328,7 @@ export class PortfolioWeeklyReportService {
         row.categoryName ?? '',
         row.streamName ?? '',
         row.status,
+        row.createdAt ?? '',
         row.lastChangedAt ?? '',
       ]);
     });
@@ -338,7 +350,7 @@ export class PortfolioWeeklyReportService {
       [
         {
           name: 'Projects',
-          headers: ['Project Name', 'Priority', 'Source', 'Category', 'Stream', 'Effort', 'Status', 'Last Changed'],
+          headers: ['Project Name', 'Priority', 'Source', 'Category', 'Stream', 'Effort', 'Status', 'Created', 'Last Changed'],
           rows: projects.map((row) => ({
             cells: [
               row.name,
@@ -348,6 +360,7 @@ export class PortfolioWeeklyReportService {
               row.streamName,
               row.progress == null ? null : `${Math.round(row.progress)}%`,
               row.status,
+              row.createdAt,
               row.lastChangedAt,
             ],
             linkPath: row.itemPath,
@@ -355,7 +368,7 @@ export class PortfolioWeeklyReportService {
         },
         {
           name: 'Tasks',
-          headers: ['Task Name', 'Task Type', 'Priority', 'Source', 'Category', 'Stream', 'Status', 'Last Changed'],
+          headers: ['Task Name', 'Task Type', 'Priority', 'Source', 'Category', 'Stream', 'Status', 'Created', 'Last Changed'],
           rows: tasks.map((row) => ({
             cells: [
               row.name,
@@ -365,6 +378,7 @@ export class PortfolioWeeklyReportService {
               row.categoryName,
               row.streamName,
               row.status,
+              row.createdAt,
               row.lastChangedAt,
             ],
             linkPath: row.itemPath,
@@ -372,9 +386,9 @@ export class PortfolioWeeklyReportService {
         },
         {
           name: 'Requests',
-          headers: ['Request Name', 'Source', 'Category', 'Stream', 'Status', 'Last Changed'],
+          headers: ['Request Name', 'Source', 'Category', 'Stream', 'Status', 'Created', 'Last Changed'],
           rows: requests.map((row) => ({
-            cells: [row.name, row.sourceName, row.categoryName, row.streamName, row.status, row.lastChangedAt],
+            cells: [row.name, row.sourceName, row.categoryName, row.streamName, row.status, row.createdAt, row.lastChangedAt],
             linkPath: row.itemPath,
           })),
         },
@@ -446,8 +460,23 @@ export class PortfolioWeeklyReportService {
             OR al.action = 'create'
           )
       ),
+      created_events AS (
+        SELECT al.record_id AS project_id, MIN(al.created_at) AS created_at
+        FROM audit_log al
+        WHERE al.tenant_id = $1
+          AND al.table_name = 'portfolio_projects'
+          AND al.action = 'create'
+          AND al.record_id IS NOT NULL
+          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
+          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
+        GROUP BY al.record_id
+      ),
       latest_events AS (
-        SELECT e.project_id, e.status, (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at
+        SELECT
+          e.project_id,
+          e.status,
+          (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at,
+          (ce.created_at AT TIME ZONE $4)::date::text AS created_at
         FROM (
           SELECT
             pe.*,
@@ -457,6 +486,7 @@ export class PortfolioWeeklyReportService {
             ) AS rn
           FROM project_events pe
         ) e
+        LEFT JOIN created_events ce ON ce.project_id = e.project_id
         WHERE e.rn = 1
       )
       SELECT
@@ -471,6 +501,7 @@ export class PortfolioWeeklyReportService {
         pst.name AS stream_name,
         p.execution_progress::numeric AS progress,
         COALESCE(le.status, p.status) AS status,
+        le.created_at,
         le.last_changed_at
       FROM latest_events le
       JOIN portfolio_projects p ON p.id = le.project_id AND p.tenant_id = $1
@@ -496,6 +527,7 @@ export class PortfolioWeeklyReportService {
       streamName: row.stream_name ?? null,
       progress: toNumber(row.progress),
       status: row.status ?? '',
+      createdAt: toIsoDate(row.created_at),
       lastChangedAt: toIsoDate(row.last_changed_at),
     }));
   }
@@ -550,17 +582,37 @@ export class PortfolioWeeklyReportService {
         FROM audit_log al
         WHERE al.tenant_id = $1
           AND al.table_name = 'tasks'
-          AND al.action = 'update'
           AND al.record_id IS NOT NULL
-          AND al.after_json->>'status' IN ('done', 'cancelled')
-          AND al.before_json->>'status' IS NOT NULL
-          AND al.after_json->>'status' IS NOT NULL
-          AND al.before_json->>'status' IS DISTINCT FROM al.after_json->>'status'
           AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
           AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
+          AND (
+            (
+              al.action = 'update'
+              AND al.after_json->>'status' IN ('done', 'cancelled')
+              AND al.before_json->>'status' IS NOT NULL
+              AND al.after_json->>'status' IS NOT NULL
+              AND al.before_json->>'status' IS DISTINCT FROM al.after_json->>'status'
+            )
+            OR (al.action = 'create' AND al.after_json->>'status' IS NOT NULL)
+          )
+      ),
+      created_events AS (
+        SELECT al.record_id AS task_id, MIN(al.created_at) AS created_at
+        FROM audit_log al
+        WHERE al.tenant_id = $1
+          AND al.table_name = 'tasks'
+          AND al.action = 'create'
+          AND al.record_id IS NOT NULL
+          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
+          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
+        GROUP BY al.record_id
       ),
       latest_events AS (
-        SELECT e.task_id, e.status, (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at
+        SELECT
+          e.task_id,
+          e.status,
+          (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at,
+          (ce.created_at AT TIME ZONE $4)::date::text AS created_at
         FROM (
           SELECT
             te.*,
@@ -570,6 +622,7 @@ export class PortfolioWeeklyReportService {
             ) AS rn
           FROM task_events te
         ) e
+        LEFT JOIN created_events ce ON ce.task_id = e.task_id
         WHERE e.rn = 1
       )
       SELECT
@@ -592,6 +645,7 @@ export class PortfolioWeeklyReportService {
         t.stream_id,
         pst.name AS stream_name,
         le.status,
+        le.created_at,
         le.last_changed_at
       FROM latest_events le
       JOIN tasks t ON t.id = le.task_id AND t.tenant_id = $1
@@ -619,6 +673,7 @@ export class PortfolioWeeklyReportService {
       streamId: row.stream_id ?? null,
       streamName: row.stream_name ?? null,
       status: row.status ?? '',
+      createdAt: toIsoDate(row.created_at),
       lastChangedAt: toIsoDate(row.last_changed_at),
     }));
   }
@@ -681,8 +736,23 @@ export class PortfolioWeeklyReportService {
             OR al.action = 'create'
           )
       ),
+      created_events AS (
+        SELECT al.record_id AS request_id, MIN(al.created_at) AS created_at
+        FROM audit_log al
+        WHERE al.tenant_id = $1
+          AND al.table_name = 'portfolio_requests'
+          AND al.action = 'create'
+          AND al.record_id IS NOT NULL
+          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
+          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
+        GROUP BY al.record_id
+      ),
       latest_events AS (
-        SELECT e.request_id, e.status, (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at
+        SELECT
+          e.request_id,
+          e.status,
+          (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at,
+          (ce.created_at AT TIME ZONE $4)::date::text AS created_at
         FROM (
           SELECT
             re.*,
@@ -692,6 +762,7 @@ export class PortfolioWeeklyReportService {
             ) AS rn
           FROM request_events re
         ) e
+        LEFT JOIN created_events ce ON ce.request_id = e.request_id
         WHERE e.rn = 1
       )
       SELECT
@@ -704,6 +775,7 @@ export class PortfolioWeeklyReportService {
         r.stream_id,
         pst.name AS stream_name,
         COALESCE(le.status, r.status) AS status,
+        le.created_at,
         le.last_changed_at
       FROM latest_events le
       JOIN portfolio_requests r ON r.id = le.request_id AND r.tenant_id = $1
@@ -727,6 +799,7 @@ export class PortfolioWeeklyReportService {
       streamId: row.stream_id ?? null,
       streamName: row.stream_name ?? null,
       status: row.status ?? '',
+      createdAt: toIsoDate(row.created_at),
       lastChangedAt: toIsoDate(row.last_changed_at),
     }));
   }

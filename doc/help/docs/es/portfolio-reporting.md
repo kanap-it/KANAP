@@ -26,13 +26,14 @@ Actualmente disponibles:
 
 ## Informe de cambios de estado
 
-Use este informe para rastrear elementos cuyo estado cambió durante un período seleccionado.
+Use este informe para rastrear elementos creados durante un período seleccionado, o cuyo estado cambió en ese período.
 
 ### Qué muestra
 - **Una fila por elemento** (tarea independiente, solicitud o proyecto).
-- **Solo el último cambio de estado en el período** para cada elemento.
-- **Estado final alcanzado en el período seleccionado** (si ocurrieron múltiples cambios en el rango).
-- **Última modificación** fecha del evento de cambio de estado retenido.
+- **Solo el último evento del período** para cada elemento, ya sea la creación o un cambio de estado.
+- **Estado que lleva ese evento**. En una creación, es el estado con el que se creó el elemento.
+- **Creado**, la fecha de creación cuando el elemento se creó dentro del período, y vacía en caso contrario.
+- **Última modificación** fecha del evento retenido.
 
 ### Filtros
 - **Fecha de inicio** y **Fecha de fin** (período obligatorio)
@@ -43,10 +44,11 @@ Use este informe para rastrear elementos cuyo estado cambió durante un período
 - **Flujo** (selección múltiple; disponible cuando al menos una categoría está seleccionada)
 
 ### Reglas de inclusión
-- El elemento se incluye solo si su estado cambió durante el período seleccionado.
+- El elemento se incluye si se creó durante el período seleccionado, o si su estado cambió en ese período.
+- Un elemento creado y luego movido a otro estado en el mismo período aparece una sola vez, con el estado de su último evento.
 - Para tareas, solo se incluyen **tareas independientes** (las tareas vinculadas a proyectos se excluyen).
-- El filtrado de estado se aplica al estado alcanzado después del cambio.
-- El periodo y la fecha **Última modificación** siguen la zona horaria de su navegador.
+- El filtrado de estado se aplica al estado que lleva el evento retenido.
+- El periodo, la fecha **Creado** y la fecha **Última modificación** siguen la zona horaria de su navegador.
 
 ### Columnas de la tabla
 - **Nombre** (cliclable; abre el elemento)
@@ -57,6 +59,7 @@ Use este informe para rastrear elementos cuyo estado cambió durante un período
 - **Categoría**
 - **Flujo**
 - **Empresa**
+- **Creado**
 - **Última modificación**
 
 El orden predeterminado es por **Prioridad** (mayor primero). Puede ordenar por cualquier columna.
@@ -118,17 +121,19 @@ Haga clic en una fila de colaborador para abrir un desglose por proyecto:
 
 ## Informe semanal
 
-Use este informe para producir un resumen semanal para interesados que cubre actualizaciones de proyectos, tareas cerradas y cambios de solicitudes durante un período seleccionado.
+Use este informe para producir un resumen semanal para interesados que cubre actualizaciones de proyectos, actividad de tareas y cambios de solicitudes durante un período seleccionado.
 
 ### Qué muestra
 
 El informe se divide en tres tablas:
 
-- **Actualizaciones de proyectos** — proyectos cuyo estado cambió durante el período.
-- **Tareas cerradas** — tareas independientes que se cerraron durante el período.
-- **Actualizaciones de solicitudes** — solicitudes cuyo estado cambió durante el período.
+- **Actualizaciones de proyectos** — proyectos creados durante el período, o cuyo estado cambió en ese período.
+- **Actividad de tareas** — tareas creadas durante el período, o cerradas (terminadas o canceladas) en ese período.
+- **Actualizaciones de solicitudes** — solicitudes creadas durante el período, o cuyo estado cambió en ese período.
 
-Una línea de resumen sobre las tablas muestra el recuento de cada sección.
+Cada tabla tiene una columna **Creado**. Lleva el día de creación cuando el elemento se creó dentro del período, y queda vacía para los elementos que solo cambiaron de estado.
+
+Una línea de resumen sobre las tablas muestra los recuentos: actualizaciones de proyectos, tareas creadas, tareas cerradas y actualizaciones de solicitudes.
 
 ### Filtros
 
@@ -136,15 +141,17 @@ Una línea de resumen sobre las tablas muestra el recuento de cada sección.
 - **Origen** (selección múltiple)
 - **Categoría** (selección múltiple)
 - **Flujo** (selección múltiple; limitado a categorías seleccionadas)
-- **Tipos de tarea** (selección múltiple; se aplica a la tabla de Tareas cerradas)
+- **Tipos de tarea** (selección múltiple; se aplica a la tabla Actividad de tareas)
 
 ### Columnas de la tabla
 
-**Actualizaciones de proyectos**: Nombre del proyecto (cliclable), Prioridad, Origen, Categoría, Flujo, Progreso, Estado
+**Actualizaciones de proyectos**: Nombre del proyecto (cliclable), Prioridad, Origen, Categoría, Flujo, Progreso, Estado, Creado
 
-**Tareas cerradas**: Nombre de la tarea (cliclable), Tipo de tarea, Prioridad, Origen, Categoría, Flujo, Estado
+**Actividad de tareas**: Nombre de la tarea (cliclable), Tipo de tarea, Prioridad, Origen, Categoría, Flujo, Estado, Creado
 
-**Actualizaciones de solicitudes**: Nombre de la solicitud (cliclable), Origen, Categoría, Flujo, Estado
+**Actualizaciones de solicitudes**: Nombre de la solicitud (cliclable), Origen, Categoría, Flujo, Estado, Creado
+
+Las exportaciones CSV y XLSX incluyen las mismas columnas, más una columna **Última modificación** después de **Creado**.
 
 El orden predeterminado es por **Prioridad** (mayor primero). Al hacer clic en un nombre se abre el elemento.
 

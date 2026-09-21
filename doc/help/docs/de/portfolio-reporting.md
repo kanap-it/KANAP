@@ -26,13 +26,14 @@ Derzeit verfügbar:
 
 ## Statusänderungsbericht
 
-Verwenden Sie diesen Bericht, um Elemente zu verfolgen, deren Status sich während eines ausgewählten Zeitraums geändert hat.
+Verwenden Sie diesen Bericht, um Elemente zu verfolgen, die in einem ausgewählten Zeitraum erstellt wurden oder deren Status sich in diesem Zeitraum geändert hat.
 
 ### Was er zeigt
 - **Eine Zeile pro Element** (eigenständige Aufgabe, Anfrage oder Projekt).
-- **Nur die letzte Statusänderung im Zeitraum** für jedes Element.
-- **Endgültiger Status, der im ausgewählten Zeitraum erreicht wurde** (wenn mehrere Änderungen im Zeitraum stattfanden).
-- **Zuletzt geändert**-Datum für das beibehaltene Statusänderungsereignis.
+- **Nur das letzte Ereignis im Zeitraum** für jedes Element, ob dieses Ereignis die Erstellung oder eine Statusänderung ist.
+- **Status, den dieses Ereignis trägt**. Bei einer Erstellung ist das der Status, mit dem das Element erstellt wurde.
+- **Erstellt**-Datum, ausgefüllt wenn das Element innerhalb des Zeitraums erstellt wurde, sonst leer.
+- **Zuletzt geändert**-Datum für das beibehaltene Ereignis.
 
 ### Filter
 - **Startdatum** und **Enddatum** (erforderlicher Zeitraum)
@@ -43,10 +44,11 @@ Verwenden Sie diesen Bericht, um Elemente zu verfolgen, deren Status sich währe
 - **Stream** (Mehrfachauswahl; verfügbar wenn mindestens eine Kategorie ausgewählt ist)
 
 ### Einschlussregeln
-- Das Element wird nur eingeschlossen, wenn sich sein Status während des ausgewählten Zeitraums geändert hat.
+- Das Element wird eingeschlossen, wenn es während des ausgewählten Zeitraums erstellt wurde oder sich sein Status in diesem Zeitraum geändert hat.
+- Ein Element, das im selben Zeitraum erstellt und danach in einen anderen Status versetzt wurde, erscheint einmal, mit dem Status seines letzten Ereignisses.
 - Bei Aufgaben werden nur **eigenständige Aufgaben** eingeschlossen (projektverknüpfte Aufgaben sind ausgeschlossen).
-- Die Statusfilterung gilt für den Status, der nach der Änderung erreicht wurde.
-- Der Zeitraum und das Datum **Zuletzt geändert** richten sich nach der Zeitzone Ihres Browsers.
+- Die Statusfilterung gilt für den Status, den das beibehaltene Ereignis trägt.
+- Der Zeitraum, das Datum **Erstellt** und das Datum **Zuletzt geändert** richten sich nach der Zeitzone Ihres Browsers.
 
 ### Tabellenspalten
 - **Name** (klickbar; öffnet das Element)
@@ -57,6 +59,7 @@ Verwenden Sie diesen Bericht, um Elemente zu verfolgen, deren Status sich währe
 - **Kategorie**
 - **Stream**
 - **Unternehmen**
+- **Erstellt**
 - **Zuletzt geändert**
 
 Standardsortierung ist nach **Priorität** (höchste zuerst). Sie können nach jeder Spalte sortieren.
@@ -118,17 +121,19 @@ Klicken Sie auf eine Mitwirkenden-Zeile, um eine Projektaufschlüsselung zu öff
 
 ## Wochenbericht
 
-Verwenden Sie diesen Bericht, um eine wöchentliche Stakeholder-Zusammenfassung mit Projektaktualisierungen, abgeschlossenen Aufgaben und Anfrageänderungen über einen ausgewählten Zeitraum zu erstellen.
+Verwenden Sie diesen Bericht, um eine wöchentliche Stakeholder-Zusammenfassung mit Projektaktualisierungen, Aufgabenaktivität und Anfrageänderungen über einen ausgewählten Zeitraum zu erstellen.
 
 ### Was er zeigt
 
 Der Bericht ist in drei Tabellen aufgeteilt:
 
-- **Projektaktualisierungen** -- Projekte, deren Status sich während des Zeitraums geändert hat.
-- **Abgeschlossene Aufgaben** -- Eigenständige Aufgaben, die während des Zeitraums abgeschlossen wurden.
-- **Anfrageaktualisierungen** -- Anfragen, deren Status sich während des Zeitraums geändert hat.
+- **Projektaktualisierungen** -- Projekte, die während des Zeitraums erstellt wurden oder deren Status sich in diesem Zeitraum geändert hat.
+- **Aufgabenaktivität** -- Aufgaben, die während des Zeitraums erstellt oder abgeschlossen (erledigt oder abgebrochen) wurden.
+- **Anfrageaktualisierungen** -- Anfragen, die während des Zeitraums erstellt wurden oder deren Status sich in diesem Zeitraum geändert hat.
 
-Eine Zusammenfassungszeile über den Tabellen zeigt die Anzahl für jeden Abschnitt.
+Jede Tabelle hat eine Spalte **Erstellt**. Sie trägt den Erstellungstag, wenn das Element innerhalb des Zeitraums erstellt wurde, und bleibt leer für Elemente, die nur ihren Status geändert haben.
+
+Eine Zusammenfassungszeile über den Tabellen zeigt die Anzahlen: Projektaktualisierungen, erstellte Aufgaben, abgeschlossene Aufgaben und Anfrageaktualisierungen.
 
 ### Filter
 
@@ -136,15 +141,17 @@ Eine Zusammenfassungszeile über den Tabellen zeigt die Anzahl für jeden Abschn
 - **Quelle** (Mehrfachauswahl)
 - **Kategorie** (Mehrfachauswahl)
 - **Stream** (Mehrfachauswahl; auf ausgewählte Kategorien beschränkt)
-- **Aufgabentypen** (Mehrfachauswahl; gilt für die Tabelle Abgeschlossene Aufgaben)
+- **Aufgabentypen** (Mehrfachauswahl; gilt für die Tabelle Aufgabenaktivität)
 
 ### Tabellenspalten
 
-**Projektaktualisierungen**: Projektname (klickbar), Priorität, Quelle, Kategorie, Stream, Fortschritt, Status
+**Projektaktualisierungen**: Projektname (klickbar), Priorität, Quelle, Kategorie, Stream, Fortschritt, Status, Erstellt
 
-**Abgeschlossene Aufgaben**: Aufgabenname (klickbar), Aufgabentyp, Priorität, Quelle, Kategorie, Stream, Status
+**Aufgabenaktivität**: Aufgabenname (klickbar), Aufgabentyp, Priorität, Quelle, Kategorie, Stream, Status, Erstellt
 
-**Anfrageaktualisierungen**: Anfragename (klickbar), Quelle, Kategorie, Stream, Status
+**Anfrageaktualisierungen**: Anfragename (klickbar), Quelle, Kategorie, Stream, Status, Erstellt
+
+Die CSV- und XLSX-Exporte enthalten dieselben Spalten sowie eine Spalte **Zuletzt geändert** nach **Erstellt**.
 
 Standardsortierung ist nach **Priorität** (höchste zuerst). Das Klicken eines Namens öffnet das Element.
 

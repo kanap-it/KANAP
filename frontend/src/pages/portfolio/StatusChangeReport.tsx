@@ -37,6 +37,7 @@ type StatusChangeRow = {
   categoryName: string | null;
   streamName: string | null;
   companyName: string | null;
+  createdAt: string | null;
   lastChangedAt: string | null;
 };
 
@@ -302,6 +303,12 @@ export default function StatusChangeReport() {
       { field: 'categoryName', headerName: t('reports.statusChange.columns.category'), width: 170 },
       { field: 'streamName', headerName: t('reports.statusChange.columns.stream'), width: 170 },
       { field: 'companyName', headerName: t('reports.statusChange.columns.company'), width: 170 },
+      {
+        field: 'createdAt',
+        headerName: t('reports.statusChange.columns.created'),
+        width: 130,
+        valueFormatter: (params) => formatShortDate(params.value || null, locale),
+      },
       {
         field: 'lastChangedAt',
         headerName: t('reports.statusChange.columns.lastChanged'),
