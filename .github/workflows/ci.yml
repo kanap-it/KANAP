@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+    # `edited` covers a base-branch change: a stacked PR retargeted to main after its base
+    # merged gets no `synchronize`, so without it the required checks never run.
+    types: [ opened, synchronize, reopened, edited ]
 
 # A new push to a pull request cancels the run of the previous push.
 concurrency:
