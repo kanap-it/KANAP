@@ -76,10 +76,12 @@ const report = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-function mockApi(data: unknown) {
+const EMPTY_FILTER_VALUES = { sources: [], categories: [], streams: [], taskTypes: [] };
+
+function mockApi(data: unknown, filterValues: unknown = EMPTY_FILTER_VALUES) {
   get.mockImplementation((url: string) => {
     if (url === '/portfolio/reports/weekly/filter-values') {
-      return Promise.resolve({ data: { sources: [], categories: [], streams: [], taskTypes: [] } });
+      return Promise.resolve({ data: filterValues });
     }
     return Promise.resolve({ data });
   });
@@ -266,6 +268,38 @@ describe('WeeklyReport', () => {
     const fallback = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly');
     expect(fallback?.[1]?.params?.startDate).not.toBe('2026-02-31');
     expect(fallback?.[1]?.params?.endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('opens on the source and the category carried by the URL', async () => {
+    // The flow report links here with the classification its figure was read under.
+    mockApi(
+      report({
+        requests: {
+          created: [requestRow({ sourceId: 'src-desk', sourceName: 'Service desk', categoryId: 'cat-run', categoryName: 'Run' })],
+          modified: [],
+          closed: [],
+        },
+      }),
+      {
+        sources: [{ id: 'src-desk', name: 'Service desk' }, { id: 'src-mail', name: 'Email' }],
+        categories: [{ id: 'cat-run', name: 'Run' }, { id: 'cat-build', name: 'Build' }],
+        streams: [],
+        taskTypes: [],
+      },
+    );
+    renderReport(
+      '/portfolio/reports/weekly?startDate=2026-09-14&endDate=2026-09-20&sourceIds=src-desk&categoryIds=cat-run',
+    );
+
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/portfolio/reports/weekly', expect.anything()));
+    const call = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly');
+    expect(call?.[1]?.params?.sourceIds).toBe('src-desk');
+    expect(call?.[1]?.params?.categoryIds).toBe('cat-run');
+    // The filter bar shows the narrowing rather than claiming the whole portfolio, and it
+    // survives the first render, when neither the values nor the rows have arrived yet.
+    await waitFor(() => expect(screen.getAllByText('1 selected').length).toBe(2));
+    expect(screen.queryByText('All sources')).toBeNull();
+    expect(screen.queryByText('All categories')).toBeNull();
   });
 
   it('spells out what changed on a modified row', async () => {

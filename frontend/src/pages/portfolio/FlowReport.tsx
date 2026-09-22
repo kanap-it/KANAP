@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Box, MenuItem, Stack, TextField, Typography, useTheme } from '@mui/material';
+import { Alert, Box, Checkbox, ListItemText, MenuItem, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { AgChartsReact } from 'ag-charts-react';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ColGroupDef, ICellRendererParams } from 'ag-grid-community';
@@ -73,6 +73,8 @@ type FlowReportResponse = {
   monthsStartDate: string;
   endDate: string;
   timeZone: string;
+  sourceIds: string[];
+  categoryIds: string[];
   asOf: string;
   flow: { tasks: FlowSeries; requests: FlowSeries; projects: FlowSeries };
   age: {
@@ -88,6 +90,10 @@ type FlowReportResponse = {
     projects: LeadTime & { done: ProjectDoneLeadTime };
   };
 };
+
+/** The classification values the weekly report already publishes, reused as is. */
+type FilterOption = { id: string; name: string };
+type FilterValuesResponse = { sources: FilterOption[]; categories: FilterOption[] };
 
 type EntityKey = 'tasks' | 'requests' | 'projects';
 /** The two entities read month by month and broken down by the status they sit in. */
@@ -202,13 +208,20 @@ const shiftDay = (day: string, offset: number): string => {
   return shifted.toISOString().slice(0, 10);
 };
 
-/** The weekly report, narrowed to one period of the window. */
-const weeklyPath = (from: string, to: string) =>
-  `/portfolio/reports/weekly?startDate=${from}&endDate=${to}`;
+/**
+ * The weekly report, narrowed to one period of the window and to the report's own
+ * classification: the weekly page reads both from the URL, so the two totals agree.
+ */
+const weeklyPath = (from: string, to: string, filterQuery = '') =>
+  `/portfolio/reports/weekly?startDate=${from}&endDate=${to}${filterQuery}`;
 
 /** The list of one entity, on the report's open scope, narrowed by whatever the figure counted. */
 const entityListPath = (key: EntityKey, extra: FilterModel = {}): string =>
   key === 'tasks' ? tasksPath(extra) : key === 'requests' ? requestsPath(extra) : projectsPath(extra);
+
+/** The identifiers a multi-select holds, as the endpoints and the weekly URL take them. */
+const idsParam = (all: boolean, ids: string[]): string | undefined =>
+  all || ids.length === 0 ? undefined : ids.join(',');
 
 /* ------------------------------------------------------------------ */
 /*  Stat tile                                                         */
@@ -308,18 +321,88 @@ export default function FlowReport() {
   const [months, setMonths] = useState<number>(() => readStored(FLOW_MONTHS_STORAGE_KEY, FLOW_MONTH_PERIODS, 12));
   const [tableOpen, setTableOpen] = useState(false);
   const [panel, setPanel] = useState<StuckPanel | null>(null);
+  // The classification is a reading of the moment, not a habit: unlike the two horizons it is
+  // never remembered from one visit to the next.
+  const [sourceAll, setSourceAll] = useState(true);
+  const [sourceIds, setSourceIds] = useState<string[]>([]);
+  const [categoryAll, setCategoryAll] = useState(true);
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+
+  const { data: filterValuesData } = useQuery<FilterValuesResponse>({
+    queryKey: ['portfolio-weekly-report-filter-values'],
+    queryFn: async () => (await api.get<FilterValuesResponse>('/portfolio/reports/weekly/filter-values')).data,
+  });
+
+  const sourceOptions = filterValuesData?.sources ?? [];
+  const categoryOptions = filterValuesData?.categories ?? [];
+  const sourceParam = idsParam(sourceAll, sourceIds);
+  const categoryParam = idsParam(categoryAll, categoryIds);
 
   const { data, isError } = useQuery<FlowReportResponse>({
-    queryKey: ['portfolio-flow-report', weeks, months],
+    queryKey: ['portfolio-flow-report', weeks, months, sourceParam ?? '', categoryParam ?? ''],
     queryFn: async () =>
       (
         await api.get<FlowReportResponse>('/portfolio/reports/flow', {
-          params: { weeks, months, tz: viewerTimeZone() },
+          params: {
+            weeks,
+            months,
+            tz: viewerTimeZone(),
+            ...(sourceParam ? { sourceIds: sourceParam } : {}),
+            ...(categoryParam ? { categoryIds: categoryParam } : {}),
+          },
         })
       ).data,
     placeholderData: keepPreviousData,
     staleTime: 2 * 60 * 1000,
   });
+
+  /**
+   * The same narrowing, in the two shapes the destinations read it in: the lists filter on the
+   * value names, the weekly report on the identifiers. A figure and the page it opens therefore
+   * always count the same population.
+   */
+  const listFilter = useMemo<FilterModel>(() => {
+    const names = (options: FilterOption[], ids: string[]) =>
+      options.filter((option) => ids.includes(option.id)).map((option) => option.name);
+    const model: FilterModel = {};
+    const sources = sourceParam ? names(sourceOptions, sourceIds) : [];
+    const categories = categoryParam ? names(categoryOptions, categoryIds) : [];
+    if (sources.length > 0) model.source_name = { filterType: 'set', values: sources };
+    if (categories.length > 0) model.category_name = { filterType: 'set', values: categories };
+    return model;
+  }, [categoryIds, categoryOptions, categoryParam, sourceIds, sourceOptions, sourceParam]);
+
+  const weeklyQuery = useMemo(
+    () =>
+      [
+        sourceParam ? `&sourceIds=${encodeURIComponent(sourceParam)}` : '',
+        categoryParam ? `&categoryIds=${encodeURIComponent(categoryParam)}` : '',
+      ].join(''),
+    [categoryParam, sourceParam],
+  );
+
+  /** The weekly report for one period, carrying the filter the figure was read under. */
+  const weeklyLink = useCallback(
+    (from: string, to: string) => weeklyPath(from, to, weeklyQuery),
+    [weeklyQuery],
+  );
+
+  /**
+   * One entity's list, on the report's open scope, its own narrowing and the page filter.
+   *
+   * The task list reads a task's source and category through its project when the task itself
+   * carries none (`COALESCE(t.source_id, pp.source_id)`), while the report counts the value the
+   * task holds, exactly like the weekly report. Under a classification filter the two therefore
+   * count different populations, so a task figure stops being a link rather than opening a list
+   * that does not match it. Requests and projects carry their own value and are unaffected.
+   */
+  const listLink = useCallback(
+    (key: EntityKey, extra: FilterModel = {}): string | null => {
+      if (key === 'tasks' && Object.keys(listFilter).length > 0) return null;
+      return entityListPath(key, { ...extra, ...listFilter });
+    },
+    [listFilter],
+  );
 
   const changeWeeks = (next: number) => {
     setWeeks(next);
@@ -330,6 +413,27 @@ export default function FlowReport() {
     setMonths(next);
     store(FLOW_MONTHS_STORAGE_KEY, next);
     setPanel(null);
+  };
+
+  /**
+   * A multi-select that reads "all" rather than "none": an empty choice, or one that covers
+   * every option, is the whole portfolio and sends no parameter at all.
+   */
+  const changeSelection = (
+    value: unknown,
+    options: FilterOption[],
+    setAll: (all: boolean) => void,
+    setIds: (ids: string[]) => void,
+  ) => {
+    const values = Array.isArray(value) ? (value as string[]) : [String(value)];
+    setPanel(null);
+    if (values.length === 0 || values.length === options.length) {
+      setAll(true);
+      setIds([]);
+      return;
+    }
+    setAll(false);
+    setIds(values);
   };
 
   const day = useCallback((value: string) => formatShortDate(value, locale), [locale]);
@@ -456,13 +560,13 @@ export default function FlowReport() {
           listeners: {
             seriesNodeClick: (event: any) => {
               const row = event?.datum;
-              if (row?.periodStart && row?.periodEnd) navigate(weeklyPath(row.periodStart, row.periodEnd));
+              if (row?.periodStart && row?.periodEnd) navigate(weeklyLink(row.periodStart, row.periodEnd));
             },
           },
         },
       };
     },
-    [colors, dark, day, navigate, periodLabel, t, theme],
+    [colors, dark, day, navigate, periodLabel, t, theme, weeklyLink],
   );
 
   const charts = useMemo(
@@ -498,7 +602,7 @@ export default function FlowReport() {
       const { value, from, to } = read(params.data);
       if (value === 0) return <span>0</span>;
       return (
-        <RouterLink to={weeklyPath(from, to)} style={{ color: 'inherit' }}>
+        <RouterLink to={weeklyLink(from, to)} style={{ color: 'inherit' }}>
           {value}
         </RouterLink>
       );
@@ -541,7 +645,9 @@ export default function FlowReport() {
         valueGetter: (params) => params.data?.openAtEnd ?? 0,
       },
     ],
-    [day, t],
+    // `periodCountCell` closes over the weekly link, so the columns are rebuilt when the
+    // filter changes: a cell rendered once would keep opening the unfiltered weekly report.
+    [day, t, weeklyLink],
   );
 
   const monthColumns = useMemo<ColDef<MonthTableRow>[]>(() => {
@@ -585,7 +691,7 @@ export default function FlowReport() {
       ...trio('requests'),
       ...trio('projects'),
     ];
-  }, [t]);
+  }, [t, weeklyLink]);
 
   /* ---------------------------------------------------------------- */
   /*  Age of open tasks                                               */
@@ -624,10 +730,10 @@ export default function FlowReport() {
         if (!row) return null;
         const value = bucket ? row.buckets[bucket] : row.total;
         const weight = row.isTotal ? 500 : 400;
-        if (value === 0 || !today) return <span style={{ fontWeight: weight }}>{value}</span>;
-        const filters = { ...typeFilter(row), ...(bucket ? bracketFilter(bucket) : {}) };
+        const to = listLink('tasks', { ...typeFilter(row), ...(bucket ? bracketFilter(bucket) : {}) });
+        if (value === 0 || !today || !to) return <span style={{ fontWeight: weight }}>{value}</span>;
         return (
-          <RouterLink to={tasksPath(filters)} style={{ color: 'inherit', fontWeight: weight }}>
+          <RouterLink to={to} style={{ color: 'inherit', fontWeight: weight }}>
             {value}
           </RouterLink>
         );
@@ -674,7 +780,7 @@ export default function FlowReport() {
         cellRenderer: cell(null),
       },
     ];
-  }, [data, t]);
+  }, [data, listLink, t]);
 
   /* ---------------------------------------------------------------- */
   /*  Age of the open requests and projects                           */
@@ -719,10 +825,10 @@ export default function FlowReport() {
           if (!row) return null;
           const value = bucket ? row.buckets[bucket] : row.total;
           const weight = row.isTotal ? 500 : 400;
-          if (value === 0 || !today) return <span style={{ fontWeight: weight }}>{value}</span>;
-          const filters = { ...statusScope(row), ...(bucket ? bracketFilter(bucket) : {}) };
+          const to = listLink(key, { ...statusScope(row), ...(bucket ? bracketFilter(bucket) : {}) });
+          if (value === 0 || !today || !to) return <span style={{ fontWeight: weight }}>{value}</span>;
           return (
-            <RouterLink to={entityListPath(key, filters)} style={{ color: 'inherit', fontWeight: weight }}>
+            <RouterLink to={to} style={{ color: 'inherit', fontWeight: weight }}>
               {value}
             </RouterLink>
           );
@@ -767,7 +873,7 @@ export default function FlowReport() {
         },
       ];
     },
-    [bucketLabel, data, statusLabel, t],
+    [bucketLabel, data, listLink, statusLabel, t],
   );
 
   /* ---------------------------------------------------------------- */
@@ -806,9 +912,10 @@ export default function FlowReport() {
         const row = params.data;
         if (!row) return null;
         const weight = row.isTotal ? 500 : 400;
-        if (row.open === 0) return <span style={{ fontWeight: weight }}>{row.open}</span>;
+        const to = listLink(key, statusScope(row));
+        if (row.open === 0 || !to) return <span style={{ fontWeight: weight }}>{row.open}</span>;
         return (
-          <RouterLink to={entityListPath(key, statusScope(row))} style={{ color: 'inherit', fontWeight: weight }}>
+          <RouterLink to={to} style={{ color: 'inherit', fontWeight: weight }}>
             {row.open}
           </RouterLink>
         );
@@ -851,12 +958,13 @@ export default function FlowReport() {
         const value = row.plannedEndPassed ?? 0;
         const weight = row.isTotal ? 500 : 400;
         if (value === 0 || !today) return <span style={{ fontWeight: weight }}>{value}</span>;
-        const filters: FilterModel = {
+        const to = listLink('projects', {
           ...statusScope(row),
           planned_end: { filterType: 'date', type: 'lessThan', dateFrom: today },
-        };
+        });
+        if (!to) return <span style={{ fontWeight: weight }}>{value}</span>;
         return (
-          <RouterLink to={projectsPath(filters)} style={{ color: 'inherit', fontWeight: weight }}>
+          <RouterLink to={to} style={{ color: 'inherit', fontWeight: weight }}>
             {value}
           </RouterLink>
         );
@@ -908,7 +1016,7 @@ export default function FlowReport() {
 
       return columns;
     },
-    [data, panel, statusLabel, t],
+    [data, listLink, panel, statusLabel, t],
   );
 
   /* ---------------------------------------------------------------- */
@@ -1044,7 +1152,7 @@ export default function FlowReport() {
       key,
       label: t(`reports.flow.tiles.${key}`),
       value: String(openNow),
-      to: entityListPath(key),
+      to: listLink(key),
       caption: t(`reports.flow.tiles.openNow.${key}`),
       delta:
         delta === 0
@@ -1128,6 +1236,56 @@ export default function FlowReport() {
               {FLOW_MONTH_PERIODS.map((option) => (
                 <MenuItem key={option} value={option} sx={drawerMenuItemSx}>
                   {t('reports.flow.filters.monthOption', { count: option })}
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
+          <ReportFilter label={t('reports.weekly.filters.source')}>
+            <TextField
+              select
+              size="small"
+              value={sourceAll ? sourceOptions.map((option) => option.id) : sourceIds}
+              SelectProps={{
+                multiple: true,
+                displayEmpty: true,
+                MenuProps: reportFilterMenuProps,
+                renderValue: () =>
+                  sourceAll
+                    ? t('reports.weekly.filters.allSources')
+                    : t('reports.weekly.filters.selectedCount', { count: sourceIds.length }),
+              }}
+              onChange={(event) => changeSelection(event.target.value, sourceOptions, setSourceAll, setSourceIds)}
+              sx={reportFilterSelectSx}
+            >
+              {sourceOptions.map((option) => (
+                <MenuItem key={option.id} value={option.id} sx={drawerMenuItemSx}>
+                  <Checkbox size="small" checked={sourceAll || sourceIds.includes(option.id)} />
+                  <ListItemText primary={option.name} primaryTypographyProps={{ fontSize: 13 }} />
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
+          <ReportFilter label={t('reports.weekly.filters.category')} width={230}>
+            <TextField
+              select
+              size="small"
+              value={categoryAll ? categoryOptions.map((option) => option.id) : categoryIds}
+              SelectProps={{
+                multiple: true,
+                displayEmpty: true,
+                MenuProps: reportFilterMenuProps,
+                renderValue: () =>
+                  categoryAll
+                    ? t('reports.weekly.filters.allCategories')
+                    : t('reports.weekly.filters.selectedCount', { count: categoryIds.length }),
+              }}
+              onChange={(event) => changeSelection(event.target.value, categoryOptions, setCategoryAll, setCategoryIds)}
+              sx={reportFilterSelectSx}
+            >
+              {categoryOptions.map((option) => (
+                <MenuItem key={option.id} value={option.id} sx={drawerMenuItemSx}>
+                  <Checkbox size="small" checked={categoryAll || categoryIds.includes(option.id)} />
+                  <ListItemText primary={option.name} primaryTypographyProps={{ fontSize: 13 }} />
                 </MenuItem>
               ))}
             </TextField>
@@ -1437,7 +1595,7 @@ export default function FlowReport() {
               ) : (
                 <Typography
                   component={RouterLink}
-                  to={weeklyPath(tile.windowFrom, data.endDate)}
+                  to={weeklyLink(tile.windowFrom, data.endDate)}
                   sx={{ ...LINK_SX, fontSize: 12, fontWeight: 400, color: 'kanap.text.secondary', display: 'inline-block' }}
                 >
                   {tile.caption}

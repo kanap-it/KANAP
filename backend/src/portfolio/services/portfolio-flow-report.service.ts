@@ -23,6 +23,7 @@ import {
   STUCK_THRESHOLD_DAYS,
   StuckItem,
 } from '../dto/flow-report.dto';
+import { normalizeIdList, pushSetFilter } from './portfolio-report-filters';
 import { CLOSED_STATUSES } from './portfolio-weekly-report.service';
 
 /**
@@ -54,9 +55,17 @@ const AGE_BUCKETS: Array<{ key: AgeBucket; from: number; to: number | null }> = 
 
 type EntityKey = 'tasks' | 'requests' | 'projects';
 
+/**
+ * The classification the whole report is narrowed to. Both lists hold identifiers; an empty
+ * list means "every value", so a report with no filter reads the same SQL it always read.
+ */
+export type FlowFilters = { sourceIds: string[]; categoryIds: string[] };
+
 type EntitySpec = {
   /** Live table and `audit_log.table_name`, which are the same string for the three. */
   table: string;
+  /** Alias the live rows carry inside `liveSql`, the one the filters are written against. */
+  alias: string;
   closedStatuses: readonly string[];
   openStatuses: readonly string[];
   /**
@@ -74,6 +83,7 @@ type EntitySpec = {
 const ENTITIES: Record<EntityKey, EntitySpec> = {
   tasks: {
     table: 'tasks',
+    alias: 't',
     closedStatuses: CLOSED_STATUSES.tasks,
     openStatuses: OPEN_STATUSES.tasks,
     liveSql: `
@@ -88,6 +98,7 @@ const ENTITIES: Record<EntityKey, EntitySpec> = {
   },
   requests: {
     table: 'portfolio_requests',
+    alias: 'r',
     closedStatuses: CLOSED_STATUSES.requests,
     openStatuses: OPEN_STATUSES.requests,
     liveSql: `
@@ -102,6 +113,7 @@ const ENTITIES: Record<EntityKey, EntitySpec> = {
   },
   projects: {
     table: 'portfolio_projects',
+    alias: 'p',
     closedStatuses: CLOSED_STATUSES.projects,
     openStatuses: OPEN_STATUSES.projects,
     liveSql: `
@@ -250,7 +262,13 @@ const zeroMonthBuckets = (): Record<MonthBucket, number> =>
 export class PortfolioFlowReportService {
   async getReport(
     tenantId: string,
-    query: { weeks?: unknown; months?: unknown; timeZone?: string | null },
+    query: {
+      weeks?: unknown;
+      months?: unknown;
+      timeZone?: string | null;
+      sourceIds?: string[];
+      categoryIds?: string[];
+    },
     opts: { manager?: EntityManager },
   ): Promise<FlowReportResponse> {
     const manager = opts.manager;
@@ -260,6 +278,12 @@ export class PortfolioFlowReportService {
     const weeks = normalizeFlowWeeks(query.weeks);
     const months = normalizeFlowMonths(query.months);
     const endDate = todayIn(timeZone);
+    // One filter for the whole report: every figure, every grid and every median read the
+    // same population, so a cell and the list it opens can never disagree.
+    const filters: FlowFilters = {
+      sourceIds: normalizeIdList(query.sourceIds),
+      categoryIds: normalizeIdList(query.categoryIds),
+    };
 
     const weekBounds = buildWeeks(endDate, weeks);
     const monthBounds = buildMonths(endDate, months);
@@ -284,6 +308,7 @@ export class PortfolioFlowReportService {
         bounds: weekBounds,
         windowStart: startDate,
         endDate,
+        filters,
       }),
       this.entity(manager, 'requests', {
         tenantId,
@@ -292,6 +317,7 @@ export class PortfolioFlowReportService {
         bounds: monthBounds,
         windowStart: monthsStartDate,
         endDate,
+        filters,
       }),
       this.entity(manager, 'projects', {
         tenantId,
@@ -300,13 +326,14 @@ export class PortfolioFlowReportService {
         bounds: monthBounds,
         windowStart: monthsStartDate,
         endDate,
+        filters,
       }),
-      this.taskAge(manager, tenantId, timeZone, endDate),
-      this.createdAge(manager, 'requests', tenantId, timeZone, endDate),
-      this.createdAge(manager, 'projects', tenantId, timeZone, endDate),
-      this.byStatus(manager, 'tasks', tenantId, timeZone, endDate),
-      this.byStatus(manager, 'requests', tenantId, timeZone, endDate),
-      this.byStatus(manager, 'projects', tenantId, timeZone, endDate),
+      this.taskAge(manager, tenantId, timeZone, endDate, filters),
+      this.createdAge(manager, 'requests', tenantId, timeZone, endDate, filters),
+      this.createdAge(manager, 'projects', tenantId, timeZone, endDate, filters),
+      this.byStatus(manager, 'tasks', tenantId, timeZone, endDate, filters),
+      this.byStatus(manager, 'requests', tenantId, timeZone, endDate, filters),
+      this.byStatus(manager, 'projects', tenantId, timeZone, endDate, filters),
     ]);
 
     return {
@@ -316,6 +343,8 @@ export class PortfolioFlowReportService {
       monthsStartDate,
       endDate,
       timeZone,
+      sourceIds: filters.sourceIds,
+      categoryIds: filters.categoryIds,
       asOf: new Date().toISOString(),
       flow: { tasks: tasks.series, requests: requests.series, projects: projects.series },
       age: { tasks: taskAge, requests: requestAge, projects: projectAge },
@@ -345,11 +374,20 @@ export class PortfolioFlowReportService {
    * status falls back to its live status through `item`, which is what "no event yet" means.
    *
    * Parameters are fixed: $1 tenant, $2 audit table, $3 closed statuses, $4 zone,
-   * $5 period starts, $6 period ends, $7 open statuses, $8 first day, $9 last day.
+   * $5 period starts, $6 period ends, $7 open statuses, $8 first day, $9 last day. The
+   * classification filters, when there are any, come after them.
    */
-  private historyCtes(spec: EntitySpec): string {
+  private liveFilter(sqlParams: any[], spec: EntitySpec, filters: FlowFilters): string {
+    const predicates = [
+      pushSetFilter(sqlParams, spec.alias, 'source_id', filters.sourceIds),
+      pushSetFilter(sqlParams, spec.alias, 'category_id', filters.categoryIds),
+    ].filter((predicate): predicate is string => predicate != null);
+    return predicates.length === 0 ? '' : ` AND ${predicates.join(' AND ')}`;
+  }
+
+  private historyCtes(spec: EntitySpec, filterSql: string): string {
     return `
-      live AS (${spec.liveSql}),
+      live AS (${spec.liveSql}${filterSql}),
       audit AS (
         SELECT al.record_id AS id, al.created_at, al.id AS aid, al.action,
                al.before_json->>'status' AS before_status,
@@ -392,11 +430,12 @@ export class PortfolioFlowReportService {
   private async periodRows(
     manager: EntityManager,
     spec: EntitySpec,
+    filterSql: string,
     params: any[],
   ): Promise<PeriodRow[]> {
     return (await manager.query(
       `
-      WITH ${this.historyCtes(spec)},
+      WITH ${this.historyCtes(spec, filterSql)},
       created AS (
         SELECT b.idx, COUNT(*)::int AS n
         FROM bound b
@@ -452,6 +491,7 @@ export class PortfolioFlowReportService {
     manager: EntityManager,
     key: EntityKey,
     spec: EntitySpec,
+    filterSql: string,
     params: any[],
   ): Promise<TotalsRow | undefined> {
     // An item whose closing event is its own creation row was imported already closed: its
@@ -540,7 +580,7 @@ export class PortfolioFlowReportService {
 
     const [row] = (await manager.query(
       `
-      WITH ${this.historyCtes(spec)},
+      WITH ${this.historyCtes(spec, filterSql)},
       window_last AS (
         SELECT DISTINCT ON (e.id) e.id, e.status, e.created_at, e.action
         FROM ev e
@@ -581,6 +621,7 @@ export class PortfolioFlowReportService {
       bounds: Array<{ periodStart: string; periodEnd: string }>;
       windowStart: string;
       endDate: string;
+      filters: FlowFilters;
     },
   ): Promise<{
     series: FlowSeries;
@@ -590,23 +631,26 @@ export class PortfolioFlowReportService {
     done: ProjectDoneLeadTime;
   }> {
     const spec = ENTITIES[key];
-    const params = [
+    const windowParams = [
       ctx.tenantId,
       spec.table,
       [...spec.closedStatuses],
       ctx.timeZone,
       ctx.bounds.map((b) => b.periodStart),
       ctx.bounds.map((b) => b.periodEnd),
-      [...spec.openStatuses],
-      ctx.windowStart,
-      ctx.endDate,
     ];
 
     // A statement must use every parameter it is handed, or Postgres cannot infer the type of
-    // the spare ones: the period query stops at $6, the totals query takes the whole list.
+    // the spare ones: the period query stops at $6, the totals query takes three more before
+    // the filters. Each one therefore numbers the filter parameters on its own list.
+    const periodParams = [...windowParams];
+    const periodFilter = this.liveFilter(periodParams, spec, ctx.filters);
+    const totalsParams = [...windowParams, [...spec.openStatuses], ctx.windowStart, ctx.endDate];
+    const totalsFilter = this.liveFilter(totalsParams, spec, ctx.filters);
+
     const [rows, totals] = await Promise.all([
-      this.periodRows(manager, spec, params.slice(0, 6)),
-      this.totalsRow(manager, key, spec, params),
+      this.periodRows(manager, spec, periodFilter, periodParams),
+      this.totalsRow(manager, key, spec, totalsFilter, totalsParams),
     ]);
 
     const byIndex = new Map(rows.map((row) => [num(row.idx), row]));
@@ -671,16 +715,20 @@ export class PortfolioFlowReportService {
     tenantId: string,
     timeZone: string,
     today: string,
+    filters: FlowFilters,
   ): Promise<{ rows: AgeRow[]; total: AgeRow }> {
+    const spec = ENTITIES.tasks;
+    const params: any[] = [tenantId, timeZone, [...OPEN_STATUSES.tasks], today];
+    const filterSql = this.liveFilter(params, spec, filters);
+
     const rows = (await manager.query(
       `
-      WITH open_tasks AS (
-        SELECT t.task_type_id,
-               ($4::date - (t.created_at AT TIME ZONE $2)::date) AS age_days
-        FROM tasks t
-        WHERE t.tenant_id = $1
-          AND ${TASK_SCOPE_SQL}
-          AND t.status = ANY($3::text[])
+      WITH live AS (${spec.liveSql}${filterSql}),
+      open_tasks AS (
+        SELECT l.task_type_id,
+               ($4::date - (l.created_at AT TIME ZONE $2)::date) AS age_days
+        FROM live l
+        WHERE l.status = ANY($3::text[])
       )
       SELECT tt.id::text AS task_type_id,
              tt.name AS task_type_name,
@@ -694,7 +742,7 @@ export class PortfolioFlowReportService {
       GROUP BY tt.id, tt.name, tt.display_order
       ORDER BY (tt.id IS NULL), tt.display_order, tt.name
       `,
-      [tenantId, timeZone, [...OPEN_STATUSES.tasks], today],
+      params,
     )) as AgeSqlRow[];
 
     const shaped: AgeRow[] = rows.map((row) => ({
@@ -739,12 +787,15 @@ export class PortfolioFlowReportService {
     tenantId: string,
     timeZone: string,
     today: string,
+    filters: FlowFilters,
   ): Promise<CreatedAgeTable> {
     const spec = ENTITIES[key];
+    const params: any[] = [tenantId, [...spec.openStatuses], timeZone, today];
+    const filterSql = this.liveFilter(params, spec, filters);
 
     const rows = (await manager.query(
       `
-      WITH live AS (${spec.liveSql})
+      WITH live AS (${spec.liveSql}${filterSql})
       SELECT l.status,
              ($4::date - (l.created_at AT TIME ZONE $3)::date) AS age_days,
              COUNT(*)::int AS n
@@ -752,7 +803,7 @@ export class PortfolioFlowReportService {
       WHERE l.status = ANY($2::text[])
       GROUP BY l.status, age_days
       `,
-      [tenantId, [...spec.openStatuses], timeZone, today],
+      params,
     )) as CreatedAgeSqlRow[];
 
     const blankRow = (status: string): CreatedAgeRow => ({ status, buckets: zeroMonthBuckets(), total: 0 });
@@ -794,14 +845,17 @@ export class PortfolioFlowReportService {
     tenantId: string,
     timeZone: string,
     today: string,
+    filters: FlowFilters,
   ): Promise<ByStatusTable> {
     const spec = ENTITIES[key];
     const withPlannedEnd = key === 'projects';
     const thresholdDays = STUCK_THRESHOLD_DAYS[key];
+    const params: any[] = [tenantId, spec.table, [...spec.openStatuses], timeZone, today];
+    const filterSql = this.liveFilter(params, spec, filters);
 
     const rows = (await manager.query(
       `
-      WITH live AS (${spec.liveSql}),
+      WITH live AS (${spec.liveSql}${filterSql}),
       audit AS (
         SELECT al.record_id AS id, al.created_at, al.id AS aid, al.action,
                al.before_json->>'status' AS before_status,
@@ -842,7 +896,7 @@ export class PortfolioFlowReportService {
       LEFT JOIN entered en ON en.id = o.id
       ORDER BY o.item_number
       `,
-      [tenantId, spec.table, [...spec.openStatuses], timeZone, today],
+      params,
     )) as OpenItemSqlRow[];
 
     const blankRow = (status: string): ByStatusRow => {

@@ -3,6 +3,7 @@ import AdmZip = require('adm-zip');
 import { EntityManager } from 'typeorm';
 import { neutralizeCsvFormulaValue } from '../../common/csv/csv-export.service';
 import { normalizeReportTimeZone } from '../../common/report-period';
+import { pushSetFilter } from './portfolio-report-filters';
 
 export type WeeklyReportQuery = {
   tenantId: string;
@@ -910,10 +911,8 @@ export class PortfolioWeeklyReportService {
     const filters = [...extraFilters];
 
     const push = (values: string[] | undefined, column: string) => {
-      const normalized = this.normalizeStringArray(values);
-      if (normalized.length === 0) return;
-      sqlParams.push(normalized);
-      filters.push(`${alias}.${column}::text = ANY($${sqlParams.length}::text[])`);
+      const predicate = pushSetFilter(sqlParams, alias, column, values);
+      if (predicate) filters.push(predicate);
     };
 
     if (opts.taskTypes) push(query.taskTypeIds, 'task_type_id');
@@ -922,14 +921,6 @@ export class PortfolioWeeklyReportService {
     push(query.streamIds, 'stream_id');
 
     return filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
-  }
-
-  private normalizeStringArray(values?: string[]): string[] {
-    if (!values) return [];
-    const normalized = values
-      .map((value) => String(value ?? '').trim())
-      .filter((value) => value.length > 0);
-    return Array.from(new Set(normalized));
   }
 
   private buildFilename(query: WeeklyReportQuery, ext: 'csv' | 'xlsx'): string {

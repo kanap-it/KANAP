@@ -9,6 +9,7 @@ import {
   shiftDay,
   todayIn,
 } from '../services/portfolio-flow-report.service';
+import { parseCsvIds } from '../services/portfolio-report-filters';
 
 type Call = { sql: string; params: any[] };
 
@@ -608,6 +609,112 @@ async function run() {
   assert.ok(projectByStatus.sql.includes('e.status = o.status'));
   assert.ok(projectByStatus.sql.includes('COALESCE(en.created_at, o.created_at)'));
   assert.ok(projectByStatus.sql.includes('o.planned_end < $5::date'));
+
+  /* ----------------------------------------------------------------- */
+  /*  Source and category filters                                      */
+  /* ----------------------------------------------------------------- */
+
+  /** A stub that answers nothing: these checks read the statements, not the figures. */
+  const emptyAnswers = () => ({
+    periods: {},
+    totals: {},
+    taskAge: [],
+    createdAge: {},
+    openItems: {},
+  });
+
+  // Blanks and duplicates are dropped, and what survives comes back on the response so the
+  // page can trust the population every figure was read on.
+  const filtered = stubManager(emptyAnswers());
+  const filteredReport = await svc.getReport(
+    tenantId,
+    {
+      weeks: 13,
+      months: 12,
+      timeZone: 'Europe/Paris',
+      sourceIds: ['s1', ' s2 ', 's1', '   '],
+      categoryIds: ['c1'],
+    },
+    { manager: filtered.manager },
+  );
+  assert.deepEqual(filteredReport.sourceIds, ['s1', 's2']);
+  assert.deepEqual(filteredReport.categoryIds, ['c1']);
+
+  // Every one of the twelve statements carries the filter, and numbers it on its own parameter
+  // list: the period query stops at $6, the totals query at $9, the age queries earlier still.
+  assert.equal(filtered.calls.length, 12);
+  for (const call of filtered.calls) {
+    const count = call.params.length;
+    assert.deepEqual(call.params[count - 2], ['s1', 's2'], 'the sources travel as a bound parameter');
+    assert.deepEqual(call.params[count - 1], ['c1'], 'the categories travel as a bound parameter');
+    assert.ok(call.sql.includes(`source_id::text = ANY($${count - 1}::text[])`));
+    assert.ok(call.sql.includes(`category_id::text = ANY($${count}::text[])`));
+    assert.ok(!call.sql.includes("'s1'"), 'a value is never interpolated into the SQL');
+  }
+
+  // The filter narrows the live rows themselves, so the audit history, the stock, the age and
+  // the medians are all read on the same population.
+  const filteredTaskStatus = filtered.calls.find(
+    (call) => call.sql.includes('open_items AS') && String(call.params[1]) === 'tasks',
+  )!;
+  assert.ok(
+    filteredTaskStatus.sql.indexOf('t.source_id::text') < filteredTaskStatus.sql.indexOf('audit AS'),
+    'the predicate sits inside the live CTE',
+  );
+  // Each entity writes the filter against its own alias.
+  assert.ok(filteredTaskStatus.sql.includes('t.source_id::text'));
+  assert.ok(
+    filtered.calls
+      .find((call) => call.sql.includes('open_items AS') && String(call.params[1]) === 'portfolio_requests')!
+      .sql.includes('r.category_id::text'),
+  );
+  assert.ok(
+    filtered.calls
+      .find((call) => call.sql.includes('open_items AS') && String(call.params[1]) === 'portfolio_projects')!
+      .sql.includes('p.source_id::text'),
+  );
+
+  // One filter on its own leaves the other one out entirely.
+  const sourceOnly = stubManager(emptyAnswers());
+  const sourceOnlyReport = await svc.getReport(
+    tenantId,
+    { weeks: 8, months: 6, timeZone: 'Europe/Paris', sourceIds: ['s1'], categoryIds: [] },
+    { manager: sourceOnly.manager },
+  );
+  assert.deepEqual(sourceOnlyReport.categoryIds, []);
+  for (const call of sourceOnly.calls) {
+    assert.ok(!call.sql.includes('category_id::text'));
+    assert.ok(call.sql.includes(`source_id::text = ANY($${call.params.length}::text[])`));
+  }
+
+  // No filter at all reads exactly the statements the report always read.
+  const unfiltered = stubManager(emptyAnswers());
+  const unfilteredReport = await svc.getReport(
+    tenantId,
+    { weeks: 13, months: 12, timeZone: 'Europe/Paris', sourceIds: [], categoryIds: undefined },
+    { manager: unfiltered.manager },
+  );
+  assert.deepEqual(unfilteredReport.sourceIds, []);
+  assert.deepEqual(unfilteredReport.categoryIds, []);
+  for (const call of unfiltered.calls) {
+    assert.ok(!call.sql.includes('source_id::text'));
+    assert.ok(!call.sql.includes('category_id::text'));
+  }
+  const unfilteredPeriods = unfiltered.calls.find(
+    (call) => call.sql.includes('open_at_end AS') && String(call.params[1]) === 'tasks',
+  )!;
+  assert.equal(unfilteredPeriods.params.length, 6);
+
+  /* ----------------------------------------------------------------- */
+  /*  Query string parsing                                             */
+  /* ----------------------------------------------------------------- */
+
+  assert.deepEqual(parseCsvIds('s1,s2'), ['s1', 's2']);
+  assert.deepEqual(parseCsvIds(' s1 , , s2 '), ['s1', 's2']);
+  assert.deepEqual(parseCsvIds(['s1', 's2']), ['s1', 's2']);
+  assert.deepEqual(parseCsvIds(''), []);
+  assert.deepEqual(parseCsvIds(undefined), []);
+  assert.deepEqual(parseCsvIds(null), []);
 
   // A manager is mandatory: the report has no way to reach a tenant-scoped connection without it.
   await assert.rejects(() => svc.getReport(tenantId, {}, {}));

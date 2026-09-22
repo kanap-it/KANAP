@@ -211,8 +211,29 @@ const report = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-function mockApi(data: unknown) {
-  get.mockImplementation(() => Promise.resolve({ data }));
+/** The sources and the categories the filter bar offers, as the weekly endpoint returns them. */
+const FILTER_VALUES = {
+  sources: [
+    { id: 'src-desk', name: 'Service desk' },
+    { id: 'src-mail', name: 'Email' },
+  ],
+  categories: [
+    { id: 'cat-run', name: 'Run' },
+    { id: 'cat-build', name: 'Build' },
+  ],
+  streams: [],
+  taskTypes: [],
+};
+
+function mockApi(data: unknown, filterValues: unknown = FILTER_VALUES) {
+  get.mockImplementation((url: string) =>
+    Promise.resolve({ data: String(url).includes('filter-values') ? filterValues : data }),
+  );
+}
+
+/** The parameters of the nth call to the report endpoint, the filter values left aside. */
+function reportCalls(): any[] {
+  return get.mock.calls.filter((call) => String(call[0]) === '/portfolio/reports/flow').map((call) => call[1].params);
 }
 
 function renderReport() {
@@ -230,12 +251,16 @@ function renderReport() {
   );
 }
 
-/** Every link reading exactly `text`, href decoded so the filter JSON stays readable. */
+/**
+ * Every link reading exactly `text`, href decoded so the filter JSON stays readable. A query
+ * string writes a space as `+`, which is what the list reads it back as: the specs undo it the
+ * same way rather than asserting on the encoding.
+ */
 function hrefsFor(text: string): string[] {
   return screen
     .getAllByRole('link')
     .filter((node) => node.textContent?.trim() === text)
-    .map((node) => decodeURIComponent(node.getAttribute('href') ?? ''));
+    .map((node) => decodeURIComponent((node.getAttribute('href') ?? '').replace(/\+/g, ' ')));
 }
 
 /** The one distinct destination behind the links reading `text` and satisfying `match`. */
@@ -243,6 +268,13 @@ function linkHref(text: string, match: (href: string) => boolean = () => true): 
   const found = [...new Set(hrefsFor(text).filter(match))];
   expect(found).toHaveLength(1);
   return found[0];
+}
+
+/** Every destination the page offers, decoded the same way. */
+function allHrefs(): string[] {
+  return screen
+    .getAllByRole('link')
+    .map((node) => decodeURIComponent((node.getAttribute('href') ?? '').replace(/\+/g, ' ')));
 }
 
 /** The clickable figures that open a list inside the report, not a page. */
@@ -306,10 +338,13 @@ describe('FlowReport', () => {
     mockApi(report());
     renderReport();
 
-    await waitFor(() => expect(get).toHaveBeenCalled());
-    expect(get.mock.calls[0][1].params.weeks).toBe(26);
-    expect(get.mock.calls[0][1].params.months).toBe(24);
-    expect(typeof get.mock.calls[0][1].params.tz).toBe('string');
+    await waitFor(() => expect(reportCalls().length).toBeGreaterThan(0));
+    expect(reportCalls()[0].weeks).toBe(26);
+    expect(reportCalls()[0].months).toBe(24);
+    expect(typeof reportCalls()[0].tz).toBe('string');
+    // No classification chosen, so the report asks for the whole portfolio.
+    expect(reportCalls()[0].sourceIds).toBeUndefined();
+    expect(reportCalls()[0].categoryIds).toBeUndefined();
 
     const [tasksFilter, itemsFilter] = screen.getAllByRole('combobox');
 
@@ -325,7 +360,7 @@ describe('FlowReport', () => {
       expect(window.localStorage.getItem('kanap.portfolioReports.flowMonths')).toBe('6'),
     );
 
-    const last = get.mock.calls[get.mock.calls.length - 1][1].params;
+    const last = reportCalls()[reportCalls().length - 1];
     expect(last.weeks).toBe(8);
     expect(last.months).toBe(6);
   });
@@ -668,6 +703,102 @@ describe('FlowReport', () => {
     // Every figure of the grids is a zero, so none of them is clickable.
     expect(figureButtons('0')).toHaveLength(0);
     expect(screen.getAllByRole('link').some((node) => node.textContent?.trim() === '0')).toBe(false);
+  });
+
+  it('narrows every figure, every list link and every weekly link to the chosen source', async () => {
+    mockApi(report());
+    renderReport();
+
+    await waitFor(() => expect(screen.getAllByText('open now')).toHaveLength(3));
+    // Two horizons, then the source and the category, in the order of the filter bar.
+    expect(screen.getByText('All sources')).toBeTruthy();
+    expect(screen.getByText('All categories')).toBeTruthy();
+
+    // Every value is ticked while the filter reads "all", so narrowing to the service desk
+    // means unticking the other source.
+    const [, , sourceFilter] = screen.getAllByRole('combobox');
+    fireEvent.mouseDown(sourceFilter);
+    fireEvent.click(await screen.findByRole('option', { name: 'Email' }));
+    // The menu is a modal: it has to close before the report behind it can be read again.
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+    // The report is read again on that source alone; the category stays out of the request.
+    await waitFor(() => expect(reportCalls()[reportCalls().length - 1].sourceIds).toBe('src-desk'));
+    expect(reportCalls()[reportCalls().length - 1].categoryIds).toBeUndefined();
+    await waitFor(() => expect(screen.getByText('1 selected')).toBeTruthy());
+
+    // A list link carries the filter the way the lists read it: the value name, as a set.
+    const openRequests = linkHref('4', (href) => href.startsWith('/portfolio/requests'));
+    expect(openRequests).toContain('"source_name":{"filterType":"set","values":["Service desk"]}');
+    expect(openRequests).not.toContain('category_name');
+    // And so does every other list destination: the age grids and the by-status grids all read
+    // the same population.
+    const lists = allHrefs().filter(
+      (href) => href.startsWith('/portfolio/requests') || href.startsWith('/portfolio/projects'),
+    );
+    expect(lists.length).toBeGreaterThan(8);
+    expect(lists.every((href) => href.includes('"source_name":{"filterType":"set","values":["Service desk"]}'))).toBe(
+      true,
+    );
+    // The task list resolves a task's source through its project, so it would not show the 12
+    // the report counted: the task figures stop being links while a filter is active.
+    expect(allHrefs().some((href) => href.startsWith('/portfolio/tasks'))).toBe(false);
+    expect(screen.getAllByText('12').length).toBeGreaterThan(0);
+    const weekly = allHrefs().filter((href) => href.startsWith('/portfolio/reports/weekly'));
+    expect(weekly.length).toBeGreaterThan(0);
+    expect(weekly.every((href) => href.endsWith('&sourceIds=src-desk'))).toBe(true);
+
+    // The weekly report reads identifiers, so its links carry those instead.
+    expect(linkHref('over 6 closings')).toBe(
+      '/portfolio/reports/weekly?startDate=2026-06-29&endDate=2026-07-19&sourceIds=src-desk',
+    );
+
+    // Including the ones inside the flow tables, which are built once per filter.
+    fireEvent.click(screen.getByText('See the table'));
+    await waitFor(() => expect(screen.getByText('Tasks by week')).toBeTruthy());
+    const weeklyLinks = allHrefs().filter((href) => href.startsWith('/portfolio/reports/weekly'));
+    expect(weeklyLinks.length).toBeGreaterThan(3);
+    expect(weeklyLinks.every((href) => href.endsWith('&sourceIds=src-desk'))).toBe(true);
+  });
+
+  it('sends both filters at once and drops them when every value is picked', async () => {
+    mockApi(report());
+    renderReport();
+
+    await waitFor(() => expect(screen.getAllByText('open now')).toHaveLength(3));
+    const [, , sourceFilter, categoryFilter] = screen.getAllByRole('combobox');
+
+    fireEvent.mouseDown(sourceFilter);
+    fireEvent.click(await screen.findByRole('option', { name: 'Service desk' }));
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    fireEvent.mouseDown(categoryFilter);
+    fireEvent.click(await screen.findByRole('option', { name: 'Build' }));
+    // The menu is a modal: it has to close before the report behind it can be read again.
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+    await waitFor(() => expect(reportCalls()[reportCalls().length - 1].categoryIds).toBe('cat-run'));
+    const withBoth = reportCalls()[reportCalls().length - 1];
+    expect(withBoth.sourceIds).toBe('src-mail');
+    const bothLink = linkHref('6', (href) => href.startsWith('/portfolio/projects') && !href.includes('planned_end'));
+    expect(bothLink).toContain('"source_name":{"filterType":"set","values":["Email"]}');
+    expect(bothLink).toContain('"category_name":{"filterType":"set","values":["Run"]}');
+    expect(linkHref('over 6 closings')).toBe(
+      '/portfolio/reports/weekly?startDate=2026-06-29&endDate=2026-07-19&sourceIds=src-mail&categoryIds=cat-run',
+    );
+
+    // Unticking the last source means "every source": the filter goes away entirely.
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    fireEvent.mouseDown(sourceFilter);
+    fireEvent.click(await screen.findByRole('option', { name: 'Email' }));
+    // The menu is a modal: it has to close before the report behind it can be read again.
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+    await waitFor(() => expect(reportCalls()[reportCalls().length - 1].sourceIds).toBeUndefined());
+    expect(screen.getByText('All sources')).toBeTruthy();
+    // The category alone still holds, so the task figures stay plain text.
+    expect(allHrefs().some((href) => href.startsWith('/portfolio/tasks'))).toBe(false);
+    expect(linkHref('6', (href) => href.startsWith('/portfolio/projects') && !href.includes('planned_end')))
+      .not.toContain('source_name');
   });
 
   it('drops the weekly link when some closings were imported already closed', async () => {

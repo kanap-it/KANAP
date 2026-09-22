@@ -141,6 +141,9 @@ export type FlowReportResponse = {
   monthsStartDate: string;
   endDate: string;
   timeZone: string;
+  /** The classification the whole report was narrowed to. Empty lists mean "every value". */
+  sourceIds: string[];
+  categoryIds: string[];
   /** Instant the figures were read, ISO 8601. */
   asOf: string;
   flow: { tasks: FlowSeries; requests: FlowSeries; projects: FlowSeries };

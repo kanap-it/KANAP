@@ -203,6 +203,16 @@ const dayFromParams = (params: URLSearchParams, key: string, fallback: string): 
   return isCalendarDate(raw) ? raw : fallback;
 };
 
+/**
+ * A comma-separated list of identifiers coming from another report's link. Like the period, it
+ * is an initial value: the user is free to change it, and the URL is never rewritten.
+ */
+const idsFromParams = (params: URLSearchParams, key: string): string[] =>
+  String(params.get(key) || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
 const humanize = (value: string): string =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
@@ -383,10 +393,12 @@ export default function WeeklyReport() {
   );
   const [endDate, setEndDate] = useState<string>(() => dayFromParams(searchParams, 'endDate', today));
 
-  const [sourceAll, setSourceAll] = useState(true);
-  const [sourceIds, setSourceIds] = useState<string[]>([]);
-  const [categoryAll, setCategoryAll] = useState(true);
-  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const initialSourceIds = useMemo(() => idsFromParams(searchParams, 'sourceIds'), [searchParams]);
+  const initialCategoryIds = useMemo(() => idsFromParams(searchParams, 'categoryIds'), [searchParams]);
+  const [sourceAll, setSourceAll] = useState(initialSourceIds.length === 0);
+  const [sourceIds, setSourceIds] = useState<string[]>(initialSourceIds);
+  const [categoryAll, setCategoryAll] = useState(initialCategoryIds.length === 0);
+  const [categoryIds, setCategoryIds] = useState<string[]>(initialCategoryIds);
   const [streamAll, setStreamAll] = useState(true);
   const [streamIds, setStreamIds] = useState<string[]>([]);
   const [taskTypeAll, setTaskTypeAll] = useState(true);
@@ -562,6 +574,9 @@ export default function WeeklyReport() {
 
   useEffect(() => {
     if (sourceAll) return;
+    // Before the options and the rows are both loaded, every selection would look unknown: a
+    // filter handed over in the URL must not be dropped while the page is still fetching.
+    if (!filterValuesData || !reportData) return;
     const allowed = new Set(sourceOptions.map((option) => option.id));
     const next = sourceIds.filter((id) => allowed.has(id));
     if (next.length === 0) {
@@ -572,10 +587,11 @@ export default function WeeklyReport() {
     if (next.length !== sourceIds.length) {
       setSourceIds(next);
     }
-  }, [sourceAll, sourceIds, sourceOptions]);
+  }, [filterValuesData, reportData, sourceAll, sourceIds, sourceOptions]);
 
   useEffect(() => {
     if (categoryAll) return;
+    if (!filterValuesData || !reportData) return;
     const allowed = new Set(categoryOptions.map((option) => option.id));
     const next = categoryIds.filter((id) => allowed.has(id));
     if (next.length === 0) {
@@ -586,7 +602,7 @@ export default function WeeklyReport() {
     if (next.length !== categoryIds.length) {
       setCategoryIds(next);
     }
-  }, [categoryAll, categoryIds, categoryOptions]);
+  }, [categoryAll, categoryIds, categoryOptions, filterValuesData, reportData]);
 
   useEffect(() => {
     if (streamAll) return;
