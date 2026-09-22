@@ -525,6 +525,9 @@ describe('WeeklyReport by person', () => {
       (_, node) => node?.tagName === 'P' && (node.textContent ?? '').startsWith('This report covers tasks.'),
     );
     expect(note.textContent).toBe('This report covers tasks. Requests and projects are in the Period review.');
+    // The summary speaks of tasks only, like the report.
+    expect(screen.queryByText(/Requests \d+ created/)).toBeNull();
+    expect(screen.getByText(/^Tasks \d+ created/)).toBeTruthy();
     expect(screen.getByText('Thomas Berger')).toBeTruthy();
     expect(screen.getByText('CTR-3')).toBeTruthy();
     expect(screen.getByText('1 created · 0 modified · 1 closed · 3.5 days logged')).toBeTruthy();

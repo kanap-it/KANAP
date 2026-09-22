@@ -667,9 +667,14 @@ export default function WeeklyReport() {
   const effectiveStatuses = statusAll ? [] : statuses;
   // The by-person view reads tasks only: the Type filter does not exist there.
   const effectiveEntities = groupBy === 'type' ? entities : [];
-  const shows = (section: WeeklySectionKey) =>
-    effectiveEntities.length === 0 ||
-    ENTITY_SECTIONS.some((item) => item.section === section && effectiveEntities.includes(item.entity));
+  // What the summary and the sections cover: the objects picked, or the tasks alone by person.
+  const shows = (section: WeeklySectionKey) => {
+    if (groupBy === 'person') return section === 'tasks';
+    return (
+      effectiveEntities.length === 0 ||
+      ENTITY_SECTIONS.some((item) => item.section === section && effectiveEntities.includes(item.entity))
+    );
+  };
 
   const {
     data: reportData,
