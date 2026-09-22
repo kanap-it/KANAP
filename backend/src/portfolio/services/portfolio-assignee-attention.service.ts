@@ -10,6 +10,7 @@ import {
   TeamGroup,
 } from '../dto/assignee-attention.dto';
 import { shiftDay, todayIn } from './portfolio-flow-report.service';
+import { andPredicates, taskProjectTeamPredicates } from './portfolio-report-filters';
 
 /**
  * Tasks only count when they are standalone or hang off a project, exactly like the steering
@@ -68,7 +69,7 @@ const addCounts = (target: AttentionCounts, source: AttentionCounts) => {
 export class PortfolioAssigneeAttentionService {
   async getReport(
     tenantId: string,
-    query: { staleDays?: unknown; timeZone?: string | null },
+    query: { staleDays?: unknown; timeZone?: string | null; projectIds?: string[]; teamIds?: string[] },
     opts: { manager?: EntityManager },
   ): Promise<AssigneeAttentionResponse> {
     const manager = opts.manager;
@@ -78,7 +79,10 @@ export class PortfolioAssigneeAttentionService {
     const staleDays = normalizeStaleDays(query.staleDays);
     const asOf = todayIn(timeZone);
     const staleBefore = shiftDay(asOf, -staleDays);
-    const params = [tenantId, OPEN_TASK_STATUSES, asOf, staleBefore];
+    const params: any[] = [tenantId, OPEN_TASK_STATUSES, asOf, staleBefore];
+    // The project and team filters, the ones the task list applies to the links: a team filter
+    // leaves the unassigned tasks out, so the unassigned line counts zero under it.
+    const projectTeamSql = andPredicates(taskProjectTeamPredicates(params, 't', query));
 
     const [people, unassignedRows] = await Promise.all([
       manager.query(
@@ -91,7 +95,7 @@ export class PortfolioAssigneeAttentionService {
           WHERE t.tenant_id = $1
             AND t.status = ANY($2::text[])
             AND ${TASK_SCOPE_SQL}
-            AND t.assignee_user_id IS NOT NULL
+            AND t.assignee_user_id IS NOT NULL${projectTeamSql}
         )
         SELECT s.user_id::text AS user_id,
                COALESCE(
@@ -121,7 +125,7 @@ export class PortfolioAssigneeAttentionService {
         WHERE t.tenant_id = $1
           AND t.status = ANY($2::text[])
           AND ${TASK_SCOPE_SQL}
-          AND t.assignee_user_id IS NULL
+          AND t.assignee_user_id IS NULL${projectTeamSql}
         `,
         params,
       ) as Promise<CountsRow[]>,
