@@ -1342,16 +1342,29 @@
     },
     "flow": {
       "title": "Flow and age",
-      "subtitle": "What comes in and goes out week after week, how long the open tasks have been waiting, and how long a closing takes.",
+      "subtitle": "What comes in and goes out, how long the open work has been sitting where it sits, and how long a closing takes.",
       "filters": {
-        "period": "Period",
+        "tasks": "Tasks",
+        "requestsProjects": "Requests and projects",
         "periodOption_one": "{{count}} week",
-        "periodOption_other": "{{count}} weeks"
+        "periodOption_other": "{{count}} weeks",
+        "monthOption_one": "{{count}} month",
+        "monthOption_other": "{{count}} months"
       },
       "sections": {
-        "flow": "Weekly flow",
-        "age": "Age of open tasks",
+        "flow": "Flow",
+        "age": "Age of open work",
         "leadTime": "Median time to close"
+      },
+      "subsections": {
+        "tasksByWeek": "Tasks by week",
+        "itemsByMonth": "Requests and projects by month",
+        "openTasks": "Open tasks",
+        "requestStages": "Requests by stage",
+        "projectStages": "Projects by stage",
+        "tasksByType": "Tasks by type",
+        "requestOutcomes": "Requests by outcome",
+        "projectCompletion": "Completed projects"
       },
       "tiles": {
         "tasks": "Tasks",
@@ -1361,8 +1374,11 @@
         "deltaSince": "{{delta}} since {{date}}",
         "steady": "No change since {{date}}",
         "trendLabel": "Open items at the end of each of the last weeks",
+        "trendLabelMonths": "Open items at the end of each of the last months",
         "closedOver_one": "over {{count}} closing",
         "closedOver_other": "over {{count}} closings",
+        "closedOverMonths_one": "over {{count}} closing · {{months}} months",
+        "closedOverMonths_other": "over {{count}} closings · {{months}} months",
         "noClosing": "No closing in this period",
         "days": "{{count}} d",
         "noValue": "—"
@@ -1371,15 +1387,25 @@
         "created": "Created",
         "closed": "Closed",
         "openAtEnd": "Open at the end of the week",
+        "openAtEndMonth": "Open at the end of the month",
+        "byWeek": "by week",
+        "byMonth": "by month",
         "weekOf": "Week of {{date}}",
-        "weekRange": "{{from}} to {{to}}"
+        "periodRange": "{{from}} to {{to}}"
       },
       "actions": {
         "showTable": "See the table",
-        "hideTable": "Hide the table"
+        "hideTable": "Hide the table",
+        "closeList": "Close"
+      },
+      "list": {
+        "since": "In this stage since {{date}}",
+        "plannedEnd": "Planned end {{date}}",
+        "overdue": "past due"
       },
       "columns": {
         "week": "Week",
+        "month": "Month",
         "tasksCreated": "Tasks created",
         "tasksClosed": "Tasks closed",
         "tasksOpen": "Tasks open",
@@ -1390,23 +1416,39 @@
         "projectsClosed": "Projects closed",
         "projectsOpen": "Projects open",
         "taskType": "Task type",
+        "stage": "Stage",
         "upTo7": "0–7 d",
         "from8To30": "8–30 d",
         "from31To90": "31–90 d",
         "over90": "Over 90 d",
+        "underOneMonth": "Under 1 month",
+        "oneToThreeMonths": "1 to 3 months",
+        "threeToSixMonths": "3 to 6 months",
+        "overSixMonths": "Over 6 months",
+        "plannedEndPassed": "Planned end passed",
         "total": "Total",
         "closedCount": "Closed",
-        "medianDays": "Median time"
+        "medianDays": "Median time",
+        "outcome": "Outcome",
+        "completed": "Completed",
+        "medianDuration": "Median duration",
+        "medianGap": "Median gap to planned end"
       },
       "rows": {
         "noType": "No type",
-        "total": "Total"
+        "total": "Total",
+        "converted": "Converted",
+        "rejected": "Rejected",
+        "gapOver_one": "{{gap}} over {{count}} with a planned end",
+        "gapOver_other": "{{gap}} over {{count}} with a planned end"
       },
       "messages": {
         "loadFailed": "Failed to load report data."
       },
       "empty": {
         "age": "No open task to report.",
+        "requestStages": "No open request to report.",
+        "projectStages": "No open project to report.",
         "leadTimeByType": "No task closed in this period."
       }
     }

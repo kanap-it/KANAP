@@ -24,7 +24,6 @@ import {
   FilterModel,
   projectsPath,
   requestsPath,
-  TASK_SCOPE,
   tasksPath,
 } from './components/portfolioListLinks';
 
@@ -32,8 +31,8 @@ import {
 /*  Contract                                                          */
 /* ------------------------------------------------------------------ */
 
-type FlowWeek = { weekStart: string; weekEnd: string; created: number; closed: number; openAtEnd: number };
-type FlowSeries = { weeks: FlowWeek[]; openNow: number };
+type FlowPeriod = { periodStart: string; periodEnd: string; created: number; closed: number; openAtEnd: number };
+type FlowSeries = { granularity: 'week' | 'month'; periods: FlowPeriod[]; openNow: number };
 type AgeBucket = 'upTo7' | 'from8To30' | 'from31To90' | 'over90';
 type AgeRow = {
   taskTypeId: string | null;
@@ -41,26 +40,62 @@ type AgeRow = {
   buckets: Record<AgeBucket, number>;
   total: number;
 };
+type MonthBucket = 'underOneMonth' | 'oneToThreeMonths' | 'threeToSixMonths' | 'overSixMonths';
+type StageAgeRow = {
+  status: string;
+  buckets: Record<MonthBucket, number>;
+  total: number;
+  plannedEndPassed?: number;
+};
+type StageAgeItem = {
+  id: string;
+  ref: string;
+  itemPath: string;
+  name: string;
+  status: string;
+  statusSince: string;
+  bucket: MonthBucket;
+  plannedEnd?: string | null;
+  plannedEndPassed?: boolean;
+};
+type StageAgeTable = { rows: StageAgeRow[]; total: StageAgeRow; items: StageAgeItem[] };
 type LeadTime = { closedCount: number; medianDays: number | null };
 type LeadTimeByType = { taskTypeId: string | null; taskTypeName: string | null } & LeadTime;
+type ProjectDoneLeadTime = LeadTime & { withPlannedEnd: number; medianOverrunDays: number | null };
 
 type FlowReportResponse = {
   weeks: number;
+  months: number;
   startDate: string;
+  monthsStartDate: string;
   endDate: string;
   timeZone: string;
   asOf: string;
   flow: { tasks: FlowSeries; requests: FlowSeries; projects: FlowSeries };
-  age: { rows: AgeRow[]; total: AgeRow };
-  leadTime: { tasks: LeadTime; tasksByType: LeadTimeByType[]; requests: LeadTime; projects: LeadTime };
+  age: {
+    tasks: { rows: AgeRow[]; total: AgeRow };
+    requests: StageAgeTable;
+    projects: StageAgeTable;
+  };
+  leadTime: {
+    tasks: LeadTime;
+    tasksByType: LeadTimeByType[];
+    requests: LeadTime & { converted: LeadTime; rejected: LeadTime };
+    projects: LeadTime & { done: ProjectDoneLeadTime };
+  };
 };
 
 type EntityKey = 'tasks' | 'requests' | 'projects';
+/** The two entities read month by month and broken down by the stage they sit in. */
+type StageKey = 'requests' | 'projects';
 
 const ENTITY_KEYS: EntityKey[] = ['tasks', 'requests', 'projects'];
+const MONTH_BUCKETS: MonthBucket[] = ['underOneMonth', 'oneToThreeMonths', 'threeToSixMonths', 'overSixMonths'];
 
 export const FLOW_PERIODS = [8, 13, 26];
+export const FLOW_MONTH_PERIODS = [6, 12, 24];
 export const FLOW_WEEKS_STORAGE_KEY = 'kanap.portfolioReports.flowWeeks';
+export const FLOW_MONTHS_STORAGE_KEY = 'kanap.portfolioReports.flowMonths';
 
 /* ------------------------------------------------------------------ */
 /*  Charter surfaces                                                  */
@@ -75,6 +110,8 @@ const SECTION_SX = {
 } as const;
 
 const SECTION_TITLE_SX = { fontSize: 16, fontWeight: 500, color: 'kanap.text.primary', mb: 1.5 } as const;
+
+const SUB_TITLE_SX = { fontSize: 12, fontWeight: 500, color: 'kanap.text.tertiary', mb: 0.75 } as const;
 
 const TILE_SX = {
   flex: 1,
@@ -93,6 +130,19 @@ const LINK_SX = {
   '&:hover': { textDecoration: 'underline' },
 } as const;
 
+/** A text button: the charter's only teal affordance outside fields and primary buttons. */
+const TEXT_BUTTON_SX = {
+  fontSize: 12,
+  fontWeight: 400,
+  color: 'kanap.teal',
+  border: 0,
+  p: 0,
+  bgcolor: 'transparent',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  '&:hover': { textDecoration: 'underline' },
+} as const;
+
 /**
  * Series colours, slots 1 and 2 of the data-viz palette, stepped per mode. They clear the
  * lightness band, the chroma floor, the colour-vision separation and the 3:1 contrast against
@@ -103,19 +153,19 @@ const SERIES_COLORS = {
   dark: { created: '#3987e5', closed: '#d95926' },
 } as const;
 
-const readStoredWeeks = (): number => {
+const readStored = (key: string, allowed: number[], fallback: number): number => {
   try {
-    const stored = Number(window.localStorage.getItem(FLOW_WEEKS_STORAGE_KEY));
-    if (FLOW_PERIODS.includes(stored)) return stored;
+    const stored = Number(window.localStorage.getItem(key));
+    if (allowed.includes(stored)) return stored;
   } catch {
     // A browser that refuses storage still gets the default period.
   }
-  return 13;
+  return fallback;
 };
 
-const storeWeeks = (weeks: number) => {
+const store = (key: string, value: number) => {
   try {
-    window.localStorage.setItem(FLOW_WEEKS_STORAGE_KEY, String(weeks));
+    window.localStorage.setItem(key, String(value));
   } catch {
     // Remembering the period is a convenience, never a requirement.
   }
@@ -136,19 +186,22 @@ const shiftDay = (day: string, offset: number): string => {
   return shifted.toISOString().slice(0, 10);
 };
 
-/** The weekly report, narrowed to one week of the window. */
+/** The weekly report, narrowed to one period of the window. */
 const weeklyPath = (from: string, to: string) =>
   `/portfolio/reports/weekly?startDate=${from}&endDate=${to}`;
 
 const listPathFor = (key: EntityKey): string =>
   key === 'tasks' ? tasksPath() : key === 'requests' ? requestsPath() : projectsPath();
 
+const stageListPath = (key: StageKey, extra: FilterModel): string =>
+  key === 'requests' ? requestsPath(extra) : projectsPath(extra);
+
 /* ------------------------------------------------------------------ */
 /*  Stat tile                                                         */
 /* ------------------------------------------------------------------ */
 
 /**
- * The open stock of the last weeks, as a bare 12-point line. It carries the shape of the
+ * The open stock of the last periods, as a bare 12-point line. It carries the shape of the
  * trend, never a value: the figures live in the tile, the chart and the table below.
  */
 function Sparkline({ points, label }: { points: number[]; label: string }) {
@@ -227,6 +280,9 @@ function StatTile({
 /*  Page                                                              */
 /* ------------------------------------------------------------------ */
 
+/** Which cell of a stage age grid opened the list below it. */
+type StagePanel = { entity: StageKey; status: string | null; bucket: MonthBucket };
+
 export default function FlowReport() {
   const { t } = useTranslation('portfolio');
   const locale = useLocale();
@@ -234,30 +290,66 @@ export default function FlowReport() {
   const navigate = useNavigate();
   const dark = theme.palette.mode === 'dark';
 
-  const [weeks, setWeeks] = useState<number>(readStoredWeeks);
+  const [weeks, setWeeks] = useState<number>(() => readStored(FLOW_WEEKS_STORAGE_KEY, FLOW_PERIODS, 13));
+  const [months, setMonths] = useState<number>(() => readStored(FLOW_MONTHS_STORAGE_KEY, FLOW_MONTH_PERIODS, 12));
   const [tableOpen, setTableOpen] = useState(false);
+  const [panel, setPanel] = useState<StagePanel | null>(null);
 
   const { data, isError } = useQuery<FlowReportResponse>({
-    queryKey: ['portfolio-flow-report', weeks],
+    queryKey: ['portfolio-flow-report', weeks, months],
     queryFn: async () =>
-      (await api.get<FlowReportResponse>('/portfolio/reports/flow', { params: { weeks, tz: viewerTimeZone() } })).data,
+      (
+        await api.get<FlowReportResponse>('/portfolio/reports/flow', {
+          params: { weeks, months, tz: viewerTimeZone() },
+        })
+      ).data,
     placeholderData: keepPreviousData,
     staleTime: 2 * 60 * 1000,
   });
 
-  const changePeriod = (next: number) => {
+  const changeWeeks = (next: number) => {
     setWeeks(next);
-    storeWeeks(next);
+    store(FLOW_WEEKS_STORAGE_KEY, next);
+  };
+
+  const changeMonths = (next: number) => {
+    setMonths(next);
+    store(FLOW_MONTHS_STORAGE_KEY, next);
+    setPanel(null);
   };
 
   const day = useCallback((value: string) => formatShortDate(value, locale), [locale]);
 
-  const openWeek = useCallback(
-    (week: FlowWeek) => {
-      navigate(weeklyPath(week.weekStart, week.weekEnd));
+  /**
+   * A month column label: the short month on its own, plus the year when the window changes
+   * year, so a 24-month axis never shows two identical labels.
+   */
+  const monthLabel = useCallback(
+    (periodStart: string, previousStart?: string) => {
+      const date = new Date(`${periodStart}T00:00:00`);
+      const short = new Intl.DateTimeFormat(locale, { month: 'short' }).format(date);
+      const sameYear = previousStart != null && previousStart.slice(0, 4) === periodStart.slice(0, 4);
+      return sameYear ? short : `${short} ${periodStart.slice(0, 4)}`;
     },
-    [navigate],
+    [locale],
   );
+
+  /** The label of a period, whichever grain it belongs to. */
+  const periodLabel = useCallback(
+    (series: FlowSeries, index: number) =>
+      series.granularity === 'month'
+        ? monthLabel(series.periods[index].periodStart, series.periods[index - 1]?.periodStart)
+        : day(series.periods[index].periodStart),
+    [day, monthLabel],
+  );
+
+  const statusLabel = useCallback(
+    (entity: StageKey, status: string) =>
+      t(`statuses.${entity === 'requests' ? 'request' : 'project'}.${status}`, { defaultValue: status }),
+    [t],
+  );
+
+  const bucketLabel = useCallback((bucket: MonthBucket) => t(`reports.flow.columns.${bucket}`), [t]);
 
   /* ---------------------------------------------------------------- */
   /*  Charts                                                          */
@@ -267,24 +359,29 @@ export default function FlowReport() {
 
   const chartFor = useCallback(
     (key: EntityKey, series: FlowSeries) => {
-      const rows = series.weeks.map((week) => ({
-        label: day(week.weekStart),
-        created: week.created,
-        closed: week.closed,
-        openAtEnd: week.openAtEnd,
-        weekStart: week.weekStart,
-        weekEnd: week.weekEnd,
+      const rows = series.periods.map((period, index) => ({
+        label: periodLabel(series, index),
+        created: period.created,
+        closed: period.closed,
+        openAtEnd: period.openAtEnd,
+        periodStart: period.periodStart,
+        periodEnd: period.periodEnd,
       }));
+
+      const openLabel =
+        series.granularity === 'month'
+          ? t('reports.flow.charts.openAtEndMonth')
+          : t('reports.flow.charts.openAtEnd');
 
       const tooltip = {
         renderer: (params: any) => {
           const row = params.datum;
           return {
-            title: t('reports.flow.charts.weekRange', { from: day(row.weekStart), to: day(row.weekEnd) }),
+            title: t('reports.flow.charts.periodRange', { from: day(row.periodStart), to: day(row.periodEnd) }),
             content: [
               `${t('reports.flow.charts.created')}: ${row.created}`,
               `${t('reports.flow.charts.closed')}: ${row.closed}`,
-              `${t('reports.flow.charts.openAtEnd')}: ${row.openAtEnd}`,
+              `${openLabel}: ${row.openAtEnd}`,
             ].join('<br/>'),
           };
         },
@@ -303,6 +400,7 @@ export default function FlowReport() {
 
       return {
         key,
+        granularity: series.granularity,
         options: {
           theme: dark ? 'ag-default-dark' : 'ag-default',
           background: { fill: 'transparent' },
@@ -340,13 +438,13 @@ export default function FlowReport() {
           listeners: {
             seriesNodeClick: (event: any) => {
               const row = event?.datum;
-              if (row?.weekStart && row?.weekEnd) navigate(weeklyPath(row.weekStart, row.weekEnd));
+              if (row?.periodStart && row?.periodEnd) navigate(weeklyPath(row.periodStart, row.periodEnd));
             },
           },
         },
       };
     },
-    [colors, dark, day, navigate, t, theme],
+    [colors, dark, day, navigate, periodLabel, t, theme],
   );
 
   const charts = useMemo(
@@ -355,74 +453,121 @@ export default function FlowReport() {
   );
 
   /* ---------------------------------------------------------------- */
-  /*  Flow table                                                      */
+  /*  Flow tables                                                     */
   /* ---------------------------------------------------------------- */
 
-  type FlowTableRow = FlowWeek & {
-    tasks: FlowWeek;
-    requests: FlowWeek;
-    projects: FlowWeek;
-  };
+  type WeekTableRow = FlowPeriod;
+  type MonthTableRow = FlowPeriod & { label: string; requests: FlowPeriod; projects: FlowPeriod };
 
-  const flowRows = useMemo<FlowTableRow[]>(() => {
+  const weekRows = useMemo<WeekTableRow[]>(() => data?.flow.tasks.periods ?? [], [data]);
+
+  const monthRows = useMemo<MonthTableRow[]>(() => {
     if (!data) return [];
-    return data.flow.tasks.weeks.map((week, index) => ({
-      ...week,
-      tasks: week,
-      requests: data.flow.requests.weeks[index],
-      projects: data.flow.projects.weeks[index],
+    const series = data.flow.requests;
+    return series.periods.map((period, index) => ({
+      ...period,
+      label: periodLabel(series, index),
+      requests: period,
+      projects: data.flow.projects.periods[index],
     }));
-  }, [data]);
+  }, [data, periodLabel]);
 
-  const flowColumns = useMemo<ColDef<FlowTableRow>[]>(() => {
-    const weekCell = (params: ICellRendererParams<FlowTableRow>) =>
-      params.data ? day(params.data.weekStart) : '';
+  /** A created/closed count that opens the weekly report for its own period. */
+  const periodCountCell =
+    (read: (row: any) => { value: number; from: string; to: string }) =>
+    (params: ICellRendererParams<any>) => {
+      if (!params.data) return null;
+      const { value, from, to } = read(params.data);
+      if (value === 0) return <span>0</span>;
+      return (
+        <RouterLink to={weeklyPath(from, to)} style={{ color: 'inherit' }}>
+          {value}
+        </RouterLink>
+      );
+    };
 
-    const countCell =
-      (key: EntityKey, field: 'created' | 'closed') =>
-      (params: ICellRendererParams<FlowTableRow>) => {
-        const row = params.data;
-        if (!row) return null;
-        const value = row[key][field];
-        if (value === 0) return <span>0</span>;
-        return (
-          <RouterLink to={weeklyPath(row.weekStart, row.weekEnd)} style={{ color: 'inherit' }}>
-            {value}
-          </RouterLink>
-        );
-      };
+  const weekColumns = useMemo<ColDef<WeekTableRow>[]>(
+    () => [
+      {
+        headerName: t('reports.flow.columns.week'),
+        width: 120,
+        valueGetter: (params) => (params.data ? day(params.data.periodStart) : ''),
+      },
+      {
+        headerName: t('reports.flow.columns.tasksCreated'),
+        width: 140,
+        type: 'numericColumn',
+        valueGetter: (params) => params.data?.created ?? 0,
+        cellRenderer: periodCountCell((row: WeekTableRow) => ({
+          value: row.created,
+          from: row.periodStart,
+          to: row.periodEnd,
+        })),
+      },
+      {
+        headerName: t('reports.flow.columns.tasksClosed'),
+        width: 140,
+        type: 'numericColumn',
+        valueGetter: (params) => params.data?.closed ?? 0,
+        cellRenderer: periodCountCell((row: WeekTableRow) => ({
+          value: row.closed,
+          from: row.periodStart,
+          to: row.periodEnd,
+        })),
+      },
+      // The stock at the end of a past period is a computed state: no list holds exactly it.
+      {
+        headerName: t('reports.flow.columns.tasksOpen'),
+        width: 130,
+        type: 'numericColumn',
+        valueGetter: (params) => params.data?.openAtEnd ?? 0,
+      },
+    ],
+    [day, t],
+  );
 
-    const numeric = (headerName: string, valueGetter: (row: FlowTableRow) => number): ColDef<FlowTableRow> => ({
-      headerName,
-      width: 116,
-      type: 'numericColumn',
-      valueGetter: (params) => (params.data ? valueGetter(params.data) : 0),
-    });
-
-    const trio = (key: EntityKey): ColDef<FlowTableRow>[] => [
+  const monthColumns = useMemo<ColDef<MonthTableRow>[]>(() => {
+    const trio = (key: StageKey): ColDef<MonthTableRow>[] => [
       {
         headerName: t(`reports.flow.columns.${key}Created`),
-        width: 132,
+        width: 150,
         type: 'numericColumn',
         valueGetter: (params) => params.data?.[key].created ?? 0,
-        cellRenderer: countCell(key, 'created'),
+        cellRenderer: periodCountCell((row: MonthTableRow) => ({
+          value: row[key].created,
+          from: row.periodStart,
+          to: row.periodEnd,
+        })),
       },
       {
         headerName: t(`reports.flow.columns.${key}Closed`),
-        width: 140,
+        width: 150,
         type: 'numericColumn',
         valueGetter: (params) => params.data?.[key].closed ?? 0,
-        cellRenderer: countCell(key, 'closed'),
+        cellRenderer: periodCountCell((row: MonthTableRow) => ({
+          value: row[key].closed,
+          from: row.periodStart,
+          to: row.periodEnd,
+        })),
       },
-      // The stock at the end of a past week is a computed state: no list holds exactly it.
-      numeric(t(`reports.flow.columns.${key}Open`), (row) => row[key].openAtEnd),
+      {
+        headerName: t(`reports.flow.columns.${key}Open`),
+        width: 140,
+        type: 'numericColumn',
+        valueGetter: (params) => params.data?.[key].openAtEnd ?? 0,
+      },
     ];
 
     return [
-      { headerName: t('reports.flow.columns.week'), width: 120, cellRenderer: weekCell },
-      ...ENTITY_KEYS.flatMap(trio),
+      {
+        headerName: t('reports.flow.columns.month'),
+        width: 120,
+        valueGetter: (params) => params.data?.label ?? '',
+      },
+      ...trio('requests'),
+      ...trio('projects'),
     ];
-  }, [day, t]);
+  }, [t]);
 
   /* ---------------------------------------------------------------- */
   /*  Age of open tasks                                               */
@@ -432,9 +577,9 @@ export default function FlowReport() {
 
   const ageRows = useMemo<AgeTableRow[]>(() => {
     if (!data) return [];
-    const rows: AgeTableRow[] = data.age.rows.map((row) => ({ ...row, isTotal: false }));
+    const rows: AgeTableRow[] = data.age.tasks.rows.map((row) => ({ ...row, isTotal: false }));
     if (rows.length === 0) return rows;
-    return [...rows, { ...data.age.total, isTotal: true }];
+    return [...rows, { ...data.age.tasks.total, isTotal: true }];
   }, [data]);
 
   const ageColumns = useMemo<ColDef<AgeTableRow>[]>(() => {
@@ -472,7 +617,8 @@ export default function FlowReport() {
 
     const bucketColumn = (bucket: AgeBucket): ColDef<AgeTableRow> => ({
       headerName: t(`reports.flow.columns.${bucket}`),
-      width: 120,
+      flex: 1,
+      minWidth: 84,
       type: 'numericColumn',
       valueGetter: (params) => params.data?.buckets[bucket] ?? 0,
       cellRenderer: cell(bucket),
@@ -481,8 +627,8 @@ export default function FlowReport() {
     return [
       {
         headerName: t('reports.flow.columns.taskType'),
-        flex: 1,
-        minWidth: 180,
+        flex: 1.4,
+        minWidth: 110,
         valueGetter: (params) => {
           if (!params.data) return '';
           if (params.data.isTotal) return t('reports.flow.rows.total');
@@ -496,7 +642,8 @@ export default function FlowReport() {
       bucketColumn('over90'),
       {
         headerName: t('reports.flow.columns.total'),
-        width: 100,
+        flex: 0.8,
+        minWidth: 72,
         type: 'numericColumn',
         valueGetter: (params) => params.data?.total ?? 0,
         cellRenderer: cell(null),
@@ -505,8 +652,160 @@ export default function FlowReport() {
   }, [data, t]);
 
   /* ---------------------------------------------------------------- */
+  /*  Time in the current stage                                       */
+  /* ---------------------------------------------------------------- */
+
+  type StageTableRow = StageAgeRow & { isTotal: boolean };
+
+  const stageRows = useCallback(
+    (key: StageKey): StageTableRow[] => {
+      const table = data?.age[key];
+      if (!table) return [];
+      return [
+        ...table.rows.map((row) => ({ ...row, isTotal: false })),
+        { ...table.total, isTotal: true },
+      ];
+    },
+    [data],
+  );
+
+  /** The items behind one cell of a stage grid: the list the report opens is this list. */
+  const panelItems = useMemo<StageAgeItem[]>(() => {
+    if (!panel || !data) return [];
+    return data.age[panel.entity].items.filter(
+      (item) => item.bucket === panel.bucket && (panel.status == null || item.status === panel.status),
+    );
+  }, [data, panel]);
+
+  const stageColumns = useCallback(
+    (key: StageKey): ColDef<StageTableRow>[] => {
+      const today = data?.endDate ?? '';
+      const openScope = (row: StageTableRow): FilterModel =>
+        row.isTotal ? {} : { status: { filterType: 'set', values: [row.status] } };
+
+      // A bracket is a span of time inside a stage: no list filters on it, so the figure opens
+      // the report's own list, built from the very items the figure counted.
+      const bucketCell =
+        (bucket: MonthBucket) =>
+        (params: ICellRendererParams<StageTableRow>) => {
+          const row = params.data;
+          if (!row) return null;
+          const value = row.buckets[bucket];
+          const weight = row.isTotal ? 500 : 400;
+          if (value === 0) return <span style={{ fontWeight: weight }}>{value}</span>;
+          const active =
+            panel?.entity === key && panel.bucket === bucket && panel.status === (row.isTotal ? null : row.status);
+          return (
+            <Box
+              component="button"
+              type="button"
+              onClick={() =>
+                setPanel(
+                  active ? null : { entity: key, status: row.isTotal ? null : row.status, bucket },
+                )
+              }
+              sx={{
+                border: 0,
+                p: 0,
+                bgcolor: 'transparent',
+                font: 'inherit',
+                fontWeight: weight,
+                color: 'inherit',
+                cursor: 'pointer',
+                textDecoration: active ? 'underline' : 'none',
+                '&:hover': { textDecoration: 'underline' },
+              }}
+            >
+              {value}
+            </Box>
+          );
+        };
+
+      const totalCell = (params: ICellRendererParams<StageTableRow>) => {
+        const row = params.data;
+        if (!row) return null;
+        const weight = row.isTotal ? 500 : 400;
+        if (row.total === 0) return <span style={{ fontWeight: weight }}>{row.total}</span>;
+        return (
+          <RouterLink to={stageListPath(key, openScope(row))} style={{ color: 'inherit', fontWeight: weight }}>
+            {row.total}
+          </RouterLink>
+        );
+      };
+
+      const plannedEndCell = (params: ICellRendererParams<StageTableRow>) => {
+        const row = params.data;
+        if (!row) return null;
+        const value = row.plannedEndPassed ?? 0;
+        const weight = row.isTotal ? 500 : 400;
+        if (value === 0 || !today) return <span style={{ fontWeight: weight }}>{value}</span>;
+        const filters: FilterModel = {
+          ...openScope(row),
+          planned_end: { filterType: 'date', type: 'lessThan', dateFrom: today },
+        };
+        return (
+          <RouterLink to={projectsPath(filters)} style={{ color: 'inherit', fontWeight: weight }}>
+            {value}
+          </RouterLink>
+        );
+      };
+
+      const columns: ColDef<StageTableRow>[] = [
+        {
+          headerName: t('reports.flow.columns.stage'),
+          flex: 1.4,
+          minWidth: 110,
+          valueGetter: (params) => {
+            if (!params.data) return '';
+            return params.data.isTotal
+              ? t('reports.flow.rows.total')
+              : statusLabel(key, params.data.status);
+          },
+          cellStyle: (params) => (params.data?.isTotal ? { fontWeight: 500 } : null),
+        },
+        ...MONTH_BUCKETS.map<ColDef<StageTableRow>>((bucket) => ({
+          headerName: bucketLabel(bucket),
+          flex: 1,
+          minWidth: 84,
+          type: 'numericColumn',
+          valueGetter: (params) => params.data?.buckets[bucket] ?? 0,
+          cellRenderer: bucketCell(bucket),
+        })),
+        {
+          headerName: t('reports.flow.columns.total'),
+          flex: 0.8,
+          minWidth: 72,
+          type: 'numericColumn',
+          valueGetter: (params) => params.data?.total ?? 0,
+          cellRenderer: totalCell,
+        },
+      ];
+
+      if (key === 'projects') {
+        columns.push({
+          headerName: t('reports.flow.columns.plannedEndPassed'),
+          flex: 1.1,
+          minWidth: 96,
+          type: 'numericColumn',
+          valueGetter: (params) => params.data?.plannedEndPassed ?? 0,
+          cellRenderer: plannedEndCell,
+        });
+      }
+
+      return columns;
+    },
+    [bucketLabel, data, panel, statusLabel, t],
+  );
+
+  /* ---------------------------------------------------------------- */
   /*  Median time to close                                            */
   /* ---------------------------------------------------------------- */
+
+  const medianText = useCallback(
+    (value: number | null) =>
+      value == null ? t('reports.flow.tiles.noValue') : t('reports.flow.tiles.days', { count: value }),
+    [t],
+  );
 
   const leadColumns = useMemo<ColDef<LeadTimeByType>[]>(
     () => [
@@ -526,25 +825,102 @@ export default function FlowReport() {
         headerName: t('reports.flow.columns.medianDays'),
         width: 140,
         type: 'numericColumn',
-        valueGetter: (params) =>
-          params.data?.medianDays == null
-            ? t('reports.flow.tiles.noValue')
-            : t('reports.flow.tiles.days', { count: params.data.medianDays }),
+        valueGetter: (params) => medianText(params.data?.medianDays ?? null),
       },
     ],
-    [t],
+    [medianText, t],
+  );
+
+  type OutcomeRow = LeadTime & { outcome: 'converted' | 'rejected' };
+
+  const outcomeRows = useMemo<OutcomeRow[]>(() => {
+    if (!data) return [];
+    return [
+      { outcome: 'converted', ...data.leadTime.requests.converted },
+      { outcome: 'rejected', ...data.leadTime.requests.rejected },
+    ];
+  }, [data]);
+
+  const outcomeColumns = useMemo<ColDef<OutcomeRow>[]>(
+    () => [
+      {
+        headerName: t('reports.flow.columns.outcome'),
+        flex: 1,
+        minWidth: 160,
+        valueGetter: (params) => (params.data ? t(`reports.flow.rows.${params.data.outcome}`) : ''),
+      },
+      {
+        headerName: t('reports.flow.columns.closedCount'),
+        width: 120,
+        type: 'numericColumn',
+        valueGetter: (params) => params.data?.closedCount ?? 0,
+      },
+      {
+        headerName: t('reports.flow.columns.medianDays'),
+        width: 140,
+        type: 'numericColumn',
+        valueGetter: (params) => medianText(params.data?.medianDays ?? null),
+      },
+    ],
+    [medianText, t],
+  );
+
+  type DoneRow = ProjectDoneLeadTime;
+
+  const doneRows = useMemo<DoneRow[]>(() => (data ? [data.leadTime.projects.done] : []), [data]);
+
+  const doneColumns = useMemo<ColDef<DoneRow>[]>(
+    () => [
+      {
+        headerName: t('reports.flow.columns.completed'),
+        flex: 1,
+        minWidth: 120,
+        type: 'numericColumn',
+        valueGetter: (params) => params.data?.closedCount ?? 0,
+      },
+      {
+        headerName: t('reports.flow.columns.medianDuration'),
+        width: 160,
+        type: 'numericColumn',
+        valueGetter: (params) => medianText(params.data?.medianDays ?? null),
+      },
+      {
+        headerName: t('reports.flow.columns.medianGap'),
+        flex: 1.4,
+        minWidth: 220,
+        type: 'numericColumn',
+        valueGetter: (params) => {
+          const row = params.data;
+          if (!row || row.withPlannedEnd === 0 || row.medianOverrunDays == null) {
+            return t('reports.flow.tiles.noValue');
+          }
+          return t('reports.flow.rows.gapOver', {
+            gap: t('reports.flow.tiles.days', { count: row.medianOverrunDays }),
+            count: row.withPlannedEnd,
+          });
+        },
+      },
+    ],
+    [medianText, t],
   );
 
   const { ref: flowTableRef, height: flowTableFill } = useFillViewportHeight();
 
-  const firstWeek = data?.flow.tasks.weeks[0];
+  /* ---------------------------------------------------------------- */
+  /*  Tiles                                                           */
+  /* ---------------------------------------------------------------- */
 
   const tiles = ENTITY_KEYS.map((key) => {
     const series = data?.flow[key];
     const openNow = series?.openNow ?? 0;
-    const opening = series?.weeks[0]?.openAtEnd ?? 0;
+    const opening = series?.periods[0]?.openAtEnd ?? 0;
     const delta = openNow - opening;
-    const since = firstWeek ? day(firstWeek.weekStart) : '';
+    const first = series?.periods[0];
+    const since = !first
+      ? ''
+      : series!.granularity === 'month'
+        ? monthLabel(first.periodStart)
+        : day(first.periodStart);
     return {
       key,
       label: t(`reports.flow.tiles.${key}`),
@@ -555,14 +931,32 @@ export default function FlowReport() {
         delta === 0
           ? t('reports.flow.tiles.steady', { date: since })
           : t('reports.flow.tiles.deltaSince', { delta: delta > 0 ? `+${delta}` : String(delta), date: since }),
-      trend: (series?.weeks ?? []).slice(-12).map((week) => week.openAtEnd),
+      trend: (series?.periods ?? []).slice(-12).map((period) => period.openAtEnd),
+      trendLabel:
+        series?.granularity === 'month'
+          ? t('reports.flow.tiles.trendLabelMonths')
+          : t('reports.flow.tiles.trendLabel'),
     };
   });
 
   const leadTiles = ENTITY_KEYS.map((key) => {
-    const lead = data?.leadTime[key] ?? { closedCount: 0, medianDays: null };
-    return { key, label: t(`reports.flow.tiles.${key}`), lead };
+    const lead: LeadTime = data?.leadTime[key] ?? { closedCount: 0, medianDays: null };
+    const monthly = key !== 'tasks';
+    return {
+      key,
+      label: t(`reports.flow.tiles.${key}`),
+      lead,
+      windowFrom: monthly ? data?.monthsStartDate : data?.startDate,
+      caption: monthly
+        ? t('reports.flow.tiles.closedOverMonths', { count: lead.closedCount, months })
+        : t('reports.flow.tiles.closedOver', { count: lead.closedCount }),
+    };
   });
+
+  const stageGrids: Array<{ key: StageKey; title: string; empty: string }> = [
+    { key: 'requests', title: t('reports.flow.subsections.requestStages'), empty: t('reports.flow.empty.requestStages') },
+    { key: 'projects', title: t('reports.flow.subsections.projectStages'), empty: t('reports.flow.empty.projectStages') },
+  ];
 
   return (
     <ReportLayout
@@ -571,27 +965,45 @@ export default function FlowReport() {
       rootTo="/portfolio/reports"
       rootLabel={t('reports.title')}
       filters={(
-        <ReportFilter label={t('reports.flow.filters.period')} width={180}>
-          <TextField
-            select
-            size="small"
-            value={weeks}
-            onChange={(event) => changePeriod(Number(event.target.value))}
-            SelectProps={{ MenuProps: reportFilterMenuProps }}
-            sx={reportFilterSelectSx}
-          >
-            {FLOW_PERIODS.map((option) => (
-              <MenuItem key={option} value={option} sx={drawerMenuItemSx}>
-                {t('reports.flow.filters.periodOption', { count: option })}
-              </MenuItem>
-            ))}
-          </TextField>
-        </ReportFilter>
+        <>
+          <ReportFilter label={t('reports.flow.filters.tasks')} width={170}>
+            <TextField
+              select
+              size="small"
+              value={weeks}
+              onChange={(event) => changeWeeks(Number(event.target.value))}
+              SelectProps={{ MenuProps: reportFilterMenuProps }}
+              sx={reportFilterSelectSx}
+            >
+              {FLOW_PERIODS.map((option) => (
+                <MenuItem key={option} value={option} sx={drawerMenuItemSx}>
+                  {t('reports.flow.filters.periodOption', { count: option })}
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
+          <ReportFilter label={t('reports.flow.filters.requestsProjects')} width={200}>
+            <TextField
+              select
+              size="small"
+              value={months}
+              onChange={(event) => changeMonths(Number(event.target.value))}
+              SelectProps={{ MenuProps: reportFilterMenuProps }}
+              sx={reportFilterSelectSx}
+            >
+              {FLOW_MONTH_PERIODS.map((option) => (
+                <MenuItem key={option} value={option} sx={drawerMenuItemSx}>
+                  {t('reports.flow.filters.monthOption', { count: option })}
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
+        </>
       )}
     >
       {isError && <Alert severity="error">{t('reports.flow.messages.loadFailed')}</Alert>}
 
-      {/* 1. Weekly flow ------------------------------------------------ */}
+      {/* 1. Flow -------------------------------------------------------- */}
       <Box sx={SECTION_SX}>
         <Typography component="h2" sx={SECTION_TITLE_SX}>
           {t('reports.flow.sections.flow')}
@@ -607,7 +1019,7 @@ export default function FlowReport() {
               caption={tile.caption}
               delta={tile.delta}
               trend={tile.trend}
-              trendLabel={t('reports.flow.tiles.trendLabel')}
+              trendLabel={tile.trendLabel}
             />
           ))}
         </Stack>
@@ -632,6 +1044,12 @@ export default function FlowReport() {
             >
               <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.tertiary', mb: 0.5 }}>
                 {t(`reports.flow.tiles.${chart.key}`)}
+                <Box component="span" sx={{ color: 'kanap.text.tertiary', fontWeight: 400 }}>
+                  {' · '}
+                  {chart.granularity === 'month'
+                    ? t('reports.flow.charts.byMonth')
+                    : t('reports.flow.charts.byWeek')}
+                </Box>
               </Typography>
               <Box sx={{ height: 260 }}>
                 <AgChartsReact options={chart.options as any} />
@@ -646,59 +1064,179 @@ export default function FlowReport() {
             type="button"
             onClick={() => setTableOpen((open) => !open)}
             aria-expanded={tableOpen}
-            sx={{
-              fontSize: 12,
-              fontWeight: 400,
-              color: 'kanap.teal',
-              border: 0,
-              p: 0,
-              bgcolor: 'transparent',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              '&:hover': { textDecoration: 'underline' },
-            }}
+            sx={TEXT_BUTTON_SX}
           >
             {tableOpen ? t('reports.flow.actions.hideTable') : t('reports.flow.actions.showTable')}
           </Typography>
         </Box>
 
         {tableOpen && (
-          <Box ref={flowTableRef} sx={{ mt: 1 }}>
-            <Box
-              component={AgGridBox}
-              sx={{ width: '100%', height: reportGridHeight(flowTableFill, flowRows.length) }}
-            >
-              <AgGridReact<FlowTableRow>
-                rowData={flowRows}
-                columnDefs={flowColumns}
-                defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
-                suppressCellFocus
-                getRowId={(params) => params.data.weekStart}
-              />
+          <Box ref={flowTableRef} sx={{ mt: 1, display: 'grid', gap: 2 }}>
+            <Box>
+              <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.tasksByWeek')}</Typography>
+              <Box
+                component={AgGridBox}
+                sx={{ width: '100%', height: reportGridHeight(Math.round(flowTableFill / 2), weekRows.length) }}
+              >
+                <AgGridReact<WeekTableRow>
+                  rowData={weekRows}
+                  columnDefs={weekColumns}
+                  defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                  suppressCellFocus
+                  getRowId={(params) => params.data.periodStart}
+                />
+              </Box>
+            </Box>
+            <Box>
+              <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.itemsByMonth')}</Typography>
+              <Box component={AgGridBox} sx={{ width: '100%' }}>
+                <AgGridReact<MonthTableRow>
+                  rowData={monthRows}
+                  columnDefs={monthColumns}
+                  defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                  suppressCellFocus
+                  domLayout="autoHeight"
+                  getRowId={(params) => params.data.periodStart}
+                />
+              </Box>
             </Box>
           </Box>
         )}
       </Box>
 
-      {/* 2. Age of open tasks ------------------------------------------ */}
+      {/* 2. Age of what is open ---------------------------------------- */}
       <Box sx={SECTION_SX}>
         <Typography component="h2" sx={SECTION_TITLE_SX}>
           {t('reports.flow.sections.age')}
         </Typography>
-        {ageRows.length === 0 ? (
-          <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
-            {t('reports.flow.empty.age')}
-          </Typography>
-        ) : (
-          <Box component={AgGridBox} sx={{ width: '100%' }}>
-            <AgGridReact<AgeTableRow>
-              rowData={ageRows}
-              columnDefs={ageColumns}
-              defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
-              suppressCellFocus
-              domLayout="autoHeight"
-              getRowId={(params) => (params.data.isTotal ? 'total' : params.data.taskTypeId ?? 'none')}
-            />
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+            gap: 1.5,
+            alignItems: 'start',
+          }}
+        >
+          <Box>
+            <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.openTasks')}</Typography>
+            {ageRows.length === 0 ? (
+              <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
+                {t('reports.flow.empty.age')}
+              </Typography>
+            ) : (
+              <Box component={AgGridBox} sx={{ width: '100%' }}>
+                <AgGridReact<AgeTableRow>
+                  rowData={ageRows}
+                  columnDefs={ageColumns}
+                  defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                  suppressCellFocus
+                  domLayout="autoHeight"
+                  getRowId={(params) => (params.data.isTotal ? 'total' : params.data.taskTypeId ?? 'none')}
+                />
+              </Box>
+            )}
+          </Box>
+
+          {stageGrids.map((grid) => {
+            const rows = stageRows(grid.key);
+            return (
+              <Box key={grid.key}>
+                <Typography sx={SUB_TITLE_SX}>{grid.title}</Typography>
+                {rows.length === 0 ? (
+                  <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
+                    {grid.empty}
+                  </Typography>
+                ) : (
+                  <Box component={AgGridBox} sx={{ width: '100%' }}>
+                    <AgGridReact<StageTableRow>
+                      rowData={rows}
+                      columnDefs={stageColumns(grid.key)}
+                      defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                      suppressCellFocus
+                      domLayout="autoHeight"
+                      getRowId={(params) => (params.data.isTotal ? 'total' : params.data.status)}
+                    />
+                  </Box>
+                )}
+              </Box>
+            );
+          })}
+        </Box>
+
+        {panel && (
+          <Box
+            sx={{
+              mt: 1.5,
+              border: '1px solid',
+              borderColor: 'kanap.border.soft',
+              borderRadius: '8px',
+              bgcolor: 'kanap.bg.drawer',
+              px: 2,
+              py: 1.25,
+            }}
+          >
+            <Stack direction="row" alignItems="baseline" justifyContent="space-between" spacing={1.5} sx={{ mb: 1 }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.secondary' }}>
+                {[
+                  panel.status == null
+                    ? t(`reports.flow.tiles.${panel.entity}`)
+                    : statusLabel(panel.entity, panel.status),
+                  bucketLabel(panel.bucket),
+                  String(panelItems.length),
+                ].join(' · ')}
+              </Typography>
+              <Typography component="button" type="button" onClick={() => setPanel(null)} sx={TEXT_BUTTON_SX}>
+                {t('reports.flow.actions.closeList')}
+              </Typography>
+            </Stack>
+
+            <Stack spacing={0.5}>
+              {panelItems.map((item) => (
+                <Stack
+                  key={item.id}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  alignItems={{ xs: 'flex-start', sm: 'baseline' }}
+                  spacing={{ xs: 0, sm: 1.5 }}
+                  sx={{
+                    py: 0.5,
+                    borderTop: '1px solid',
+                    borderColor: 'kanap.border.soft',
+                    '&:first-of-type': { borderTop: 0 },
+                  }}
+                >
+                  <Typography
+                    component={RouterLink}
+                    to={item.itemPath}
+                    sx={{
+                      ...LINK_SX,
+                      fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+                      fontSize: 12,
+                      fontVariantNumeric: 'tabular-nums',
+                      color: 'kanap.text.secondary',
+                      minWidth: 62,
+                    }}
+                  >
+                    {item.ref}
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.primary', flex: 1, minWidth: 0 }}>
+                    {item.name}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 400, color: 'kanap.text.secondary' }}>
+                    {statusLabel(panel.entity, item.status)}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 400, color: 'kanap.text.tertiary' }}>
+                    {t('reports.flow.list.since', { date: day(item.statusSince) })}
+                  </Typography>
+                  {panel.entity === 'projects' && item.plannedEnd && (
+                    <Typography sx={{ fontSize: 12, fontWeight: 400, color: 'kanap.text.tertiary' }}>
+                      {t('reports.flow.list.plannedEnd', { date: day(item.plannedEnd) })}
+                      {item.plannedEndPassed ? ` · ${t('reports.flow.list.overdue')}` : ''}
+                    </Typography>
+                  )}
+                </Stack>
+              ))}
+            </Stack>
           </Box>
         )}
       </Box>
@@ -713,43 +1251,81 @@ export default function FlowReport() {
             <Box key={tile.key} sx={TILE_SX}>
               <Typography sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.tertiary' }}>{tile.label}</Typography>
               <Typography sx={{ fontSize: 22, fontWeight: 500, color: 'kanap.text.primary' }}>
-                {tile.lead.medianDays == null
-                  ? t('reports.flow.tiles.noValue')
-                  : t('reports.flow.tiles.days', { count: tile.lead.medianDays })}
+                {medianText(tile.lead.medianDays)}
               </Typography>
-              {tile.lead.closedCount === 0 || !data ? (
+              {tile.lead.closedCount === 0 || !data || !tile.windowFrom ? (
                 <Typography sx={{ fontSize: 12, fontWeight: 400, color: 'kanap.text.tertiary' }}>
                   {t('reports.flow.tiles.noClosing')}
                 </Typography>
               ) : (
                 <Typography
                   component={RouterLink}
-                  to={weeklyPath(data.startDate, data.endDate)}
+                  to={weeklyPath(tile.windowFrom, data.endDate)}
                   sx={{ ...LINK_SX, fontSize: 12, fontWeight: 400, color: 'kanap.text.secondary', display: 'inline-block' }}
                 >
-                  {t('reports.flow.tiles.closedOver', { count: tile.lead.closedCount })}
+                  {tile.caption}
                 </Typography>
               )}
             </Box>
           ))}
         </Stack>
 
-        {(data?.leadTime.tasksByType ?? []).length === 0 ? (
-          <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
-            {t('reports.flow.empty.leadTimeByType')}
-          </Typography>
-        ) : (
-          <Box component={AgGridBox} sx={{ width: '100%' }}>
-            <AgGridReact<LeadTimeByType>
-              rowData={data?.leadTime.tasksByType ?? []}
-              columnDefs={leadColumns}
-              defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
-              suppressCellFocus
-              domLayout="autoHeight"
-              getRowId={(params) => params.data.taskTypeId ?? 'none'}
-            />
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+            gap: 1.5,
+            alignItems: 'start',
+          }}
+        >
+          <Box>
+            <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.tasksByType')}</Typography>
+            {(data?.leadTime.tasksByType ?? []).length === 0 ? (
+              <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
+                {t('reports.flow.empty.leadTimeByType')}
+              </Typography>
+            ) : (
+              <Box component={AgGridBox} sx={{ width: '100%' }}>
+                <AgGridReact<LeadTimeByType>
+                  rowData={data?.leadTime.tasksByType ?? []}
+                  columnDefs={leadColumns}
+                  defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                  suppressCellFocus
+                  domLayout="autoHeight"
+                  getRowId={(params) => params.data.taskTypeId ?? 'none'}
+                />
+              </Box>
+            )}
           </Box>
-        )}
+
+          <Box>
+            <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.requestOutcomes')}</Typography>
+            <Box component={AgGridBox} sx={{ width: '100%' }}>
+              <AgGridReact<OutcomeRow>
+                rowData={outcomeRows}
+                columnDefs={outcomeColumns}
+                defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                suppressCellFocus
+                domLayout="autoHeight"
+                getRowId={(params) => params.data.outcome}
+              />
+            </Box>
+          </Box>
+
+          <Box>
+            <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.projectCompletion')}</Typography>
+            <Box component={AgGridBox} sx={{ width: '100%' }}>
+              <AgGridReact<DoneRow>
+                rowData={doneRows}
+                columnDefs={doneColumns}
+                defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                suppressCellFocus
+                domLayout="autoHeight"
+                getRowId={() => 'done'}
+              />
+            </Box>
+          </Box>
+        </Box>
       </Box>
     </ReportLayout>
   );
