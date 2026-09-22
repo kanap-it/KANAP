@@ -147,6 +147,10 @@ describe('UpcomingReport', () => {
     expect(within(section('tasks')).getByText('Within the next 14 days')).toBeTruthy();
     expect(within(section('pendingRequests')).getByText('For more than 30 days')).toBeTruthy();
     expect(within(section('tasks')).getByText('T-4')).toBeTruthy();
+    // Tasks carry their status like the project and request grids: a dot and its label.
+    const taskHeaders = within(section('tasks')).getAllByRole('columnheader').map((node) => node.textContent?.trim());
+    expect(taskHeaders.indexOf('Status')).toBe(taskHeaders.indexOf('Priority') + 1);
+    expect(within(section('tasks')).getAllByText('Open').length).toBeGreaterThan(0);
   });
 
   it('sends the default horizons and the viewer zone', async () => {

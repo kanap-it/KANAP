@@ -23,8 +23,9 @@ import {
   getPriorityLabel,
   getProjectStatusLabel,
   getRequestStatusLabel,
+  getTaskStatusLabel,
 } from '../../utils/portfolioI18n';
-import { PROJECT_STATUS_COLORS, REQUEST_STATUS_COLORS, getDotColor } from '../../utils/statusColors';
+import { PROJECT_STATUS_COLORS, REQUEST_STATUS_COLORS, TASK_STATUS_COLORS, getDotColor } from '../../utils/statusColors';
 import {
   createdBetween,
   dateInRange,
@@ -487,7 +488,7 @@ export default function UpcomingReport() {
     const date = <TRow,>(field: string, headerName: string): ColDef<TRow> => ({
       field: field as any,
       headerName,
-      width: 140,
+      width: 160,
       sort: 'asc',
       valueFormatter: (params) => formatShortDate(params.value || null, locale),
     });
@@ -500,6 +501,7 @@ export default function UpcomingReport() {
     });
     const projectStatus = statusCell(PROJECT_STATUS_COLORS, (status) => getProjectStatusLabel(t, status));
     const requestStatus = statusCell(REQUEST_STATUS_COLORS, (status) => getRequestStatusLabel(t, status));
+    const taskStatus = statusCell(TASK_STATUS_COLORS, (status) => getTaskStatusLabel(t, status));
 
     const tasks: ColDef<UpcomingTaskRow>[] = [
       ref<UpcomingTaskRow>(),
@@ -511,6 +513,7 @@ export default function UpcomingReport() {
         width: 110,
         valueFormatter: (p) => (p.value ? getPriorityLabel(t, String(p.value)) : ''),
       },
+      { field: 'status', headerName: t('reports.upcoming.columns.status'), width: 170, cellRenderer: taskStatus },
       person<UpcomingTaskRow>('assigneeName', t('reports.upcoming.columns.assignee')),
       date<UpcomingTaskRow>('dueDate', t('reports.upcoming.columns.dueDate')),
       {
@@ -526,7 +529,7 @@ export default function UpcomingReport() {
     const projects = (dateField: 'plannedEnd' | 'plannedStart'): ColDef<UpcomingProjectRow>[] => [
       ref<UpcomingProjectRow>(),
       name<UpcomingProjectRow>(t('reports.upcoming.columns.project')),
-      { field: 'status', headerName: t('reports.upcoming.columns.status'), width: 140, cellRenderer: projectStatus },
+      { field: 'status', headerName: t('reports.upcoming.columns.status'), width: 170, cellRenderer: projectStatus },
       {
         field: 'priority',
         headerName: t('reports.upcoming.columns.priority'),
@@ -552,7 +555,7 @@ export default function UpcomingReport() {
     const requests = (dateField: 'createdOn' | 'targetDeliveryDate'): ColDef<UpcomingRequestRow>[] => [
       ref<UpcomingRequestRow>(),
       name<UpcomingRequestRow>(t('reports.upcoming.columns.request')),
-      { field: 'status', headerName: t('reports.upcoming.columns.status'), width: 140, cellRenderer: requestStatus },
+      { field: 'status', headerName: t('reports.upcoming.columns.status'), width: 170, cellRenderer: requestStatus },
       { field: 'sourceName', headerName: t('reports.upcoming.columns.source'), width: 150, valueFormatter: (p) => String(p.value || '') },
       date<UpcomingRequestRow>(
         dateField,
