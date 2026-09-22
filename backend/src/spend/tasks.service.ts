@@ -383,6 +383,18 @@ function buildWhereConditions(
     applyDateFilter(filters.created_at, 't.created_at::date');
   }
 
+  // The day of the last change, not the instant, for the same reason: the portfolio reports
+  // link to tasks that have not moved since a given day.
+  if (!shouldSkip('updated_at') && filters.updated_at) {
+    applyDateFilter(filters.updated_at, 't.updated_at::date');
+  }
+
+  // The assignee by id rather than by name: the reports group people by account, and two
+  // people can carry the same display name. An empty value asks for the unassigned tasks.
+  if (!shouldSkip('assignee_user_id') && filters.assignee_user_id) {
+    applySetFilter(filters.assignee_user_id, 't.assignee_user_id');
+  }
+
   if (!shouldSkip('labels') && filters.labels?.filter) {
     params.push(`%${filters.labels.filter}%`);
     whereConditions += ` AND EXISTS (
