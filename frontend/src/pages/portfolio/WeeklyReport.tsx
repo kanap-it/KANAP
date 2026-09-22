@@ -169,24 +169,7 @@ const writeCollapsed = (section: WeeklySectionKey, collapsed: boolean) => {
   }
 };
 
-export const GROUP_BY_STORAGE_KEY = 'kanap.portfolioReports.weeklyGroupBy';
 export const COLLAPSED_PEOPLE_STORAGE_KEY = 'kanap.portfolioReports.weeklyCollapsedPeople';
-
-const readGroupBy = (): WeeklyGroupBy => {
-  try {
-    return window.localStorage.getItem(GROUP_BY_STORAGE_KEY) === 'person' ? 'person' : 'type';
-  } catch {
-    return 'type';
-  }
-};
-
-const writeGroupBy = (groupBy: WeeklyGroupBy) => {
-  try {
-    window.localStorage.setItem(GROUP_BY_STORAGE_KEY, groupBy);
-  } catch {
-    /* Remembering the reading is a convenience, never a requirement. */
-  }
-};
 
 /** Folded groups are remembered by key; everything is open until someone folds it. */
 const readCollapsedPeople = (): string[] => {
@@ -571,7 +554,7 @@ export default function WeeklyReport() {
   const mode = theme.palette.mode;
   const today = useMemo(() => toIsoDate(new Date()), []);
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [startDate, setStartDate] = useState<string>(() =>
     dayFromParams(searchParams, 'startDate', getDefaultStartDate()),
   );
@@ -618,22 +601,25 @@ export default function WeeklyReport() {
   const { hasLevel } = useAuth();
   const canOpenContributor = hasLevel('portfolio_settings', 'reader');
 
-  // A `groupBy` handed over in the URL (the "Activity by person" card) wins over the remembered
-  // reading and becomes the remembered one, exactly as a click on the toggle would.
-  const [groupBy, setGroupBy] = useState<WeeklyGroupBy>(() => {
-    const fromUrl = searchParams.get('groupBy');
-    if (fromUrl === 'person' || fromUrl === 'type') {
-      writeGroupBy(fromUrl);
-      return fromUrl;
-    }
-    return readGroupBy();
-  });
+  // The reading lives in the URL only: the hub cards decide it (`?groupBy=person` for "Activity
+  // by person", nothing for the period review), and it is never remembered across visits. The
+  // toggle writes it back, so a reload or a shared link keeps the view.
+  const groupBy: WeeklyGroupBy = searchParams.get('groupBy') === 'person' ? 'person' : 'type';
   const [collapsedPeople, setCollapsedPeople] = useState<string[]>(readCollapsedPeople);
 
-  const changeGroupBy = useCallback((next: WeeklyGroupBy) => {
-    setGroupBy(next);
-    writeGroupBy(next);
-  }, []);
+  const changeGroupBy = useCallback(
+    (next: WeeklyGroupBy) => {
+      setSearchParams(
+        (previous) => {
+          const params = new URLSearchParams(previous);
+          params.set('groupBy', next);
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const togglePersonGroup = useCallback((key: string) => {
     setCollapsedPeople((previous) => {

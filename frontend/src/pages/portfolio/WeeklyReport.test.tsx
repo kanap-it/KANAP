@@ -458,7 +458,7 @@ describe('WeeklyReport by person', () => {
       byPerson: byPersonPayload(),
     });
 
-  it('asks the API for the by-person reading and remembers the choice', async () => {
+  it('asks the API for the by-person reading from the toggle, without remembering it', async () => {
     mockApi(personReport());
     renderReport();
 
@@ -470,12 +470,30 @@ describe('WeeklyReport by person', () => {
       const call = weeklyCalls[weeklyCalls.length - 1];
       expect(call?.[1]?.params?.groupBy).toBe('person');
     });
-    expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBe('person');
+    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+    expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBeNull();
   });
 
-  it('opens on the by-person reading carried by the URL, over the remembered one', async () => {
+  it('opens by type without the URL parameter, whatever view was chosen before', async () => {
+    // A previous visit switched to the by-person view (and an older build stored it).
+    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
+    mockApi(personReport());
+    const first = renderReport('/portfolio/reports/weekly?groupBy=person');
+    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+    first.unmount();
+
+    get.mockReset();
+    mockApi(personReport());
+    renderReport();
+
+    await waitFor(() => expect(screen.getAllByText('Created (1)').length).toBeGreaterThan(0));
+    const call = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly');
+    expect(call?.[1]?.params?.groupBy).toBe('type');
+    expect(screen.queryByText('Operations')).toBeNull();
+  });
+
+  it('opens on the by-person reading carried by the URL', async () => {
     // The "Activity by person" card of the hub opens this same page with `groupBy=person`.
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'type');
     mockApi(personReport());
     renderReport('/portfolio/reports/weekly?groupBy=person');
 
@@ -483,13 +501,12 @@ describe('WeeklyReport by person', () => {
     const call = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly');
     expect(call?.[1]?.params?.groupBy).toBe('person');
     expect(screen.getAllByText('Period review').length).toBeGreaterThan(0);
-    expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBe('person');
+    expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBeNull();
   });
 
-  it('opens on the remembered reading, team first, then person, with the counts and the time', async () => {
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
+  it('reads team first, then person, then person, with the counts and the time', async () => {
     mockApi(personReport());
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
 
@@ -505,7 +522,6 @@ describe('WeeklyReport by person', () => {
   });
 
   it('says nothing about time for a person who logged none', async () => {
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(
       report({
         byPerson: {
@@ -529,7 +545,7 @@ describe('WeeklyReport by person', () => {
         },
       }),
     );
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Isabelle Moreau')).toBeTruthy());
     // Neither the person nor the team line mentions time when none was logged.
@@ -542,9 +558,8 @@ describe('WeeklyReport by person', () => {
   });
 
   it('shows an empty Unassigned group as its header line only', async () => {
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(report({ byPerson: { ...byPersonPayload(), unassigned: emptyPersonLists() } }));
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Unassigned')).toBeTruthy());
     expect(screen.getByText('0 created · 0 modified · 0 closed')).toBeTruthy();
@@ -554,9 +569,8 @@ describe('WeeklyReport by person', () => {
   });
 
   it('gathers what nobody carried under Unassigned', async () => {
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(personReport());
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Unassigned')).toBeTruthy());
     await waitFor(() => expect(screen.getByText('Archive the old batches')).toBeTruthy());
@@ -564,9 +578,8 @@ describe('WeeklyReport by person', () => {
   });
 
   it('folds a person and remembers it', async () => {
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(personReport());
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Thomas Berger')).toBeTruthy());
 
@@ -582,18 +595,16 @@ describe('WeeklyReport by person', () => {
 
   it('hides the contributor reference from a reader without the portfolio settings right', async () => {
     hasLevel.mockReturnValue(false);
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(personReport());
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Thomas Berger')).toBeTruthy());
     expect(screen.queryByText('CTR-3')).toBeNull();
   });
 
   it('exports the reading shown on screen', async () => {
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(personReport());
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
     fireEvent.click(screen.getByText('Export CSV'));
