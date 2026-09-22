@@ -1186,9 +1186,21 @@ export default function WeeklyReport() {
     [formatDays, t],
   );
 
+  /**
+   * The three lists of one person. Someone who carried nothing gets a single line rather than
+   * three empty sections: a group with nothing to say must not cost six lines of screen.
+   */
   const personLists = useCallback(
-    (lists: WeeklyPersonLists, keyPrefix: string) =>
-      LIST_KEYS.map((listKey) => (
+    (lists: WeeklyPersonLists, keyPrefix: string) => {
+      const isEmpty = LIST_KEYS.every((listKey) => lists[listKey].length === 0);
+      if (isEmpty) {
+        return (
+          <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
+            {t('reports.weekly.byPerson.noTasks')}
+          </Typography>
+        );
+      }
+      return LIST_KEYS.map((listKey) => (
         <WeeklyReportSubSection<WeeklyTaskRow>
           key={`${keyPrefix}-${listKey}`}
           heading={subHeading(listKey, lists[listKey].length)}
@@ -1196,7 +1208,8 @@ export default function WeeklyReport() {
           rows={lists[listKey]}
           columns={taskColumns[listKey]}
         />
-      )),
+      ));
+    },
     [subHeading, t, taskColumns],
   );
 

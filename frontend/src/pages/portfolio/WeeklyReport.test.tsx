@@ -412,7 +412,8 @@ describe('WeeklyReport by person', () => {
     fireEvent.click(screen.getByText('By person'));
 
     await waitFor(() => {
-      const call = get.mock.calls.filter(([url]: any[]) => url === '/portfolio/reports/weekly').at(-1);
+      const weeklyCalls = get.mock.calls.filter(([url]: any[]) => url === '/portfolio/reports/weekly');
+      const call = weeklyCalls[weeklyCalls.length - 1];
       expect(call?.[1]?.params?.groupBy).toBe('person');
     });
     expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBe('person');

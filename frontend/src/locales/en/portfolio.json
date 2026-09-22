@@ -1351,7 +1351,8 @@
         "timeLogged": "Time logged: {{total}} d (project {{project}} · other {{other}})",
         "days_one": "{{value}} day logged",
         "days_other": "{{value}} days logged",
-        "empty": "Nobody carried a task or logged time in this period."
+        "empty": "Nobody carried a task or logged time in this period.",
+        "noTasks": "No task in this period."
       }
     },
     "flow": {

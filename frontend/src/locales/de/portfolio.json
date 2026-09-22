@@ -1351,7 +1351,8 @@
         "timeLogged": "Erfasste Zeit: {{total}} T (Projekt {{project}} · Sonstiges {{other}})",
         "days_one": "{{value}} Tag erfasst",
         "days_other": "{{value}} Tage erfasst",
-        "empty": "In diesem Zeitraum hat niemand eine Aufgabe getragen oder Zeit erfasst."
+        "empty": "In diesem Zeitraum hat niemand eine Aufgabe getragen oder Zeit erfasst.",
+        "noTasks": "Keine Aufgabe in diesem Zeitraum."
       }
     },
     "flow": {

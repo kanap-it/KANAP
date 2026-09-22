@@ -1351,7 +1351,8 @@
         "timeLogged": "Temps saisi : {{total}} j (projet {{project}} · autre {{other}})",
         "days_one": "{{value}} jour saisi",
         "days_other": "{{value}} jours saisis",
-        "empty": "Personne n'a porté de tâche ni saisi de temps sur cette période."
+        "empty": "Personne n'a porté de tâche ni saisi de temps sur cette période.",
+        "noTasks": "Aucune tâche sur cette période."
       }
     },
     "flow": {
