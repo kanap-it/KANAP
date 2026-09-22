@@ -1085,6 +1085,34 @@
       "taskType": "{{n}} sans type",
       "allClassified": "Tout ce qui est ouvert est classé"
     },
+    "byAssignee": {
+      "title": "Par responsable",
+      "subtitle": "Où se trouve le travail ouvert, équipe par équipe et personne par personne, avec ce qui est en retard et ce qui n'avance plus.",
+      "columns": {
+        "assignee": "Responsable",
+        "open": "Ouvertes",
+        "overdue": "En retard",
+        "stale": "Sans mouvement"
+      },
+      "summary": {
+        "open_one": "{{count}} ouverte",
+        "open_other": "{{count}} ouvertes",
+        "overdue_one": "{{count}} en retard",
+        "overdue_other": "{{count}} en retard",
+        "stale_one": "{{count}} sans mouvement",
+        "stale_other": "{{count}} sans mouvement",
+        "unassigned_one": "{{count}} non affectée",
+        "unassigned_other": "{{count}} non affectées"
+      },
+      "staleLabel": "Sans mouvement depuis",
+      "staleOption_one": "{{count}} jour",
+      "staleOption_other": "{{count}} jours",
+      "unassigned": "Non affectées",
+      "noTeam": "Sans équipe",
+      "total": "Total",
+      "empty": "Aucune tâche ouverte",
+      "loadFailed": "Le chargement du rapport a échoué."
+    },
     "cards": {
       "statusChange": {
         "title": "Rapport de changement de statut",
@@ -1101,6 +1129,10 @@
       "flow": {
         "title": "Flux et ancienneté",
         "description": "Ce qui entre et ce qui sort semaine après semaine, l'âge des tâches ouvertes et le temps qu'il faut pour clôturer."
+      },
+      "byAssignee": {
+        "title": "Par responsable",
+        "description": "Les tâches ouvertes, en retard et sans mouvement, équipe par équipe et personne par personne."
       }
     },
     "itemTypes": {

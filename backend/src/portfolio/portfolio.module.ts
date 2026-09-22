@@ -66,6 +66,7 @@ import { PortfolioCapacityReportService } from './services/portfolio-capacity-re
 import { PortfolioClassificationGapsService } from './services/portfolio-classification-gaps.service';
 import { PortfolioSteeringSummaryService } from './services/portfolio-steering-summary.service';
 import { PortfolioFlowReportService } from './services/portfolio-flow-report.service';
+import { PortfolioAssigneeAttentionService } from './services/portfolio-assignee-attention.service';
 import { PortfolioStatusChangeReportService } from './services/portfolio-status-change-report.service';
 import { PortfolioWeeklyReportService } from './services/portfolio-weekly-report.service';
 
@@ -100,6 +101,7 @@ import { PortfolioCapacityReportController } from './portfolio-capacity-report.c
 import { PortfolioClassificationGapsController } from './portfolio-classification-gaps.controller';
 import { PortfolioSteeringSummaryController } from './portfolio-steering-summary.controller';
 import { PortfolioFlowReportController } from './portfolio-flow-report.controller';
+import { PortfolioAssigneeAttentionController } from './portfolio-assignee-attention.controller';
 import { PortfolioRoadmapController } from './portfolio-roadmap.controller';
 import { PortfolioStatusChangeReportController } from './portfolio-status-change-report.controller';
 import { PortfolioWeeklyReportController } from './portfolio-weekly-report.controller';
@@ -187,6 +189,7 @@ const entities = [
     PortfolioClassificationGapsService,
     PortfolioSteeringSummaryService,
     PortfolioFlowReportService,
+    PortfolioAssigneeAttentionService,
     PortfolioStatusChangeReportService,
     PortfolioWeeklyReportService,
     // CSV services
@@ -222,6 +225,7 @@ const entities = [
     PortfolioClassificationGapsController,
     PortfolioSteeringSummaryController,
     PortfolioFlowReportController,
+    PortfolioAssigneeAttentionController,
     PortfolioStatusChangeReportController,
     PortfolioWeeklyReportController,
     PortfolioRoadmapController,

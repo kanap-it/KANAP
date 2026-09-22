@@ -89,6 +89,13 @@ export default function ReportsPage() {
             onClick={() => navigate('/portfolio/reports/flow')}
           />
         </Grid>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
+          <ReportCard
+            title={t('reports.cards.byAssignee.title')}
+            description={t('reports.cards.byAssignee.description')}
+            onClick={() => navigate('/portfolio/reports/by-assignee')}
+          />
+        </Grid>
       </Grid>
     </Box>
   );

@@ -488,6 +488,19 @@ export default function TasksPage() {
       filter: 'agTextColumnFilter',
       cellRenderer: clickableCellRenderer,
     },
+    // Carries the `assignee_user_id` filter the portfolio reports link with. It is never shown
+    // and never offered in the column chooser: a user has no use for account identifiers. The
+    // column has to exist all the same, or AG Grid would drop the model on the next filter change.
+    {
+      field: 'assignee_user_id',
+      headerName: t('tasks.columns.assignee'),
+      hide: true,
+      defaultHidden: true,
+      suppressColumnsToolPanel: true,
+      filter: CheckboxSetFilter,
+      filterParams: { values: [] },
+      sortable: false,
+    },
     {
       field: 'creator_name',
       headerName: t('tasks.columns.requestor'),
