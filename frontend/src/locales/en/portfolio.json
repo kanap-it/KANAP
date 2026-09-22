@@ -1338,6 +1338,21 @@
           "modified": "Modified on",
           "closed": "Closed on"
         }
+      },
+      "byPerson": {
+        "groupBy": {
+          "label": "Grouping",
+          "type": "By type",
+          "person": "By person"
+        },
+        "note": "Requests and projects stay in the by-type view.",
+        "noTeam": "No team",
+        "unassigned": "Unassigned",
+        "timeLogged": "Time logged {{total}} d (project {{project}} · other {{other}})",
+        "days_one": "{{value}} day logged",
+        "days_other": "{{value}} days logged",
+        "empty": "Nobody carried a task or logged time in this period.",
+        "noTasks": "No task in this period."
       }
     },
     "flow": {

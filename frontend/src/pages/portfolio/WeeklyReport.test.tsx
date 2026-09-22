@@ -27,6 +27,9 @@ if (!window.localStorage) {
 const get = vi.fn();
 vi.mock('../../api', () => ({ default: { get: (...args: any[]) => get(...args) } }));
 
+const hasLevel = vi.fn();
+vi.mock('../../auth/AuthContext', () => ({ useAuth: () => ({ hasLevel: (...args: any[]) => hasLevel(...args) }) }));
+
 const emptyLists = () => ({ created: [], modified: [], closed: [] });
 
 const requestRow = (over: Record<string, unknown> = {}) => ({
@@ -102,8 +105,63 @@ function renderReport(entry = '/portfolio/reports/weekly') {
   );
 }
 
+const taskRow = (over: Record<string, unknown> = {}) => ({
+  taskId: 't1',
+  ref: 'T-1',
+  itemPath: '/portfolio/tasks/T-1/overview',
+  name: 'Tune the cellar probes',
+  sourceId: null,
+  sourceName: null,
+  categoryId: null,
+  categoryName: null,
+  streamId: null,
+  streamName: null,
+  status: 'open',
+  createdAt: '2026-09-15',
+  eventAt: '2026-09-15',
+  changes: null,
+  taskTypeId: null,
+  taskTypeName: null,
+  priority: 70,
+  ...over,
+});
+
+const emptyPersonLists = () => ({ created: [], modified: [], closed: [] });
+
+const person = (over: Record<string, unknown> = {}) => ({
+  userId: 'u-thomas',
+  name: 'Thomas Berger',
+  contributorRef: 'CTR-3',
+  loggedDays: { project: 2, other: 1.5, total: 3.5 },
+  ...emptyPersonLists(),
+  ...over,
+});
+
+const byPersonPayload = () => ({
+  teams: [
+    {
+      teamId: 'team-ops',
+      teamName: 'Operations',
+      totals: { created: 1, modified: 0, closed: 1, loggedDays: 3.5 },
+      members: [
+        person({
+          created: [taskRow()],
+          closed: [taskRow({ taskId: 't2', ref: 'T-2', name: 'Replace the ripening sensor', status: 'done' })],
+        }),
+      ],
+    },
+  ],
+  unassigned: {
+    created: [],
+    modified: [],
+    closed: [taskRow({ taskId: 't3', ref: 'T-3', name: 'Archive the old batches', status: 'done' })],
+  },
+});
+
 beforeEach(() => {
   get.mockReset();
+  hasLevel.mockReset();
+  hasLevel.mockReturnValue(true);
   window.localStorage.clear();
 });
 
@@ -329,5 +387,138 @@ describe('WeeklyReport', () => {
         screen.getByText('Candidate → Approved, Priority score, Target delivery date'),
       ).toBeTruthy(),
     );
+  });
+});
+
+describe('WeeklyReport by person', () => {
+  const personReport = () =>
+    report({
+      tasks: {
+        created: [taskRow()],
+        modified: [],
+        closed: [
+          taskRow({ taskId: 't2', ref: 'T-2', name: 'Replace the ripening sensor', status: 'done' }),
+          taskRow({ taskId: 't3', ref: 'T-3', name: 'Archive the old batches', status: 'done' }),
+        ],
+      },
+      byPerson: byPersonPayload(),
+    });
+
+  it('asks the API for the by-person reading and remembers the choice', async () => {
+    mockApi(personReport());
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('By person')).toBeTruthy());
+    fireEvent.click(screen.getByText('By person'));
+
+    await waitFor(() => {
+      const weeklyCalls = get.mock.calls.filter(([url]: any[]) => url === '/portfolio/reports/weekly');
+      const call = weeklyCalls[weeklyCalls.length - 1];
+      expect(call?.[1]?.params?.groupBy).toBe('person');
+    });
+    expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBe('person');
+  });
+
+  it('opens on the remembered reading, team first, then person, with the counts and the time', async () => {
+    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
+    mockApi(personReport());
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+
+    expect(screen.getByText('Requests and projects stay in the by-type view.')).toBeTruthy();
+    expect(screen.getByText('Thomas Berger')).toBeTruthy();
+    expect(screen.getByText('CTR-3')).toBeTruthy();
+    expect(screen.getByText('1 created · 0 modified · 1 closed · 3.5 days logged')).toBeTruthy();
+    expect(
+      screen.getByText('1 created · 0 modified · 1 closed · Time logged 3.5 d (project 2.0 · other 1.5)'),
+    ).toBeTruthy();
+    expect(screen.getByText('Tune the cellar probes')).toBeTruthy();
+    expect(screen.getByText('Replace the ripening sensor')).toBeTruthy();
+  });
+
+  it('says nothing about time for a person who logged none', async () => {
+    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
+    mockApi(
+      report({
+        byPerson: {
+          teams: [
+            {
+              teamId: 'team-ops',
+              teamName: 'Operations',
+              totals: { created: 1, modified: 0, closed: 0, loggedDays: 0 },
+              members: [
+                person({
+                  userId: 'u-isabelle',
+                  name: 'Isabelle Moreau',
+                  contributorRef: 'CTR-4',
+                  loggedDays: { project: 0, other: 0, total: 0 },
+                  created: [taskRow({ taskId: 't4', ref: 'T-4', name: 'Label the new cave' })],
+                }),
+              ],
+            },
+          ],
+          unassigned: emptyPersonLists(),
+        },
+      }),
+    );
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Isabelle Moreau')).toBeTruthy());
+    expect(screen.getByText('1 created · 0 modified · 0 closed')).toBeTruthy();
+    expect(screen.queryByText(/Time logged/)).toBeNull();
+  });
+
+  it('gathers what nobody carried under Unassigned', async () => {
+    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
+    mockApi(personReport());
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Unassigned')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Archive the old batches')).toBeTruthy());
+    expect(screen.getByText('0 created · 0 modified · 1 closed')).toBeTruthy();
+  });
+
+  it('folds a person and remembers it', async () => {
+    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
+    mockApi(personReport());
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Thomas Berger')).toBeTruthy());
+
+    const toggle = screen.getByText('Thomas Berger').closest('button') as HTMLButtonElement;
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(toggle.getAttribute('aria-expanded')).toBe('false'));
+    expect(window.localStorage.getItem('kanap.portfolioReports.weeklyCollapsedPeople')).toBe(
+      JSON.stringify(['person:u-thomas']),
+    );
+  });
+
+  it('hides the contributor reference from a reader without the portfolio settings right', async () => {
+    hasLevel.mockReturnValue(false);
+    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
+    mockApi(personReport());
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Thomas Berger')).toBeTruthy());
+    expect(screen.queryByText('CTR-3')).toBeNull();
+  });
+
+  it('exports the reading shown on screen', async () => {
+    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
+    mockApi(personReport());
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+    fireEvent.click(screen.getByText('Export CSV'));
+
+    await waitFor(() =>
+      expect(get.mock.calls.some(([url]: any[]) => url === '/portfolio/reports/weekly/export')).toBe(true),
+    );
+    const call = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly/export');
+    expect(call?.[1]?.params?.groupBy).toBe('person');
+    expect(call?.[1]?.params?.format).toBe('csv');
   });
 });

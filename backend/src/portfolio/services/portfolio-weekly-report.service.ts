@@ -15,7 +15,11 @@ export type WeeklyReportQuery = {
   categoryIds?: string[];
   streamIds?: string[];
   taskTypeIds?: string[];
+  /** `person` adds the by-person reading of the task lists; `type` is the historical shape. */
+  groupBy?: WeeklyGroupBy;
 };
+
+export type WeeklyGroupBy = 'type' | 'person';
 
 /** What changed on an item during the period, for the "modified" lists. */
 export type WeeklyChangeSummary = {
@@ -82,10 +86,45 @@ export type WeeklyLists<TRow> = {
   closed: TRow[];
 };
 
+/** The three task lists as one person carries them. Same rows as the by-type task section. */
+export type WeeklyPersonLists = {
+  created: WeeklyTaskRow[];
+  modified: WeeklyTaskRow[];
+  closed: WeeklyTaskRow[];
+};
+
+/** Days logged over the period, hours divided by eight, one decimal. */
+export type WeeklyLoggedDays = { project: number; other: number; total: number };
+
+export type WeeklyPerson = WeeklyPersonLists & {
+  userId: string;
+  name: string;
+  contributorRef: string | null;
+  loggedDays: WeeklyLoggedDays;
+};
+
+export type WeeklyTeamGroup = {
+  teamId: string | null;
+  teamName: string | null;
+  members: WeeklyPerson[];
+  totals: { created: number; modified: number; closed: number; loggedDays: number };
+};
+
+/**
+ * Tasks and logged time read person by person. Requests and projects have several owners at
+ * once, so they stay in the by-type view and never appear here.
+ */
+export type WeeklyByPerson = {
+  teams: WeeklyTeamGroup[];
+  /** Closed with no assignee, created or modified with no actor (an import, an agent). */
+  unassigned: WeeklyPersonLists;
+};
+
 export type WeeklyReportResult = {
   requests: WeeklyLists<WeeklyRequestRow>;
   projects: WeeklyLists<WeeklyProjectRow>;
   tasks: WeeklyLists<WeeklyTaskRow>;
+  byPerson?: WeeklyByPerson;
 };
 
 export type WeeklyFilterValues = {
@@ -108,6 +147,8 @@ type XlsxSheetConfig = {
   name: string;
   headers: string[];
   rows: Array<{ cells: SheetCellValue[]; linkPath: string | null }>;
+  /** 1-based column the row link is written on. Defaults to the reference column. */
+  linkColumnNumber?: number;
 };
 
 /**
@@ -257,15 +298,50 @@ type RawTaskEventRow = RawEventRow & {
   priority: number | string | null;
   task_type_id: string | null;
   task_type_name: string | null;
+  /** Person columns, selected in person mode only. */
+  creator_user_id?: string | null;
+  modifier_user_ids?: string[] | null;
+  closing_assignee_id?: string | null;
 };
+
+/** One task row as it lands in one of the three lists, with who carried that event. */
+type TaskEntry = {
+  row: WeeklyTaskRow;
+  listKey: 'created' | 'modified' | 'closed';
+  raw: RawTaskEventRow;
+};
+
+type PersonRow = {
+  user_id: string;
+  name: string | null;
+  item_number: number | string | null;
+  team_id: string | null;
+  team_name: string | null;
+};
+
+type LoggedHoursRow = {
+  user_id: string;
+  project_hours: number | string | null;
+  other_hours: number | string | null;
+};
+
+/** Hours to days on the KANAP eight-hour day, one decimal, never a float artefact. */
+const hoursToDays = (hours: number): number => Math.round((hours / 8) * 10) / 10;
+
+const roundDays = (days: number): number => Math.round(days * 10) / 10;
+
+const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' });
 
 @Injectable()
 export class PortfolioWeeklyReportService {
   async list(query: WeeklyReportQuery, opts?: ServiceOpts): Promise<WeeklyReportResult> {
     const requests = await this.fetchRequestLists(query, opts);
     const projects = await this.fetchProjectLists(query, opts);
-    const tasks = await this.fetchTaskLists(query, opts);
-    return { requests, projects, tasks };
+    const { lists: tasks, entries } = await this.fetchTaskLists(query, opts);
+    if (query.groupBy !== 'person') return { requests, projects, tasks };
+
+    const byPerson = await this.buildByPerson(query, entries, opts);
+    return { requests, projects, tasks, byPerson };
   }
 
   async listFilterValues(tenantId: string, opts?: ServiceOpts): Promise<WeeklyFilterValues> {
@@ -344,7 +420,7 @@ export class PortfolioWeeklyReportService {
   }
 
   async exportCsv(query: WeeklyReportQuery, opts?: ServiceOpts): Promise<ExportResult<string>> {
-    const { requests, projects, tasks } = await this.list(query, opts);
+    const { requests, projects, tasks, byPerson } = await this.list(query, opts);
 
     const lines: string[] = [];
     const addRow = (values: unknown[]) => {
@@ -374,13 +450,21 @@ export class PortfolioWeeklyReportService {
       );
     });
 
-    (['created', 'modified', 'closed'] as const).forEach((listKey) => {
+    if (byPerson) {
       addBlock(
-        `Tasks ${listKey}`,
-        this.taskHeaders(listKey),
-        tasks[listKey].map((row) => this.taskCells(row, listKey)),
+        'Tasks by person',
+        this.personTaskHeaders(),
+        this.personTaskRows(byPerson).map((row) => row.cells),
       );
-    });
+    } else {
+      (['created', 'modified', 'closed'] as const).forEach((listKey) => {
+        addBlock(
+          `Tasks ${listKey}`,
+          this.taskHeaders(listKey),
+          tasks[listKey].map((row) => this.taskCells(row, listKey)),
+        );
+      });
+    }
 
     return {
       filename: this.buildFilename(query, 'csv'),
@@ -393,10 +477,29 @@ export class PortfolioWeeklyReportService {
     appBaseUrl: string | null,
     opts?: ServiceOpts,
   ): Promise<ExportResult<Buffer>> {
-    const { requests, projects, tasks } = await this.list(query, opts);
+    const { requests, projects, tasks, byPerson } = await this.list(query, opts);
 
     const eventLabel = { created: 'Created', modified: 'Modified', closed: 'Closed' } as const;
     const listKeys = ['created', 'modified', 'closed'] as const;
+
+    const taskSheet: XlsxSheetConfig = byPerson
+      ? {
+          name: 'Tasks',
+          headers: this.personTaskHeaders(),
+          rows: this.personTaskRows(byPerson),
+          // Team, person and list come first: the reference sits on the fourth column.
+          linkColumnNumber: 4,
+        }
+      : {
+          name: 'Tasks',
+          headers: ['Event', ...this.taskHeaders('all')],
+          rows: listKeys.flatMap((listKey) =>
+            tasks[listKey].map((row) => ({
+              cells: [eventLabel[listKey], ...this.taskCells(row, 'all')] as SheetCellValue[],
+              linkPath: row.itemPath,
+            })),
+          ),
+        };
 
     const content = this.buildXlsx(
       [
@@ -420,16 +523,7 @@ export class PortfolioWeeklyReportService {
             })),
           ),
         },
-        {
-          name: 'Tasks',
-          headers: ['Event', ...this.taskHeaders('all')],
-          rows: listKeys.flatMap((listKey) =>
-            tasks[listKey].map((row) => ({
-              cells: [eventLabel[listKey], ...this.taskCells(row, 'all')] as SheetCellValue[],
-              linkPath: row.itemPath,
-            })),
-          ),
-        },
+        taskSheet,
       ],
       appBaseUrl,
     );
@@ -509,6 +603,40 @@ export class PortfolioWeeklyReportService {
     return ORIGIN_EXPORT_LABELS[row.originValue] ?? humanizeStatus(row.originValue);
   }
 
+  /** Task columns of the by-person export: who and which list, then the usual task columns. */
+  private personTaskHeaders(): string[] {
+    return ['Team', 'Person', 'List', ...this.taskHeaders('all')];
+  }
+
+  /**
+   * One line per person, list and task. A task two people modified is written twice, once under
+   * each of them, exactly as the screen shows it.
+   */
+  private personTaskRows(byPerson: WeeklyByPerson): Array<{ cells: SheetCellValue[]; linkPath: string | null }> {
+    const listKeys = ['created', 'modified', 'closed'] as const;
+    const listLabel = { created: 'Created', modified: 'Modified', closed: 'Closed' } as const;
+    const rows: Array<{ cells: SheetCellValue[]; linkPath: string | null }> = [];
+
+    const push = (team: string, person: string, lists: WeeklyPersonLists) => {
+      listKeys.forEach((listKey) => {
+        lists[listKey].forEach((row) => {
+          rows.push({
+            cells: [team, person, listLabel[listKey], ...this.taskCells(row, 'all')] as SheetCellValue[],
+            linkPath: row.itemPath,
+          });
+        });
+      });
+    };
+
+    byPerson.teams.forEach((team) => {
+      const teamName = team.teamName ?? 'No team';
+      team.members.forEach((member) => push(teamName, member.name, member));
+    });
+    push('', 'Unassigned', byPerson.unassigned);
+
+    return rows;
+  }
+
   private taskHeaders(shape: ExportShape): string[] {
     return [
       'Reference',
@@ -555,7 +683,7 @@ export class PortfolioWeeklyReportService {
   private eventCtes(auditTable: string): string {
     return `
       period_events AS (
-        SELECT al.record_id, al.action, al.before_json, al.after_json, al.created_at, al.id
+        SELECT al.record_id, al.action, al.before_json, al.after_json, al.created_at, al.id, al.user_id
         FROM audit_log al
         WHERE al.tenant_id = $1
           AND al.table_name = '${auditTable}'
@@ -626,6 +754,40 @@ export class PortfolioWeeklyReportService {
           COUNT(*) FILTER (WHERE pe.action = 'update') AS update_count
         FROM period_events pe
         GROUP BY pe.record_id
+      )
+    `;
+  }
+
+  /**
+   * Who carried each event, for the by-person reading of the task lists. `creator` is the actor
+   * of the creation event, `modifiers` every distinct actor of an update of the period, and
+   * `closing_assignee` the assignee the closing event left on the task: the person the work was
+   * on when it closed, not whoever clicked. `closing_assignee` reads exactly the row
+   * `status_event_last` reads, so it always describes the event `closing` detected.
+   */
+  private personCtes(): string {
+    return `,
+      creator AS (
+        SELECT DISTINCT ON (pe.record_id) pe.record_id, pe.user_id
+        FROM period_events pe
+        WHERE pe.action = 'create'
+        ORDER BY pe.record_id, pe.created_at ASC, pe.id ASC
+      ),
+      modifiers AS (
+        SELECT pe.record_id, array_agg(DISTINCT pe.user_id::text) AS user_ids
+        FROM period_events pe
+        WHERE pe.action = 'update'
+          AND pe.user_id IS NOT NULL
+        GROUP BY pe.record_id
+      ),
+      closing_assignee AS (
+        SELECT DISTINCT ON (pe.record_id)
+          pe.record_id,
+          pe.after_json->>'assignee_user_id' AS assignee_user_id
+        FROM period_events pe
+        WHERE pe.action = 'create'
+           OR pe.before_json->>'status' IS DISTINCT FROM pe.after_json->>'status'
+        ORDER BY pe.record_id, pe.created_at DESC, pe.id DESC
       )
     `;
   }
@@ -778,10 +940,11 @@ export class PortfolioWeeklyReportService {
   private async fetchTaskLists(
     query: WeeklyReportQuery,
     opts?: ServiceOpts,
-  ): Promise<WeeklyLists<WeeklyTaskRow>> {
+  ): Promise<{ lists: WeeklyLists<WeeklyTaskRow>; entries: TaskEntry[] }> {
     const mg = opts?.manager;
-    if (!mg) return { created: [], modified: [], closed: [] };
+    if (!mg) return { lists: { created: [], modified: [], closed: [] }, entries: [] };
 
+    const byPerson = query.groupBy === 'person';
     const sqlParams = this.baseParams(query, CLOSED_STATUSES.tasks);
     const whereSql = this.buildFilterSql(
       sqlParams,
@@ -799,7 +962,7 @@ export class PortfolioWeeklyReportService {
 
     const rows: RawTaskEventRow[] = await mg.query(
       `
-      WITH ${this.eventCtes('tasks')}
+      WITH ${this.eventCtes('tasks')}${byPerson ? this.personCtes() : ''}
       SELECT
         t.id AS record_id,
         t.title AS name,
@@ -823,9 +986,24 @@ export class PortfolioWeeklyReportService {
         t.status,
         (t.created_at AT TIME ZONE $4)::date::text AS live_created_day,
         ${this.eventColumns()}
+        ${
+          byPerson
+            ? `,
+        COALESCE(cr.user_id::text, t.creator_id::text) AS creator_user_id,
+        COALESCE(md.user_ids, ARRAY[]::text[]) AS modifier_user_ids,
+        ca.assignee_user_id AS closing_assignee_id`
+            : ''
+        }
       FROM agg a
       JOIN tasks t ON t.id = a.record_id AND t.tenant_id = $1
       ${this.eventJoins()}
+      ${
+        byPerson
+          ? `LEFT JOIN creator cr ON cr.record_id = a.record_id
+      LEFT JOIN modifiers md ON md.record_id = a.record_id
+      LEFT JOIN closing_assignee ca ON ca.record_id = a.record_id`
+          : ''
+      }
       -- The project a task hangs off, for the classification it inherits when it has none.
       LEFT JOIN portfolio_projects pp
         ON pp.id = t.related_object_id
@@ -841,13 +1019,216 @@ export class PortfolioWeeklyReportService {
       sqlParams,
     );
 
-    return this.bucket(rows, (row, listKey) => ({
-      taskId: row.record_id,
-      ...this.commonFields(row, listKey, 'T', '/portfolio/tasks', 'overview'),
-      taskTypeId: row.task_type_id ?? null,
-      taskTypeName: row.task_type_name ?? null,
-      priority: toNumber(row.priority),
-    }));
+    const entries: TaskEntry[] = [];
+    const lists = this.bucket(rows, (row, listKey) => {
+      const built: WeeklyTaskRow = {
+        taskId: row.record_id,
+        ...this.commonFields(row, listKey, 'T', '/portfolio/tasks', 'overview'),
+        taskTypeId: row.task_type_id ?? null,
+        taskTypeName: row.task_type_name ?? null,
+        priority: toNumber(row.priority),
+      };
+      entries.push({ row: built, listKey, raw: row });
+      return built;
+    });
+
+    return { lists, entries };
+  }
+
+  /* ---------------------------------------------------------------- */
+  /*  By person                                                       */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * The same task rows, read by the person who carried each event: the actor of the creation,
+   * every actor of an update (a task two people touched is counted for both), and the assignee
+   * the closing event left on the task. Anything with no person lands in `unassigned`.
+   *
+   * Everyone who logged time over the period is listed too, even with no task event: the view
+   * answers "who carried what", and time is part of that answer.
+   */
+  private async buildByPerson(
+    query: WeeklyReportQuery,
+    entries: TaskEntry[],
+    opts?: ServiceOpts,
+  ): Promise<WeeklyByPerson> {
+    const unassigned: WeeklyPersonLists = { created: [], modified: [], closed: [] };
+    const listsByUser = new Map<string, WeeklyPersonLists>();
+
+    const listFor = (userId: string): WeeklyPersonLists => {
+      let lists = listsByUser.get(userId);
+      if (!lists) {
+        lists = { created: [], modified: [], closed: [] };
+        listsByUser.set(userId, lists);
+      }
+      return lists;
+    };
+
+    for (const entry of entries) {
+      const { raw, row, listKey } = entry;
+      if (listKey === 'created') {
+        const actor = raw.creator_user_id ?? null;
+        (actor ? listFor(actor) : unassigned).created.push(row);
+        continue;
+      }
+      if (listKey === 'closed') {
+        const assignee = raw.closing_assignee_id ?? null;
+        (assignee ? listFor(assignee) : unassigned).closed.push(row);
+        continue;
+      }
+      const actors = (raw.modifier_user_ids ?? []).filter(Boolean);
+      if (actors.length === 0) {
+        unassigned.modified.push(row);
+        continue;
+      }
+      for (const actor of actors) listFor(actor).modified.push(row);
+    }
+
+    const logged = await this.fetchLoggedDays(query, opts);
+    for (const userId of logged.keys()) listFor(userId);
+
+    const people = await this.fetchPeople(query.tenantId, Array.from(listsByUser.keys()), opts);
+
+    const groups = new Map<string, WeeklyTeamGroup>();
+    for (const [userId, lists] of listsByUser) {
+      const person = people.get(userId);
+      const loggedDays = logged.get(userId) ?? { project: 0, other: 0, total: 0 };
+      const member: WeeklyPerson = {
+        userId,
+        name: person?.name ?? '',
+        contributorRef: person?.contributorRef ?? null,
+        loggedDays,
+        ...lists,
+      };
+
+      const teamId = person?.teamId ?? null;
+      const key = teamId ?? '';
+      let group = groups.get(key);
+      if (!group) {
+        group = {
+          teamId,
+          teamName: teamId ? person?.teamName ?? null : null,
+          members: [],
+          totals: { created: 0, modified: 0, closed: 0, loggedDays: 0 },
+        };
+        groups.set(key, group);
+      }
+      group.members.push(member);
+      group.totals.created += lists.created.length;
+      group.totals.modified += lists.modified.length;
+      group.totals.closed += lists.closed.length;
+      group.totals.loggedDays = roundDays(group.totals.loggedDays + loggedDays.total);
+    }
+
+    const teams = Array.from(groups.values());
+    teams.forEach((team) => team.members.sort((a, b) => byName(a.name, b.name)));
+    teams.sort((a, b) => {
+      if (a.teamId === null) return 1;
+      if (b.teamId === null) return -1;
+      return byName(a.teamName ?? '', b.teamName ?? '');
+    });
+
+    return { teams, unassigned };
+  }
+
+  /**
+   * Days logged in the period, per person, split project versus other. One statement over the
+   * union of the two time tables, grouped by person: never a query per person. A task hanging
+   * off a project is project time, exactly as the monthly aggregate reads it.
+   */
+  private async fetchLoggedDays(
+    query: WeeklyReportQuery,
+    opts?: ServiceOpts,
+  ): Promise<Map<string, WeeklyLoggedDays>> {
+    const mg = opts?.manager;
+    const days = new Map<string, WeeklyLoggedDays>();
+    if (!mg) return days;
+
+    const rows: LoggedHoursRow[] = await mg.query(
+      `
+      SELECT
+        e.user_id,
+        COALESCE(SUM(e.hours) FILTER (WHERE e.is_project), 0)::numeric AS project_hours,
+        COALESCE(SUM(e.hours) FILTER (WHERE NOT e.is_project), 0)::numeric AS other_hours
+      FROM (
+        SELECT
+          tte.user_id::text AS user_id,
+          tte.hours::numeric AS hours,
+          (t.related_object_type = 'project') AS is_project
+        FROM task_time_entries tte
+        JOIN tasks t ON t.id = tte.task_id AND t.tenant_id = $1
+        WHERE tte.tenant_id = $1
+          AND tte.user_id IS NOT NULL
+          AND tte.logged_at >= ($2::date::timestamp AT TIME ZONE $3)
+          AND tte.logged_at < (($4::date + 1)::timestamp AT TIME ZONE $3)
+
+        UNION ALL
+
+        SELECT
+          pte.user_id::text AS user_id,
+          pte.hours::numeric AS hours,
+          TRUE AS is_project
+        FROM portfolio_project_time_entries pte
+        WHERE pte.tenant_id = $1
+          AND pte.user_id IS NOT NULL
+          AND pte.logged_at >= ($2::date::timestamp AT TIME ZONE $3)
+          AND pte.logged_at < (($4::date + 1)::timestamp AT TIME ZONE $3)
+      ) e
+      GROUP BY e.user_id
+      `,
+      [query.tenantId, query.startDate, normalizeReportTimeZone(query.timeZone), query.endDate],
+    );
+
+    for (const row of rows) {
+      const project = hoursToDays(Number(row.project_hours ?? 0) || 0);
+      const other = hoursToDays(Number(row.other_hours ?? 0) || 0);
+      days.set(row.user_id, { project, other, total: roundDays(project + other) });
+    }
+    return days;
+  }
+
+  /**
+   * Names, teams and contributor references of the people the view lists. Names only: the
+   * report never shows an email. One statement for the whole set.
+   */
+  private async fetchPeople(
+    tenantId: string,
+    userIds: string[],
+    opts?: ServiceOpts,
+  ): Promise<Map<string, { name: string; contributorRef: string | null; teamId: string | null; teamName: string | null }>> {
+    const people = new Map<string, { name: string; contributorRef: string | null; teamId: string | null; teamName: string | null }>();
+    const mg = opts?.manager;
+    if (!mg || userIds.length === 0) return people;
+
+    const rows: PersonRow[] = await mg.query(
+      `
+      SELECT
+        u.id::text AS user_id,
+        COALESCE(
+          NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''),
+          split_part(u.email, '@', 1)
+        ) AS name,
+        mc.item_number,
+        mc.team_id::text AS team_id,
+        pt.name AS team_name
+      FROM users u
+      LEFT JOIN portfolio_team_member_configs mc ON mc.user_id = u.id AND mc.tenant_id = $1
+      LEFT JOIN portfolio_teams pt ON pt.id = mc.team_id AND pt.tenant_id = $1
+      WHERE u.tenant_id = $1
+        AND u.id::text = ANY($2::text[])
+      `,
+      [tenantId, userIds],
+    );
+
+    for (const row of rows) {
+      people.set(row.user_id, {
+        name: row.name ?? '',
+        contributorRef: row.item_number != null ? `CTR-${row.item_number}` : null,
+        teamId: row.team_id ?? null,
+        teamName: row.team_name ?? null,
+      });
+    }
+    return people;
   }
 
   /* ---------------------------------------------------------------- */
@@ -1000,7 +1381,7 @@ export class PortfolioWeeklyReportService {
         if (target) {
           hyperlinkIndex += 1;
           const relId = `rId${hyperlinkIndex}`;
-          const nameCellRef = `B${rowNumber}`;
+          const nameCellRef = `${columnNumberToName(sheet.linkColumnNumber ?? 2)}${rowNumber}`;
           hyperlinks.push(`<hyperlink ref="${nameCellRef}" r:id="${relId}"/>`);
           hyperlinkRels.push(
             `<Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${xmlEscape(target)}" TargetMode="External"/>`,

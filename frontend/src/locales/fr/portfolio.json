@@ -1338,6 +1338,21 @@
           "modified": "Modifié le",
           "closed": "Clôturé le"
         }
+      },
+      "byPerson": {
+        "groupBy": {
+          "label": "Regroupement",
+          "type": "Par type",
+          "person": "Par personne"
+        },
+        "note": "Demandes et projets restent dans la vue par type.",
+        "noTeam": "Sans équipe",
+        "unassigned": "Non affectées",
+        "timeLogged": "Temps saisi {{total}} j (projet {{project}} · autre {{other}})",
+        "days_one": "{{value}} jour saisi",
+        "days_other": "{{value}} jours saisis",
+        "empty": "Personne n'a porté de tâche ni saisi de temps sur cette période.",
+        "noTasks": "Aucune tâche sur cette période."
       }
     },
     "flow": {
