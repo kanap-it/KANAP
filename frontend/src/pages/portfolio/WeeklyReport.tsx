@@ -12,6 +12,7 @@ import {
   MenuItem,
   Stack,
   TextField,
+  Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
@@ -48,19 +49,31 @@ import {
   getDotColor,
 } from '../../utils/statusColors';
 import {
+  getProjectStatusLabel,
   getProjectStatusOptions,
+  getRequestStatusLabel,
   getRequestStatusOptions,
+  getTaskStatusLabel,
   getTaskStatusOptions,
 } from '../../utils/portfolioI18n';
 import {
-  getWeeklyFieldLabels,
+  formatChangeValue,
+  getWeeklyFieldLabel,
+  type WeeklyChangeKind,
   type WeeklyReportEntity,
 } from './components/WeeklyReportChangeLabels';
 
+type WeeklyFieldChange = {
+  key: string;
+  before: string | null;
+  after: string | null;
+  kind: WeeklyChangeKind;
+};
+
 type WeeklyChangeSummary = {
-  statusFrom: string | null;
-  statusTo: string | null;
-  changedFields: string[];
+  /** Every status of the period in order, repeats merged. */
+  statusChain: string[];
+  fields: WeeklyFieldChange[];
 };
 
 type WeeklyProjectOrigin = {
@@ -212,9 +225,30 @@ const EMPTY_REQUESTS: WeeklyLists<WeeklyRequestRow> = { created: [], modified: [
 const EMPTY_PROJECTS: WeeklyLists<WeeklyProjectRow> = { created: [], modified: [], closed: [] };
 const EMPTY_TASKS: WeeklyLists<WeeklyTaskRow> = { created: [], modified: [], closed: [] };
 
-const TASK_STATUSES = new Set(['open', 'in_progress', 'pending', 'in_testing', 'done', 'cancelled']);
-const PROJECT_STATUSES = new Set(['waiting_list', 'planned', 'in_progress', 'in_testing', 'on_hold', 'done', 'cancelled']);
-const REQUEST_STATUSES = new Set(['pending_review', 'candidate', 'approved', 'on_hold', 'rejected', 'converted']);
+/** Status colours per object: a value such as `in_progress` exists for projects and tasks alike. */
+const STATUS_COLORS: Record<WeeklyReportEntity, Record<string, string>> = {
+  request: REQUEST_STATUS_COLORS,
+  project: PROJECT_STATUS_COLORS,
+  task: TASK_STATUS_COLORS,
+};
+
+/** Fields the "Changes" cell spells out before folding the rest into "+n". */
+const CHANGES_SHOWN = 2;
+
+/** Hover card of the "Changes" cell: one line per status chain or field, never wider than 420px. */
+const CHANGES_TOOLTIP_SLOT_PROPS = {
+  tooltip: { sx: { maxWidth: 420 } },
+} as const;
+
+/** The cell text is cut with an ellipsis; the "+n" after it always stays visible. */
+const CHANGES_CELL_SX = { display: 'flex', alignItems: 'center', minWidth: 0, width: '100%' } as const;
+const CHANGES_TEXT_SX = {
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+} as const;
+const CHANGES_MORE_SX = { flexShrink: 0, ml: 0.75, color: 'kanap.text.secondary' } as const;
 
 /** Charter card: 8px radius, hairline border, no shadow. */
 const SECTION_SX = {
@@ -744,17 +778,11 @@ export default function WeeklyReport() {
 
   const totalRows = allRows.length;
 
-  const getStatusLabel = useCallback((status: string) => {
-    if (TASK_STATUSES.has(status)) {
-      return t(`statuses.task.${status}`, { defaultValue: humanize(status) });
-    }
-    if (PROJECT_STATUSES.has(status)) {
-      return t(`statuses.project.${status}`, { defaultValue: humanize(status) });
-    }
-    if (REQUEST_STATUSES.has(status)) {
-      return t(`statuses.request.${status}`, { defaultValue: humanize(status) });
-    }
-    return humanize(status);
+  /** The label of a status for the object of the row: the same value can mean two things. */
+  const getStatusLabel = useCallback((entity: WeeklyReportEntity, status: string) => {
+    if (entity === 'task') return getTaskStatusLabel(t, status);
+    if (entity === 'project') return getProjectStatusLabel(t, status);
+    return getRequestStatusLabel(t, status);
   }, [t]);
 
   // The options are every active value of the tenant, never the values of the rows on screen:
@@ -807,11 +835,10 @@ export default function WeeklyReport() {
   );
 
   const StatusCell = useCallback(
-    (params: ICellRendererParams<WeeklyRowCommon, string>) => {
+    (params: ICellRendererParams<WeeklyRowCommon, string> & { entity: WeeklyReportEntity }) => {
       const status = String(params.value || '');
       if (!status) return null;
-      const colorKey =
-        TASK_STATUS_COLORS[status] ?? PROJECT_STATUS_COLORS[status] ?? REQUEST_STATUS_COLORS[status];
+      const colorKey = STATUS_COLORS[params.entity][status];
       return (
         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           <Box
@@ -824,7 +851,7 @@ export default function WeeklyReport() {
             }}
           />
           <Box component="span" sx={{ color: getDotColor(colorKey, mode), fontWeight: 500 }}>
-            {getStatusLabel(status)}
+            {getStatusLabel(params.entity, status)}
           </Box>
         </Box>
       );
@@ -854,11 +881,12 @@ export default function WeeklyReport() {
   );
 
   const statusColumn = useCallback(
-    <TRow extends WeeklyRowCommon>(): ColDef<TRow> => ({
+    <TRow extends WeeklyRowCommon>(entity: WeeklyReportEntity): ColDef<TRow> => ({
       field: 'status' as any,
       headerName: t('reports.weekly.columns.status'),
       width: 150,
       cellRenderer: StatusCell,
+      cellRendererParams: { entity },
     }),
     [StatusCell, t],
   );
@@ -901,6 +929,64 @@ export default function WeeklyReport() {
     [t],
   );
 
+  /**
+   * What changed, in words: the status chain when the status moved, then one
+   * "Label: before → after" per field. The export writes the same thing on the server.
+   */
+  const describeChanges = useCallback(
+    (entity: WeeklyReportEntity, changes: WeeklyChangeSummary | null) => {
+      if (!changes) return { chain: '', fields: [] as string[] };
+      const chain =
+        changes.statusChain.length > 1
+          ? changes.statusChain.map((status) => getStatusLabel(entity, status)).join(' → ')
+          : '';
+      const fields = changes.fields.map((field) => {
+        const before = formatChangeValue(field.kind, field.before, t, locale);
+        const after = formatChangeValue(field.kind, field.after, t, locale);
+        return `${getWeeklyFieldLabel(t, entity, field.key)}: ${before} → ${after}`;
+      });
+      return { chain, fields };
+    },
+    [getStatusLabel, locale, t],
+  );
+
+  /** The chain and the first two fields, "+n" for the rest; the hover card lists everything. */
+  const ChangesCell = useCallback(
+    (params: ICellRendererParams<WeeklyRowCommon, string> & { entity: WeeklyReportEntity }) => {
+      const { chain, fields } = describeChanges(params.entity, params.data?.changes ?? null);
+      const lines = [chain, ...fields].filter(Boolean);
+      if (lines.length === 0) return null;
+      const shown = [chain, ...fields.slice(0, CHANGES_SHOWN)].filter(Boolean).join('; ');
+      const more = fields.length - Math.min(fields.length, CHANGES_SHOWN);
+      return (
+        <Tooltip
+          enterDelay={300}
+          placement="bottom-start"
+          slotProps={CHANGES_TOOLTIP_SLOT_PROPS}
+          title={
+            <Box data-testid="weekly-changes-tooltip">
+              {lines.map((line, index) => (
+                <Box key={index}>{line}</Box>
+              ))}
+            </Box>
+          }
+        >
+          <Box component="span" sx={CHANGES_CELL_SX}>
+            <Box component="span" sx={CHANGES_TEXT_SX}>
+              {shown}
+            </Box>
+            {more > 0 && (
+              <Box component="span" sx={CHANGES_MORE_SX}>
+                +{more}
+              </Box>
+            )}
+          </Box>
+        </Tooltip>
+      );
+    },
+    [describeChanges],
+  );
+
   const changesColumn = useCallback(
     <TRow extends WeeklyRowCommon>(entity: WeeklyReportEntity): ColDef<TRow> => ({
       colId: 'changes',
@@ -908,18 +994,13 @@ export default function WeeklyReport() {
       flex: 1.2,
       minWidth: 220,
       valueGetter: (params: ValueGetterParams<TRow>) => {
-        const changes = params.data?.changes;
-        if (!changes) return '';
-        const parts: string[] = [];
-        if (changes.statusFrom && changes.statusTo) {
-          parts.push(`${getStatusLabel(changes.statusFrom)} → ${getStatusLabel(changes.statusTo)}`);
-        }
-        parts.push(...getWeeklyFieldLabels(t, entity, changes.changedFields));
-        return parts.join(', ');
+        const { chain, fields } = describeChanges(entity, params.data?.changes ?? null);
+        return [chain, ...fields].filter(Boolean).join('; ');
       },
-      tooltipValueGetter: (params) => String(params.value ?? ''),
+      cellRenderer: ChangesCell,
+      cellRendererParams: { entity },
     }),
-    [getStatusLabel, t],
+    [ChangesCell, describeChanges, t],
   );
 
   const classificationColumns = useCallback(
@@ -978,7 +1059,7 @@ export default function WeeklyReport() {
       refColumn<WeeklyRequestRow>(),
       nameColumn<WeeklyRequestRow>(t('reports.weekly.columns.requestName')),
       ...classificationColumns<WeeklyRequestRow>(),
-      statusColumn<WeeklyRequestRow>(),
+      statusColumn<WeeklyRequestRow>('request'),
       ...(listKey === 'closed' ? [createdOnColumn<WeeklyRequestRow>()] : []),
       dateColumn<WeeklyRequestRow>(listKey),
       ...(listKey === 'modified' ? [changesColumn<WeeklyRequestRow>('request')] : []),
@@ -1018,7 +1099,7 @@ export default function WeeklyReport() {
         type: 'rightAligned',
         valueFormatter: (params) => (params.value == null ? '' : `${Math.round(Number(params.value))}%`),
       },
-      statusColumn<WeeklyProjectRow>(),
+      statusColumn<WeeklyProjectRow>('project'),
       ...(listKey === 'closed' ? [createdOnColumn<WeeklyProjectRow>()] : []),
       dateColumn<WeeklyProjectRow>(listKey),
       ...(listKey === 'modified' ? [changesColumn<WeeklyProjectRow>('project')] : []),
@@ -1050,7 +1131,7 @@ export default function WeeklyReport() {
       },
       priorityColumn<WeeklyTaskRow>(),
       ...classificationColumns<WeeklyTaskRow>(),
-      statusColumn<WeeklyTaskRow>(),
+      statusColumn<WeeklyTaskRow>('task'),
       ...(listKey === 'closed' ? [createdOnColumn<WeeklyTaskRow>()] : []),
       dateColumn<WeeklyTaskRow>(listKey),
       ...(listKey === 'modified' ? [changesColumn<WeeklyTaskRow>('task')] : []),

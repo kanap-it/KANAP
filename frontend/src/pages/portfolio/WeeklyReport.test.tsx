@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@mui/material/styles';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import '../../i18n';
+import i18n from '../../i18n';
 import { ThemeModeProvider, createAppTheme } from '../../config/ThemeContext';
 import WeeklyReport from './WeeklyReport';
 
@@ -386,9 +386,11 @@ describe('WeeklyReport', () => {
               status: 'approved',
               eventAt: '2026-09-15',
               changes: {
-                statusFrom: 'candidate',
-                statusTo: 'approved',
-                changedFields: ['priority_score', 'target_delivery_date'],
+                statusChain: ['pending_review', 'candidate', 'approved'],
+                fields: [
+                  { key: 'priority_score', before: '44.44', after: '68', kind: 'number' },
+                  { key: 'target_delivery_date', before: null, after: '2026-09-30', kind: 'date' },
+                ],
               },
             }),
           ],
@@ -400,9 +402,84 @@ describe('WeeklyReport', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText('Candidate → Approved, Priority score, Target delivery date'),
+        screen.getByText(
+          'Pending review → Candidate → Approved; Priority score: 44.44 → 68; Target delivery date: empty → 30 Sep',
+        ),
       ).toBeTruthy(),
     );
+    // Two fields fit: nothing is folded away.
+    expect(screen.queryByText(/^\+\d+$/)).toBeNull();
+  });
+
+  it('shows the chain and two fields, folds the rest into +n and lists everything on hover', async () => {
+    mockApi(
+      report({
+        tasks: {
+          created: [],
+          modified: [
+            taskRow({
+              status: 'done',
+              eventAt: '2026-09-15',
+              changes: {
+                statusChain: ['open', 'in_progress', 'in_testing', 'done'],
+                fields: [
+                  { key: 'assignee_user_id', before: 'Thomas Berger', after: 'Isabelle Moreau', kind: 'ref' },
+                  { key: 'labels', before: '0', after: '2', kind: 'list' },
+                  { key: 'task_type_id', before: '', after: 'Bug', kind: 'ref' },
+                ],
+              },
+            }),
+          ],
+          closed: [],
+        },
+      }),
+    );
+    renderReport();
+
+    const cell = await screen.findByText(
+      'Open → In progress → In testing → Done; Assignee: Thomas Berger → Isabelle Moreau; Labels: 0 items → 2 items',
+    );
+    expect(screen.getByText('+1')).toBeTruthy();
+    expect(screen.queryByText(/Task type: unknown → Bug/)).toBeNull();
+
+    fireEvent.mouseOver(cell);
+    const tooltip = await screen.findByTestId('weekly-changes-tooltip');
+    const lines = Array.from(tooltip.children).map((node) => node.textContent);
+    expect(lines).toEqual([
+      'Open → In progress → In testing → Done',
+      'Assignee: Thomas Berger → Isabelle Moreau',
+      'Labels: 0 items → 2 items',
+      'Task type: unknown → Bug',
+    ]);
+  });
+
+  it('reads a status with the labels of the row object', async () => {
+    // Projects and tasks share `in_progress`: give the project its own wording to tell them apart.
+    i18n.addResource('en', 'portfolio', 'statuses.project.in_progress', 'Running');
+    try {
+      mockApi(
+        report({
+          projects: {
+            created: [],
+            modified: [
+              projectRow({
+                status: 'in_progress',
+                eventAt: '2026-09-15',
+                changes: { statusChain: ['planned', 'in_progress'], fields: [] },
+              }),
+            ],
+            closed: [],
+          },
+        }),
+      );
+      renderReport();
+
+      await waitFor(() => expect(screen.getByText('Planned → Running')).toBeTruthy());
+      // The status column reads the project wording too, never the task one.
+      expect(screen.getByText('Running')).toBeTruthy();
+    } finally {
+      i18n.addResource('en', 'portfolio', 'statuses.project.in_progress', 'In progress');
+    }
   });
 });
 

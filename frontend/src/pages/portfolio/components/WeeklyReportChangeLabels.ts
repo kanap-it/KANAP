@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import { formatShortDate } from '../../../lib/dateFormat';
 
 /**
  * Human labels for the columns the weekly report reports as changed.
@@ -92,16 +93,25 @@ export function getWeeklyFieldLabel(
   return humanize(field);
 }
 
-/** Distinct labels for a change set, in a stable order and without duplicates. */
-export function getWeeklyFieldLabels(
+/** How the server shaped a changed value (`WeeklyChangeKind` in the weekly report service). */
+export type WeeklyChangeKind = 'text' | 'date' | 'number' | 'boolean' | 'list' | 'ref';
+
+/**
+ * One changed value as the report cell writes it. The server sends the values ready to format:
+ * a day as `YYYY-MM-DD`, a boolean as `true` / `false`, a list as its item count, a reference
+ * as a name (`''` when the record is gone) and `null` for an empty value. The export writes the
+ * same rules in English on the server (`formatExportChangeValue`).
+ */
+export function formatChangeValue(
+  kind: WeeklyChangeKind,
+  value: string | null,
   t: TFunction,
-  entity: WeeklyReportEntity,
-  fields: string[],
-): string[] {
-  const labels: string[] = [];
-  fields.forEach((field) => {
-    const label = getWeeklyFieldLabel(t, entity, field);
-    if (!labels.includes(label)) labels.push(label);
-  });
-  return labels;
+  locale: string,
+): string {
+  if (value === null) return t('reports.weekly.changeValues.empty');
+  if (kind === 'ref' && value === '') return t('reports.weekly.changeValues.unknown');
+  if (kind === 'boolean') return value === 'true' ? t('activity.history.values.yes') : t('activity.history.values.no');
+  if (kind === 'list') return t('reports.weekly.changeValues.items', { count: Number(value) || 0 });
+  if (kind === 'date') return formatShortDate(value, locale) || value;
+  return value;
 }

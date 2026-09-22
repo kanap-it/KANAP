@@ -1287,6 +1287,12 @@
           "closed": "Closed on"
         }
       },
+      "changeValues": {
+        "empty": "empty",
+        "unknown": "unknown",
+        "items_one": "{{count}} item",
+        "items_other": "{{count}} items"
+      },
       "byPerson": {
         "note": "This report covers tasks. Requests and projects are in the <link />.",
         "noTeam": "No team",
