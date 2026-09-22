@@ -1097,6 +1097,10 @@
       "weekly": {
         "title": "Weekly report",
         "description": "Requests, projects and tasks created, modified and closed over a period."
+      },
+      "flow": {
+        "title": "Flow and age",
+        "description": "What comes in and goes out week after week, how old the open tasks are, and how long a closing takes."
       }
     },
     "itemTypes": {
@@ -1302,6 +1306,76 @@
           "modified": "Modified on",
           "closed": "Closed on"
         }
+      }
+    },
+    "flow": {
+      "title": "Flow and age",
+      "subtitle": "What comes in and goes out week after week, how long the open tasks have been waiting, and how long a closing takes.",
+      "filters": {
+        "period": "Period",
+        "periodOption_one": "{{count}} week",
+        "periodOption_other": "{{count}} weeks"
+      },
+      "sections": {
+        "flow": "Weekly flow",
+        "age": "Age of open tasks",
+        "leadTime": "Median time to close"
+      },
+      "tiles": {
+        "tasks": "Tasks",
+        "requests": "Requests",
+        "projects": "Projects",
+        "openToday": "open today",
+        "deltaSince": "{{delta}} since {{date}}",
+        "steady": "No change since {{date}}",
+        "trendLabel": "Open items at the end of each of the last weeks",
+        "closedOver_one": "over {{count}} closing",
+        "closedOver_other": "over {{count}} closings",
+        "noClosing": "No closing in this period",
+        "days": "{{count}} d",
+        "noValue": "—"
+      },
+      "charts": {
+        "created": "Created",
+        "closed": "Closed",
+        "openAtEnd": "Open at the end of the week",
+        "weekOf": "Week of {{date}}",
+        "weekRange": "{{from}} to {{to}}"
+      },
+      "actions": {
+        "showTable": "See the table",
+        "hideTable": "Hide the table"
+      },
+      "columns": {
+        "week": "Week",
+        "tasksCreated": "Tasks created",
+        "tasksClosed": "Tasks closed",
+        "tasksOpen": "Tasks open",
+        "requestsCreated": "Requests created",
+        "requestsClosed": "Requests closed",
+        "requestsOpen": "Requests open",
+        "projectsCreated": "Projects created",
+        "projectsClosed": "Projects closed",
+        "projectsOpen": "Projects open",
+        "taskType": "Task type",
+        "upTo7": "0–7 d",
+        "from8To30": "8–30 d",
+        "from31To90": "31–90 d",
+        "over90": "Over 90 d",
+        "total": "Total",
+        "closedCount": "Closed",
+        "medianDays": "Median time"
+      },
+      "rows": {
+        "noType": "No type",
+        "total": "Total"
+      },
+      "messages": {
+        "loadFailed": "Failed to load report data."
+      },
+      "empty": {
+        "age": "No open task to report.",
+        "leadTimeByType": "No task closed in this period."
       }
     }
   },

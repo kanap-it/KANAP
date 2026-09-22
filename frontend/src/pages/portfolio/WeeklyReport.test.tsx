@@ -85,13 +85,13 @@ function mockApi(data: unknown) {
   });
 }
 
-function renderReport() {
+function renderReport(entry = '/portfolio/reports/weekly') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <ThemeModeProvider>
         <ThemeProvider theme={createAppTheme('light')}>
-          <MemoryRouter initialEntries={['/portfolio/reports/weekly']}>
+          <MemoryRouter initialEntries={[entry]}>
             <WeeklyReport />
           </MemoryRouter>
         </ThemeProvider>
@@ -247,6 +247,25 @@ describe('WeeklyReport', () => {
         screen.getAllByRole('heading', { level: 2 })[0].querySelector('button')?.getAttribute('aria-expanded'),
       ).toBe('false'),
     );
+  });
+
+  it('opens on the period carried by the URL, and ignores a day that does not exist', async () => {
+    mockApi(report());
+    renderReport('/portfolio/reports/weekly?startDate=2026-08-17&endDate=2026-08-23');
+
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/portfolio/reports/weekly', expect.anything()));
+    const call = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly');
+    expect(call?.[1]?.params?.startDate).toBe('2026-08-17');
+    expect(call?.[1]?.params?.endDate).toBe('2026-08-23');
+
+    get.mockReset();
+    mockApi(report());
+    renderReport('/portfolio/reports/weekly?startDate=2026-02-31&endDate=nope');
+
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/portfolio/reports/weekly', expect.anything()));
+    const fallback = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly');
+    expect(fallback?.[1]?.params?.startDate).not.toBe('2026-02-31');
+    expect(fallback?.[1]?.params?.endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it('spells out what changed on a modified row', async () => {

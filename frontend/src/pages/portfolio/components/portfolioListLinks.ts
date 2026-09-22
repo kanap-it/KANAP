@@ -1,7 +1,7 @@
 import { ACTIVE_TASK_STATUSES } from '../../tasks/task.constants';
 
 export type SetFilter = { filterType: 'set'; values: Array<string | null> };
-export type DateFilter = { filterType: 'date'; type: string; dateFrom: string };
+export type DateFilter = { filterType: 'date'; type: string; dateFrom: string; dateTo?: string };
 export type FilterModel = Record<string, SetFilter | DateFilter>;
 
 /** A set filter on the empty value: the list shows the rows where the column has nothing. */
@@ -23,6 +23,17 @@ export const OPEN_PROJECT_STATUSES = ['waiting_list', 'planned', 'in_progress', 
 export const TASK_SCOPE: FilterModel = {
   status: { filterType: 'set', values: ACTIVE_TASK_STATUSES },
   related_object_type: { filterType: 'set', values: [null, 'project'] },
+};
+
+/**
+ * A `created_at` filter for one age bracket. `from` is inclusive, `to` is inclusive as well,
+ * and a bracket open on the left reads as "created before that day", the day itself excluded.
+ * Both sides are plain days, the format the list restores from the URL.
+ */
+export const createdBetween = (from: string | null, to: string | null): DateFilter => {
+  if (from && to) return { filterType: 'date', type: 'inRange', dateFrom: from, dateTo: to };
+  if (from) return { filterType: 'date', type: 'greaterThanOrEqual', dateFrom: from };
+  return { filterType: 'date', type: 'lessThan', dateFrom: String(to) };
 };
 
 const listPath = (base: string, scopeParam: string, filters: FilterModel): string => {

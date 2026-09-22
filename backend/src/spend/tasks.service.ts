@@ -377,6 +377,12 @@ function buildWhereConditions(
     applyDateFilter(filters.due_date, 't.due_date');
   }
 
+  // The creation day, not the instant: the grid sends plain days, and the portfolio reports
+  // link to age brackets counted in whole days.
+  if (!shouldSkip('created_at') && filters.created_at) {
+    applyDateFilter(filters.created_at, 't.created_at::date');
+  }
+
   if (!shouldSkip('labels') && filters.labels?.filter) {
     params.push(`%${filters.labels.filter}%`);
     whereConditions += ` AND EXISTS (

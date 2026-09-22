@@ -1097,6 +1097,10 @@
       "weekly": {
         "title": "Rapport hebdomadaire",
         "description": "Demandes, projets et tâches créés, modifiés et clôturés sur une période."
+      },
+      "flow": {
+        "title": "Flux et ancienneté",
+        "description": "Ce qui entre et ce qui sort semaine après semaine, l'âge des tâches ouvertes et le temps qu'il faut pour clôturer."
       }
     },
     "itemTypes": {
@@ -1302,6 +1306,76 @@
           "modified": "Modifié le",
           "closed": "Clôturé le"
         }
+      }
+    },
+    "flow": {
+      "title": "Flux et ancienneté",
+      "subtitle": "Ce qui entre et ce qui sort semaine après semaine, depuis combien de temps les tâches ouvertes attendent et le temps qu'il faut pour clôturer.",
+      "filters": {
+        "period": "Période",
+        "periodOption_one": "{{count}} semaine",
+        "periodOption_other": "{{count}} semaines"
+      },
+      "sections": {
+        "flow": "Flux hebdomadaire",
+        "age": "Ancienneté des tâches ouvertes",
+        "leadTime": "Délai médian de clôture"
+      },
+      "tiles": {
+        "tasks": "Tâches",
+        "requests": "Demandes",
+        "projects": "Projets",
+        "openToday": "ouvertes aujourd'hui",
+        "deltaSince": "{{delta}} depuis le {{date}}",
+        "steady": "Stable depuis le {{date}}",
+        "trendLabel": "Éléments ouverts à la fin de chacune des dernières semaines",
+        "closedOver_one": "sur {{count}} clôture",
+        "closedOver_other": "sur {{count}} clôtures",
+        "noClosing": "Aucune clôture sur la période",
+        "days": "{{count}} j",
+        "noValue": "—"
+      },
+      "charts": {
+        "created": "Créés",
+        "closed": "Clôturés",
+        "openAtEnd": "Ouverts à la fin de la semaine",
+        "weekOf": "Semaine du {{date}}",
+        "weekRange": "du {{from}} au {{to}}"
+      },
+      "actions": {
+        "showTable": "Voir le tableau",
+        "hideTable": "Masquer le tableau"
+      },
+      "columns": {
+        "week": "Semaine",
+        "tasksCreated": "Tâches créées",
+        "tasksClosed": "Tâches clôturées",
+        "tasksOpen": "Tâches ouvertes",
+        "requestsCreated": "Demandes créées",
+        "requestsClosed": "Demandes clôturées",
+        "requestsOpen": "Demandes ouvertes",
+        "projectsCreated": "Projets créés",
+        "projectsClosed": "Projets clôturés",
+        "projectsOpen": "Projets ouverts",
+        "taskType": "Type de tâche",
+        "upTo7": "0–7 j",
+        "from8To30": "8–30 j",
+        "from31To90": "31–90 j",
+        "over90": "Plus de 90 j",
+        "total": "Total",
+        "closedCount": "Clôturées",
+        "medianDays": "Délai médian"
+      },
+      "rows": {
+        "noType": "Sans type",
+        "total": "Total"
+      },
+      "messages": {
+        "loadFailed": "Le chargement du rapport a échoué."
+      },
+      "empty": {
+        "age": "Aucune tâche ouverte à signaler.",
+        "leadTimeByType": "Aucune tâche clôturée sur la période."
       }
     }
   },
