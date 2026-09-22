@@ -15,12 +15,18 @@ If you do not see Reporting in the menu, ask your administrator to grant you acc
 
 ## Reports landing page
 
-The Portfolio Reporting landing page lists available portfolio reports as cards. Click a card to open the report.
+The Portfolio Reporting landing page lists available portfolio reports as cards, in three rows read by horizon. Click a card to open the report.
 
-Currently available:
-- **Status Change Report**
-- **Capacity Heatmap**
-- **Weekly Report**
+**What happened**
+- **Period review**: requests, projects and tasks created, modified and closed over a period.
+- **Activity by person**: the same page, opened on its by-person reading of the tasks.
+
+**What is in progress**
+- **Flow and age**: what comes in and goes out week after week, how old the open work is, and how long a closing takes.
+- **Attention by assignee**: open, overdue and stalled tasks, team by team and person by person.
+
+**What comes next**
+- **Capacity Heatmap**: expected workload against capacity, for contributors and teams.
 
 ---
 
@@ -89,52 +95,6 @@ When nothing is missing, the strip shows a single line confirming that everythin
 
 ---
 
-## Status Change report
-
-Use this report to track items created during a selected period, or whose status changed in it.
-
-### What it shows
-- **One row per item** (standalone task, request, or project).
-- **Latest in-period event only** for each item, whether that event is the creation or a status change.
-- **Status reached by that event**. For a creation, this is the status the item was created with.
-- **Created** date, filled when the item was created inside the period, and empty otherwise.
-- **Last changed** date for the retained event.
-
-### Filters
-- **Start Date** and **End Date** (required period)
-- **Status** (multi-select)
-- **Item Type** (multi-select: Tasks, Requests, Projects)
-- **Source** (multi-select)
-- **Category** (multi-select)
-- **Stream** (multi-select; available when at least one category is selected)
-
-### Inclusion rules
-- The item is included if it was created during the selected period, or if its status changed during it.
-- An item created and then moved to another status in the same period appears once, with the status of its latest event.
-- For tasks, only **standalone tasks** are included (project-linked tasks are excluded).
-- Status filtering applies to the status carried by the retained event.
-- The period, the **Created** date and the **Last changed** date follow your browser's time zone.
-
-### Table columns
-- **Name** (clickable; opens the item)
-- **Item Type**
-- **Priority**
-- **Status**
-- **Source**
-- **Category**
-- **Stream**
-- **Company**
-- **Created**
-- **Last Changed**
-
-Default sort is by **Priority** (highest first). You can sort by any column.
-
-### Exports
-- **CSV** export
-- **XLSX** export with clickable item names
-
----
-
 ## Capacity Heatmap report
 
 Use this report to understand current workload, capacity pressure, and unassigned work.
@@ -184,7 +144,7 @@ Click a contributor row to open a project breakdown:
 
 ---
 
-## Weekly Report
+## Period review
 
 Use this report to see what happened to requests, projects and tasks over a period. The report follows the portfolio funnel: requests first, then projects, then tasks.
 
@@ -192,9 +152,9 @@ Use this report to see what happened to requests, projects and tasks over a peri
 
 Each of the three sections holds the same three lists.
 
-- **Created** — items created during the period.
-- **Modified** — items changed during the period without being created or closed in it.
-- **Closed** — items whose last status change of the period leaves them in a closed status.
+- **Created**: items created during the period.
+- **Modified**: items changed during the period without being created or closed in it.
+- **Closed**: items whose last status change of the period leaves them in a closed status.
 
 An item created and closed inside the same period appears in both lists, with its own date in each. It never appears under Modified: Modified is what is left once creations and closures are accounted for.
 
@@ -241,18 +201,25 @@ The wording matches the history feed on the item itself. Fields rewritten on eve
 - **Category** (multi-select)
 - **Stream** (multi-select; scoped to the selected categories)
 - **Task types** (multi-select; applies to the Tasks section)
+- **Status reached** (multi-select, grouped by requests, projects and tasks)
 
-Filters apply to all nine lists.
+Filters apply to all nine lists, and to the by-person reading.
+
+**Status reached** keeps the items whose last status change of the period left them in one of the selected statuses. The creation counts as a status change: an item created during the period and never moved afterwards reached the status it was created with. An item whose status did not change during the period matches no status, so it drops out as soon as a status is selected. The status shown in the Status column is the one the item holds today, which can differ: a task closed during the period and reopened since then reached **Done**, and shows **Open**.
+
+A status shared by several types, such as Done or On hold, is one choice: ticking it under Tasks also ticks it under Projects.
 
 ### Table columns
 
 Every list starts with the business reference (`REQ-12`, `PRJ-3`, `T-4`) and the name. Clicking the name opens the item.
 
-**Requests**: Reference, Request name, Source, Category, Stream, Status, date of the event.
+**Requests**: Reference, Request name, Source, Category, Stream, Company, Status, date of the event.
 
-**Projects**: Reference, Project name, Origin (created list), Priority, Source, Category, Stream, Effort, Status, date of the event.
+**Projects**: Reference, Project name, Origin (created list), Priority, Source, Category, Stream, Company, Effort, Status, date of the event.
 
-**Tasks**: Reference, Task name, Task type, Priority, Source, Category, Stream, Status, date of the event.
+**Tasks**: Reference, Task name, Task type, Priority, Source, Category, Stream, Company, Status, date of the event.
+
+A task with no company of its own shows the company of its project, the same way the task list reads it.
 
 The date column carries the creation day on the created lists, the last change day on the modified lists, and the closing day on the closed lists. Days are read in your own time zone.
 
@@ -262,13 +229,13 @@ Modified lists add the **Changes** column at the end.
 
 ### Exports
 
-- **CSV** — nine blocks in the order of the page, each with its own heading and header row.
-- **XLSX** — three sheets, Requests, Projects and Tasks. Rows run created, then modified, then closed, with a leading **Event** column that says which list a row comes from. The name cell links back to the item.
+- **CSV**: nine blocks in the order of the page, each with its own heading and header row.
+- **XLSX**: three sheets, Requests, Projects and Tasks. Rows run created, then modified, then closed, with a leading **Event** column that says which list a row comes from. The name cell links back to the item.
 
-Both exports carry the reference, the origin of a project, the changes of a modified row and the event date. The closed rows also carry the creation day.
+Both exports carry the reference, the company, the origin of a project, the changes of a modified row and the event date. The closed rows also carry the creation day.
 
 ## Tips
 - **Keep contributor profiles updated**: Capacity is based on contributor availability and historical time stats.
 - **Use team filters**: Scope the report to a department or function.
 - **Check unassigned work**: Helps surface projects with missing allocations or missing leads.
-- **Weekly Report for stand-ups**: Export the Weekly Report as XLSX and share it with stakeholders for status meetings.
+- **Period review for stand-ups**: Export the Period review as XLSX and share it with stakeholders for status meetings.

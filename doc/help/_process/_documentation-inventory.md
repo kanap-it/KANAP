@@ -253,7 +253,6 @@ _Note: `/admin/agent-control` and `/admin/agent-control/*` redirect to `/agents`
 | `/portfolio/contributors` | ContributorsPage + ContributorWorkspacePage | **DOCUMENTED** | `portfolio-team-members.md` |
 | `/portfolio/settings` | SettingsPage | **DOCUMENTED** | `portfolio-settings.md` |
 | `/portfolio/reports` | ReportsPage | **DOCUMENTED** | `portfolio-reporting.md` |
-| `/portfolio/reports/status-change` | StatusChangeReport | **DOCUMENTED** | `portfolio-reporting.md` |
 | `/portfolio/reports/capacity-heatmap` | CapacityHeatmapReport | **DOCUMENTED** | `portfolio-reporting.md` |
 | `/portfolio/reports/weekly` | WeeklyReport | **DOCUMENTED** | `portfolio-reporting.md` |
 | `/portfolio/planning` | PlanningPage | **DOCUMENTED** | `portfolio-planning.md` |

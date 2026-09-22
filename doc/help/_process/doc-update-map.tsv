@@ -53,7 +53,8 @@ portfolio-projects.md	frontend/src/pages/portfolio/ProjectWorkspacePage.tsx
 portfolio-projects.md	frontend/src/pages/portfolio/components/ProjectTimeline.tsx
 portfolio-planning.md	frontend/src/pages/portfolio/PlanningPage.tsx
 portfolio-reporting.md	frontend/src/pages/portfolio/ReportsPage.tsx
-portfolio-reporting.md	frontend/src/pages/portfolio/StatusChangeReport.tsx
+portfolio-reporting.md	frontend/src/pages/portfolio/FlowReport.tsx
+portfolio-reporting.md	frontend/src/pages/portfolio/ByAssigneeReport.tsx
 portfolio-reporting.md	frontend/src/pages/portfolio/CapacityHeatmapReport.tsx
 portfolio-reporting.md	frontend/src/pages/portfolio/WeeklyReport.tsx
 portfolio-settings.md	frontend/src/pages/portfolio/SettingsPage.tsx
