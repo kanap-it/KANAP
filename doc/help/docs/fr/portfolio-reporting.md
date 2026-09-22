@@ -24,6 +24,40 @@ Actuellement disponibles :
 
 ---
 
+## Pilotage
+
+Le premier bandeau au-dessus des cartes de rapports est la vue de pilotage quotidienne. Il répond à deux questions : qu'est-ce qui a bougé récemment, et qu'est-ce qui attend quelqu'un.
+
+### La période
+
+L'en-tête affiche la période utilisée et permet de basculer entre les 7, 30 et 90 derniers jours. La période se termine toujours aujourd'hui et se lit dans votre propre fuseau horaire. Votre choix est mémorisé sur ce navigateur.
+
+### Flux
+
+Une ligne par entité se lit ainsi : **14 créés · 9 clôturés · 52 ouverts (+5)**.
+
+- **Créés** : éléments créés pendant la période et toujours présents aujourd'hui.
+- **Clôturés** : éléments passés d'un statut ouvert à un statut clos pendant la période. Clos signifie Terminé ou Annulé pour les tâches et les projets, Rejeté ou Converti pour les demandes.
+- **Ouverts** : éléments ouverts en ce moment, quoi qu'il se soit passé pendant la période. Ce chiffre est un lien vers la liste correspondante.
+- **(+5)** : la variation nette, affichée seulement quand elle n'est pas nulle. C'est créés, plus rouverts, moins clôturés. Les éléments rouverts sont ceux passés d'un statut clos à un statut ouvert. Survolez le chiffre pour voir la formule.
+
+Créés et clôturés proviennent de l'historique des modifications. Ils couvrent donc toutes les façons d'écrire un élément : l'application, un import CSV et les agents. Aucun filtre de liste ne reproduit cet historique, ces deux chiffres ne sont donc pas des liens.
+
+### Quelles tâches sont comptées
+
+Chaque chiffre de tâche ne compte que les tâches autonomes et les tâches de projet. Les tâches rattachées à un contrat, à une ligne de dépense, à une ligne CAPEX ou à un incident relèvent de ces processus et sont exclues partout dans ce bandeau.
+
+### À traiter
+
+La dernière ligne n'apparaît que si quelque chose demande une décision :
+- **Tâches en retard** : tâches ouvertes dont l'échéance est antérieure à aujourd'hui. Le chiffre ouvre la liste des tâches filtrée sur les mêmes éléments.
+- **Tâches sans responsable** : tâches ouvertes que personne ne porte. La liste des tâches n'a pas de filtre sur un responsable vide, ce chiffre n'est donc pas un lien.
+- **Projets sans activité depuis 30 jours** : projets en cours ou en test où rien ne s'est passé depuis un mois. Un clic ouvre une courte liste de ces projets avec la date de leur dernière activité, et chaque nom ouvre le projet.
+
+L'activité est lue au sens large. Un projet est actif dès que quelque chose a changé sur lui ou sur l'une de ses tâches, dès que quelqu'un a écrit dans son journal, ou dès que du temps a été saisi sur le projet ou sur l'une de ses tâches. Un projet n'apparaît ici que si tout cela date de plus de 30 jours.
+
+---
+
 ## À classer
 
 Au-dessus des cartes de rapports, un bandeau compact indique la part de votre travail ouvert à laquelle il manque encore une valeur de classification. Utilisez-le comme aide au pilotage quotidien : voyez l'écart, cliquez, corrigez.

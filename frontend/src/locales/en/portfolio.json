@@ -1034,6 +1034,42 @@
   "reports": {
     "title": "Portfolio reporting",
     "subtitle": "Explore portfolio reports focused on capacity, workload, and portfolio status trends.",
+    "steering": {
+      "period_one": "Last {{count}} day",
+      "period_other": "Last {{count}} days",
+      "periodLabel": "Period",
+      "periodOption_one": "{{count}} day",
+      "periodOption_other": "{{count}} days",
+      "entities": {
+        "tasks": "Tasks",
+        "requests": "Requests",
+        "projects": "Projects"
+      },
+      "flow": {
+        "created_one": "{{count}} created",
+        "created_other": "{{count}} created",
+        "closed_one": "{{count}} closed",
+        "closed_other": "{{count}} closed",
+        "open_one": "{{count}} open",
+        "open_other": "{{count}} open",
+        "netTooltip": "Created, plus reopened, minus closed"
+      },
+      "attention": {
+        "title": "Needs attention",
+        "overdue_one": "{{count}} overdue task",
+        "overdue_other": "{{count}} overdue tasks",
+        "unassigned_one": "{{count}} task without assignee",
+        "unassigned_other": "{{count}} tasks without assignee",
+        "stale_one": "{{count}} project without activity for {{days}} days",
+        "stale_other": "{{count}} projects without activity for {{days}} days"
+      },
+      "stale": {
+        "dialogTitle": "Projects without activity",
+        "lastActivity": "Last activity {{date}}",
+        "never": "No activity recorded",
+        "close": "Close"
+      }
+    },
     "toClassify": {
       "title": "To classify",
       "entities": {

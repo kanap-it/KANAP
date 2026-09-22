@@ -5,6 +5,7 @@ import PageHeader from '../../components/PageHeader';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import ClassificationGapsStrip, { ClassificationGaps } from './components/ClassificationGapsStrip';
+import SteeringStrip from './components/SteeringStrip';
 
 export default function ReportsPage() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function ReportsPage() {
       <Typography variant="body1" sx={{ color: 'text.secondary' }}>
         {t('reports.subtitle')}
       </Typography>
+      <SteeringStrip />
       <ClassificationGapsStrip data={gaps} />
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={4} lg={3}>
