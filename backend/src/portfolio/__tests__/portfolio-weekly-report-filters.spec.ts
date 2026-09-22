@@ -1,4 +1,6 @@
 import * as assert from 'node:assert/strict';
+import AdmZip = require('adm-zip');
+import { PortfolioWeeklyReportController } from '../portfolio-weekly-report.controller';
 import { PortfolioWeeklyReportService } from '../services/portfolio-weekly-report.service';
 
 /**
@@ -170,6 +172,54 @@ async function run() {
     taskSql.includes('LEFT JOIN companies co ON co.id = COALESCE(t.company_id, pp.company_id) AND co.tenant_id = t.tenant_id'),
     'a task inherits the company of its project',
   );
+
+  /* ---------------------------------------------------------------- */
+  /*  Type (entities)                                                 */
+  /* ---------------------------------------------------------------- */
+
+  // Only the objects asked for are queried; the others come back empty and stay out of the
+  // exports.
+  const typeCalls: Array<{ sql: string; params: any[] }> = [];
+  const typeManager: any = {
+    query: async (sql: string, params: any[]) => {
+      typeCalls.push({ sql, params });
+      return [rawRow({})];
+    },
+  };
+  const periodOnly = { tenantId, startDate: '2026-08-01', endDate: '2026-08-31', timeZone: 'Europe/Paris' };
+  const projectsOnly = await svc.list({ ...periodOnly, entities: ['project'] }, { manager: typeManager });
+  assert.equal(typeCalls.length, 1, 'one statement: the projects');
+  assert.ok(typeCalls[0].sql.includes('JOIN portfolio_projects p ON p.id = a.record_id'));
+  assert.equal(projectsOnly.projects.created.length, 1);
+  assert.deepEqual(projectsOnly.requests, { created: [], modified: [], closed: [] });
+  assert.deepEqual(projectsOnly.tasks, { created: [], modified: [], closed: [] });
+
+  typeCalls.length = 0;
+  const csv = await svc.exportCsv({ ...periodOnly, entities: ['request', 'task'] }, { manager: typeManager });
+  assert.equal(typeCalls.length, 2);
+  assert.ok(csv.content.includes('Requests created'));
+  assert.ok(csv.content.includes('Tasks created'));
+  assert.ok(!csv.content.includes('Projects created'), 'no block for an object left out');
+
+  const xlsx = await svc.exportXlsx({ ...periodOnly, entities: ['task'] }, null, { manager: typeManager });
+  const workbook = new AdmZip(xlsx.content).readAsText('xl/workbook.xml');
+  assert.ok(workbook.includes('name="Tasks"'));
+  assert.ok(!workbook.includes('name="Requests"') && !workbook.includes('name="Projects"'), 'one sheet only');
+
+  // No object named reads as all three.
+  typeCalls.length = 0;
+  await svc.list({ ...periodOnly, entities: [] }, { manager: typeManager });
+  assert.equal(typeCalls.length, 3);
+
+  // The query string: unknown values are dropped, duplicates too, nothing left means all.
+  const controller: any = new PortfolioWeeklyReportController(svc);
+  const ctx: any = { tenantId };
+  const parse = (entities: string) =>
+    controller.parseQuery({ startDate: '2026-08-01', endDate: '2026-08-31', entities }, ctx).entities;
+  assert.deepEqual(parse('project,task,project'), ['project', 'task']);
+  assert.deepEqual(parse('request,bogus'), ['request']);
+  assert.deepEqual(parse('bogus'), []);
+  assert.deepEqual(parse(''), []);
 
   console.log('portfolio-weekly-report-filters.spec.ts: ok');
 }

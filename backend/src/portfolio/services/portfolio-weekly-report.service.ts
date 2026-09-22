@@ -36,11 +36,25 @@ export type WeeklyReportQuery = {
    */
   projectIds?: string[];
   teamIds?: string[];
+  /**
+   * The objects the report covers. The others are not queried and come back as empty lists,
+   * and the exports leave their blocks out. Empty means all three.
+   */
+  entities?: WeeklyEntity[];
   /** `person` adds the by-person reading of the task lists; `type` is the historical shape. */
   groupBy?: WeeklyGroupBy;
 };
 
 export type WeeklyGroupBy = 'type' | 'person';
+
+export const WEEKLY_ENTITIES = ['request', 'project', 'task'] as const;
+export type WeeklyEntity = (typeof WEEKLY_ENTITIES)[number];
+
+/** Whether the report covers an object: every object when none is named. */
+const covers = (query: WeeklyReportQuery, entity: WeeklyEntity): boolean =>
+  !query.entities || query.entities.length === 0 || query.entities.includes(entity);
+
+const emptyLists = <TRow>(): WeeklyLists<TRow> => ({ created: [], modified: [], closed: [] });
 
 /** What changed on an item during the period, for the "modified" lists. */
 export type WeeklyChangeSummary = {
@@ -362,9 +376,16 @@ const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensiti
 @Injectable()
 export class PortfolioWeeklyReportService {
   async list(query: WeeklyReportQuery, opts?: ServiceOpts): Promise<WeeklyReportResult> {
-    const requests = await this.fetchRequestLists(query, opts);
-    const projects = await this.fetchProjectLists(query, opts);
-    const { lists: tasks, entries } = await this.fetchTaskLists(query, opts);
+    // An object the report does not cover is not queried at all.
+    const requests = covers(query, 'request')
+      ? await this.fetchRequestLists(query, opts)
+      : emptyLists<WeeklyRequestRow>();
+    const projects = covers(query, 'project')
+      ? await this.fetchProjectLists(query, opts)
+      : emptyLists<WeeklyProjectRow>();
+    const { lists: tasks, entries } = covers(query, 'task')
+      ? await this.fetchTaskLists(query, opts)
+      : { lists: emptyLists<WeeklyTaskRow>(), entries: [] as TaskEntry[] };
     if (query.groupBy !== 'person') return { requests, projects, tasks };
 
     const byPerson = await this.buildByPerson(query, entries, opts);
@@ -461,23 +482,30 @@ export class PortfolioWeeklyReportService {
       rows.forEach((cells) => addRow(cells));
     };
 
-    (['created', 'modified', 'closed'] as const).forEach((listKey) => {
-      addBlock(
-        `Requests ${listKey}`,
-        this.requestHeaders(listKey),
-        requests[listKey].map((row) => this.requestCells(row, listKey)),
-      );
-    });
+    // Only the objects the report covers get blocks.
+    if (covers(query, 'request')) {
+      (['created', 'modified', 'closed'] as const).forEach((listKey) => {
+        addBlock(
+          `Requests ${listKey}`,
+          this.requestHeaders(listKey),
+          requests[listKey].map((row) => this.requestCells(row, listKey)),
+        );
+      });
+    }
 
-    (['created', 'modified', 'closed'] as const).forEach((listKey) => {
-      addBlock(
-        `Projects ${listKey}`,
-        this.projectHeaders(listKey),
-        projects[listKey].map((row) => this.projectCells(row, listKey)),
-      );
-    });
+    if (covers(query, 'project')) {
+      (['created', 'modified', 'closed'] as const).forEach((listKey) => {
+        addBlock(
+          `Projects ${listKey}`,
+          this.projectHeaders(listKey),
+          projects[listKey].map((row) => this.projectCells(row, listKey)),
+        );
+      });
+    }
 
-    if (byPerson) {
+    if (!covers(query, 'task')) {
+      // No task block at all.
+    } else if (byPerson) {
       addBlock(
         'Tasks by person',
         this.personTaskHeaders(),
@@ -528,30 +556,35 @@ export class PortfolioWeeklyReportService {
           ),
         };
 
+    const requestSheet: XlsxSheetConfig = {
+      name: 'Requests',
+      headers: ['Event', ...this.requestHeaders('all')],
+      rows: listKeys.flatMap((listKey) =>
+        requests[listKey].map((row) => ({
+          cells: [eventLabel[listKey], ...this.requestCells(row, 'all')] as SheetCellValue[],
+          linkPath: row.itemPath,
+        })),
+      ),
+    };
+    const projectSheet: XlsxSheetConfig = {
+      name: 'Projects',
+      headers: ['Event', ...this.projectHeaders('all')],
+      rows: listKeys.flatMap((listKey) =>
+        projects[listKey].map((row) => ({
+          cells: [eventLabel[listKey], ...this.projectCells(row, 'all')] as SheetCellValue[],
+          linkPath: row.itemPath,
+        })),
+      ),
+    };
+
+    // Only the objects the report covers get a sheet.
+    const sheets = [
+      covers(query, 'request') ? requestSheet : null,
+      covers(query, 'project') ? projectSheet : null,
+      covers(query, 'task') ? taskSheet : null,
+    ];
     const content = this.buildXlsx(
-      [
-        {
-          name: 'Requests',
-          headers: ['Event', ...this.requestHeaders('all')],
-          rows: listKeys.flatMap((listKey) =>
-            requests[listKey].map((row) => ({
-              cells: [eventLabel[listKey], ...this.requestCells(row, 'all')] as SheetCellValue[],
-              linkPath: row.itemPath,
-            })),
-          ),
-        },
-        {
-          name: 'Projects',
-          headers: ['Event', ...this.projectHeaders('all')],
-          rows: listKeys.flatMap((listKey) =>
-            projects[listKey].map((row) => ({
-              cells: [eventLabel[listKey], ...this.projectCells(row, 'all')] as SheetCellValue[],
-              linkPath: row.itemPath,
-            })),
-          ),
-        },
-        taskSheet,
-      ],
+      sheets.filter((sheet): sheet is XlsxSheetConfig => sheet !== null),
       appBaseUrl,
     );
 
