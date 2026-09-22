@@ -4,14 +4,12 @@ import { EntityManager } from 'typeorm';
 import { neutralizeCsvFormulaValue } from '../../common/csv/csv-export.service';
 import { normalizeReportTimeZone } from '../../common/report-period';
 import {
-  ProjectTeamFilters,
   projectProjectTeamPredicates,
   pushSetFilter,
-  normalizeIdList,
   pushSetFilterExpr,
   requestProjectTeamPredicates,
   taskProjectTeamPredicates,
-  teamMembersSql,
+  timeEntryProjectTeamFilters,
 } from './portfolio-report-filters';
 
 export type WeeklyReportQuery = {
@@ -1531,7 +1529,7 @@ export class PortfolioWeeklyReportService {
       normalizeReportTimeZone(query.timeZone),
       query.endDate,
     ];
-    const { taskFilter, projectFilter } = this.loggedTimeFilters(sqlParams, query);
+    const { taskFilter, projectFilter } = timeEntryProjectTeamFilters(sqlParams, query, '$1');
 
     const rows: LoggedHoursRow[] = await mg.query(
       `
@@ -1575,33 +1573,6 @@ export class PortfolioWeeklyReportService {
       days.set(row.user_id, { project, other, total: roundDays(project + other) });
     }
     return days;
-  }
-
-  /**
-   * The project and team conditions of the two halves of the time query, each an ` AND …`
-   * fragment. The ids are bound once and read by both halves.
-   */
-  private loggedTimeFilters(
-    sqlParams: any[],
-    filters: ProjectTeamFilters,
-  ): { taskFilter: string; projectFilter: string } {
-    let taskFilter = '';
-    let projectFilter = '';
-    const projectIds = normalizeIdList(filters.projectIds);
-    if (projectIds.length > 0) {
-      sqlParams.push(projectIds);
-      const ref = `$${sqlParams.length}::text[]`;
-      taskFilter += ` AND t.related_object_type = 'project' AND t.related_object_id::text = ANY(${ref})`;
-      projectFilter += ` AND pte.project_id::text = ANY(${ref})`;
-    }
-    const teamIds = normalizeIdList(filters.teamIds);
-    if (teamIds.length > 0) {
-      sqlParams.push(teamIds);
-      const members = teamMembersSql(`$${sqlParams.length}`, '$1');
-      taskFilter += ` AND tte.user_id IN ${members}`;
-      projectFilter += ` AND pte.user_id IN ${members}`;
-    }
-    return { taskFilter, projectFilter };
   }
 
   /**
