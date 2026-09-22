@@ -113,7 +113,7 @@ type XlsxSheetConfig = {
  * Statuses that count as "closed" per entity. Requests have no cancelled state:
  * a request leaves the funnel either converted into a project or rejected.
  */
-const CLOSED_STATUSES = {
+export const CLOSED_STATUSES = {
   requests: ['converted', 'rejected'],
   projects: ['done', 'cancelled'],
   tasks: ['done', 'cancelled'],
