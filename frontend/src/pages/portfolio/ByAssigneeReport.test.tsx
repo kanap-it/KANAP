@@ -4,15 +4,31 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@mui/material/styles';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import '../../../i18n';
-import { createAppTheme } from '../../../config/ThemeContext';
-import AssigneeAttentionBlock, { type AssigneeAttention } from './AssigneeAttentionBlock';
+import '../../i18n';
+import { createAppTheme } from '../../config/ThemeContext';
+import ByAssigneeReport, { type AssigneeAttention } from './ByAssigneeReport';
+
+/** This jsdom build ships no Storage. The page guards against that; the specs need one. */
+if (!window.localStorage) {
+  const store = new Map<string, string>();
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => (store.has(key) ? store.get(key)! : null),
+      setItem: (key: string, value: string) => { store.set(key, String(value)); },
+      removeItem: (key: string) => { store.delete(key); },
+      clear: () => { store.clear(); },
+      key: (index: number) => Array.from(store.keys())[index] ?? null,
+      get length() { return store.size; },
+    },
+  });
+}
 
 const get = vi.fn();
-vi.mock('../../../api', () => ({ default: { get: (...args: any[]) => get(...args) } }));
+vi.mock('../../api', () => ({ default: { get: (...args: any[]) => get(...args) } }));
 
 const hasLevel = vi.fn();
-vi.mock('../../../auth/AuthContext', () => ({ useAuth: () => ({ hasLevel: (...args: any[]) => hasLevel(...args) }) }));
+vi.mock('../../auth/AuthContext', () => ({ useAuth: () => ({ hasLevel: (...args: any[]) => hasLevel(...args) }) }));
 
 const TASK_SCOPE = {
   status: { filterType: 'set', values: ['open', 'in_progress', 'pending', 'in_testing'] },
@@ -49,13 +65,13 @@ const report = (overrides: Partial<AssigneeAttention> = {}): AssigneeAttention =
   ...overrides,
 });
 
-function renderBlock() {
+function renderReport() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <ThemeProvider theme={createAppTheme('light')}>
-        <MemoryRouter initialEntries={['/portfolio/reports']}>
-          <AssigneeAttentionBlock />
+        <MemoryRouter initialEntries={['/portfolio/reports/by-assignee']}>
+          <ByAssigneeReport />
         </MemoryRouter>
       </ThemeProvider>
     </QueryClientProvider>,
@@ -84,19 +100,20 @@ beforeEach(() => {
   }
 });
 
-describe('AssigneeAttentionBlock', () => {
-  it('renders nothing while the first load is in flight', () => {
+describe('ByAssigneeReport', () => {
+  it('shows the report frame and no table while the first load is in flight', () => {
     get.mockReturnValue(new Promise(() => {}));
-    const { container } = renderBlock();
-    expect(container).toBeEmptyDOMElement();
+    renderReport();
+    // Title and breadcrumb both carry the report name.
+    expect(screen.getAllByText('By assignee').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('table')).toBeNull();
   });
 
   it('shows the teams, their members and the sums of each group', async () => {
     get.mockResolvedValue({ data: report() });
-    renderBlock();
+    renderReport();
 
-    expect(await screen.findByText('By assignee')).toBeTruthy();
-    expect(screen.getByText('Business applications')).toBeTruthy();
+    expect(await screen.findByText('Business applications')).toBeTruthy();
     // The people without a team come last, under a plain label.
     expect(screen.getByText('No team')).toBeTruthy();
     expect(screen.getByText('Alice Martin')).toBeTruthy();
@@ -117,7 +134,7 @@ describe('AssigneeAttentionBlock', () => {
 
   it('links each figure of a person to the list filtered on the same population', async () => {
     get.mockResolvedValue({ data: report() });
-    renderBlock();
+    renderReport();
 
     await screen.findByText('Alice Martin');
     const row = rowOf('Alice Martin');
@@ -144,7 +161,7 @@ describe('AssigneeAttentionBlock', () => {
 
   it('links a team to every one of its members and the unassigned line to the empty value', async () => {
     get.mockResolvedValue({ data: report() });
-    renderBlock();
+    renderReport();
 
     await screen.findByText('Business applications');
     const team = rowOf('Business applications');
@@ -163,7 +180,7 @@ describe('AssigneeAttentionBlock', () => {
 
   it('never links a zero', async () => {
     get.mockResolvedValue({ data: report() });
-    renderBlock();
+    renderReport();
 
     await screen.findByText('Unassigned');
     const unassigned = rowOf('Unassigned');
@@ -174,35 +191,43 @@ describe('AssigneeAttentionBlock', () => {
     get.mockResolvedValue({
       data: report({ teams: [], unassigned: { open: 0, overdue: 0, stale: 0 }, totals: { open: 0, overdue: 0, stale: 0 } }),
     });
-    renderBlock();
+    renderReport();
 
     expect(await screen.findByText('No open task')).toBeTruthy();
     expect(screen.queryByText('Total')).toBeNull();
   });
 
-  it('folds a team away and refetches with the window the user picks', async () => {
+  it('folds a team away', async () => {
     get.mockResolvedValue({ data: report() });
-    renderBlock();
+    renderReport();
 
     await screen.findByText('Alice Martin');
     fireEvent.click(screen.getByText('Business applications'));
     await waitFor(() => expect(screen.queryByText('Alice Martin')).toBeNull());
+  });
 
+  it('refetches with the window the user picks', async () => {
+    get.mockResolvedValue({ data: report() });
+    renderReport();
+
+    await screen.findByText('Alice Martin');
     expect(get.mock.calls[0][1]).toMatchObject({ params: expect.objectContaining({ staleDays: 14 }) });
-    fireEvent.click(screen.getByRole('tab', { name: '7 days' }));
+
+    fireEvent.mouseDown(screen.getByRole('combobox'));
+    fireEvent.click(await screen.findByRole('option', { name: '7 days' }));
     await waitFor(() => expect(get.mock.calls.some((call) => call[1]?.params?.staleDays === 7)).toBe(true));
   });
 
   it('opens the contributor page from the reference of a member', async () => {
     get.mockResolvedValue({ data: report() });
-    renderBlock();
+    renderReport();
     expect((await screen.findByText('CTR-12')).getAttribute('href')).toBe('/portfolio/contributors/CTR-12');
   });
 
   it('drops the contributor reference for a reader of the reports alone', async () => {
     hasLevel.mockReturnValue(false);
     get.mockResolvedValue({ data: report() });
-    renderBlock();
+    renderReport();
     await screen.findByText('Alice Martin');
     expect(screen.queryByText('CTR-12')).toBeNull();
   });

@@ -1087,6 +1087,7 @@
     },
     "byAssignee": {
       "title": "By assignee",
+      "subtitle": "Where the open work sits, team by team and person by person, with what is late and what has not moved.",
       "columns": {
         "assignee": "Assignee",
         "open": "Open",
@@ -1109,7 +1110,8 @@
       "unassigned": "Unassigned",
       "noTeam": "No team",
       "total": "Total",
-      "empty": "No open task"
+      "empty": "No open task",
+      "loadFailed": "Failed to load report data."
     },
     "cards": {
       "statusChange": {
@@ -1127,6 +1129,10 @@
       "flow": {
         "title": "Flow and age",
         "description": "What comes in and goes out week after week, how old the open tasks are, and how long a closing takes."
+      },
+      "byAssignee": {
+        "title": "By assignee",
+        "description": "Open and overdue tasks and those without movement, team by team and person by person."
       }
     },
     "itemTypes": {

@@ -1087,6 +1087,7 @@
     },
     "byAssignee": {
       "title": "Por responsable",
+      "subtitle": "Dónde está el trabajo abierto, equipo por equipo y persona por persona, con lo que está atrasado y lo que ya no avanza.",
       "columns": {
         "assignee": "Responsable",
         "open": "Abiertas",
@@ -1109,7 +1110,8 @@
       "unassigned": "Sin responsable",
       "noTeam": "Sin equipo",
       "total": "Total",
-      "empty": "Ninguna tarea abierta"
+      "empty": "Ninguna tarea abierta",
+      "loadFailed": "No se ha podido cargar el informe."
     },
     "cards": {
       "statusChange": {
@@ -1127,6 +1129,10 @@
       "flow": {
         "title": "Flujo y antigüedad",
         "description": "Lo que entra y lo que se cierra semana tras semana, la antigüedad de las tareas abiertas y el tiempo que lleva cerrar."
+      },
+      "byAssignee": {
+        "title": "Por responsable",
+        "description": "Las tareas abiertas, atrasadas y sin movimiento, equipo por equipo y persona por persona."
       }
     },
     "itemTypes": {

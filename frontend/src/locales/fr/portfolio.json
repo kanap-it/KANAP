@@ -1087,6 +1087,7 @@
     },
     "byAssignee": {
       "title": "Par responsable",
+      "subtitle": "Où se trouve le travail ouvert, équipe par équipe et personne par personne, avec ce qui est en retard et ce qui n'avance plus.",
       "columns": {
         "assignee": "Responsable",
         "open": "Ouvertes",
@@ -1109,7 +1110,8 @@
       "unassigned": "Non affectées",
       "noTeam": "Sans équipe",
       "total": "Total",
-      "empty": "Aucune tâche ouverte"
+      "empty": "Aucune tâche ouverte",
+      "loadFailed": "Le chargement du rapport a échoué."
     },
     "cards": {
       "statusChange": {
@@ -1127,6 +1129,10 @@
       "flow": {
         "title": "Flux et ancienneté",
         "description": "Ce qui entre et ce qui sort semaine après semaine, l'âge des tâches ouvertes et le temps qu'il faut pour clôturer."
+      },
+      "byAssignee": {
+        "title": "Par responsable",
+        "description": "Les tâches ouvertes, en retard et sans mouvement, équipe par équipe et personne par personne."
       }
     },
     "itemTypes": {
