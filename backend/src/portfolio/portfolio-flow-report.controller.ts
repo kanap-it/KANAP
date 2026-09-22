@@ -17,7 +17,11 @@ export class PortfolioFlowReportController {
   getFlowReport(@Query() query: any, @Tenant() ctx: TenantRequest): Promise<FlowReportResponse> {
     return this.svc.getReport(
       ctx.tenantId,
-      { weeks: query?.weeks, timeZone: String(query?.tz || '').trim() || undefined },
+      {
+        weeks: query?.weeks,
+        months: query?.months,
+        timeZone: String(query?.tz || '').trim() || undefined,
+      },
       { manager: ctx.manager },
     );
   }

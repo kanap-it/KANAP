@@ -1,20 +1,25 @@
-/** One local week of the flow window, Monday to Sunday in the viewer's zone. */
-export type FlowWeek = {
-  /** Monday of the week, `YYYY-MM-DD`. */
-  weekStart: string;
-  /** Sunday of the week, `YYYY-MM-DD`. The last week ends on today all the same. */
-  weekEnd: string;
-  /** Items created during the week and still present. */
+/**
+ * One local period of the flow window: a Monday-to-Sunday week for tasks, a calendar month
+ * for requests and projects. Both are read in the viewer's zone.
+ */
+export type FlowPeriod = {
+  /** First day of the period, `YYYY-MM-DD`. */
+  periodStart: string;
+  /** Last day of the period, `YYYY-MM-DD`. The period in progress ends on today all the same. */
+  periodEnd: string;
+  /** Items created during the period and still present. */
   created: number;
-  /** Items whose last status event of the week left them closed. */
+  /** Items whose last status event of the period left them closed. */
   closed: number;
-  /** Items in flight at the end of the week: created by then, not closed then. */
+  /** Items in flight at the end of the period: created by then, not closed then. */
   openAtEnd: number;
 };
 
-/** The weekly movement of one entity, plus how many of it are open right now. */
+/** The movement of one entity over its own grain, plus how many of it are open right now. */
 export type FlowSeries = {
-  weeks: FlowWeek[];
+  /** `week` for tasks, `month` for requests and projects. */
+  granularity: 'week' | 'month';
+  periods: FlowPeriod[];
   openNow: number;
 };
 
@@ -30,7 +35,60 @@ export type AgeRow = {
   total: number;
 };
 
-/** How long it took to close, over the whole window. */
+/**
+ * How long a request or a project has been sitting in its current stage, in whole local days
+ * between the day it entered that stage and today. The bounds are fixed:
+ *
+ * - `underOneMonth`: 0 to 29 days
+ * - `oneToThreeMonths`: 30 to 91 days
+ * - `threeToSixMonths`: 92 to 182 days
+ * - `overSixMonths`: 183 days and over
+ */
+export type MonthBucket = 'underOneMonth' | 'oneToThreeMonths' | 'threeToSixMonths' | 'overSixMonths';
+
+/** Bracket bounds in whole days, oldest bracket last. The last one has no upper bound. */
+export const MONTH_BUCKETS: Array<{ key: MonthBucket; from: number; to: number | null }> = [
+  { key: 'underOneMonth', from: 0, to: 29 },
+  { key: 'oneToThreeMonths', from: 30, to: 91 },
+  { key: 'threeToSixMonths', from: 92, to: 182 },
+  { key: 'overSixMonths', from: 183, to: null },
+];
+
+/** The open items of one stage, spread over the brackets. */
+export type StageAgeRow = {
+  /** Live status of the stage, e.g. `waiting_list`. The UI holds the label. */
+  status: string;
+  buckets: Record<MonthBucket, number>;
+  total: number;
+  /** Projects only: how many of the row's items are past their planned end. */
+  plannedEndPassed?: number;
+};
+
+/** One open request or project, the unit behind every figure of a stage age table. */
+export type StageAgeItem = {
+  id: string;
+  /** Business reference, `REQ-12` or `PRJ-3`. */
+  ref: string;
+  itemPath: string;
+  name: string;
+  status: string;
+  /** Local day the item entered its current stage, `YYYY-MM-DD`. */
+  statusSince: string;
+  bucket: MonthBucket;
+  /** Projects only. */
+  plannedEnd?: string | null;
+  plannedEndPassed?: boolean;
+};
+
+/** Stage by stage, how long the open items have been waiting, plus the items themselves. */
+export type StageAgeTable = {
+  /** One row per stage of the journey, in order, even when the stage is empty. */
+  rows: StageAgeRow[];
+  total: StageAgeRow;
+  items: StageAgeItem[];
+};
+
+/** How long it took to close, over the window of the entity's own grain. */
 export type LeadTime = {
   closedCount: number;
   /** Median days between creation and closing, one decimal. Null when nothing closed. */
@@ -39,24 +97,42 @@ export type LeadTime = {
 
 export type LeadTimeByType = { taskTypeId: string | null; taskTypeName: string | null } & LeadTime;
 
+/** Closings of finished projects, with how far off the planned end they landed. */
+export type ProjectDoneLeadTime = LeadTime & {
+  /** Finished projects of the window that carried a planned end. */
+  withPlannedEnd: number;
+  /** Median of (closing day − planned end) in days, positive when late. Null when none. */
+  medianOverrunDays: number | null;
+};
+
 export type FlowReportResponse = {
   weeks: number;
-  /** Monday of the first week and today, both in the viewer's zone. */
+  months: number;
+  /** Monday of the first week, first day of the first month, and today, in the viewer's zone. */
   startDate: string;
+  monthsStartDate: string;
   endDate: string;
   timeZone: string;
   /** Instant the figures were read, ISO 8601. */
   asOf: string;
   flow: { tasks: FlowSeries; requests: FlowSeries; projects: FlowSeries };
-  age: { rows: AgeRow[]; total: AgeRow };
+  age: {
+    tasks: { rows: AgeRow[]; total: AgeRow };
+    requests: StageAgeTable;
+    projects: StageAgeTable;
+  };
   leadTime: {
     tasks: LeadTime;
     tasksByType: LeadTimeByType[];
-    requests: LeadTime;
-    projects: LeadTime;
+    requests: LeadTime & { converted: LeadTime; rejected: LeadTime };
+    projects: LeadTime & { done: ProjectDoneLeadTime };
   };
 };
 
-/** Periods the report offers, in weeks. Anything else falls back to the middle one. */
+/** Periods the report offers for tasks, in weeks. Anything else falls back to the middle one. */
 export const FLOW_WEEKS = [8, 13, 26] as const;
 export const FLOW_DEFAULT_WEEKS = 13;
+
+/** Periods the report offers for requests and projects, in months. */
+export const FLOW_MONTHS = [6, 12, 24] as const;
+export const FLOW_DEFAULT_MONTHS = 12;
