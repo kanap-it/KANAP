@@ -1045,7 +1045,7 @@ export default function FlowReport() {
       label: t(`reports.flow.tiles.${key}`),
       value: String(openNow),
       to: entityListPath(key),
-      caption: t('reports.flow.tiles.openToday'),
+      caption: t(`reports.flow.tiles.openNow.${key}`),
       delta:
         delta === 0
           ? t('reports.flow.tiles.steady', { date: since })

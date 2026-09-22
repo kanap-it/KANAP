@@ -267,18 +267,18 @@ beforeEach(() => {
 });
 
 describe('FlowReport', () => {
-  it('leads with what is open today, its change over the window and a trend', async () => {
+  it('leads with what is open now, its change over the window and a trend', async () => {
     mockApi(report());
     renderReport();
 
     await waitFor(() => expect(screen.getByText('+2 since 29 Jun')).toBeTruthy());
 
-    // Tasks: 12 open today, 10 at the end of the first week of the window.
+    // Tasks: 12 open now, 10 at the end of the first week of the window.
     expect(screen.getByText('Flow')).toBeTruthy();
     // Requests and projects count from the first month of their own window.
     expect(screen.getByText('+1 since Nov 2025')).toBeTruthy();
     expect(screen.getByText('No change since Nov 2025')).toBeTruthy();
-    expect(screen.getAllByText('open today')).toHaveLength(3);
+    expect(screen.getAllByText('open now')).toHaveLength(3);
 
     // One small multiple per entity: the tasks chart reads in weeks, the other two in months.
     const charts = screen.getAllByTestId('chart');

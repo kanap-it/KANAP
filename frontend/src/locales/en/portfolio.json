@@ -1375,7 +1375,11 @@
         "tasks": "Tasks",
         "requests": "Requests",
         "projects": "Projects",
-        "openToday": "open today",
+        "openNow": {
+          "tasks": "open now",
+          "requests": "open now",
+          "projects": "open now"
+        },
         "deltaSince": "{{delta}} since {{date}}",
         "steady": "No change since {{date}}",
         "trendLabel": "Open items at the end of each of the last weeks",

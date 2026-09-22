@@ -1375,7 +1375,11 @@
         "tasks": "Tareas",
         "requests": "Solicitudes",
         "projects": "Proyectos",
-        "openToday": "abiertas hoy",
+        "openNow": {
+          "tasks": "abiertas actualmente",
+          "requests": "abiertas actualmente",
+          "projects": "abiertos actualmente"
+        },
         "deltaSince": "{{delta}} desde {{date}}",
         "steady": "Sin cambios desde {{date}}",
         "trendLabel": "Elementos abiertos al final de cada una de las últimas semanas",
