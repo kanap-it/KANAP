@@ -431,12 +431,42 @@ describe('WeeklyReport by person', () => {
     expect(screen.getByText('CTR-3')).toBeTruthy();
     expect(screen.getByText('1 created · 0 modified · 1 closed · 3.5 days logged')).toBeTruthy();
     expect(
-      screen.getByText(
-        '1 created · 0 modified · 1 closed · 3.5 days logged · Time logged: 3.5 d (project 2.0 · other 1.5)',
-      ),
+      screen.getByText('1 created · 0 modified · 1 closed · Time logged 3.5 d (project 2.0 · other 1.5)'),
     ).toBeTruthy();
     expect(screen.getByText('Tune the cellar probes')).toBeTruthy();
     expect(screen.getByText('Replace the ripening sensor')).toBeTruthy();
+  });
+
+  it('says nothing about time for a person who logged none', async () => {
+    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
+    mockApi(
+      report({
+        byPerson: {
+          teams: [
+            {
+              teamId: 'team-ops',
+              teamName: 'Operations',
+              totals: { created: 1, modified: 0, closed: 0, loggedDays: 0 },
+              members: [
+                person({
+                  userId: 'u-isabelle',
+                  name: 'Isabelle Moreau',
+                  contributorRef: 'CTR-4',
+                  loggedDays: { project: 0, other: 0, total: 0 },
+                  created: [taskRow({ taskId: 't4', ref: 'T-4', name: 'Label the new cave' })],
+                }),
+              ],
+            },
+          ],
+          unassigned: emptyPersonLists(),
+        },
+      }),
+    );
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Isabelle Moreau')).toBeTruthy());
+    expect(screen.getByText('1 created · 0 modified · 0 closed')).toBeTruthy();
+    expect(screen.queryByText(/Time logged/)).toBeNull();
   });
 
   it('gathers what nobody carried under Unassigned', async () => {

@@ -1187,6 +1187,25 @@ export default function WeeklyReport() {
   );
 
   /**
+   * The counts that follow a person's name: created, modified, closed, then the time logged
+   * detail (only when they logged time at all — no "0 days logged" mention).
+   */
+  const personSummaryMeta = useCallback(
+    (counts: { created: number; modified: number; closed: number }, logged: WeeklyLoggedDays) => {
+      const parts = [
+        t('reports.weekly.summary.created', { count: counts.created }),
+        t('reports.weekly.summary.modified', { count: counts.modified }),
+        t('reports.weekly.summary.closed', { count: counts.closed }),
+      ];
+      if (logged.total > 0) {
+        parts.push(personTimeLine(logged));
+      }
+      return parts.join(' · ');
+    },
+    [personTimeLine, t],
+  );
+
+  /**
    * The three lists of one person. Someone who carried nothing gets a single line rather than
    * three empty sections: a group with nothing to say must not cost six lines of screen.
    */
@@ -1495,14 +1514,14 @@ export default function WeeklyReport() {
                               </Typography>
                             ) : null
                           }
-                          meta={`${personMeta(
+                          meta={personSummaryMeta(
                             {
                               created: member.created.length,
                               modified: member.modified.length,
                               closed: member.closed.length,
                             },
-                            member.loggedDays.total,
-                          )} · ${personTimeLine(member.loggedDays)}`}
+                            member.loggedDays,
+                          )}
                           collapsed={collapsedPeople.includes(personGroupKey)}
                           onToggle={() => togglePersonGroup(personGroupKey)}
                         >
