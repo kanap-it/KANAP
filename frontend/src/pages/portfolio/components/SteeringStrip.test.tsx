@@ -108,8 +108,42 @@ describe('SteeringStrip', () => {
       related_object_type: { filterType: 'set', values: [null, 'project'] },
       due_date: { filterType: 'date', type: 'lessThan', dateFrom: '2026-09-21' },
     });
-    // The task list has no filter for an empty assignee, so that figure stays plain text.
-    expect(screen.getByText('3 tasks without assignee').closest('a')).toBeNull();
+  });
+
+  it('links the unassigned figure to the task list filtered on an empty assignee', async () => {
+    get.mockResolvedValue({
+      data: summary({ attention: { overdueTasks: 0, unassignedTasks: 3, staleProjects: [] } }),
+    });
+    renderStrip();
+
+    const href = (await screen.findByText('3 tasks without assignee')).closest('a')?.getAttribute('href') ?? '';
+    const [path, search] = href.split('?');
+    const params = new URLSearchParams(search);
+    expect(path).toBe('/portfolio/tasks');
+    expect(params.get('taskScope')).toBe('all');
+    expect(JSON.parse(params.get('filters') ?? '{}')).toEqual({
+      status: { filterType: 'set', values: ['open', 'in_progress', 'pending', 'in_testing'] },
+      related_object_type: { filterType: 'set', values: [null, 'project'] },
+      assignee_user_id: { filterType: 'set', values: [null] },
+    });
+  });
+
+  it('leaves the attention figures as plain text when they sit at zero', async () => {
+    get.mockResolvedValue({
+      data: summary({
+        attention: {
+          overdueTasks: 0,
+          unassignedTasks: 0,
+          staleProjects: [
+            { id: 'p1', ref: 'PRJ-12', name: 'Invoice archive', status: 'in_progress', lastActivityAt: '2026-07-02' },
+          ],
+        },
+      }),
+    });
+    renderStrip();
+
+    expect((await screen.findByText('0 tasks without assignee')).closest('a')).toBeNull();
+    expect(screen.getByText('0 overdue tasks').closest('a')).toBeNull();
   });
 
   it('opens the stale projects in a dialog instead of a list', async () => {
