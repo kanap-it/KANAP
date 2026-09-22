@@ -144,6 +144,9 @@ export type FlowReportResponse = {
   /** The classification the whole report was narrowed to. Empty lists mean "every value". */
   sourceIds: string[];
   categoryIds: string[];
+  /** The projects and teams the whole report was narrowed to. Empty lists mean "every value". */
+  projectIds: string[];
+  teamIds: string[];
   /** Instant the figures were read, ISO 8601. */
   asOf: string;
   flow: { tasks: FlowSeries; requests: FlowSeries; projects: FlowSeries };

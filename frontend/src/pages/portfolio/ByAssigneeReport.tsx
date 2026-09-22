@@ -3,7 +3,7 @@ import { Alert, Box, MenuItem, Stack, Table, TableBody, TableCell, TableHead, Ta
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import ReportLayout, {
@@ -11,6 +11,13 @@ import ReportLayout, {
   reportFilterMenuProps,
   reportFilterSelectSx,
 } from '../../components/reports/ReportLayout';
+import {
+  idsFromParams,
+  idsParam,
+  ProjectFilter,
+  TeamFilter,
+  useReportFilterValues,
+} from '../../components/reports/ProjectTeamFilters';
 import { drawerMenuItemSx } from '../../theme/formSx';
 import { BLANK, FilterModel, tasksPath } from './components/portfolioListLinks';
 
@@ -154,13 +161,27 @@ export default function ByAssigneeReport() {
   const [staleDays, setStaleDays] = useState<number>(readStoredDays);
   const [collapsed, setCollapsed] = useState<string[]>(readCollapsed);
   const canOpenContributor = hasLevel('portfolio_settings', 'reader');
+  // Projects and teams can come from a link; unlike the window they are never remembered.
+  const [searchParams] = useSearchParams();
+  const [projectIds, setProjectIds] = useState<string[]>(() => idsFromParams(searchParams, 'projectIds'));
+  const [teamIds, setTeamIds] = useState<string[]>(() => idsFromParams(searchParams, 'teamIds'));
+  const { data: projectTeamValues } = useReportFilterValues();
+  const projectParam = idsParam(projectIds);
+  const teamParam = idsParam(teamIds);
+  // Under a team filter an unassigned task belongs to no team: the line would always read zero.
+  const showUnassigned = teamIds.length === 0;
 
   const { data, isError } = useQuery({
-    queryKey: ['portfolio-assignee-attention', staleDays],
+    queryKey: ['portfolio-assignee-attention', staleDays, projectParam ?? '', teamParam ?? ''],
     queryFn: async () =>
       (
         await api.get<AssigneeAttention>('/portfolio/reports/attention-by-assignee', {
-          params: { staleDays, tz: viewerTimeZone() },
+          params: {
+            staleDays,
+            tz: viewerTimeZone(),
+            ...(projectParam ? { projectIds: projectParam } : {}),
+            ...(teamParam ? { teamIds: teamParam } : {}),
+          },
         })
       ).data,
     placeholderData: keepPreviousData,
@@ -185,17 +206,20 @@ export default function ByAssigneeReport() {
     const assignee = (values: Array<string | null>): FilterModel => ({
       assignee_user_id: { filterType: 'set', values },
     });
+    // Every link carries the project and team filters, which the task list applies with the
+    // report's own rules: the figure and the list it opens count the same tasks.
+    const scope = { projectIds, teamIds };
     const build = (base: FilterModel) => ({
-      open: tasksPath(base),
-      overdue: tasksPath({ ...base, due_date: { filterType: 'date', type: 'lessThan', dateFrom: data.asOf } }),
-      stale: tasksPath({ ...base, updated_at: { filterType: 'date', type: 'lessThan', dateFrom: data.staleBefore } }),
+      open: tasksPath(base, scope),
+      overdue: tasksPath({ ...base, due_date: { filterType: 'date', type: 'lessThan', dateFrom: data.asOf } }, scope),
+      stale: tasksPath({ ...base, updated_at: { filterType: 'date', type: 'lessThan', dateFrom: data.staleBefore } }, scope),
     });
     return {
       forValues: (values: Array<string | null>) => build(assignee(values)),
       unassigned: build({ assignee_user_id: BLANK }),
       total: build({}),
     };
-  }, [data]);
+  }, [data, projectIds, teamIds]);
 
   const summary: Array<{ key: string; label: string; to: string; count: number; tone: 'neutral' | 'attention' }> =
     data && links
@@ -203,7 +227,9 @@ export default function ByAssigneeReport() {
           { key: 'open', label: t('reports.byAssignee.summary.open', { count: data.totals.open }), to: links.total.open, count: data.totals.open, tone: 'neutral' },
           { key: 'overdue', label: t('reports.byAssignee.summary.overdue', { count: data.totals.overdue }), to: links.total.overdue, count: data.totals.overdue, tone: 'attention' },
           { key: 'stale', label: t('reports.byAssignee.summary.stale', { count: data.totals.stale }), to: links.total.stale, count: data.totals.stale, tone: 'attention' },
-          { key: 'unassigned', label: t('reports.byAssignee.summary.unassigned', { count: data.unassigned.open }), to: links.unassigned.open, count: data.unassigned.open, tone: 'attention' },
+          ...(showUnassigned
+            ? [{ key: 'unassigned', label: t('reports.byAssignee.summary.unassigned', { count: data.unassigned.open }), to: links.unassigned.open, count: data.unassigned.open, tone: 'attention' as const }]
+            : []),
         ]
       : [];
 
@@ -214,22 +240,26 @@ export default function ByAssigneeReport() {
       rootTo="/portfolio/reports"
       rootLabel={t('reports.title')}
       filters={(
-        <ReportFilter label={t('reports.byAssignee.staleLabel')} width={180}>
-          <TextField
-            select
-            size="small"
-            value={staleDays}
-            onChange={(event) => changeWindow(Number(event.target.value))}
-            SelectProps={{ MenuProps: reportFilterMenuProps }}
-            sx={reportFilterSelectSx}
-          >
-            {STALE_WINDOWS.map((option) => (
-              <MenuItem key={option} value={option} sx={drawerMenuItemSx}>
-                {t('reports.byAssignee.staleOption', { count: option })}
-              </MenuItem>
-            ))}
-          </TextField>
-        </ReportFilter>
+        <>
+          <ReportFilter label={t('reports.byAssignee.staleLabel')} width={180}>
+            <TextField
+              select
+              size="small"
+              value={staleDays}
+              onChange={(event) => changeWindow(Number(event.target.value))}
+              SelectProps={{ MenuProps: reportFilterMenuProps }}
+              sx={reportFilterSelectSx}
+            >
+              {STALE_WINDOWS.map((option) => (
+                <MenuItem key={option} value={option} sx={drawerMenuItemSx}>
+                  {t('reports.byAssignee.staleOption', { count: option })}
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
+          <ProjectFilter options={projectTeamValues?.projects ?? []} value={projectIds} onChange={setProjectIds} />
+          <TeamFilter options={projectTeamValues?.teams ?? []} value={teamIds} onChange={setTeamIds} />
+        </>
       )}
     >
       {isError && <Alert severity="error">{t('reports.byAssignee.loadFailed')}</Alert>}
@@ -361,12 +391,14 @@ export default function ByAssigneeReport() {
                   );
                 })}
 
-                <TableRow>
-                  <TableCell sx={cellSx}>{t('reports.byAssignee.unassigned')}</TableCell>
-                  <CountCell value={data.unassigned.open} to={links.unassigned.open} tone="attention" />
-                  <CountCell value={data.unassigned.overdue} to={links.unassigned.overdue} tone="attention" />
-                  <CountCell value={data.unassigned.stale} to={links.unassigned.stale} tone="attention" />
-                </TableRow>
+                {showUnassigned ? (
+                  <TableRow>
+                    <TableCell sx={cellSx}>{t('reports.byAssignee.unassigned')}</TableCell>
+                    <CountCell value={data.unassigned.open} to={links.unassigned.open} tone="attention" />
+                    <CountCell value={data.unassigned.overdue} to={links.unassigned.overdue} tone="attention" />
+                    <CountCell value={data.unassigned.stale} to={links.unassigned.stale} tone="attention" />
+                  </TableRow>
+                ) : null}
 
                 <TableRow>
                   <TableCell sx={{ ...cellSx, fontWeight: 500, borderColor: 'kanap.border.default' }}>

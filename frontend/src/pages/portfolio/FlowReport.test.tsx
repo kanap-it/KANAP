@@ -225,9 +225,21 @@ const FILTER_VALUES = {
   taskTypes: [],
 };
 
+const PROJECT_TEAM_VALUES = {
+  projects: [{ id: 'p-1', ref: 'PRJ-3', name: 'Cellar probes', status: 'in_progress' }],
+  teams: [{ id: 'team-1', name: 'Cheese makers' }],
+};
+
 function mockApi(data: unknown, filterValues: unknown = FILTER_VALUES) {
   get.mockImplementation((url: string) =>
-    Promise.resolve({ data: String(url).includes('filter-values') ? filterValues : data }),
+    Promise.resolve({
+      data:
+        url === '/portfolio/reports/filter-values'
+          ? PROJECT_TEAM_VALUES
+          : String(url).includes('filter-values')
+            ? filterValues
+            : data,
+    }),
   );
 }
 
@@ -236,13 +248,13 @@ function reportCalls(): any[] {
   return get.mock.calls.filter((call) => String(call[0]) === '/portfolio/reports/flow').map((call) => call[1].params);
 }
 
-function renderReport() {
+function renderReport(entry = '/portfolio/reports/flow') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <ThemeModeProvider>
         <ThemeProvider theme={createAppTheme('light')}>
-          <MemoryRouter initialEntries={['/portfolio/reports/flow']}>
+          <MemoryRouter initialEntries={[entry]}>
             <FlowReport />
           </MemoryRouter>
         </ThemeProvider>
@@ -825,5 +837,59 @@ describe('FlowReport', () => {
     ).toBe(false);
     // The tasks tile measured every one of its closings, so its caption is still a link.
     expect(linkHref('over 6 closings')).toBe('/portfolio/reports/weekly?startDate=2026-06-29&endDate=2026-07-19');
+  });
+  it('reads the projects and teams from the URL and carries them into every link', async () => {
+    mockApi(report());
+    renderReport('/portfolio/reports/flow?projectIds=p-1&teamIds=team-1');
+
+    await waitFor(() => expect(screen.getAllByText('open now')).toHaveLength(3));
+    expect(reportCalls()[0]).toMatchObject({ projectIds: 'p-1', teamIds: 'team-1' });
+
+    // The weekly report reads the identifiers from its URL.
+    await waitFor(() =>
+      expect(linkHref('over 6 closings')).toBe(
+        '/portfolio/reports/weekly?startDate=2026-06-29&endDate=2026-07-19&projectIds=p-1&teamIds=team-1',
+      ),
+    );
+    const weekly = allHrefs().filter((href) => href.startsWith('/portfolio/reports/weekly'));
+    expect(weekly.length).toBeGreaterThan(0);
+    expect(weekly.every((href) => href.endsWith('&projectIds=p-1&teamIds=team-1'))).toBe(true);
+
+    // The lists read them through their hidden filters, with the report's own rules.
+    const filtersOf = (href: string) => JSON.parse(new URLSearchParams(href.split('?')[1]).get('filters') ?? '{}');
+    const tasks = filtersOf(linkHref('12'));
+    expect(tasks.related_object_type).toEqual({ filterType: 'set', values: ['project'] });
+    expect(tasks.related_object_id).toEqual({ filterType: 'set', values: ['p-1'] });
+    expect(tasks.assignee_team_id).toEqual({ filterType: 'set', values: ['team-1'] });
+    expect(tasks.status.values).toEqual(['open', 'in_progress', 'pending', 'in_testing']);
+    const requests = filtersOf(linkHref('4', (href) => href.startsWith('/portfolio/requests')));
+    expect(requests.linked_project_id).toEqual({ filterType: 'set', values: ['p-1'] });
+    expect(requests.involved_team_id).toEqual({ filterType: 'set', values: ['team-1'] });
+    const projects = filtersOf(
+      linkHref('6', (href) => href.startsWith('/portfolio/projects') && !href.includes('planned_end')),
+    );
+    expect(projects.id).toEqual({ filterType: 'set', values: ['p-1'] });
+    expect(projects.involved_team_id).toEqual({ filterType: 'set', values: ['team-1'] });
+
+    // Every list destination carries them, not only the tiles.
+    const lists = allHrefs().filter((href) => /^\/portfolio\/(tasks|requests|projects)\?/.test(href));
+    expect(lists.length).toBeGreaterThan(10);
+    expect(lists.every((href) => href.includes('"values":["team-1"]'))).toBe(true);
+  });
+
+  it('sends the project and the team picked in the filter bar', async () => {
+    mockApi(report());
+    renderReport();
+    await waitFor(() => expect(screen.getAllByText('open now')).toHaveLength(3));
+    expect(reportCalls()[0].projectIds).toBeUndefined();
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Project' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'PRJ-3 · Cellar probes' }));
+    await waitFor(() => expect(reportCalls()[reportCalls().length - 1].projectIds).toBe('p-1'));
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    fireEvent.mouseDown(screen.getByText('All teams'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Cheese makers' }));
+    await waitFor(() => expect(reportCalls()[reportCalls().length - 1].teamIds).toBe('team-1'));
   });
 });

@@ -24,6 +24,8 @@ export class PortfolioFlowReportController {
         timeZone: String(query?.tz || '').trim() || undefined,
         sourceIds: parseCsvIds(query?.sourceIds),
         categoryIds: parseCsvIds(query?.categoryIds),
+        projectIds: parseCsvIds(query?.projectIds),
+        teamIds: parseCsvIds(query?.teamIds),
       },
       { manager: ctx.manager },
     );

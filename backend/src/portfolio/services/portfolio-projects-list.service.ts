@@ -13,6 +13,7 @@ import {
   normalizeAgFilterModel,
 } from '../../common/ag-grid-filtering';
 import { PortfolioProjectsBaseService, ServiceOpts } from './portfolio-projects-base.service';
+import { projectInvolvesUsersSql } from './portfolio-report-filters';
 
 type InvolvementScope = { involvedUserId?: string; involvedTeamId?: string };
 
@@ -55,18 +56,7 @@ const applyProjectInvolvementScope = (
     WHERE tmc.team_id = :involvedTeamId
   )`;
 
-  const teamCondition = `(
-    ${alias}.business_sponsor_id IN ${teamUsersSql}
-    OR ${alias}.business_lead_id IN ${teamUsersSql}
-    OR ${alias}.it_sponsor_id IN ${teamUsersSql}
-    OR ${alias}.it_lead_id IN ${teamUsersSql}
-    OR EXISTS (
-      SELECT 1
-      FROM portfolio_project_team pt
-      WHERE pt.project_id = ${alias}.id
-        AND pt.user_id IN ${teamUsersSql}
-    )
-  )`;
+  const teamCondition = projectInvolvesUsersSql(alias, teamUsersSql);
 
   if (involvedUserId && involvedTeamId) {
     qb.andWhere(`(${userCondition} OR ${teamCondition})`, { involvedUserId, involvedTeamId });
@@ -79,6 +69,33 @@ const applyProjectInvolvementScope = (
   }
 
   qb.andWhere(teamCondition, { involvedTeamId });
+};
+
+/**
+ * The filters the portfolio reports link with, by id: the project itself (`id`) and the teams
+ * involved in it (`involved_team_id`, the rule of the "My team" scope above). No column shows
+ * them; the page keeps hidden columns so the model survives a sort or a page change. Returns
+ * `undefined` for any other field, `null` for a model that says nothing.
+ */
+export const compileProjectLinkFilter = (
+  field: string,
+  rawModel: any,
+  nextParam: () => string,
+): CompiledCondition | null | undefined => {
+  if (field !== 'id' && field !== 'involved_team_id') return undefined;
+  const model = normalizeAgFilterModel(rawModel);
+  if (!model || model.filterType !== 'set' || !Array.isArray(model.values)) return null;
+  const ids = model.values.map((value: any) => String(value ?? '').trim()).filter(Boolean);
+  if (ids.length === 0) return { sql: '1=0', params: {} };
+  const param = nextParam();
+  if (field === 'id') return { sql: `p.id::text IN (:...${param})`, params: { [param]: ids } };
+  const teamUsersSql = `(
+    SELECT tmc.user_id
+    FROM portfolio_team_member_configs tmc
+    WHERE tmc.tenant_id = p.tenant_id
+      AND tmc.team_id::text IN (:...${param})
+  )`;
+  return { sql: projectInvolvesUsersSql('p', teamUsersSql), params: { [param]: ids } };
 };
 
 const projectDateFields = new Map<string, string>([
@@ -265,6 +282,11 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     const compiledFilters: CompiledCondition[] = [];
     if (fm) {
       for (const [field, model] of Object.entries(fm)) {
+        const linkCond = compileProjectLinkFilter(field, model, nextParam);
+        if (linkCond !== undefined) {
+          if (linkCond) compiledFilters.push(linkCond);
+          continue;
+        }
         const dateField = projectDateFields.get(field);
         if (dateField) {
           const cond = compileDateFilterCondition(model, dateField, nextParam);
@@ -576,6 +598,11 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
     const compiledFilters: CompiledCondition[] = [];
     if (fm) {
       for (const [field, model] of Object.entries(fm)) {
+        const linkCond = compileProjectLinkFilter(field, model, nextParam);
+        if (linkCond !== undefined) {
+          if (linkCond) compiledFilters.push(linkCond);
+          continue;
+        }
         const dateField = projectDateFields.get(field);
         if (dateField) {
           const cond = compileDateFilterCondition(model, dateField, nextParam);
@@ -763,6 +790,11 @@ export class PortfolioProjectsListService extends PortfolioProjectsBaseService {
       const compiledFilters: CompiledCondition[] = [];
       if (filtersForField) {
         for (const [filterField, model] of Object.entries(filtersForField)) {
+          const linkCond = compileProjectLinkFilter(filterField, model, nextParam);
+          if (linkCond !== undefined) {
+            if (linkCond) compiledFilters.push(linkCond);
+            continue;
+          }
           const target = targets[filterField];
           if (!target) continue;
           const cond = compileAgFilterCondition(model, target, nextParam);

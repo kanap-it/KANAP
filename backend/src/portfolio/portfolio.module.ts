@@ -68,6 +68,7 @@ import { PortfolioSteeringSummaryService } from './services/portfolio-steering-s
 import { PortfolioFlowReportService } from './services/portfolio-flow-report.service';
 import { PortfolioAssigneeAttentionService } from './services/portfolio-assignee-attention.service';
 import { PortfolioWeeklyReportService } from './services/portfolio-weekly-report.service';
+import { PortfolioReportFilterValuesService } from './services/portfolio-report-filter-values.service';
 
 // Decomposed portfolio projects services
 import {
@@ -103,6 +104,7 @@ import { PortfolioFlowReportController } from './portfolio-flow-report.controlle
 import { PortfolioAssigneeAttentionController } from './portfolio-assignee-attention.controller';
 import { PortfolioRoadmapController } from './portfolio-roadmap.controller';
 import { PortfolioWeeklyReportController } from './portfolio-weekly-report.controller';
+import { PortfolioReportFilterValuesController } from './portfolio-report-filter-values.controller';
 
 // CSV Services
 import { PortfolioRequestsCsvService } from './portfolio-requests-csv.service';
@@ -189,6 +191,7 @@ const entities = [
     PortfolioFlowReportService,
     PortfolioAssigneeAttentionService,
     PortfolioWeeklyReportService,
+    PortfolioReportFilterValuesService,
     // CSV services
     PortfolioRequestsCsvService,
     PortfolioProjectsCsvService,
@@ -224,6 +227,7 @@ const entities = [
     PortfolioFlowReportController,
     PortfolioAssigneeAttentionController,
     PortfolioWeeklyReportController,
+    PortfolioReportFilterValuesController,
     PortfolioRoadmapController,
   ],
   exports: [

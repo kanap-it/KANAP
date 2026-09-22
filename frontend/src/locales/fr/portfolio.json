@@ -1219,10 +1219,17 @@
       "filters": {
         "startDate": "Date de début",
         "endDate": "Date de fin",
+        "type": "Type",
+        "allTypes": "Tous les types",
         "source": "Source",
         "allSources": "Toutes les sources",
         "category": "Catégorie",
         "allCategories": "Toutes les catégories",
+        "project": "Projet",
+        "allProjects": "Tous les projets",
+        "team": "Équipe",
+        "allTeams": "Toutes les équipes",
+        "noProjectMatch": "Aucun projet correspondant",
         "stream": "Filière",
         "allStreams": "Toutes les filières",
         "taskTypes": "Types de tâche",
@@ -1281,12 +1288,7 @@
         }
       },
       "byPerson": {
-        "groupBy": {
-          "label": "Regroupement",
-          "type": "Par type",
-          "person": "Par personne"
-        },
-        "note": "Demandes et projets restent dans la vue par type.",
+        "note": "Ce rapport couvre les tâches. Les demandes et les projets sont dans le <link />.",
         "noTeam": "Sans équipe",
         "unassigned": "Non affectées",
         "timeLogged": "Temps saisi {{total}} j (projet {{project}} · autre {{other}})",

@@ -65,12 +65,36 @@ const report = (overrides: Partial<AssigneeAttention> = {}): AssigneeAttention =
   ...overrides,
 });
 
-function renderReport() {
+const PROJECT_TEAM_VALUES = {
+  projects: [
+    { id: 'p-1', ref: 'PRJ-3', name: 'Cellar probes', status: 'in_progress' },
+    { id: 'p-2', ref: 'PRJ-1', name: 'Old cave', status: 'done' },
+  ],
+  teams: [
+    { id: 'team-1', name: 'Business applications' },
+    { id: 'team-2', name: 'Infrastructure' },
+  ],
+};
+
+/** The report on its own endpoint, the filter options on theirs. */
+function mockApi(data: unknown) {
+  get.mockImplementation((url: string) =>
+    Promise.resolve({ data: url === '/portfolio/reports/filter-values' ? PROJECT_TEAM_VALUES : data }),
+  );
+}
+
+/** The parameters of every call to the report endpoint, the filter options left aside. */
+const reportCalls = () =>
+  get.mock.calls
+    .filter(([url]: any[]) => url === '/portfolio/reports/attention-by-assignee')
+    .map((call: any[]) => call[1]?.params);
+
+function renderReport(entry = '/portfolio/reports/by-assignee') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <ThemeProvider theme={createAppTheme('light')}>
-        <MemoryRouter initialEntries={['/portfolio/reports/by-assignee']}>
+        <MemoryRouter initialEntries={[entry]}>
           <ByAssigneeReport />
         </MemoryRouter>
       </ThemeProvider>
@@ -110,7 +134,7 @@ describe('ByAssigneeReport', () => {
   });
 
   it('shows the teams, their members and the sums of each group', async () => {
-    get.mockResolvedValue({ data: report() });
+    mockApi(report());
     renderReport();
 
     expect(await screen.findByText('Business applications')).toBeTruthy();
@@ -133,7 +157,7 @@ describe('ByAssigneeReport', () => {
   });
 
   it('links each figure of a person to the list filtered on the same population', async () => {
-    get.mockResolvedValue({ data: report() });
+    mockApi(report());
     renderReport();
 
     await screen.findByText('Alice Martin');
@@ -160,7 +184,7 @@ describe('ByAssigneeReport', () => {
   });
 
   it('links a team to every one of its members and the unassigned line to the empty value', async () => {
-    get.mockResolvedValue({ data: report() });
+    mockApi(report());
     renderReport();
 
     await screen.findByText('Business applications');
@@ -179,7 +203,7 @@ describe('ByAssigneeReport', () => {
   });
 
   it('never links a zero', async () => {
-    get.mockResolvedValue({ data: report() });
+    mockApi(report());
     renderReport();
 
     await screen.findByText('Unassigned');
@@ -188,9 +212,7 @@ describe('ByAssigneeReport', () => {
   });
 
   it('shows one line and nothing else when no task is open', async () => {
-    get.mockResolvedValue({
-      data: report({ teams: [], unassigned: { open: 0, overdue: 0, stale: 0 }, totals: { open: 0, overdue: 0, stale: 0 } }),
-    });
+    mockApi(report({ teams: [], unassigned: { open: 0, overdue: 0, stale: 0 }, totals: { open: 0, overdue: 0, stale: 0 } }));
     renderReport();
 
     expect(await screen.findByText('No open task')).toBeTruthy();
@@ -198,7 +220,7 @@ describe('ByAssigneeReport', () => {
   });
 
   it('folds a team away', async () => {
-    get.mockResolvedValue({ data: report() });
+    mockApi(report());
     renderReport();
 
     await screen.findByText('Alice Martin');
@@ -207,28 +229,72 @@ describe('ByAssigneeReport', () => {
   });
 
   it('refetches with the window the user picks', async () => {
-    get.mockResolvedValue({ data: report() });
+    mockApi(report());
     renderReport();
 
     await screen.findByText('Alice Martin');
-    expect(get.mock.calls[0][1]).toMatchObject({ params: expect.objectContaining({ staleDays: 14 }) });
+    expect(reportCalls()[0]).toMatchObject({ staleDays: 14 });
 
-    fireEvent.mouseDown(screen.getByRole('combobox'));
+    fireEvent.mouseDown(screen.getAllByRole('combobox')[0]);
     fireEvent.click(await screen.findByRole('option', { name: '7 days' }));
-    await waitFor(() => expect(get.mock.calls.some((call) => call[1]?.params?.staleDays === 7)).toBe(true));
+    await waitFor(() => expect(reportCalls().some((params) => params?.staleDays === 7)).toBe(true));
   });
 
   it('opens the contributor page from the reference of a member', async () => {
-    get.mockResolvedValue({ data: report() });
+    mockApi(report());
     renderReport();
     expect((await screen.findByText('CTR-12')).getAttribute('href')).toBe('/portfolio/contributors/CTR-12');
   });
 
   it('drops the contributor reference for a reader of the reports alone', async () => {
     hasLevel.mockReturnValue(false);
-    get.mockResolvedValue({ data: report() });
+    mockApi(report());
     renderReport();
     await screen.findByText('Alice Martin');
     expect(screen.queryByText('CTR-12')).toBeNull();
+  });
+  it('reads the projects and teams from the URL and carries them into every link', async () => {
+    mockApi(report({ teams: [report().teams[0]], unassigned: { open: 0, overdue: 0, stale: 0 } }));
+    renderReport('/portfolio/reports/by-assignee?projectIds=p-1&teamIds=team-1');
+
+    await screen.findByText('Alice Martin');
+    expect(reportCalls()[0]).toMatchObject({ projectIds: 'p-1', teamIds: 'team-1' });
+
+    // A person's figure opens the task list on that person, that project and that team.
+    const { path, filters } = filtersOf(within(rowOf('Alice Martin')).getByText('5'));
+    expect(path).toBe('/portfolio/tasks');
+    expect(filters).toEqual({
+      ...TASK_SCOPE,
+      related_object_type: { filterType: 'set', values: ['project'] },
+      assignee_user_id: { filterType: 'set', values: ['u1'] },
+      due_date: { filterType: 'date', type: 'lessThan', dateFrom: '2026-09-22' },
+      related_object_id: { filterType: 'set', values: ['p-1'] },
+      assignee_team_id: { filterType: 'set', values: ['team-1'] },
+    });
+
+    // Under a team filter no unassigned task can count: the line and its summary are gone.
+    expect(screen.queryByText('Unassigned')).toBeNull();
+    expect(screen.queryByText(/unassigned/i)).toBeNull();
+  });
+
+  it('sends the project and the team picked in the filter bar, and keeps the unassigned line under a project', async () => {
+    mockApi(report());
+    renderReport();
+    await screen.findByText('Alice Martin');
+    expect(reportCalls()[0].projectIds).toBeUndefined();
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Project' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'PRJ-3 · Cellar probes' }));
+    await waitFor(() => expect(reportCalls()[reportCalls().length - 1].projectIds).toBe('p-1'));
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    expect(screen.getByText('Unassigned')).toBeTruthy();
+    // The unassigned line keeps its own blank-assignee filter, narrowed to the project.
+    const unassigned = filtersOf(within(rowOf('Unassigned')).getAllByText('3')[0]);
+    expect(unassigned.filters.assignee_user_id).toEqual({ filterType: 'set', values: [null] });
+    expect(unassigned.filters.related_object_id).toEqual({ filterType: 'set', values: ['p-1'] });
+
+    fireEvent.mouseDown(screen.getByText('All teams'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Infrastructure' }));
+    await waitFor(() => expect(reportCalls()[reportCalls().length - 1].teamIds).toBe('team-2'));
   });
 });

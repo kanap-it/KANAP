@@ -9,7 +9,12 @@ import { isCalendarDate } from '../common/report-period';
 import { resolveAppBaseUrl, resolveNotificationBaseUrl } from '../common/url';
 import { Features } from '../config/features';
 import { parseCsvIds as parseCsv } from './services/portfolio-report-filters';
-import { PortfolioWeeklyReportService, WeeklyReportQuery } from './services/portfolio-weekly-report.service';
+import {
+  PortfolioWeeklyReportService,
+  WEEKLY_ENTITIES,
+  WeeklyEntity,
+  WeeklyReportQuery,
+} from './services/portfolio-weekly-report.service';
 
 const normalizeProto = (value?: unknown): 'http' | 'https' => {
   const raw = String(value ?? '')
@@ -107,6 +112,12 @@ export class PortfolioWeeklyReportController {
       streamIds: parseCsv(query?.streamIds),
       taskTypeIds: parseCsv(query?.taskTypeIds),
       statuses: parseCsv(query?.statuses),
+      projectIds: parseCsv(query?.projectIds),
+      teamIds: parseCsv(query?.teamIds),
+      // Unknown values are dropped; nothing left means every object.
+      entities: Array.from(new Set(parseCsv(query?.entities))).filter((value): value is WeeklyEntity =>
+        (WEEKLY_ENTITIES as readonly string[]).includes(value),
+      ),
       groupBy: String(query?.groupBy || '').trim() === 'person' ? 'person' : 'type',
     };
   }

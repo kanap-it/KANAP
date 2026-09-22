@@ -7,11 +7,10 @@ import {
   CircularProgress,
   Collapse,
   ListItemText,
+  Link as MLink,
   ListSubheader,
   MenuItem,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
   useTheme,
@@ -29,9 +28,16 @@ import ReportLayout, {
 } from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
 import DateEUField from '../../components/fields/DateEUField';
-import { drawerDatePickerSx, drawerMenuItemSx, textTabSx, textTabsSx } from '../../theme/formSx';
+import {
+  idsFromParams,
+  idsParam,
+  ProjectFilter,
+  TeamFilter,
+  useReportFilterValues,
+} from '../../components/reports/ProjectTeamFilters';
+import { drawerDatePickerSx, drawerMenuItemSx } from '../../theme/formSx';
 import api from '../../api';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { useLocale } from '../../i18n/useLocale';
 import { formatShortDate } from '../../lib/dateFormat';
 import { getApiErrorMessage } from '../../utils/apiErrorMessage';
@@ -149,6 +155,14 @@ type FilterValuesResponse = {
 const LIST_KEYS: WeeklyListKey[] = ['created', 'modified', 'closed'];
 
 type WeeklySectionKey = 'requests' | 'projects' | 'tasks';
+
+/** The objects of the "Type" filter, as the URL and the API name them, with their section. */
+const ENTITY_SECTIONS: Array<{ entity: string; section: WeeklySectionKey }> = [
+  { entity: 'request', section: 'requests' },
+  { entity: 'project', section: 'projects' },
+  { entity: 'task', section: 'tasks' },
+];
+const ALL_ENTITIES = ENTITY_SECTIONS.map((item) => item.entity);
 
 const collapsedStorageKey = (section: WeeklySectionKey) =>
   `kanap.portfolioReports.weekly.collapsed.${section}`;
@@ -274,16 +288,6 @@ const dayFromParams = (params: URLSearchParams, key: string, fallback: string): 
   return isCalendarDate(raw) ? raw : fallback;
 };
 
-/**
- * A comma-separated list of identifiers coming from another report's link. Like the period, it
- * is an initial value: the user is free to change it, and the URL is never rewritten.
- */
-const idsFromParams = (params: URLSearchParams, key: string): string[] =>
-  String(params.get(key) || '')
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-
 const humanize = (value: string): string =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
@@ -311,6 +315,9 @@ const buildParams = (args: {
   streamIds?: string[];
   taskTypeIds?: string[];
   statuses?: string[];
+  projectIds?: string[];
+  teamIds?: string[];
+  entities?: string[];
   groupBy: WeeklyGroupBy;
 }) => {
   const params: Record<string, string> = {
@@ -325,6 +332,9 @@ const buildParams = (args: {
   if (args.streamIds && args.streamIds.length > 0) params.streamIds = args.streamIds.join(',');
   if (args.taskTypeIds && args.taskTypeIds.length > 0) params.taskTypeIds = args.taskTypeIds.join(',');
   if (args.statuses && args.statuses.length > 0) params.statuses = args.statuses.join(',');
+  if (args.projectIds && args.projectIds.length > 0) params.projectIds = args.projectIds.join(',');
+  if (args.teamIds && args.teamIds.length > 0) params.teamIds = args.teamIds.join(',');
+  if (args.entities && args.entities.length > 0) params.entities = args.entities.join(',');
 
   return params;
 };
@@ -554,7 +564,7 @@ export default function WeeklyReport() {
   const mode = theme.palette.mode;
   const today = useMemo(() => toIsoDate(new Date()), []);
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [startDate, setStartDate] = useState<string>(() =>
     dayFromParams(searchParams, 'startDate', getDefaultStartDate()),
   );
@@ -566,10 +576,25 @@ export default function WeeklyReport() {
   const [sourceIds, setSourceIds] = useState<string[]>(initialSourceIds);
   const [categoryAll, setCategoryAll] = useState(initialCategoryIds.length === 0);
   const [categoryIds, setCategoryIds] = useState<string[]>(initialCategoryIds);
-  const [streamAll, setStreamAll] = useState(true);
-  const [streamIds, setStreamIds] = useState<string[]>([]);
-  const [taskTypeAll, setTaskTypeAll] = useState(true);
-  const [taskTypeIds, setTaskTypeIds] = useState<string[]>([]);
+  // Every filter the page offers can come from a link: the by-person page links back here
+  // with the same period and the same filters.
+  const initialStreamIds = useMemo(() => idsFromParams(searchParams, 'streamIds'), [searchParams]);
+  const initialTaskTypeIds = useMemo(() => idsFromParams(searchParams, 'taskTypeIds'), [searchParams]);
+  const [streamAll, setStreamAll] = useState(initialStreamIds.length === 0);
+  const [streamIds, setStreamIds] = useState<string[]>(initialStreamIds);
+  const [taskTypeAll, setTaskTypeAll] = useState(initialTaskTypeIds.length === 0);
+  const [taskTypeIds, setTaskTypeIds] = useState<string[]>(initialTaskTypeIds);
+  // Type: the objects the by-type view covers. Nothing selected, or all three, is every object.
+  const [entities, setEntities] = useState<string[]>(() => {
+    const picked = idsFromParams(searchParams, 'entities').filter((entity) => ALL_ENTITIES.includes(entity));
+    const unique = Array.from(new Set(picked));
+    return unique.length === ALL_ENTITIES.length ? [] : unique;
+  });
+  // Projects and teams: every option is offered, not only the ones present in the period, and
+  // nothing is remembered. Empty means every value.
+  const [projectIds, setProjectIds] = useState<string[]>(() => idsFromParams(searchParams, 'projectIds'));
+  const [teamIds, setTeamIds] = useState<string[]>(() => idsFromParams(searchParams, 'teamIds'));
+  const { data: projectTeamValues } = useReportFilterValues();
 
   /** Status reached options, one group per object, in each object's own order. */
   const statusGroups = useMemo(
@@ -601,25 +626,10 @@ export default function WeeklyReport() {
   const { hasLevel } = useAuth();
   const canOpenContributor = hasLevel('portfolio_settings', 'reader');
 
-  // The reading lives in the URL only: the hub cards decide it (`?groupBy=person` for "Activity
-  // by person", nothing for the period review), and it is never remembered across visits. The
-  // toggle writes it back, so a reload or a shared link keeps the view.
+  // Two reports on one page: the hub cards decide which (`?groupBy=person` for "Activity by
+  // person", nothing for the period review). The URL alone says it; the page offers no switch.
   const groupBy: WeeklyGroupBy = searchParams.get('groupBy') === 'person' ? 'person' : 'type';
   const [collapsedPeople, setCollapsedPeople] = useState<string[]>(readCollapsedPeople);
-
-  const changeGroupBy = useCallback(
-    (next: WeeklyGroupBy) => {
-      setSearchParams(
-        (previous) => {
-          const params = new URLSearchParams(previous);
-          params.set('groupBy', next);
-          return params;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
 
   const togglePersonGroup = useCallback((key: string) => {
     setCollapsedPeople((previous) => {
@@ -655,6 +665,16 @@ export default function WeeklyReport() {
   const effectiveStreamIds = streamAll ? [] : streamIds;
   const effectiveTaskTypeIds = taskTypeAll ? [] : taskTypeIds;
   const effectiveStatuses = statusAll ? [] : statuses;
+  // The by-person view reads tasks only: the Type filter does not exist there.
+  const effectiveEntities = groupBy === 'type' ? entities : [];
+  // What the summary and the sections cover: the objects picked, or the tasks alone by person.
+  const shows = (section: WeeklySectionKey) => {
+    if (groupBy === 'person') return section === 'tasks';
+    return (
+      effectiveEntities.length === 0 ||
+      ENTITY_SECTIONS.some((item) => item.section === section && effectiveEntities.includes(item.entity))
+    );
+  };
 
   const {
     data: reportData,
@@ -676,6 +696,9 @@ export default function WeeklyReport() {
       taskTypeIds,
       statusAll,
       statuses,
+      projectIds,
+      teamIds,
+      effectiveEntities,
       groupBy,
     ],
     queryFn: async () => {
@@ -687,6 +710,9 @@ export default function WeeklyReport() {
         streamIds: effectiveStreamIds,
         taskTypeIds: effectiveTaskTypeIds,
         statuses: effectiveStatuses,
+        projectIds,
+        teamIds,
+        entities: effectiveEntities,
         groupBy,
       });
       const res = await api.get('/portfolio/reports/weekly', { params });
@@ -731,107 +757,23 @@ export default function WeeklyReport() {
     return humanize(status);
   }, [t]);
 
-  const presentSourceIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const row of allRows) if (row.sourceId) ids.add(row.sourceId);
-    return ids;
-  }, [allRows]);
-
-  const presentCategoryIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const row of allRows) if (row.categoryId) ids.add(row.categoryId);
-    return ids;
-  }, [allRows]);
-
-  const presentStreamIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const row of allRows) if (row.streamId) ids.add(row.streamId);
-    return ids;
-  }, [allRows]);
-
-  const presentTaskTypeIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const key of LIST_KEYS) {
-      for (const row of tasks[key]) if (row.taskTypeId) ids.add(row.taskTypeId);
-    }
-    return ids;
-  }, [tasks]);
-
-  const sourceOptions = useMemo(() => {
-    const selectedSet = new Set(sourceIds);
-    if (sourceAll) {
-      return sourceBaseOptions.filter((option) => presentSourceIds.has(option.id));
-    }
-    return sourceBaseOptions.filter((option) => presentSourceIds.has(option.id) || selectedSet.has(option.id));
-  }, [sourceAll, sourceIds, sourceBaseOptions, presentSourceIds]);
-
-  const categoryOptions = useMemo(() => {
-    const selectedSet = new Set(categoryIds);
-    if (categoryAll) {
-      return categoryBaseOptions.filter((option) => presentCategoryIds.has(option.id));
-    }
-    return categoryBaseOptions.filter((option) => presentCategoryIds.has(option.id) || selectedSet.has(option.id));
-  }, [categoryAll, categoryIds, categoryBaseOptions, presentCategoryIds]);
-
-  const streamsByCategory = useMemo(() => {
-    if (categoryAll) return streamBaseOptions;
-    const selectedCategorySet = new Set(categoryIds);
-    return streamBaseOptions.filter((stream) => {
-      if (!stream.categoryId) return false;
-      return selectedCategorySet.has(stream.categoryId);
-    });
-  }, [categoryAll, categoryIds, streamBaseOptions]);
+  // The options are every active value of the tenant, never the values of the rows on screen:
+  // a value unticked keeps its place in the list and can be ticked again. Only the streams
+  // depend on another filter, and on the catalogue alone: a stream belongs to a category.
+  const sourceOptions = sourceBaseOptions;
+  const categoryOptions = categoryBaseOptions;
+  const taskTypeOptions = taskTypeBaseOptions;
 
   const streamOptions = useMemo(() => {
-    const selectedSet = new Set(streamIds);
-    if (streamAll) {
-      return streamsByCategory.filter((option) => presentStreamIds.has(option.id));
-    }
-    return streamsByCategory.filter((option) => presentStreamIds.has(option.id) || selectedSet.has(option.id));
-  }, [streamAll, streamIds, streamsByCategory, presentStreamIds]);
+    if (categoryAll) return streamBaseOptions;
+    const selectedCategorySet = new Set(categoryIds);
+    return streamBaseOptions.filter((stream) => stream.categoryId != null && selectedCategorySet.has(stream.categoryId));
+  }, [categoryAll, categoryIds, streamBaseOptions]);
 
-  const taskTypeOptions = useMemo(() => {
-    const selectedSet = new Set(taskTypeIds);
-    if (taskTypeAll) {
-      return taskTypeBaseOptions.filter((option) => presentTaskTypeIds.has(option.id));
-    }
-    return taskTypeBaseOptions.filter((option) => presentTaskTypeIds.has(option.id) || selectedSet.has(option.id));
-  }, [taskTypeAll, taskTypeIds, taskTypeBaseOptions, presentTaskTypeIds]);
-
+  // A stream picked under a category the user then unticks is no longer offered: it leaves the
+  // selection with it. Read on the catalogue only, once it is loaded.
   useEffect(() => {
-    if (sourceAll) return;
-    // Before the options and the rows are both loaded, every selection would look unknown: a
-    // filter handed over in the URL must not be dropped while the page is still fetching.
-    if (!filterValuesData || !reportData) return;
-    const allowed = new Set(sourceOptions.map((option) => option.id));
-    const next = sourceIds.filter((id) => allowed.has(id));
-    if (next.length === 0) {
-      setSourceAll(true);
-      setSourceIds([]);
-      return;
-    }
-    if (next.length !== sourceIds.length) {
-      setSourceIds(next);
-    }
-  }, [filterValuesData, reportData, sourceAll, sourceIds, sourceOptions]);
-
-  useEffect(() => {
-    if (categoryAll) return;
-    if (!filterValuesData || !reportData) return;
-    const allowed = new Set(categoryOptions.map((option) => option.id));
-    const next = categoryIds.filter((id) => allowed.has(id));
-    if (next.length === 0) {
-      setCategoryAll(true);
-      setCategoryIds([]);
-      return;
-    }
-    if (next.length !== categoryIds.length) {
-      setCategoryIds(next);
-    }
-  }, [categoryAll, categoryIds, categoryOptions, filterValuesData, reportData]);
-
-  useEffect(() => {
-    if (streamAll) return;
+    if (streamAll || !filterValuesData) return;
     const allowed = new Set(streamOptions.map((option) => option.id));
     const next = streamIds.filter((id) => allowed.has(id));
     if (next.length === 0) {
@@ -842,21 +784,7 @@ export default function WeeklyReport() {
     if (next.length !== streamIds.length) {
       setStreamIds(next);
     }
-  }, [streamAll, streamIds, streamOptions]);
-
-  useEffect(() => {
-    if (taskTypeAll) return;
-    const allowed = new Set(taskTypeOptions.map((option) => option.id));
-    const next = taskTypeIds.filter((id) => allowed.has(id));
-    if (next.length === 0) {
-      setTaskTypeAll(true);
-      setTaskTypeIds([]);
-      return;
-    }
-    if (next.length !== taskTypeIds.length) {
-      setTaskTypeIds(next);
-    }
-  }, [taskTypeAll, taskTypeIds, taskTypeOptions]);
+  }, [filterValuesData, streamAll, streamIds, streamOptions]);
 
   /* -------------------------------------------------------------- */
   /*  Shared cell renderers and columns                             */
@@ -1155,6 +1083,9 @@ export default function WeeklyReport() {
         streamIds: effectiveStreamIds,
         taskTypeIds: effectiveTaskTypeIds,
         statuses: effectiveStatuses,
+        projectIds,
+        teamIds,
+        entities: effectiveEntities,
         groupBy,
       }) as Record<string, string>;
       params.format = format;
@@ -1281,33 +1212,37 @@ export default function WeeklyReport() {
     byPerson.teams.length > 0 ||
     LIST_KEYS.some((listKey) => byPerson.unassigned[listKey].length > 0);
 
+  const byPersonView = groupBy === 'person';
+
+  /**
+   * The period review on the same period and the same filters: the query string this page
+   * reads, without `groupBy`.
+   */
+  const periodReviewPath = (() => {
+    const query = new URLSearchParams({ startDate, endDate });
+    const pairs: Array<[string, string | undefined]> = [
+      ['sourceIds', idsParam(effectiveSourceIds)],
+      ['categoryIds', idsParam(effectiveCategoryIds)],
+      ['streamIds', idsParam(effectiveStreamIds)],
+      ['taskTypeIds', idsParam(effectiveTaskTypeIds)],
+      ['statuses', idsParam(effectiveStatuses)],
+      ['projectIds', idsParam(projectIds)],
+      ['teamIds', idsParam(teamIds)],
+    ];
+    pairs.forEach(([key, value]) => {
+      if (value) query.set(key, value);
+    });
+    return `/portfolio/reports/weekly?${query.toString()}`;
+  })();
+
   return (
     <ReportLayout
-      title={t('reports.weekly.title')}
-      subtitle={t('reports.weekly.subtitle')}
+      title={byPersonView ? t('reports.cards.byPerson.title') : t('reports.weekly.title')}
+      subtitle={byPersonView ? t('reports.cards.byPerson.description') : t('reports.weekly.subtitle')}
       rootTo="/portfolio/reports"
       rootLabel={t('reports.title')}
       filters={(
         <>
-          <ReportFilter label={t('reports.weekly.byPerson.groupBy.label')} width={190}>
-            <Tabs
-              value={groupBy}
-              onChange={(_event, next: WeeklyGroupBy) => changeGroupBy(next)}
-              aria-label={t('reports.weekly.byPerson.groupBy.label')}
-              sx={{ ...textTabsSx, mt: '6px' }}
-            >
-              <Tab
-                value="type"
-                label={t('reports.weekly.byPerson.groupBy.type')}
-                sx={textTabSx(groupBy === 'type')}
-              />
-              <Tab
-                value="person"
-                label={t('reports.weekly.byPerson.groupBy.person')}
-                sx={textTabSx(groupBy === 'person')}
-              />
-            </Tabs>
-          </ReportFilter>
           <DateEUField
             label={t('reports.weekly.filters.startDate')}
             valueYmd={startDate}
@@ -1322,6 +1257,43 @@ export default function WeeklyReport() {
             sx={{ width: 160 }}
             textFieldSx={drawerDatePickerSx}
           />
+          {!byPersonView && (
+            <ReportFilter label={t('reports.weekly.filters.type')} width={180}>
+              <TextField
+                select
+                size="small"
+                value={entities.length === 0 ? ALL_ENTITIES : entities}
+                SelectProps={{
+                  multiple: true,
+                  displayEmpty: true,
+                  MenuProps: reportFilterMenuProps,
+                  renderValue: () => {
+                    if (entities.length === 0) return t('reports.weekly.filters.allTypes');
+                    return entities
+                      .map((entity) => t(`reports.weekly.sections.${ENTITY_SECTIONS.find((item) => item.entity === entity)!.section}`))
+                      .join(', ');
+                  },
+                }}
+                onChange={(e) => {
+                  const next = e.target.value as unknown as string[];
+                  const values = Array.isArray(next) ? next : [next];
+                  // None or all three ticked is the same report: every object.
+                  setEntities(values.length === ALL_ENTITIES.length ? [] : ALL_ENTITIES.filter((entity) => values.includes(entity)));
+                }}
+                sx={reportFilterSelectSx}
+              >
+                {ENTITY_SECTIONS.map((item) => (
+                  <MenuItem key={item.entity} value={item.entity} sx={drawerMenuItemSx}>
+                    <Checkbox size="small" checked={entities.length === 0 || entities.includes(item.entity)} />
+                    <ListItemText
+                      primary={t(`reports.weekly.sections.${item.section}`)}
+                      primaryTypographyProps={{ fontSize: 13 }}
+                    />
+                  </MenuItem>
+                ))}
+              </TextField>
+            </ReportFilter>
+          )}
           <ReportFilter label={t('reports.weekly.filters.source')}>
             <TextField
               select
@@ -1468,6 +1440,8 @@ export default function WeeklyReport() {
               ])}
             </TextField>
           </ReportFilter>
+          <ProjectFilter options={projectTeamValues?.projects ?? []} value={projectIds} onChange={setProjectIds} />
+          <TeamFilter options={projectTeamValues?.teams ?? []} value={teamIds} onChange={setTeamIds} />
           <ReportFilter label={t('reports.weekly.filters.taskTypes')} width={240}>
             <TextField
               select
@@ -1542,10 +1516,12 @@ export default function WeeklyReport() {
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography sx={{ fontSize: 12, fontWeight: 400, color: 'kanap.text.secondary' }}>
             {[
-              summaryFor(t('reports.weekly.sections.requests'), requests),
-              summaryFor(t('reports.weekly.sections.projects'), projects),
-              summaryFor(t('reports.weekly.sections.tasks'), tasks),
-            ].join('  |  ')}
+              shows('requests') ? summaryFor(t('reports.weekly.sections.requests'), requests) : null,
+              shows('projects') ? summaryFor(t('reports.weekly.sections.projects'), projects) : null,
+              shows('tasks') ? summaryFor(t('reports.weekly.sections.tasks'), tasks) : null,
+            ]
+              .filter(Boolean)
+              .join('  |  ')}
           </Typography>
           {(isLoading || isFetching) && <CircularProgress size={14} />}
         </Stack>
@@ -1553,7 +1529,17 @@ export default function WeeklyReport() {
         {groupBy === 'person' ? (
           <>
             <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
-              {t('reports.weekly.byPerson.note')}
+              <Trans
+                t={t}
+                i18nKey="reports.weekly.byPerson.note"
+                components={{
+                  link: (
+                    <MLink component={RouterLink} to={periodReviewPath}>
+                      {t('reports.weekly.title')}
+                    </MLink>
+                  ),
+                }}
+              />
             </Typography>
 
             {!hasPersonRows && (
@@ -1633,6 +1619,7 @@ export default function WeeklyReport() {
           </>
         ) : (
           <>
+        {shows('requests') && (
         <WeeklyReportSection
           title={t('reports.weekly.sections.requests')}
           counts={countsFor(requests)}
@@ -1648,7 +1635,9 @@ export default function WeeklyReport() {
             />
           ))}
         </WeeklyReportSection>
+        )}
 
+        {shows('projects') && (
         <WeeklyReportSection
           title={t('reports.weekly.sections.projects')}
           counts={countsFor(projects)}
@@ -1664,7 +1653,9 @@ export default function WeeklyReport() {
             />
           ))}
         </WeeklyReportSection>
+        )}
 
+        {shows('tasks') && (
         <WeeklyReportSection
           title={t('reports.weekly.sections.tasks')}
           counts={countsFor(tasks)}
@@ -1680,6 +1671,7 @@ export default function WeeklyReport() {
             />
           ))}
         </WeeklyReportSection>
+        )}
           </>
         )}
       </Stack>

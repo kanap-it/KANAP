@@ -305,6 +305,29 @@ export default function RequestsPage() {
       filter: 'agTextColumnFilter',
       cellRenderer: clickableCellRenderer,
     },
+    // Carry the project and team filters the portfolio reports link with. Never shown and kept
+    // out of the column chooser: the column only has to exist, or AG Grid would drop the model
+    // on the next filter change.
+    {
+      colId: 'linked_project_id',
+      headerName: t('reports.weekly.filters.project'),
+      hide: true,
+      defaultHidden: true,
+      suppressColumnsToolPanel: true,
+      filter: CheckboxSetFilter,
+      filterParams: { values: [] },
+      sortable: false,
+    },
+    {
+      colId: 'involved_team_id',
+      headerName: t('reports.weekly.filters.team'),
+      hide: true,
+      defaultHidden: true,
+      suppressColumnsToolPanel: true,
+      filter: CheckboxSetFilter,
+      filterParams: { values: [] },
+      sortable: false,
+    },
     {
       field: 'priority_score',
       headerName: t('requests.columns.priority'),

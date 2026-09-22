@@ -23,7 +23,13 @@ import {
   STUCK_THRESHOLD_DAYS,
   StuckItem,
 } from '../dto/flow-report.dto';
-import { normalizeIdList, pushSetFilterExpr } from './portfolio-report-filters';
+import {
+  normalizeIdList,
+  projectProjectTeamPredicates,
+  pushSetFilterExpr,
+  requestProjectTeamPredicates,
+  taskProjectTeamPredicates,
+} from './portfolio-report-filters';
 import { CLOSED_STATUSES } from './portfolio-weekly-report.service';
 
 /**
@@ -56,10 +62,16 @@ const AGE_BUCKETS: Array<{ key: AgeBucket; from: number; to: number | null }> = 
 type EntityKey = 'tasks' | 'requests' | 'projects';
 
 /**
- * The classification the whole report is narrowed to. Both lists hold identifiers; an empty
- * list means "every value", so a report with no filter reads the same SQL it always read.
+ * The classification, the projects and the teams the whole report is narrowed to. Every list
+ * holds identifiers; an empty list means "every value", so a report with no filter reads the
+ * same SQL it always read.
  */
-export type FlowFilters = { sourceIds: string[]; categoryIds: string[] };
+export type FlowFilters = {
+  sourceIds: string[];
+  categoryIds: string[];
+  projectIds: string[];
+  teamIds: string[];
+};
 
 type EntitySpec = {
   /** Live table and `audit_log.table_name`, which are the same string for the three. */
@@ -71,6 +83,12 @@ type EntitySpec = {
    */
   sourceExpr: string;
   categoryExpr: string;
+  /**
+   * The project and team predicates of a live row, the ones the list the report links to
+   * applies: a task by the project it hangs off and its assignee's team, a project by itself
+   * and the people involved in it, a request by its linked projects and the people involved.
+   */
+  projectTeam: (sqlParams: any[], filters: FlowFilters) => string[];
   closedStatuses: readonly string[];
   openStatuses: readonly string[];
   /**
@@ -90,6 +108,7 @@ const ENTITIES: Record<EntityKey, EntitySpec> = {
     table: 'tasks',
     sourceExpr: 'COALESCE(t.source_id, pp.source_id)',
     categoryExpr: 'COALESCE(t.category_id, pp.category_id)',
+    projectTeam: (sqlParams, filters) => taskProjectTeamPredicates(sqlParams, 't', filters),
     closedStatuses: CLOSED_STATUSES.tasks,
     openStatuses: OPEN_STATUSES.tasks,
     liveSql: `
@@ -110,6 +129,7 @@ const ENTITIES: Record<EntityKey, EntitySpec> = {
     table: 'portfolio_requests',
     sourceExpr: 'r.source_id',
     categoryExpr: 'r.category_id',
+    projectTeam: (sqlParams, filters) => requestProjectTeamPredicates(sqlParams, 'r', filters),
     closedStatuses: CLOSED_STATUSES.requests,
     openStatuses: OPEN_STATUSES.requests,
     liveSql: `
@@ -126,6 +146,7 @@ const ENTITIES: Record<EntityKey, EntitySpec> = {
     table: 'portfolio_projects',
     sourceExpr: 'p.source_id',
     categoryExpr: 'p.category_id',
+    projectTeam: (sqlParams, filters) => projectProjectTeamPredicates(sqlParams, 'p', filters),
     closedStatuses: CLOSED_STATUSES.projects,
     openStatuses: OPEN_STATUSES.projects,
     liveSql: `
@@ -280,6 +301,8 @@ export class PortfolioFlowReportService {
       timeZone?: string | null;
       sourceIds?: string[];
       categoryIds?: string[];
+      projectIds?: string[];
+      teamIds?: string[];
     },
     opts: { manager?: EntityManager },
   ): Promise<FlowReportResponse> {
@@ -295,6 +318,8 @@ export class PortfolioFlowReportService {
     const filters: FlowFilters = {
       sourceIds: normalizeIdList(query.sourceIds),
       categoryIds: normalizeIdList(query.categoryIds),
+      projectIds: normalizeIdList(query.projectIds),
+      teamIds: normalizeIdList(query.teamIds),
     };
 
     const weekBounds = buildWeeks(endDate, weeks);
@@ -357,6 +382,8 @@ export class PortfolioFlowReportService {
       timeZone,
       sourceIds: filters.sourceIds,
       categoryIds: filters.categoryIds,
+      projectIds: filters.projectIds,
+      teamIds: filters.teamIds,
       asOf: new Date().toISOString(),
       flow: { tasks: tasks.series, requests: requests.series, projects: projects.series },
       age: { tasks: taskAge, requests: requestAge, projects: projectAge },
@@ -387,13 +414,14 @@ export class PortfolioFlowReportService {
    *
    * Parameters are fixed: $1 tenant, $2 audit table, $3 closed statuses, $4 zone,
    * $5 period starts, $6 period ends, $7 open statuses, $8 first day, $9 last day. The
-   * classification filters, when there are any, come after them.
+   * classification, project and team filters, when there are any, come after them.
    */
   private liveFilter(sqlParams: any[], spec: EntitySpec, filters: FlowFilters): string {
     const predicates = [
       pushSetFilterExpr(sqlParams, spec.sourceExpr, filters.sourceIds),
       pushSetFilterExpr(sqlParams, spec.categoryExpr, filters.categoryIds),
     ].filter((predicate): predicate is string => predicate != null);
+    predicates.push(...spec.projectTeam(sqlParams, filters));
     return predicates.length === 0 ? '' : ` AND ${predicates.join(' AND ')}`;
   }
 

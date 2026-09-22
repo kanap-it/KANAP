@@ -3,7 +3,16 @@ import AdmZip = require('adm-zip');
 import { EntityManager } from 'typeorm';
 import { neutralizeCsvFormulaValue } from '../../common/csv/csv-export.service';
 import { normalizeReportTimeZone } from '../../common/report-period';
-import { pushSetFilter, pushSetFilterExpr } from './portfolio-report-filters';
+import {
+  ProjectTeamFilters,
+  projectProjectTeamPredicates,
+  pushSetFilter,
+  normalizeIdList,
+  pushSetFilterExpr,
+  requestProjectTeamPredicates,
+  taskProjectTeamPredicates,
+  teamMembersSql,
+} from './portfolio-report-filters';
 
 export type WeeklyReportQuery = {
   tenantId: string;
@@ -20,11 +29,32 @@ export type WeeklyReportQuery = {
    * update that changed the status). An item with no status event in the period matches none.
    */
   statuses?: string[];
+  /**
+   * Projects and teams: tasks hanging off the projects or assigned to a team member, the
+   * projects themselves or the ones a member is involved in, the requests linked to the
+   * projects or involving a member. The logged time follows them too.
+   */
+  projectIds?: string[];
+  teamIds?: string[];
+  /**
+   * The objects the report covers. The others are not queried and come back as empty lists,
+   * and the exports leave their blocks out. Empty means all three.
+   */
+  entities?: WeeklyEntity[];
   /** `person` adds the by-person reading of the task lists; `type` is the historical shape. */
   groupBy?: WeeklyGroupBy;
 };
 
 export type WeeklyGroupBy = 'type' | 'person';
+
+export const WEEKLY_ENTITIES = ['request', 'project', 'task'] as const;
+export type WeeklyEntity = (typeof WEEKLY_ENTITIES)[number];
+
+/** Whether the report covers an object: every object when none is named. */
+const covers = (query: WeeklyReportQuery, entity: WeeklyEntity): boolean =>
+  !query.entities || query.entities.length === 0 || query.entities.includes(entity);
+
+const emptyLists = <TRow>(): WeeklyLists<TRow> => ({ created: [], modified: [], closed: [] });
 
 /** What changed on an item during the period, for the "modified" lists. */
 export type WeeklyChangeSummary = {
@@ -346,9 +376,16 @@ const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensiti
 @Injectable()
 export class PortfolioWeeklyReportService {
   async list(query: WeeklyReportQuery, opts?: ServiceOpts): Promise<WeeklyReportResult> {
-    const requests = await this.fetchRequestLists(query, opts);
-    const projects = await this.fetchProjectLists(query, opts);
-    const { lists: tasks, entries } = await this.fetchTaskLists(query, opts);
+    // An object the report does not cover is not queried at all.
+    const requests = covers(query, 'request')
+      ? await this.fetchRequestLists(query, opts)
+      : emptyLists<WeeklyRequestRow>();
+    const projects = covers(query, 'project')
+      ? await this.fetchProjectLists(query, opts)
+      : emptyLists<WeeklyProjectRow>();
+    const { lists: tasks, entries } = covers(query, 'task')
+      ? await this.fetchTaskLists(query, opts)
+      : { lists: emptyLists<WeeklyTaskRow>(), entries: [] as TaskEntry[] };
     if (query.groupBy !== 'person') return { requests, projects, tasks };
 
     const byPerson = await this.buildByPerson(query, entries, opts);
@@ -445,23 +482,30 @@ export class PortfolioWeeklyReportService {
       rows.forEach((cells) => addRow(cells));
     };
 
-    (['created', 'modified', 'closed'] as const).forEach((listKey) => {
-      addBlock(
-        `Requests ${listKey}`,
-        this.requestHeaders(listKey),
-        requests[listKey].map((row) => this.requestCells(row, listKey)),
-      );
-    });
+    // Only the objects the report covers get blocks.
+    if (covers(query, 'request')) {
+      (['created', 'modified', 'closed'] as const).forEach((listKey) => {
+        addBlock(
+          `Requests ${listKey}`,
+          this.requestHeaders(listKey),
+          requests[listKey].map((row) => this.requestCells(row, listKey)),
+        );
+      });
+    }
 
-    (['created', 'modified', 'closed'] as const).forEach((listKey) => {
-      addBlock(
-        `Projects ${listKey}`,
-        this.projectHeaders(listKey),
-        projects[listKey].map((row) => this.projectCells(row, listKey)),
-      );
-    });
+    if (covers(query, 'project')) {
+      (['created', 'modified', 'closed'] as const).forEach((listKey) => {
+        addBlock(
+          `Projects ${listKey}`,
+          this.projectHeaders(listKey),
+          projects[listKey].map((row) => this.projectCells(row, listKey)),
+        );
+      });
+    }
 
-    if (byPerson) {
+    if (!covers(query, 'task')) {
+      // No task block at all.
+    } else if (byPerson) {
       addBlock(
         'Tasks by person',
         this.personTaskHeaders(),
@@ -512,30 +556,35 @@ export class PortfolioWeeklyReportService {
           ),
         };
 
+    const requestSheet: XlsxSheetConfig = {
+      name: 'Requests',
+      headers: ['Event', ...this.requestHeaders('all')],
+      rows: listKeys.flatMap((listKey) =>
+        requests[listKey].map((row) => ({
+          cells: [eventLabel[listKey], ...this.requestCells(row, 'all')] as SheetCellValue[],
+          linkPath: row.itemPath,
+        })),
+      ),
+    };
+    const projectSheet: XlsxSheetConfig = {
+      name: 'Projects',
+      headers: ['Event', ...this.projectHeaders('all')],
+      rows: listKeys.flatMap((listKey) =>
+        projects[listKey].map((row) => ({
+          cells: [eventLabel[listKey], ...this.projectCells(row, 'all')] as SheetCellValue[],
+          linkPath: row.itemPath,
+        })),
+      ),
+    };
+
+    // Only the objects the report covers get a sheet.
+    const sheets = [
+      covers(query, 'request') ? requestSheet : null,
+      covers(query, 'project') ? projectSheet : null,
+      covers(query, 'task') ? taskSheet : null,
+    ];
     const content = this.buildXlsx(
-      [
-        {
-          name: 'Requests',
-          headers: ['Event', ...this.requestHeaders('all')],
-          rows: listKeys.flatMap((listKey) =>
-            requests[listKey].map((row) => ({
-              cells: [eventLabel[listKey], ...this.requestCells(row, 'all')] as SheetCellValue[],
-              linkPath: row.itemPath,
-            })),
-          ),
-        },
-        {
-          name: 'Projects',
-          headers: ['Event', ...this.projectHeaders('all')],
-          rows: listKeys.flatMap((listKey) =>
-            projects[listKey].map((row) => ({
-              cells: [eventLabel[listKey], ...this.projectCells(row, 'all')] as SheetCellValue[],
-              linkPath: row.itemPath,
-            })),
-          ),
-        },
-        taskSheet,
-      ],
+      sheets.filter((sheet): sheet is XlsxSheetConfig => sheet !== null),
       appBaseUrl,
     );
 
@@ -866,7 +915,13 @@ export class PortfolioWeeklyReportService {
     if (!mg) return { created: [], modified: [], closed: [] };
 
     const sqlParams = this.baseParams(query, CLOSED_STATUSES.requests);
-    const whereSql = this.buildFilterSql(sqlParams, 'r', query, { taskTypes: false });
+    const whereSql = this.buildFilterSql(
+      sqlParams,
+      'r',
+      query,
+      { taskTypes: false },
+      requestProjectTeamPredicates(sqlParams, 'r', query),
+    );
 
     const rows: RawEventRow[] = await mg.query(
       `
@@ -912,7 +967,13 @@ export class PortfolioWeeklyReportService {
     if (!mg) return { created: [], modified: [], closed: [] };
 
     const sqlParams = this.baseParams(query, CLOSED_STATUSES.projects);
-    const whereSql = this.buildFilterSql(sqlParams, 'p', query, { taskTypes: false });
+    const whereSql = this.buildFilterSql(
+      sqlParams,
+      'p',
+      query,
+      { taskTypes: false },
+      projectProjectTeamPredicates(sqlParams, 'p', query),
+    );
 
     const rows: RawProjectEventRow[] = await mg.query(
       `
@@ -994,7 +1055,10 @@ export class PortfolioWeeklyReportService {
           category: 'COALESCE(t.category_id, pp.category_id)',
         },
       },
-      [`(t.related_object_type IS NULL OR t.related_object_type = 'project')`],
+      [
+        `(t.related_object_type IS NULL OR t.related_object_type = 'project')`,
+        ...taskProjectTeamPredicates(sqlParams, 't', query),
+      ],
     );
 
     const rows: RawTaskEventRow[] = await mg.query(
@@ -1175,6 +1239,9 @@ export class PortfolioWeeklyReportService {
    * Days logged in the period, per person, split project versus other. One statement over the
    * union of the two time tables, grouped by person: never a query per person. A task hanging
    * off a project is project time, exactly as the monthly aggregate reads it.
+   *
+   * The project and team filters narrow the time like the task rows: a team keeps its members'
+   * entries, a project keeps the entries on its tasks and the ones logged on it directly.
    */
   private async fetchLoggedDays(
     query: WeeklyReportQuery,
@@ -1183,6 +1250,14 @@ export class PortfolioWeeklyReportService {
     const mg = opts?.manager;
     const days = new Map<string, WeeklyLoggedDays>();
     if (!mg) return days;
+
+    const sqlParams: any[] = [
+      query.tenantId,
+      query.startDate,
+      normalizeReportTimeZone(query.timeZone),
+      query.endDate,
+    ];
+    const { taskFilter, projectFilter } = this.loggedTimeFilters(sqlParams, query);
 
     const rows: LoggedHoursRow[] = await mg.query(
       `
@@ -1194,13 +1269,14 @@ export class PortfolioWeeklyReportService {
         SELECT
           tte.user_id::text AS user_id,
           tte.hours::numeric AS hours,
-          (t.related_object_type = 'project') AS is_project
+          -- A standalone task has no type at all: its time is other time, not unknown time.
+          COALESCE(t.related_object_type = 'project', FALSE) AS is_project
         FROM task_time_entries tte
         JOIN tasks t ON t.id = tte.task_id AND t.tenant_id = $1
         WHERE tte.tenant_id = $1
           AND tte.user_id IS NOT NULL
           AND tte.logged_at >= ($2::date::timestamp AT TIME ZONE $3)
-          AND tte.logged_at < (($4::date + 1)::timestamp AT TIME ZONE $3)
+          AND tte.logged_at < (($4::date + 1)::timestamp AT TIME ZONE $3)${taskFilter}
 
         UNION ALL
 
@@ -1212,11 +1288,11 @@ export class PortfolioWeeklyReportService {
         WHERE pte.tenant_id = $1
           AND pte.user_id IS NOT NULL
           AND pte.logged_at >= ($2::date::timestamp AT TIME ZONE $3)
-          AND pte.logged_at < (($4::date + 1)::timestamp AT TIME ZONE $3)
+          AND pte.logged_at < (($4::date + 1)::timestamp AT TIME ZONE $3)${projectFilter}
       ) e
       GROUP BY e.user_id
       `,
-      [query.tenantId, query.startDate, normalizeReportTimeZone(query.timeZone), query.endDate],
+      sqlParams,
     );
 
     for (const row of rows) {
@@ -1225,6 +1301,33 @@ export class PortfolioWeeklyReportService {
       days.set(row.user_id, { project, other, total: roundDays(project + other) });
     }
     return days;
+  }
+
+  /**
+   * The project and team conditions of the two halves of the time query, each an ` AND …`
+   * fragment. The ids are bound once and read by both halves.
+   */
+  private loggedTimeFilters(
+    sqlParams: any[],
+    filters: ProjectTeamFilters,
+  ): { taskFilter: string; projectFilter: string } {
+    let taskFilter = '';
+    let projectFilter = '';
+    const projectIds = normalizeIdList(filters.projectIds);
+    if (projectIds.length > 0) {
+      sqlParams.push(projectIds);
+      const ref = `$${sqlParams.length}::text[]`;
+      taskFilter += ` AND t.related_object_type = 'project' AND t.related_object_id::text = ANY(${ref})`;
+      projectFilter += ` AND pte.project_id::text = ANY(${ref})`;
+    }
+    const teamIds = normalizeIdList(filters.teamIds);
+    if (teamIds.length > 0) {
+      sqlParams.push(teamIds);
+      const members = teamMembersSql(`$${sqlParams.length}`, '$1');
+      taskFilter += ` AND tte.user_id IN ${members}`;
+      projectFilter += ` AND pte.user_id IN ${members}`;
+    }
+    return { taskFilter, projectFilter };
   }
 
   /**

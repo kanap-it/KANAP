@@ -4,6 +4,7 @@ import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { AssigneeAttentionResponse } from './dto/assignee-attention.dto';
+import { parseCsvIds } from './services/portfolio-report-filters';
 import { PortfolioAssigneeAttentionService } from './services/portfolio-assignee-attention.service';
 
 @UseGuards(JwtAuthGuard)
@@ -17,7 +18,12 @@ export class PortfolioAssigneeAttentionController {
   getAttentionByAssignee(@Query() query: any, @Tenant() ctx: TenantRequest): Promise<AssigneeAttentionResponse> {
     return this.svc.getReport(
       ctx.tenantId,
-      { staleDays: query?.staleDays, timeZone: String(query?.tz || '').trim() || undefined },
+      {
+        staleDays: query?.staleDays,
+        timeZone: String(query?.tz || '').trim() || undefined,
+        projectIds: parseCsvIds(query?.projectIds),
+        teamIds: parseCsvIds(query?.teamIds),
+      },
       { manager: ctx.manager },
     );
   }

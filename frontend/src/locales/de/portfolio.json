@@ -1219,10 +1219,17 @@
       "filters": {
         "startDate": "Startdatum",
         "endDate": "Enddatum",
+        "type": "Typ",
+        "allTypes": "Alle Typen",
         "source": "Quelle",
         "allSources": "Alle Quellen",
         "category": "Kategorie",
         "allCategories": "Alle Kategorien",
+        "project": "Projekt",
+        "allProjects": "Alle Projekte",
+        "team": "Team",
+        "allTeams": "Alle Teams",
+        "noProjectMatch": "Kein passendes Projekt",
         "stream": "Stream",
         "allStreams": "Alle Streams",
         "taskTypes": "Aufgabentypen",
@@ -1281,12 +1288,7 @@
         }
       },
       "byPerson": {
-        "groupBy": {
-          "label": "Gruppierung",
-          "type": "Nach Typ",
-          "person": "Nach Person"
-        },
-        "note": "Anfragen und Projekte bleiben in der Ansicht nach Typ.",
+        "note": "Dieser Bericht umfasst Aufgaben. Anfragen und Projekte stehen im <link />.",
         "noTeam": "Ohne Team",
         "unassigned": "Nicht zugewiesen",
         "timeLogged": "Erfasste Zeit {{total}} T (Projekt {{project}} · Sonstiges {{other}})",
