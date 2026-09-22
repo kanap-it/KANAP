@@ -29,6 +29,12 @@ import ReportLayout, {
 } from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
 import DateEUField from '../../components/fields/DateEUField';
+import {
+  idsFromParams,
+  ProjectFilter,
+  TeamFilter,
+  useReportFilterValues,
+} from '../../components/reports/ProjectTeamFilters';
 import { drawerDatePickerSx, drawerMenuItemSx, textTabSx, textTabsSx } from '../../theme/formSx';
 import api from '../../api';
 import { useTranslation } from 'react-i18next';
@@ -274,16 +280,6 @@ const dayFromParams = (params: URLSearchParams, key: string, fallback: string): 
   return isCalendarDate(raw) ? raw : fallback;
 };
 
-/**
- * A comma-separated list of identifiers coming from another report's link. Like the period, it
- * is an initial value: the user is free to change it, and the URL is never rewritten.
- */
-const idsFromParams = (params: URLSearchParams, key: string): string[] =>
-  String(params.get(key) || '')
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-
 const humanize = (value: string): string =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
@@ -311,6 +307,8 @@ const buildParams = (args: {
   streamIds?: string[];
   taskTypeIds?: string[];
   statuses?: string[];
+  projectIds?: string[];
+  teamIds?: string[];
   groupBy: WeeklyGroupBy;
 }) => {
   const params: Record<string, string> = {
@@ -325,6 +323,8 @@ const buildParams = (args: {
   if (args.streamIds && args.streamIds.length > 0) params.streamIds = args.streamIds.join(',');
   if (args.taskTypeIds && args.taskTypeIds.length > 0) params.taskTypeIds = args.taskTypeIds.join(',');
   if (args.statuses && args.statuses.length > 0) params.statuses = args.statuses.join(',');
+  if (args.projectIds && args.projectIds.length > 0) params.projectIds = args.projectIds.join(',');
+  if (args.teamIds && args.teamIds.length > 0) params.teamIds = args.teamIds.join(',');
 
   return params;
 };
@@ -570,6 +570,11 @@ export default function WeeklyReport() {
   const [streamIds, setStreamIds] = useState<string[]>([]);
   const [taskTypeAll, setTaskTypeAll] = useState(true);
   const [taskTypeIds, setTaskTypeIds] = useState<string[]>([]);
+  // Projects and teams: every option is offered, not only the ones present in the period, and
+  // nothing is remembered. Empty means every value.
+  const [projectIds, setProjectIds] = useState<string[]>(() => idsFromParams(searchParams, 'projectIds'));
+  const [teamIds, setTeamIds] = useState<string[]>(() => idsFromParams(searchParams, 'teamIds'));
+  const { data: projectTeamValues } = useReportFilterValues();
 
   /** Status reached options, one group per object, in each object's own order. */
   const statusGroups = useMemo(
@@ -676,6 +681,8 @@ export default function WeeklyReport() {
       taskTypeIds,
       statusAll,
       statuses,
+      projectIds,
+      teamIds,
       groupBy,
     ],
     queryFn: async () => {
@@ -687,6 +694,8 @@ export default function WeeklyReport() {
         streamIds: effectiveStreamIds,
         taskTypeIds: effectiveTaskTypeIds,
         statuses: effectiveStatuses,
+        projectIds,
+        teamIds,
         groupBy,
       });
       const res = await api.get('/portfolio/reports/weekly', { params });
@@ -1155,6 +1164,8 @@ export default function WeeklyReport() {
         streamIds: effectiveStreamIds,
         taskTypeIds: effectiveTaskTypeIds,
         statuses: effectiveStatuses,
+        projectIds,
+        teamIds,
         groupBy,
       }) as Record<string, string>;
       params.format = format;
@@ -1468,6 +1479,8 @@ export default function WeeklyReport() {
               ])}
             </TextField>
           </ReportFilter>
+          <ProjectFilter options={projectTeamValues?.projects ?? []} value={projectIds} onChange={setProjectIds} />
+          <TeamFilter options={projectTeamValues?.teams ?? []} value={teamIds} onChange={setTeamIds} />
           <ReportFilter label={t('reports.weekly.filters.taskTypes')} width={240}>
             <TextField
               select

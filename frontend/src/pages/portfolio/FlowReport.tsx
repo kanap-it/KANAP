@@ -4,7 +4,7 @@ import { AgChartsReact } from 'ag-charts-react';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ColGroupDef, ICellRendererParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
 import AgGridBox from '../../components/AgGridBox';
@@ -19,9 +19,17 @@ import { drawerMenuItemSx } from '../../theme/formSx';
 import { formatShortDate } from '../../lib/dateFormat';
 import { useLocale } from '../../i18n/useLocale';
 import {
+  idsFromParams,
+  idsParam,
+  ProjectFilter,
+  TeamFilter,
+  useReportFilterValues,
+} from '../../components/reports/ProjectTeamFilters';
+import {
   BLANK,
   createdBetween,
   FilterModel,
+  ProjectTeamScope,
   projectsPath,
   requestsPath,
   tasksPath,
@@ -216,12 +224,12 @@ const weeklyPath = (from: string, to: string, filterQuery = '') =>
   `/portfolio/reports/weekly?startDate=${from}&endDate=${to}${filterQuery}`;
 
 /** The list of one entity, on the report's open scope, narrowed by whatever the figure counted. */
-const entityListPath = (key: EntityKey, extra: FilterModel = {}): string =>
-  key === 'tasks' ? tasksPath(extra) : key === 'requests' ? requestsPath(extra) : projectsPath(extra);
-
-/** The identifiers a multi-select holds, as the endpoints and the weekly URL take them. */
-const idsParam = (all: boolean, ids: string[]): string | undefined =>
-  all || ids.length === 0 ? undefined : ids.join(',');
+const entityListPath = (key: EntityKey, extra: FilterModel = {}, scope: ProjectTeamScope = {}): string =>
+  key === 'tasks'
+    ? tasksPath(extra, scope)
+    : key === 'requests'
+      ? requestsPath(extra, scope)
+      : projectsPath(extra, scope);
 
 /* ------------------------------------------------------------------ */
 /*  Stat tile                                                         */
@@ -327,6 +335,12 @@ export default function FlowReport() {
   const [sourceIds, setSourceIds] = useState<string[]>([]);
   const [categoryAll, setCategoryAll] = useState(true);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  // Projects and teams can come from a link (`projectIds`, `teamIds`); like the classification
+  // they are never remembered. Empty means every value.
+  const [searchParams] = useSearchParams();
+  const [projectIds, setProjectIds] = useState<string[]>(() => idsFromParams(searchParams, 'projectIds'));
+  const [teamIds, setTeamIds] = useState<string[]>(() => idsFromParams(searchParams, 'teamIds'));
+  const { data: projectTeamValues } = useReportFilterValues();
 
   const { data: filterValuesData } = useQuery<FilterValuesResponse>({
     queryKey: ['portfolio-weekly-report-filter-values'],
@@ -335,11 +349,21 @@ export default function FlowReport() {
 
   const sourceOptions = filterValuesData?.sources ?? [];
   const categoryOptions = filterValuesData?.categories ?? [];
-  const sourceParam = idsParam(sourceAll, sourceIds);
-  const categoryParam = idsParam(categoryAll, categoryIds);
+  const sourceParam = idsParam(sourceIds, sourceAll);
+  const categoryParam = idsParam(categoryIds, categoryAll);
+  const projectParam = idsParam(projectIds);
+  const teamParam = idsParam(teamIds);
 
   const { data, isError } = useQuery<FlowReportResponse>({
-    queryKey: ['portfolio-flow-report', weeks, months, sourceParam ?? '', categoryParam ?? ''],
+    queryKey: [
+      'portfolio-flow-report',
+      weeks,
+      months,
+      sourceParam ?? '',
+      categoryParam ?? '',
+      projectParam ?? '',
+      teamParam ?? '',
+    ],
     queryFn: async () =>
       (
         await api.get<FlowReportResponse>('/portfolio/reports/flow', {
@@ -349,6 +373,8 @@ export default function FlowReport() {
             tz: viewerTimeZone(),
             ...(sourceParam ? { sourceIds: sourceParam } : {}),
             ...(categoryParam ? { categoryIds: categoryParam } : {}),
+            ...(projectParam ? { projectIds: projectParam } : {}),
+            ...(teamParam ? { teamIds: teamParam } : {}),
           },
         })
       ).data,
@@ -377,8 +403,10 @@ export default function FlowReport() {
       [
         sourceParam ? `&sourceIds=${encodeURIComponent(sourceParam)}` : '',
         categoryParam ? `&categoryIds=${encodeURIComponent(categoryParam)}` : '',
+        projectParam ? `&projectIds=${encodeURIComponent(projectParam)}` : '',
+        teamParam ? `&teamIds=${encodeURIComponent(teamParam)}` : '',
       ].join(''),
-    [categoryParam, sourceParam],
+    [categoryParam, projectParam, sourceParam, teamParam],
   );
 
   /** The weekly report for one period, carrying the filter the figure was read under. */
@@ -392,9 +420,11 @@ export default function FlowReport() {
    * report reads a task's source and category the way the task list does — the task's own
    * value, falling back to its project's — so a figure and the list it opens always agree.
    */
+  const listScope = useMemo<ProjectTeamScope>(() => ({ projectIds, teamIds }), [projectIds, teamIds]);
   const listLink = useCallback(
-    (key: EntityKey, extra: FilterModel = {}): string => entityListPath(key, { ...extra, ...listFilter }),
-    [listFilter],
+    (key: EntityKey, extra: FilterModel = {}): string =>
+      entityListPath(key, { ...extra, ...listFilter }, listScope),
+    [listFilter, listScope],
   );
 
   const changeWeeks = (next: number) => {
@@ -1282,6 +1312,8 @@ export default function FlowReport() {
               ))}
             </TextField>
           </ReportFilter>
+          <ProjectFilter options={projectTeamValues?.projects ?? []} value={projectIds} onChange={setProjectIds} />
+          <TeamFilter options={projectTeamValues?.teams ?? []} value={teamIds} onChange={setTeamIds} />
         </>
       )}
     >

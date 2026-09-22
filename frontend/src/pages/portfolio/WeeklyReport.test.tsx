@@ -79,12 +79,20 @@ const report = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const PROJECT_TEAM_VALUES = {
+  projects: [{ id: 'p-1', ref: 'PRJ-3', name: 'Cellar probes', status: 'in_progress' }],
+  teams: [{ id: 'team-1', name: 'Cheese makers' }],
+};
+
 const EMPTY_FILTER_VALUES = { sources: [], categories: [], streams: [], taskTypes: [] };
 
 function mockApi(data: unknown, filterValues: unknown = EMPTY_FILTER_VALUES) {
   get.mockImplementation((url: string) => {
     if (url === '/portfolio/reports/weekly/filter-values') {
       return Promise.resolve({ data: filterValues });
+    }
+    if (url === '/portfolio/reports/filter-values') {
+      return Promise.resolve({ data: PROJECT_TEAM_VALUES });
     }
     return Promise.resolve({ data });
   });
@@ -615,5 +623,47 @@ describe('WeeklyReport by person', () => {
     const call = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly/export');
     expect(call?.[1]?.params?.groupBy).toBe('person');
     expect(call?.[1]?.params?.format).toBe('csv');
+  });
+});
+
+describe('WeeklyReport project and team', () => {
+  const weeklyCalls = () =>
+    get.mock.calls.filter(([url]: any[]) => url === '/portfolio/reports/weekly').map((call: any[]) => call[1]?.params);
+
+  it('opens on the projects and teams carried by the URL and exports them too', async () => {
+    mockApi(report({ tasks: { created: [taskRow()], modified: [], closed: [] } }));
+    renderReport('/portfolio/reports/weekly?startDate=2026-08-17&endDate=2026-08-23&projectIds=p-1,p-2&teamIds=team-1');
+
+    await waitFor(() => expect(weeklyCalls().length).toBeGreaterThan(0));
+    expect(weeklyCalls()[0]).toMatchObject({ projectIds: 'p-1,p-2', teamIds: 'team-1' });
+    await screen.findAllByText('Tune the cellar probes');
+
+    fireEvent.click(screen.getByText('Export CSV'));
+    await waitFor(() =>
+      expect(get.mock.calls.some(([url]: any[]) => url === '/portfolio/reports/weekly/export')).toBe(true),
+    );
+    const exportCall = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly/export');
+    expect(exportCall?.[1]?.params).toMatchObject({ projectIds: 'p-1,p-2', teamIds: 'team-1' });
+  });
+
+  it('sends the project and the team picked in the filter bar', async () => {
+    mockApi(report());
+    renderReport();
+
+    await waitFor(() => expect(weeklyCalls().length).toBeGreaterThan(0));
+    expect(weeklyCalls()[0].projectIds).toBeUndefined();
+    expect(weeklyCalls()[0].teamIds).toBeUndefined();
+
+    // Every project is offered, even with no row in the period.
+    const project = screen.getByRole('combobox', { name: 'Project' });
+    fireEvent.mouseDown(project);
+    fireEvent.click(await screen.findByRole('option', { name: 'PRJ-3 · Cellar probes' }));
+    await waitFor(() => expect(weeklyCalls().some((params) => params.projectIds === 'p-1')).toBe(true));
+
+    fireEvent.mouseDown(screen.getByText('All teams'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Cheese makers' }));
+    await waitFor(() =>
+      expect(weeklyCalls().some((params) => params.projectIds === 'p-1' && params.teamIds === 'team-1')).toBe(true),
+    );
   });
 });
