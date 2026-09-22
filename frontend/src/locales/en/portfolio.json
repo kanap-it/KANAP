@@ -1227,6 +1227,8 @@
         "allStreams": "All streams",
         "taskTypes": "Task types",
         "allTaskTypes": "All task types",
+        "statusReached": "Status reached",
+        "allStatuses": "All statuses",
         "selectedCount": "{{count}} selected"
       },
       "actions": {
@@ -1285,6 +1287,7 @@
         "source": "Source",
         "category": "Category",
         "stream": "Stream",
+        "company": "Company",
         "progress": "Effort",
         "status": "Status",
         "changes": "Changes",

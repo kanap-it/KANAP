@@ -15,6 +15,11 @@ export type WeeklyReportQuery = {
   categoryIds?: string[];
   streamIds?: string[];
   taskTypeIds?: string[];
+  /**
+   * Status reached: the status left by the last status event of the period (a creation, or an
+   * update that changed the status). An item with no status event in the period matches none.
+   */
+  statuses?: string[];
   /** `person` adds the by-person reading of the task lists; `type` is the historical shape. */
   groupBy?: WeeklyGroupBy;
 };
@@ -49,6 +54,8 @@ type WeeklyRowCommon = {
   categoryName: string | null;
   streamId: string | null;
   streamName: string | null;
+  /** Company name. A task with none reads its project's, like its source and category. */
+  company: string | null;
   /** Current status of the live row. */
   status: string;
   /** Day the item was created, whether or not that day falls in the period. */
@@ -204,6 +211,9 @@ const changeHeaders = (shape: ExportShape): string[] =>
 const changeCells = (row: WeeklyRowCommon, shape: ExportShape): SheetCellValue[] =>
   shape === 'modified' || shape === 'all' ? [formatChanges(row.changes)] : [];
 
+/** The status reached over the period, as `status_reached` resolves it in `eventCtes`. */
+const STATUS_REACHED_EXPR = 'sr.status';
+
 const BOM = '﻿';
 
 const xmlEscape = (value: unknown): string =>
@@ -275,6 +285,7 @@ type RawEventRow = {
   category_name: string | null;
   stream_id: string | null;
   stream_name: string | null;
+  company_name: string | null;
   status: string | null;
   live_created_day: string | null;
   created_day: string | null;
@@ -545,6 +556,7 @@ export class PortfolioWeeklyReportService {
       'Source',
       'Category',
       'Stream',
+      'Company',
       'Status',
       ...dateHeaders(shape),
       ...changeHeaders(shape),
@@ -558,6 +570,7 @@ export class PortfolioWeeklyReportService {
       row.sourceName,
       row.categoryName,
       row.streamName,
+      row.company,
       row.status,
       ...dateCells(row, shape),
       ...changeCells(row, shape),
@@ -573,6 +586,7 @@ export class PortfolioWeeklyReportService {
       'Source',
       'Category',
       'Stream',
+      'Company',
       'Effort',
       'Status',
       ...dateHeaders(shape),
@@ -589,6 +603,7 @@ export class PortfolioWeeklyReportService {
       row.sourceName,
       row.categoryName,
       row.streamName,
+      row.company,
       row.progress == null ? null : `${Math.round(row.progress)}%`,
       row.status,
       ...dateCells(row, shape),
@@ -646,6 +661,7 @@ export class PortfolioWeeklyReportService {
       'Source',
       'Category',
       'Stream',
+      'Company',
       'Status',
       ...dateHeaders(shape),
       ...changeHeaders(shape),
@@ -661,6 +677,7 @@ export class PortfolioWeeklyReportService {
       row.sourceName,
       row.categoryName,
       row.streamName,
+      row.company,
       row.status,
       ...dateCells(row, shape),
       ...changeCells(row, shape),
@@ -718,6 +735,21 @@ export class PortfolioWeeklyReportService {
         SELECT sel.record_id, sel.created_at AS closed_at
         FROM status_event_last sel
         WHERE sel.after_status = ANY($5::text[])
+      ),
+      -- The status reached, for the "Status reached" filter: the last event of the period that
+      -- sets a status, the creation included. Same rule as the former status change report.
+      status_reached AS (
+        SELECT DISTINCT ON (pe.record_id) pe.record_id, pe.after_json->>'status' AS status
+        FROM period_events pe
+        WHERE pe.after_json->>'status' IS NOT NULL
+          AND (
+            pe.action = 'create'
+            OR (
+              pe.before_json->>'status' IS NOT NULL
+              AND pe.before_json->>'status' IS DISTINCT FROM pe.after_json->>'status'
+            )
+          )
+        ORDER BY pe.record_id, pe.created_at DESC, pe.id DESC
       ),
       status_first AS (
         SELECT DISTINCT ON (sm.record_id) sm.record_id, sm.before_status
@@ -810,6 +842,7 @@ export class PortfolioWeeklyReportService {
       LEFT JOIN closing c ON c.record_id = a.record_id
       LEFT JOIN status_first sf ON sf.record_id = a.record_id
       LEFT JOIN status_last sl ON sl.record_id = a.record_id
+      LEFT JOIN status_reached sr ON sr.record_id = a.record_id
       LEFT JOIN changed_keys_agg cka ON cka.record_id = a.record_id
     `;
   }
@@ -848,6 +881,7 @@ export class PortfolioWeeklyReportService {
         pc.name AS category_name,
         r.stream_id,
         pst.name AS stream_name,
+        co.name AS company_name,
         r.status,
         (r.created_at AT TIME ZONE $4)::date::text AS live_created_day,
         ${this.eventColumns()}
@@ -857,6 +891,7 @@ export class PortfolioWeeklyReportService {
       LEFT JOIN portfolio_sources ps ON ps.id = r.source_id AND ps.tenant_id = r.tenant_id
       LEFT JOIN portfolio_categories pc ON pc.id = r.category_id AND pc.tenant_id = r.tenant_id
       LEFT JOIN portfolio_streams pst ON pst.id = r.stream_id AND pst.tenant_id = r.tenant_id
+      LEFT JOIN companies co ON co.id = r.company_id AND co.tenant_id = r.tenant_id
       ${whereSql}
       ORDER BY r.priority_score DESC NULLS LAST, r.name ASC
       `,
@@ -893,6 +928,7 @@ export class PortfolioWeeklyReportService {
         pc.name AS category_name,
         p.stream_id,
         pst.name AS stream_name,
+        co.name AS company_name,
         p.execution_progress::numeric AS progress,
         p.status,
         og.origin_number,
@@ -906,6 +942,7 @@ export class PortfolioWeeklyReportService {
       LEFT JOIN portfolio_sources ps ON ps.id = p.source_id AND ps.tenant_id = p.tenant_id
       LEFT JOIN portfolio_categories pc ON pc.id = p.category_id AND pc.tenant_id = p.tenant_id
       LEFT JOIN portfolio_streams pst ON pst.id = p.stream_id AND pst.tenant_id = p.tenant_id
+      LEFT JOIN companies co ON co.id = p.company_id AND co.tenant_id = p.tenant_id
       LEFT JOIN LATERAL (
         SELECT req.item_number AS origin_number, req.name AS origin_name
         FROM portfolio_request_projects rp
@@ -983,6 +1020,7 @@ export class PortfolioWeeklyReportService {
         pc.name AS category_name,
         t.stream_id,
         pst.name AS stream_name,
+        co.name AS company_name,
         t.status,
         (t.created_at AT TIME ZONE $4)::date::text AS live_created_day,
         ${this.eventColumns()}
@@ -1013,6 +1051,8 @@ export class PortfolioWeeklyReportService {
       LEFT JOIN portfolio_sources ps ON ps.id = t.source_id AND ps.tenant_id = t.tenant_id
       LEFT JOIN portfolio_categories pc ON pc.id = t.category_id AND pc.tenant_id = t.tenant_id
       LEFT JOIN portfolio_streams pst ON pst.id = t.stream_id AND pst.tenant_id = t.tenant_id
+      -- The company is inherited from the project, like the classification the task list reads.
+      LEFT JOIN companies co ON co.id = COALESCE(t.company_id, pp.company_id) AND co.tenant_id = t.tenant_id
       ${whereSql}
       ORDER BY priority DESC NULLS LAST, t.title ASC
       `,
@@ -1256,6 +1296,7 @@ export class PortfolioWeeklyReportService {
       categoryName: row.category_name ?? null,
       streamId: row.stream_id ?? null,
       streamName: row.stream_name ?? null,
+      company: row.company_name ?? null,
       status: row.status ?? '',
       createdAt: row.live_created_day,
       eventAt,
@@ -1325,6 +1366,9 @@ export class PortfolioWeeklyReportService {
     pushExpr(query.sourceIds, opts.classification?.source ?? `${alias}.source_id`);
     pushExpr(query.categoryIds, opts.classification?.category ?? `${alias}.category_id`);
     push(query.streamIds, 'stream_id');
+    // Applied in SQL, before the rows are split into lists: the section counts and the
+    // by-person totals are counted on exactly the rows shown.
+    pushExpr(query.statuses, STATUS_REACHED_EXPR);
 
     return filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
   }

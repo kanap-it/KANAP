@@ -1227,6 +1227,8 @@
         "allStreams": "Todas las líneas",
         "taskTypes": "Tipos de tarea",
         "allTaskTypes": "Todos los tipos de tarea",
+        "statusReached": "Estado alcanzado",
+        "allStatuses": "Todos los estados",
         "selectedCount": "{{count}} seleccionado(s)"
       },
       "actions": {
@@ -1285,6 +1287,7 @@
         "source": "Origen",
         "category": "Categoría",
         "stream": "Línea",
+        "company": "Empresa",
         "progress": "Esfuerzo",
         "status": "Estado",
         "changes": "Cambios",

@@ -7,6 +7,7 @@ import {
   CircularProgress,
   Collapse,
   ListItemText,
+  ListSubheader,
   MenuItem,
   Stack,
   Tab,
@@ -41,6 +42,11 @@ import {
   getDotColor,
 } from '../../utils/statusColors';
 import {
+  getProjectStatusOptions,
+  getRequestStatusOptions,
+  getTaskStatusOptions,
+} from '../../utils/portfolioI18n';
+import {
   getWeeklyFieldLabels,
   type WeeklyReportEntity,
 } from './components/WeeklyReportChangeLabels';
@@ -67,6 +73,7 @@ type WeeklyRowCommon = {
   categoryName: string | null;
   streamId: string | null;
   streamName: string | null;
+  company: string | null;
   status: string;
   createdAt: string | null;
   eventAt: string | null;
@@ -221,6 +228,16 @@ const SECTION_SX = {
   p: 2,
 } as const;
 
+/** Object heading inside the status menu: a section label, not a choice. */
+const STATUS_GROUP_SX = {
+  fontSize: 12,
+  fontWeight: 500,
+  lineHeight: '28px',
+  color: 'kanap.text.tertiary',
+  // Not sticky, so it can stay transparent and take the menu's own surface in both themes.
+  bgcolor: 'transparent',
+} as const;
+
 const SECTION_TITLE_SX = {
   fontSize: 16,
   fontWeight: 500,
@@ -310,6 +327,7 @@ const buildParams = (args: {
   categoryIds?: string[];
   streamIds?: string[];
   taskTypeIds?: string[];
+  statuses?: string[];
   groupBy: WeeklyGroupBy;
 }) => {
   const params: Record<string, string> = {
@@ -323,6 +341,7 @@ const buildParams = (args: {
   if (args.categoryIds && args.categoryIds.length > 0) params.categoryIds = args.categoryIds.join(',');
   if (args.streamIds && args.streamIds.length > 0) params.streamIds = args.streamIds.join(',');
   if (args.taskTypeIds && args.taskTypeIds.length > 0) params.taskTypeIds = args.taskTypeIds.join(',');
+  if (args.statuses && args.statuses.length > 0) params.statuses = args.statuses.join(',');
 
   return params;
 };
@@ -561,6 +580,27 @@ export default function WeeklyReport() {
   const [taskTypeAll, setTaskTypeAll] = useState(true);
   const [taskTypeIds, setTaskTypeIds] = useState<string[]>([]);
 
+  /** Status reached options, one group per object, in each object's own order. */
+  const statusGroups = useMemo(
+    () => [
+      { key: 'requests', label: t('reports.weekly.sections.requests'), options: getRequestStatusOptions(t) },
+      { key: 'projects', label: t('reports.weekly.sections.projects'), options: getProjectStatusOptions(t) },
+      { key: 'tasks', label: t('reports.weekly.sections.tasks'), options: getTaskStatusOptions(t) },
+    ],
+    [t],
+  );
+  // A status shared by two objects (done, on hold) is one value: it narrows both lists at once.
+  const allStatusValues = useMemo(
+    () => Array.from(new Set<string>(statusGroups.flatMap((group) => group.options.map((option) => option.value)))),
+    [statusGroups],
+  );
+  const initialStatuses = useMemo(() => {
+    const known = new Set(allStatusValues);
+    return idsFromParams(searchParams, 'statuses').filter((status) => known.has(status));
+  }, [allStatusValues, searchParams]);
+  const [statusAll, setStatusAll] = useState(initialStatuses.length === 0);
+  const [statuses, setStatuses] = useState<string[]>(initialStatuses);
+
   const [collapsedSections, setCollapsedSections] = useState<Record<WeeklySectionKey, boolean>>(() => ({
     requests: readCollapsed('requests'),
     projects: readCollapsed('projects'),
@@ -620,6 +660,7 @@ export default function WeeklyReport() {
   const effectiveCategoryIds = categoryAll ? [] : categoryIds;
   const effectiveStreamIds = streamAll ? [] : streamIds;
   const effectiveTaskTypeIds = taskTypeAll ? [] : taskTypeIds;
+  const effectiveStatuses = statusAll ? [] : statuses;
 
   const {
     data: reportData,
@@ -639,6 +680,8 @@ export default function WeeklyReport() {
       streamIds,
       taskTypeAll,
       taskTypeIds,
+      statusAll,
+      statuses,
       groupBy,
     ],
     queryFn: async () => {
@@ -649,6 +692,7 @@ export default function WeeklyReport() {
         categoryIds: effectiveCategoryIds,
         streamIds: effectiveStreamIds,
         taskTypeIds: effectiveTaskTypeIds,
+        statuses: effectiveStatuses,
         groupBy,
       });
       const res = await api.get('/portfolio/reports/weekly', { params });
@@ -961,6 +1005,7 @@ export default function WeeklyReport() {
       { field: 'sourceName' as any, headerName: t('reports.weekly.columns.source'), width: 150 },
       { field: 'categoryName' as any, headerName: t('reports.weekly.columns.category'), width: 160 },
       { field: 'streamName' as any, headerName: t('reports.weekly.columns.stream'), width: 160 },
+      { field: 'company' as any, headerName: t('reports.weekly.columns.company'), width: 160 },
     ],
     [t],
   );
@@ -1115,6 +1160,7 @@ export default function WeeklyReport() {
         categoryIds: effectiveCategoryIds,
         streamIds: effectiveStreamIds,
         taskTypeIds: effectiveTaskTypeIds,
+        statuses: effectiveStatuses,
         groupBy,
       }) as Record<string, string>;
       params.format = format;
@@ -1390,6 +1436,46 @@ export default function WeeklyReport() {
                   <ListItemText primary={option.name} primaryTypographyProps={{ fontSize: 13 }} />
                 </MenuItem>
               ))}
+            </TextField>
+          </ReportFilter>
+          <ReportFilter label={t('reports.weekly.filters.statusReached')} width={200}>
+            <TextField
+              select
+              size="small"
+              value={statusAll ? allStatusValues : statuses}
+              SelectProps={{
+                multiple: true,
+                displayEmpty: true,
+                MenuProps: reportFilterMenuProps,
+                renderValue: () => {
+                  if (statusAll) return t('reports.weekly.filters.allStatuses');
+                  return t('reports.weekly.filters.selectedCount', { count: statuses.length });
+                },
+              }}
+              onChange={(e) => {
+                const next = e.target.value as unknown as string[];
+                const values = Array.from(new Set(Array.isArray(next) ? next : [next]));
+                if (values.length === 0 || values.length === allStatusValues.length) {
+                  setStatusAll(true);
+                  setStatuses([]);
+                  return;
+                }
+                setStatusAll(false);
+                setStatuses(values);
+              }}
+              sx={reportFilterSelectSx}
+            >
+              {statusGroups.flatMap((group) => [
+                <ListSubheader key={`group-${group.key}`} disableSticky sx={STATUS_GROUP_SX}>
+                  {group.label}
+                </ListSubheader>,
+                ...group.options.map((option) => (
+                  <MenuItem key={`${group.key}-${option.value}`} value={option.value} sx={drawerMenuItemSx}>
+                    <Checkbox size="small" checked={statusAll || statuses.includes(option.value)} />
+                    <ListItemText primary={option.label} primaryTypographyProps={{ fontSize: 13 }} />
+                  </MenuItem>
+                )),
+              ])}
             </TextField>
           </ReportFilter>
           <ReportFilter label={t('reports.weekly.filters.taskTypes')} width={240}>

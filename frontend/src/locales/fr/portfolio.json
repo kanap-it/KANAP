@@ -1227,6 +1227,8 @@
         "allStreams": "Toutes les filières",
         "taskTypes": "Types de tâche",
         "allTaskTypes": "Tous les types de tâche",
+        "statusReached": "Statut d'arrivée",
+        "allStatuses": "Tous les statuts",
         "selectedCount": "{{count}} sélectionné(s)"
       },
       "actions": {
@@ -1285,6 +1287,7 @@
         "source": "Source",
         "category": "Catégorie",
         "stream": "Filière",
+        "company": "Société",
         "progress": "Charge",
         "status": "Statut",
         "changes": "Modifications",

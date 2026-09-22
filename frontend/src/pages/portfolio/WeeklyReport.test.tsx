@@ -390,6 +390,58 @@ describe('WeeklyReport', () => {
   });
 });
 
+describe('WeeklyReport status reached and company', () => {
+  const lastWeeklyParams = () => {
+    const calls = get.mock.calls.filter(([url]: any[]) => url === '/portfolio/reports/weekly');
+    return calls[calls.length - 1]?.[1]?.params;
+  };
+
+  it('opens on the statuses carried by the URL and ignores an unknown one', async () => {
+    mockApi(report());
+    renderReport('/portfolio/reports/weekly?statuses=done,bogus');
+
+    await waitFor(() => expect(lastWeeklyParams()?.statuses).toBe('done'));
+    expect(screen.getByText('1 selected')).toBeTruthy();
+  });
+
+  it('sends the statuses picked in the menu, grouped by object with their labels', async () => {
+    mockApi(report());
+    renderReport('/portfolio/reports/weekly?statuses=done');
+
+    await waitFor(() => expect(screen.getByText('1 selected')).toBeTruthy());
+    fireEvent.mouseDown(screen.getByText('1 selected'));
+
+    const listbox = await screen.findByRole('listbox');
+    // One group per object, in the owner order, with the labels the app uses, never raw values.
+    expect(within(listbox).getByText('Requests')).toBeTruthy();
+    expect(within(listbox).getByText('Projects')).toBeTruthy();
+    expect(within(listbox).getByText('Tasks')).toBeTruthy();
+    expect(within(listbox).getByText('Pending review')).toBeTruthy();
+    expect(within(listbox).queryByText('pending_review')).toBeNull();
+
+    fireEvent.click(within(listbox).getByText('Rejected'));
+
+    await waitFor(() => expect(lastWeeklyParams()?.statuses).toBe('done,rejected'));
+  });
+
+  it('sends no status filter by default', async () => {
+    mockApi(report());
+    renderReport();
+
+    await waitFor(() => expect(lastWeeklyParams()).toBeTruthy());
+    expect(lastWeeklyParams()?.statuses).toBeUndefined();
+    expect(screen.getByText('All statuses')).toBeTruthy();
+  });
+
+  it('shows the company of each row', async () => {
+    mockApi(report({ requests: { created: [requestRow({ company: 'Fromage & Co SA' })], modified: [], closed: [] } }));
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Fromage & Co SA')).toBeTruthy());
+    expect(screen.getAllByText('Company').length).toBeGreaterThan(0);
+  });
+});
+
 describe('WeeklyReport by person', () => {
   const personReport = () =>
     report({

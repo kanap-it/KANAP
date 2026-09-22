@@ -106,6 +106,7 @@ export class PortfolioWeeklyReportController {
       categoryIds: parseCsv(query?.categoryIds),
       streamIds: parseCsv(query?.streamIds),
       taskTypeIds: parseCsv(query?.taskTypeIds),
+      statuses: parseCsv(query?.statuses),
       groupBy: String(query?.groupBy || '').trim() === 'person' ? 'person' : 'type',
     };
   }
