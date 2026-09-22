@@ -41,17 +41,50 @@ const listPath = (base: string, scopeParam: string, filters: FilterModel): strin
   return `${base}?${params.toString()}`;
 };
 
-export const tasksPath = (extra: FilterModel = {}) =>
-  listPath('/portfolio/tasks', 'taskScope', { ...TASK_SCOPE, ...extra });
+/**
+ * The projects and teams a report is narrowed to. Each list reads them through hidden filters
+ * that apply exactly the report's rules: a task by the project it hangs off and its assignee's
+ * team, a project by itself and the people involved in it, a request by its linked projects and
+ * the people involved in it. Empty or missing lists mean "every value".
+ */
+export type ProjectTeamScope = { projectIds?: string[]; teamIds?: string[] };
 
-export const requestsPath = (extra: FilterModel = {}) =>
+const idSet = (ids: string[]): SetFilter => ({ filterType: 'set', values: ids });
+
+export const projectTeamFilters = (
+  entity: 'tasks' | 'requests' | 'projects',
+  scope: ProjectTeamScope = {},
+): FilterModel => {
+  const projectIds = scope.projectIds ?? [];
+  const teamIds = scope.teamIds ?? [];
+  const model: FilterModel = {};
+  if (entity === 'tasks') {
+    if (projectIds.length > 0) {
+      // A project filter leaves the standalone tasks out, like the report does.
+      model.related_object_type = { filterType: 'set', values: ['project'] };
+      model.related_object_id = idSet(projectIds);
+    }
+    if (teamIds.length > 0) model.assignee_team_id = idSet(teamIds);
+    return model;
+  }
+  if (projectIds.length > 0) model[entity === 'projects' ? 'id' : 'linked_project_id'] = idSet(projectIds);
+  if (teamIds.length > 0) model.involved_team_id = idSet(teamIds);
+  return model;
+};
+
+export const tasksPath = (extra: FilterModel = {}, scope: ProjectTeamScope = {}) =>
+  listPath('/portfolio/tasks', 'taskScope', { ...TASK_SCOPE, ...extra, ...projectTeamFilters('tasks', scope) });
+
+export const requestsPath = (extra: FilterModel = {}, scope: ProjectTeamScope = {}) =>
   listPath('/portfolio/requests', 'requestScope', {
     status: { filterType: 'set', values: OPEN_REQUEST_STATUSES },
     ...extra,
+    ...projectTeamFilters('requests', scope),
   });
 
-export const projectsPath = (extra: FilterModel = {}) =>
+export const projectsPath = (extra: FilterModel = {}, scope: ProjectTeamScope = {}) =>
   listPath('/portfolio/projects', 'projectScope', {
     status: { filterType: 'set', values: OPEN_PROJECT_STATUSES },
     ...extra,
+    ...projectTeamFilters('projects', scope),
   });

@@ -395,6 +395,29 @@ function buildWhereConditions(
     applySetFilter(filters.assignee_user_id, 't.assignee_user_id');
   }
 
+  // The project a task hangs off, by id: the portfolio reports narrowed to projects link with
+  // it, alongside `related_object_type = project`.
+  if (!shouldSkip('related_object_id') && filters.related_object_id) {
+    applySetFilter(filters.related_object_id, 't.related_object_id');
+  }
+
+  // The team of the assignee, by id, for the portfolio reports narrowed to teams. A person
+  // belongs to one team at most, and an unassigned task belongs to none: it never matches.
+  if (!shouldSkip('assignee_team_id') && isSetFilter(filters.assignee_team_id)) {
+    const teamIds = filters.assignee_team_id.values
+      .map((value: any) => String(value ?? '').trim())
+      .filter(Boolean);
+    if (teamIds.length === 0) {
+      whereConditions += ' AND 1=0';
+    } else {
+      params.push(teamIds);
+      whereConditions += ` AND t.assignee_user_id IN (
+      SELECT user_id FROM portfolio_team_member_configs
+      WHERE team_id::text = ANY($${params.length}::text[])${tenantParamRef ? ` AND tenant_id = ${tenantParamRef}` : ''}
+    )`;
+    }
+  }
+
   if (!shouldSkip('labels') && filters.labels?.filter) {
     params.push(`%${filters.labels.filter}%`);
     whereConditions += ` AND EXISTS (

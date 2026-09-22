@@ -48,6 +48,7 @@ import { normalizeMarkdownRichText } from '../common/markdown-rich-text';
 import { RemoteInlineImageImportService } from '../common/remote-inline-image-import.service';
 import { IntegratedDocumentsService } from '../knowledge/integrated-documents.service';
 import { Task } from '../tasks/task.entity';
+import { requestInvolvesUsersSql, requestLinkedToProjectsSql } from './services/portfolio-report-filters';
 import { TaskAttachment } from '../tasks/task-attachment.entity';
 import { TaskActivitiesService } from '../tasks/task-activities.service';
 import {
@@ -107,20 +108,7 @@ const applyRequestInvolvementScope = (
     WHERE tmc.team_id = :involvedTeamId
   )`;
 
-  const teamCondition = `(
-    ${alias}.requestor_id IN ${teamUsersSql}
-    OR ${alias}.created_by_id IN ${teamUsersSql}
-    OR ${alias}.business_sponsor_id IN ${teamUsersSql}
-    OR ${alias}.business_lead_id IN ${teamUsersSql}
-    OR ${alias}.it_sponsor_id IN ${teamUsersSql}
-    OR ${alias}.it_lead_id IN ${teamUsersSql}
-    OR EXISTS (
-      SELECT 1
-      FROM portfolio_request_team rt
-      WHERE rt.request_id = ${alias}.id
-        AND rt.user_id IN ${teamUsersSql}
-    )
-  )`;
+  const teamCondition = requestInvolvesUsersSql(alias, teamUsersSql);
 
   if (involvedUserId && involvedTeamId) {
     qb.andWhere(`(${userCondition} OR ${teamCondition})`, { involvedUserId, involvedTeamId });
@@ -133,6 +121,36 @@ const applyRequestInvolvementScope = (
   }
 
   qb.andWhere(teamCondition, { involvedTeamId });
+};
+
+/**
+ * The filters the portfolio reports link with, by id: the projects a request is linked to
+ * (`linked_project_id`) and the teams involved in it (`involved_team_id`, the rule of the
+ * "My team" scope above). No column shows them; the page keeps hidden columns so the model
+ * survives a sort or a page change. Returns `undefined` for any other field, `null` for a
+ * model that says nothing.
+ */
+export const compileRequestLinkFilter = (
+  field: string,
+  rawModel: any,
+  nextParam: () => string,
+): CompiledCondition | null | undefined => {
+  if (field !== 'linked_project_id' && field !== 'involved_team_id') return undefined;
+  const model = normalizeAgFilterModel(rawModel);
+  if (!model || model.filterType !== 'set' || !Array.isArray(model.values)) return null;
+  const ids = model.values.map((value: any) => String(value ?? '').trim()).filter(Boolean);
+  if (ids.length === 0) return { sql: '1=0', params: {} };
+  const param = nextParam();
+  if (field === 'linked_project_id') {
+    return { sql: requestLinkedToProjectsSql('r', `:${param}::text[]`), params: { [param]: ids } };
+  }
+  const teamUsersSql = `(
+    SELECT tmc.user_id
+    FROM portfolio_team_member_configs tmc
+    WHERE tmc.tenant_id = r.tenant_id
+      AND tmc.team_id::text = ANY(:${param}::text[])
+  )`;
+  return { sql: requestInvolvesUsersSql('r', teamUsersSql), params: { [param]: ids } };
 };
 
 const requestDateFields = new Map<string, string>([
@@ -327,6 +345,11 @@ export class PortfolioRequestsService {
     const compiledFilters: CompiledCondition[] = [];
     if (fm) {
       for (const [field, model] of Object.entries(fm)) {
+        const linkCond = compileRequestLinkFilter(field, model, nextParam);
+        if (linkCond !== undefined) {
+          if (linkCond) compiledFilters.push(linkCond);
+          continue;
+        }
         const dateField = requestDateFields.get(field);
         if (dateField) {
           const cond = compileDateFilterCondition(model, dateField, nextParam);
@@ -499,6 +522,11 @@ export class PortfolioRequestsService {
     const compiledFilters: CompiledCondition[] = [];
     if (fm) {
       for (const [field, model] of Object.entries(fm)) {
+        const linkCond = compileRequestLinkFilter(field, model, nextParam);
+        if (linkCond !== undefined) {
+          if (linkCond) compiledFilters.push(linkCond);
+          continue;
+        }
         const dateField = requestDateFields.get(field);
         if (dateField) {
           const cond = compileDateFilterCondition(model, dateField, nextParam);
@@ -688,6 +716,11 @@ export class PortfolioRequestsService {
       const compiledFilters: CompiledCondition[] = [];
       if (filtersForField) {
         for (const [filterField, model] of Object.entries(filtersForField)) {
+          const linkCond = compileRequestLinkFilter(filterField, model, nextParam);
+          if (linkCond !== undefined) {
+            if (linkCond) compiledFilters.push(linkCond);
+            continue;
+          }
           const dateField = requestDateFields.get(filterField);
           if (dateField) {
             const cond = compileDateFilterCondition(model, dateField, nextParam);

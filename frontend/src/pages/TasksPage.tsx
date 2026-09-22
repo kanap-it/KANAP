@@ -501,6 +501,28 @@ export default function TasksPage() {
       filterParams: { values: [] },
       sortable: false,
     },
+    // The project and the assignee's team, by id, for the portfolio reports narrowed to projects
+    // or teams. Hidden and kept out of the column chooser for the same reason as above.
+    {
+      field: 'related_object_id',
+      headerName: t('reports.weekly.filters.project'),
+      hide: true,
+      defaultHidden: true,
+      suppressColumnsToolPanel: true,
+      filter: CheckboxSetFilter,
+      filterParams: { values: [] },
+      sortable: false,
+    },
+    {
+      colId: 'assignee_team_id',
+      headerName: t('reports.weekly.filters.team'),
+      hide: true,
+      defaultHidden: true,
+      suppressColumnsToolPanel: true,
+      filter: CheckboxSetFilter,
+      filterParams: { values: [] },
+      sortable: false,
+    },
     {
       field: 'creator_name',
       headerName: t('tasks.columns.requestor'),
