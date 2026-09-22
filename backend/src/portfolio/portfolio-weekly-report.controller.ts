@@ -107,6 +107,8 @@ export class PortfolioWeeklyReportController {
       streamIds: parseCsv(query?.streamIds),
       taskTypeIds: parseCsv(query?.taskTypeIds),
       statuses: parseCsv(query?.statuses),
+      projectIds: parseCsv(query?.projectIds),
+      teamIds: parseCsv(query?.teamIds),
       groupBy: String(query?.groupBy || '').trim() === 'person' ? 'person' : 'type',
     };
   }

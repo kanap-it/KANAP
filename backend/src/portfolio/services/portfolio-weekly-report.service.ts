@@ -3,7 +3,16 @@ import AdmZip = require('adm-zip');
 import { EntityManager } from 'typeorm';
 import { neutralizeCsvFormulaValue } from '../../common/csv/csv-export.service';
 import { normalizeReportTimeZone } from '../../common/report-period';
-import { pushSetFilter, pushSetFilterExpr } from './portfolio-report-filters';
+import {
+  ProjectTeamFilters,
+  projectProjectTeamPredicates,
+  pushSetFilter,
+  normalizeIdList,
+  pushSetFilterExpr,
+  requestProjectTeamPredicates,
+  taskProjectTeamPredicates,
+  teamMembersSql,
+} from './portfolio-report-filters';
 
 export type WeeklyReportQuery = {
   tenantId: string;
@@ -20,6 +29,13 @@ export type WeeklyReportQuery = {
    * update that changed the status). An item with no status event in the period matches none.
    */
   statuses?: string[];
+  /**
+   * Projects and teams: tasks hanging off the projects or assigned to a team member, the
+   * projects themselves or the ones a member is involved in, the requests linked to the
+   * projects or involving a member. The logged time follows them too.
+   */
+  projectIds?: string[];
+  teamIds?: string[];
   /** `person` adds the by-person reading of the task lists; `type` is the historical shape. */
   groupBy?: WeeklyGroupBy;
 };
@@ -866,7 +882,13 @@ export class PortfolioWeeklyReportService {
     if (!mg) return { created: [], modified: [], closed: [] };
 
     const sqlParams = this.baseParams(query, CLOSED_STATUSES.requests);
-    const whereSql = this.buildFilterSql(sqlParams, 'r', query, { taskTypes: false });
+    const whereSql = this.buildFilterSql(
+      sqlParams,
+      'r',
+      query,
+      { taskTypes: false },
+      requestProjectTeamPredicates(sqlParams, 'r', query),
+    );
 
     const rows: RawEventRow[] = await mg.query(
       `
@@ -912,7 +934,13 @@ export class PortfolioWeeklyReportService {
     if (!mg) return { created: [], modified: [], closed: [] };
 
     const sqlParams = this.baseParams(query, CLOSED_STATUSES.projects);
-    const whereSql = this.buildFilterSql(sqlParams, 'p', query, { taskTypes: false });
+    const whereSql = this.buildFilterSql(
+      sqlParams,
+      'p',
+      query,
+      { taskTypes: false },
+      projectProjectTeamPredicates(sqlParams, 'p', query),
+    );
 
     const rows: RawProjectEventRow[] = await mg.query(
       `
@@ -994,7 +1022,10 @@ export class PortfolioWeeklyReportService {
           category: 'COALESCE(t.category_id, pp.category_id)',
         },
       },
-      [`(t.related_object_type IS NULL OR t.related_object_type = 'project')`],
+      [
+        `(t.related_object_type IS NULL OR t.related_object_type = 'project')`,
+        ...taskProjectTeamPredicates(sqlParams, 't', query),
+      ],
     );
 
     const rows: RawTaskEventRow[] = await mg.query(
@@ -1175,6 +1206,9 @@ export class PortfolioWeeklyReportService {
    * Days logged in the period, per person, split project versus other. One statement over the
    * union of the two time tables, grouped by person: never a query per person. A task hanging
    * off a project is project time, exactly as the monthly aggregate reads it.
+   *
+   * The project and team filters narrow the time like the task rows: a team keeps its members'
+   * entries, a project keeps the entries on its tasks and the ones logged on it directly.
    */
   private async fetchLoggedDays(
     query: WeeklyReportQuery,
@@ -1183,6 +1217,14 @@ export class PortfolioWeeklyReportService {
     const mg = opts?.manager;
     const days = new Map<string, WeeklyLoggedDays>();
     if (!mg) return days;
+
+    const sqlParams: any[] = [
+      query.tenantId,
+      query.startDate,
+      normalizeReportTimeZone(query.timeZone),
+      query.endDate,
+    ];
+    const { taskFilter, projectFilter } = this.loggedTimeFilters(sqlParams, query);
 
     const rows: LoggedHoursRow[] = await mg.query(
       `
@@ -1194,13 +1236,14 @@ export class PortfolioWeeklyReportService {
         SELECT
           tte.user_id::text AS user_id,
           tte.hours::numeric AS hours,
-          (t.related_object_type = 'project') AS is_project
+          -- A standalone task has no type at all: its time is other time, not unknown time.
+          COALESCE(t.related_object_type = 'project', FALSE) AS is_project
         FROM task_time_entries tte
         JOIN tasks t ON t.id = tte.task_id AND t.tenant_id = $1
         WHERE tte.tenant_id = $1
           AND tte.user_id IS NOT NULL
           AND tte.logged_at >= ($2::date::timestamp AT TIME ZONE $3)
-          AND tte.logged_at < (($4::date + 1)::timestamp AT TIME ZONE $3)
+          AND tte.logged_at < (($4::date + 1)::timestamp AT TIME ZONE $3)${taskFilter}
 
         UNION ALL
 
@@ -1212,11 +1255,11 @@ export class PortfolioWeeklyReportService {
         WHERE pte.tenant_id = $1
           AND pte.user_id IS NOT NULL
           AND pte.logged_at >= ($2::date::timestamp AT TIME ZONE $3)
-          AND pte.logged_at < (($4::date + 1)::timestamp AT TIME ZONE $3)
+          AND pte.logged_at < (($4::date + 1)::timestamp AT TIME ZONE $3)${projectFilter}
       ) e
       GROUP BY e.user_id
       `,
-      [query.tenantId, query.startDate, normalizeReportTimeZone(query.timeZone), query.endDate],
+      sqlParams,
     );
 
     for (const row of rows) {
@@ -1225,6 +1268,33 @@ export class PortfolioWeeklyReportService {
       days.set(row.user_id, { project, other, total: roundDays(project + other) });
     }
     return days;
+  }
+
+  /**
+   * The project and team conditions of the two halves of the time query, each an ` AND …`
+   * fragment. The ids are bound once and read by both halves.
+   */
+  private loggedTimeFilters(
+    sqlParams: any[],
+    filters: ProjectTeamFilters,
+  ): { taskFilter: string; projectFilter: string } {
+    let taskFilter = '';
+    let projectFilter = '';
+    const projectIds = normalizeIdList(filters.projectIds);
+    if (projectIds.length > 0) {
+      sqlParams.push(projectIds);
+      const ref = `$${sqlParams.length}::text[]`;
+      taskFilter += ` AND t.related_object_type = 'project' AND t.related_object_id::text = ANY(${ref})`;
+      projectFilter += ` AND pte.project_id::text = ANY(${ref})`;
+    }
+    const teamIds = normalizeIdList(filters.teamIds);
+    if (teamIds.length > 0) {
+      sqlParams.push(teamIds);
+      const members = teamMembersSql(`$${sqlParams.length}`, '$1');
+      taskFilter += ` AND tte.user_id IN ${members}`;
+      projectFilter += ` AND pte.user_id IN ${members}`;
+    }
+    return { taskFilter, projectFilter };
   }
 
   /**
