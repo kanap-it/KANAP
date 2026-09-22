@@ -94,6 +94,12 @@ const REPORT_SECTIONS: ReportSection[] = [
     titleKey: 'reports.sections.upcoming',
     cards: [
       {
+        key: 'upcoming',
+        to: '/portfolio/reports/upcoming',
+        titleKey: 'reports.cards.upcoming.title',
+        descriptionKey: 'reports.cards.upcoming.description',
+      },
+      {
         key: 'capacityHeatmap',
         to: '/portfolio/reports/capacity-heatmap',
         titleKey: 'reports.cards.capacityHeatmap.title',

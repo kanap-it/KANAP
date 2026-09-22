@@ -1118,7 +1118,61 @@
       "empty": "Aucune tâche ouverte",
       "loadFailed": "Le chargement du rapport a échoué."
     },
+    "upcoming": {
+      "title": "À venir",
+      "subtitle": "Ce qui arrive bientôt et ce qui attend depuis trop longtemps, chaque chiffre ouvrant la liste correspondante.",
+      "sections": {
+        "tasks": "Tâches à échéance",
+        "projectEnds": "Fins de projet prévues",
+        "projectStarts": "Démarrages de projet prévus",
+        "pendingRequests": "Demandes en attente",
+        "requestDeliveries": "Livraisons demandées"
+      },
+      "within_one": "Dans le prochain jour",
+      "within_other": "Dans les {{count}} prochains jours",
+      "olderThan_one": "Depuis plus de {{count}} jour",
+      "olderThan_other": "Depuis plus de {{count}} jours",
+      "overdue_one": "{{count}} tâche déjà en retard",
+      "overdue_other": "{{count}} tâches déjà en retard",
+      "passed_one": "{{count}} fin prévue déjà dépassée",
+      "passed_other": "{{count}} fins prévues déjà dépassées",
+      "days_one": "{{count}} jour",
+      "days_other": "{{count}} jours",
+      "horizonLabel": "Horizon de {{title}}",
+      "empty": {
+        "tasks": "Aucune tâche à échéance",
+        "projectEnds": "Aucune fin prévue",
+        "projectStarts": "Aucun démarrage prévu",
+        "pendingRequests": "Aucune demande en attente depuis si longtemps",
+        "requestDeliveries": "Aucune livraison demandée"
+      },
+      "columns": {
+        "reference": "Réf.",
+        "task": "Tâche",
+        "project": "Projet",
+        "request": "Demande",
+        "type": "Type",
+        "priority": "Priorité",
+        "assignee": "Responsable",
+        "dueDate": "Échéance",
+        "status": "Statut",
+        "plannedEnd": "Fin prévue",
+        "plannedStart": "Début prévu",
+        "progress": "Avancement",
+        "itLead": "Responsable IT",
+        "businessLead": "Responsable métier",
+        "source": "Source",
+        "createdOn": "Créée le",
+        "targetDelivery": "Livraison demandée",
+        "requestor": "Demandeur"
+      },
+      "loadFailed": "Impossible de charger les données du rapport."
+    },
     "cards": {
+      "upcoming": {
+        "title": "À venir",
+        "description": "Tâches à échéance, fins et démarrages de projet prévus, demandes en attente et livraisons demandées."
+      },
       "capacityHeatmap": {
         "title": "Carte de chaleur de la capacité",
         "description": "Visualisez la charge attendue par rapport à la capacité des contributeurs et des équipes."

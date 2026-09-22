@@ -1118,7 +1118,61 @@
       "empty": "No open task",
       "loadFailed": "Failed to load report data."
     },
+    "upcoming": {
+      "title": "Upcoming",
+      "subtitle": "What falls due soon and what has been waiting too long, each figure opening the matching list.",
+      "sections": {
+        "tasks": "Tasks due",
+        "projectEnds": "Planned project ends",
+        "projectStarts": "Planned project starts",
+        "pendingRequests": "Requests awaiting review",
+        "requestDeliveries": "Requested deliveries"
+      },
+      "within_one": "Within the next {{count}} day",
+      "within_other": "Within the next {{count}} days",
+      "olderThan_one": "For more than {{count}} day",
+      "olderThan_other": "For more than {{count}} days",
+      "overdue_one": "{{count}} task already overdue",
+      "overdue_other": "{{count}} tasks already overdue",
+      "passed_one": "{{count}} planned end already passed",
+      "passed_other": "{{count}} planned ends already passed",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "horizonLabel": "Horizon of {{title}}",
+      "empty": {
+        "tasks": "No task due",
+        "projectEnds": "No planned end",
+        "projectStarts": "No planned start",
+        "pendingRequests": "No request waiting that long",
+        "requestDeliveries": "No delivery requested"
+      },
+      "columns": {
+        "reference": "Ref",
+        "task": "Task",
+        "project": "Project",
+        "request": "Request",
+        "type": "Type",
+        "priority": "Priority",
+        "assignee": "Assignee",
+        "dueDate": "Due date",
+        "status": "Status",
+        "plannedEnd": "Planned end",
+        "plannedStart": "Planned start",
+        "progress": "Progress",
+        "itLead": "IT lead",
+        "businessLead": "Business lead",
+        "source": "Source",
+        "createdOn": "Created on",
+        "targetDelivery": "Requested delivery",
+        "requestor": "Requestor"
+      },
+      "loadFailed": "Failed to load report data."
+    },
     "cards": {
+      "upcoming": {
+        "title": "Upcoming",
+        "description": "Tasks falling due, planned project ends and starts, requests awaiting review and requested deliveries."
+      },
       "capacityHeatmap": {
         "title": "Capacity heatmap",
         "description": "Visualize expected workload vs capacity for contributors and teams."
