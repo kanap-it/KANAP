@@ -26,6 +26,7 @@ The Portfolio Reporting landing page lists available portfolio reports as cards,
 - **Attention by contributor**: open, overdue and stalled tasks, team by team and person by person.
 
 **What comes next**
+- **Upcoming**: tasks falling due, planned project ends and starts, requests awaiting review for too long, and requested deliveries.
 - **Capacity Heatmap**: expected workload against capacity, for contributors and teams.
 
 ---
@@ -92,6 +93,33 @@ A missing Stream is only counted when the item already has a Category and that C
 Every figure above zero is a link. Clicking it opens the matching list, already filtered on exactly the items behind the figure, across the whole tenant. The list total matches the figure you clicked. Zeros are shown for context but are not clickable.
 
 When nothing is missing, the strip shows a single line confirming that everything open is classified.
+
+---
+
+## Upcoming
+
+Use this report to see what falls due soon and what has been waiting too long. It is the only report that looks ahead: the period review reads the past, the flow report and the attention blocks read the present.
+
+### What it shows
+
+The page has five sections. Each one shows how many items it holds, a table sorted by date, and a horizon you can change on the right of its title.
+
+- **Tasks due**: open tasks (Open, In progress, Pending, In testing) due between today and the end of the horizon, both days included. Horizon: 7, 14 (default) or 30 days. Only standalone tasks and project tasks count, like in the other reports. A line below the title gives the number of tasks already overdue, with a link to them.
+- **Planned project ends**: open projects whose planned end falls between today and the end of the horizon. Horizon: 30 (default), 60 or 90 days. Projects already past their planned end stay in the flow report; a line gives their number and opens it.
+- **Planned project starts**: projects still in Waiting list or Planned whose planned start falls in the same horizon.
+- **Requests awaiting review**: requests still Pending review, created at least 14, 30 (default) or 60 days ago. Candidate, Approved and On hold requests already had a decision, so they are not listed here.
+- **Requested deliveries**: open requests (Pending review, Candidate, Approved, On hold) whose requested delivery date falls in the project horizon.
+
+The project horizon is shared: changing it in one of the three sections that use it changes it in all three. The page remembers your horizons and the sections you folded.
+
+### Filters
+
+- **Project**: tasks of those projects, those projects themselves, and requests linked to them.
+- **Team**: tasks assigned to a member of the team, and projects and requests that involve one.
+
+### Opening the list
+
+Every figure above zero is a link. It opens the task, project or request list filtered on exactly the items of the section, with the same project and team filters, so the list total matches the figure. The report has no export: the lists already export.
 
 ---
 
