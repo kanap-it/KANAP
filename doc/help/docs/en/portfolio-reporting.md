@@ -186,46 +186,86 @@ Click a contributor row to open a project breakdown:
 
 ## Weekly Report
 
-Use this report to produce a weekly stakeholder summary covering project updates, task activity, and request changes over a selected period.
+Use this report to see what happened to requests, projects and tasks over a period. The report follows the portfolio funnel: requests first, then projects, then tasks.
 
 ### What it shows
 
-The report is split into three tables:
+Each of the three sections holds the same three lists.
 
-- **Project Updates** — projects created during the period, or whose status changed in it.
-- **Task Activity** — tasks created during the period, or closed (done or cancelled) in it.
-- **Request Updates** — requests created during the period, or whose status changed in it.
+- **Created** — items created during the period.
+- **Modified** — items changed during the period without being created or closed in it.
+- **Closed** — items whose last status change of the period leaves them in a closed status.
 
-Every table has a **Created** column. It carries the creation day when the item was created inside the period, and stays empty for items that only changed status.
+An item created and closed inside the same period appears in both lists, with its own date in each. It never appears under Modified: Modified is what is left once creations and closures are accounted for.
 
-A summary line above the tables shows the counts: project updates, tasks created, tasks closed, and request updates.
+The creation counts as a status change. A CSV import or an agent can create a task already done, or a request already rejected. Such an item is listed as created and as closed on the same day, even though nobody ever changed its status afterwards.
+
+Closed means different statuses per type:
+
+- **Requests**: converted or rejected. A request has no cancelled status.
+- **Projects**: done or cancelled.
+- **Tasks**: done or cancelled.
+
+Each list shows the count in its heading. A list with nothing in it stays on a single line, so a report with little activity stays short.
+
+### Which tasks count
+
+The Tasks section covers portfolio tasks only: standalone tasks and tasks attached to a project. Tasks attached to a contract, a spend item, a CAPEX line or an incident are left out. This is narrower than earlier versions of the report, which counted every task.
+
+### Where a project came from
+
+The Projects created list carries an **Origin** column.
+
+- A project converted from a request shows that request, for example `REQ-12 Cave climate digital twin`. Click it to open the request.
+- A project created without a request shows how it entered the portfolio, in the words used everywhere else in KANAP: **Fast-track**, **Legacy** or **Request**.
+
+### Folding a section
+
+Each section title carries a chevron. Click the title row to fold the section away, and click it again to open it. A folded section keeps its counts next to its title, so you still see what it holds.
+
+Your choice is remembered on this browser, section by section. Printing is not affected: a printed report always carries the three sections in full.
+
+### What changed
+
+The Modified lists carry a **Changes** column. It reads the audit trail of the period and shows:
+
+- the status move, when the status changed, as `In progress -> In testing`;
+- then the fields that changed, in plain language, separated by commas.
+
+The wording matches the history feed on the item itself. Fields rewritten on every save, such as the technical update timestamp, are left out.
 
 ### Filters
 
-- **Start Date** and **End Date** (defaults to the last 7 days)
+- **Start date** and **End date** (defaults to the last 7 days)
 - **Source** (multi-select)
 - **Category** (multi-select)
-- **Stream** (multi-select; scoped to selected categories)
-- **Task Types** (multi-select; applies to the Task Activity table)
+- **Stream** (multi-select; scoped to the selected categories)
+- **Task types** (multi-select; applies to the Tasks section)
+
+Filters apply to all nine lists.
 
 ### Table columns
 
-**Project Updates**: Project Name (clickable), Priority, Source, Category, Stream, Progress, Status, Created
+Every list starts with the business reference (`REQ-12`, `PRJ-3`, `T-4`) and the name. Clicking the name opens the item.
 
-**Task Activity**: Task Name (clickable), Task Type, Priority, Source, Category, Stream, Status, Created
+**Requests**: Reference, Request name, Source, Category, Stream, Status, date of the event.
 
-**Request Updates**: Request Name (clickable), Source, Category, Stream, Status, Created
+**Projects**: Reference, Project name, Origin (created list), Priority, Source, Category, Stream, Effort, Status, date of the event.
 
-The CSV and XLSX exports carry the same columns, plus a **Last Changed** column after **Created**.
+**Tasks**: Reference, Task name, Task type, Priority, Source, Category, Stream, Status, date of the event.
 
-Default sort is by **Priority** (highest first). Clicking a name opens the item.
+The date column carries the creation day on the created lists, the last change day on the modified lists, and the closing day on the closed lists. Days are read in your own time zone.
+
+The closed lists carry two dates: **Created on**, then **Closed on**. The creation day is always shown, even when the item was created long before the period. It tells you at a glance how long the item took.
+
+Modified lists add the **Changes** column at the end.
 
 ### Exports
 
-- **CSV** export
-- **XLSX** export
+- **CSV** — nine blocks in the order of the page, each with its own heading and header row.
+- **XLSX** — three sheets, Requests, Projects and Tasks. Rows run created, then modified, then closed, with a leading **Event** column that says which list a row comes from. The name cell links back to the item.
 
----
+Both exports carry the reference, the origin of a project, the changes of a modified row and the event date. The closed rows also carry the creation day.
 
 ## Tips
 - **Keep contributor profiles updated**: Capacity is based on contributor availability and historical time stats.

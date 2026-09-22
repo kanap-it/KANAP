@@ -8,7 +8,7 @@ export type WeeklyReportQuery = {
   tenantId: string;
   startDate: string;
   endDate: string;
-  /** IANA zone of the viewer: the period and the "last changed" day are read in it. */
+  /** IANA zone of the viewer: the period and every event day are read in it. */
   timeZone?: string;
   sourceIds?: string[];
   categoryIds?: string[];
@@ -16,57 +16,75 @@ export type WeeklyReportQuery = {
   taskTypeIds?: string[];
 };
 
-export type WeeklyProjectRow = {
-  projectId: string;
+/** What changed on an item during the period, for the "modified" lists. */
+export type WeeklyChangeSummary = {
+  /** Status the item held before the first status move of the period. */
+  statusFrom: string | null;
+  /** Status the item held after the last status move of the period. */
+  statusTo: string | null;
+  /** Distinct column keys that actually changed, noise excluded. */
+  changedFields: string[];
+};
+
+/** Where a project came from: the request it was converted from, when there is one. */
+export type WeeklyProjectOrigin = {
+  ref: string;
+  name: string;
+  itemPath: string;
+};
+
+type WeeklyRowCommon = {
+  /** Business reference as the lists show it (REQ-12, PRJ-3, T-4). */
+  ref: string;
   itemPath: string;
   name: string;
-  priority: number | null;
   sourceId: string | null;
   sourceName: string | null;
   categoryId: string | null;
   categoryName: string | null;
   streamId: string | null;
   streamName: string | null;
-  progress: number | null;
+  /** Current status of the live row. */
   status: string;
-  /** Day the item was created, when that creation falls inside the period. */
+  /** Day the item was created, whether or not that day falls in the period. */
   createdAt: string | null;
-  lastChangedAt: string | null;
+  /** Creation, last modification or closing day, depending on the list. */
+  eventAt: string | null;
+  /** Filled on the "modified" list only. */
+  changes: WeeklyChangeSummary | null;
 };
 
-export type WeeklyTaskRow = {
+export type WeeklyProjectRow = WeeklyRowCommon & {
+  projectId: string;
+  priority: number | null;
+  progress: number | null;
+  /** The request the project was converted from, when there is one. */
+  origin: WeeklyProjectOrigin | null;
+  /** Raw `portfolio_projects.origin`: standard, fast_track or legacy. */
+  originValue: string | null;
+};
+
+export type WeeklyTaskRow = WeeklyRowCommon & {
   taskId: string;
-  itemPath: string;
-  name: string;
   taskTypeId: string | null;
   taskTypeName: string | null;
   priority: number | null;
-  sourceId: string | null;
-  sourceName: string | null;
-  categoryId: string | null;
-  categoryName: string | null;
-  streamId: string | null;
-  streamName: string | null;
-  status: string;
-  /** Day the item was created, when that creation falls inside the period. */
-  createdAt: string | null;
-  lastChangedAt: string | null;
 };
 
-export type WeeklyRequestRow = {
+export type WeeklyRequestRow = WeeklyRowCommon & {
   requestId: string;
-  itemPath: string;
-  name: string;
-  sourceId: string | null;
-  sourceName: string | null;
-  categoryId: string | null;
-  categoryName: string | null;
-  streamId: string | null;
-  streamName: string | null;
-  status: string;
-  /** Day the item was created, when that creation falls inside the period. */
-  createdAt: string | null;
-  lastChangedAt: string | null;
+};
+
+export type WeeklyLists<TRow> = {
+  created: TRow[];
+  modified: TRow[];
+  closed: TRow[];
+};
+
+export type WeeklyReportResult = {
+  requests: WeeklyLists<WeeklyRequestRow>;
+  projects: WeeklyLists<WeeklyProjectRow>;
+  tasks: WeeklyLists<WeeklyTaskRow>;
 };
 
 export type WeeklyFilterValues = {
@@ -83,53 +101,6 @@ type ExportResult<TContent> = {
   content: TContent;
 };
 
-type RawProjectRow = {
-  project_id: string;
-  name: string;
-  priority: number | string | null;
-  source_id: string | null;
-  source_name: string | null;
-  category_id: string | null;
-  category_name: string | null;
-  stream_id: string | null;
-  stream_name: string | null;
-  progress: number | string | null;
-  status: string | null;
-  created_at: string | Date | null;
-  last_changed_at: string | Date | null;
-};
-
-type RawTaskRow = {
-  task_id: string;
-  name: string;
-  task_type_id: string | null;
-  task_type_name: string | null;
-  priority: number | string | null;
-  source_id: string | null;
-  source_name: string | null;
-  category_id: string | null;
-  category_name: string | null;
-  stream_id: string | null;
-  stream_name: string | null;
-  status: string | null;
-  created_at: string | Date | null;
-  last_changed_at: string | Date | null;
-};
-
-type RawRequestRow = {
-  request_id: string;
-  name: string;
-  source_id: string | null;
-  source_name: string | null;
-  category_id: string | null;
-  category_name: string | null;
-  stream_id: string | null;
-  stream_name: string | null;
-  status: string | null;
-  created_at: string | Date | null;
-  last_changed_at: string | Date | null;
-};
-
 type SheetCellValue = string | number | null;
 
 type XlsxSheetConfig = {
@@ -138,7 +109,60 @@ type XlsxSheetConfig = {
   rows: Array<{ cells: SheetCellValue[]; linkPath: string | null }>;
 };
 
-const BOM = '\uFEFF';
+/**
+ * Statuses that count as "closed" per entity. Requests have no cancelled state:
+ * a request leaves the funnel either converted into a project or rejected.
+ */
+const CLOSED_STATUSES = {
+  requests: ['converted', 'rejected'],
+  projects: ['done', 'cancelled'],
+  tasks: ['done', 'cancelled'],
+} as const;
+
+/**
+ * Keys ignored when listing what changed on an item. `updated_at` is rewritten on
+ * every save, `status` gets its own from/to summary, and the remaining keys identify
+ * the row rather than describe it.
+ */
+const CHANGE_NOISE_KEYS = ['updated_at', 'created_at', 'id', 'tenant_id', 'item_number', 'status'];
+
+/**
+ * KANAP vocabulary for `portfolio_projects.origin`. The exports have no i18n, so they
+ * carry the English labels the UI shows for the same values.
+ */
+const ORIGIN_EXPORT_LABELS: Record<string, string> = {
+  standard: 'Request',
+  fast_track: 'Fast-track',
+  legacy: 'Legacy',
+};
+
+/**
+ * Column shape of an export block. The three list keys mirror the on-screen lists;
+ * `all` is the single sheet the XLSX writes, where every event kind shares one table.
+ */
+type ExportShape = 'created' | 'modified' | 'closed' | 'all';
+
+/** Date columns of an export block, in order. */
+const dateHeaders = (shape: ExportShape): string[] => {
+  if (shape === 'created') return ['Created on'];
+  if (shape === 'modified') return ['Modified on'];
+  if (shape === 'closed') return ['Created on', 'Closed on'];
+  return ['Created on', 'Date'];
+};
+
+const dateCells = (row: WeeklyRowCommon, shape: ExportShape): SheetCellValue[] => {
+  if (shape === 'created') return [row.eventAt];
+  if (shape === 'modified') return [row.eventAt];
+  return [row.createdAt, row.eventAt];
+};
+
+const changeHeaders = (shape: ExportShape): string[] =>
+  shape === 'modified' || shape === 'all' ? ['Changes'] : [];
+
+const changeCells = (row: WeeklyRowCommon, shape: ExportShape): SheetCellValue[] =>
+  shape === 'modified' || shape === 'all' ? [formatChanges(row.changes)] : [];
+
+const BOM = '﻿';
 
 const xmlEscape = (value: unknown): string =>
   String(value ?? '')
@@ -172,28 +196,75 @@ const columnNumberToName = (columnNumber: number): string => {
   return name;
 };
 
-const toIsoDate = (value: string | Date | null): string | null => {
-  if (!value) return null;
-  const raw = value instanceof Date ? value.toISOString() : String(value);
-  return raw.slice(0, 10);
-};
-
 const toNumber = (value: number | string | null): number | null => {
   if (value == null) return null;
   const next = Number(value);
   return Number.isFinite(next) ? next : null;
 };
 
+const humanizeKey = (key: string): string =>
+  key
+    .replace(/_id$/, '')
+    .replace(/_/g, ' ')
+    .replace(/^\w/, (c) => c.toUpperCase());
+
+const humanizeStatus = (status: string): string =>
+  status.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+
+/** Human readable "Changes" cell for the exports. */
+const formatChanges = (changes: WeeklyChangeSummary | null): string => {
+  if (!changes) return '';
+  const parts: string[] = [];
+  if (changes.statusFrom && changes.statusTo) {
+    parts.push(`${humanizeStatus(changes.statusFrom)} -> ${humanizeStatus(changes.statusTo)}`);
+  }
+  changes.changedFields.forEach((key) => parts.push(humanizeKey(key)));
+  return parts.join(', ');
+};
+
+/** Raw shape shared by the three queries, before the entity specific columns. */
+type RawEventRow = {
+  record_id: string;
+  name: string | null;
+  item_number: number | string | null;
+  source_id: string | null;
+  source_name: string | null;
+  category_id: string | null;
+  category_name: string | null;
+  stream_id: string | null;
+  stream_name: string | null;
+  status: string | null;
+  live_created_day: string | null;
+  created_day: string | null;
+  modified_day: string | null;
+  closed_day: string | null;
+  update_count: number | string;
+  status_from: string | null;
+  status_to: string | null;
+  changed_fields: string[] | null;
+};
+
+type RawProjectEventRow = RawEventRow & {
+  priority: number | string | null;
+  progress: number | string | null;
+  origin_number: number | string | null;
+  origin_name: string | null;
+  origin_value: string | null;
+};
+
+type RawTaskEventRow = RawEventRow & {
+  priority: number | string | null;
+  task_type_id: string | null;
+  task_type_name: string | null;
+};
+
 @Injectable()
 export class PortfolioWeeklyReportService {
-  async list(
-    query: WeeklyReportQuery,
-    opts?: ServiceOpts,
-  ): Promise<{ projects: WeeklyProjectRow[]; tasks: WeeklyTaskRow[]; requests: WeeklyRequestRow[] }> {
-    const projects = await this.fetchProjectRows(query, opts);
-    const tasks = await this.fetchTaskRows(query, opts);
-    const requests = await this.fetchRequestRows(query, opts);
-    return { projects, tasks, requests };
+  async list(query: WeeklyReportQuery, opts?: ServiceOpts): Promise<WeeklyReportResult> {
+    const requests = await this.fetchRequestLists(query, opts);
+    const projects = await this.fetchProjectLists(query, opts);
+    const tasks = await this.fetchTaskLists(query, opts);
+    return { requests, projects, tasks };
   }
 
   async listFilterValues(tenantId: string, opts?: ServiceOpts): Promise<WeeklyFilterValues> {
@@ -271,66 +342,43 @@ export class PortfolioWeeklyReportService {
     };
   }
 
-  async exportCsv(
-    query: WeeklyReportQuery,
-    opts?: ServiceOpts,
-  ): Promise<ExportResult<string>> {
-    const { projects, tasks, requests } = await this.list(query, opts);
+  async exportCsv(query: WeeklyReportQuery, opts?: ServiceOpts): Promise<ExportResult<string>> {
+    const { requests, projects, tasks } = await this.list(query, opts);
 
     const lines: string[] = [];
-
     const addRow = (values: unknown[]) => {
       lines.push(values.map((value) => csvEscape(value)).join(';'));
     };
 
-    addRow(['Project Updates']);
-    addRow(['Project Name', 'Priority', 'Source', 'Category', 'Stream', 'Effort', 'Status', 'Created', 'Last Changed']);
-    projects.forEach((row) => {
-      addRow([
-        row.name,
-        row.priority ?? '',
-        row.sourceName ?? '',
-        row.categoryName ?? '',
-        row.streamName ?? '',
-        row.progress == null ? '' : `${Math.round(row.progress)}%`,
-        row.status,
-        row.createdAt ?? '',
-        row.lastChangedAt ?? '',
-      ]);
+    const addBlock = (heading: string, headers: string[], rows: SheetCellValue[][]) => {
+      if (lines.length > 0) lines.push('');
+      addRow([heading]);
+      addRow(headers);
+      rows.forEach((cells) => addRow(cells));
+    };
+
+    (['created', 'modified', 'closed'] as const).forEach((listKey) => {
+      addBlock(
+        `Requests ${listKey}`,
+        this.requestHeaders(listKey),
+        requests[listKey].map((row) => this.requestCells(row, listKey)),
+      );
     });
 
-    lines.push('');
-
-    addRow(['Task Activity']);
-    addRow(['Task Name', 'Task Type', 'Priority', 'Source', 'Category', 'Stream', 'Status', 'Created', 'Last Changed']);
-    tasks.forEach((row) => {
-      addRow([
-        row.name,
-        row.taskTypeName ?? '',
-        row.priority ?? '',
-        row.sourceName ?? '',
-        row.categoryName ?? '',
-        row.streamName ?? '',
-        row.status,
-        row.createdAt ?? '',
-        row.lastChangedAt ?? '',
-      ]);
+    (['created', 'modified', 'closed'] as const).forEach((listKey) => {
+      addBlock(
+        `Projects ${listKey}`,
+        this.projectHeaders(listKey),
+        projects[listKey].map((row) => this.projectCells(row, listKey)),
+      );
     });
 
-    lines.push('');
-
-    addRow(['Request Updates']);
-    addRow(['Request Name', 'Source', 'Category', 'Stream', 'Status', 'Created', 'Last Changed']);
-    requests.forEach((row) => {
-      addRow([
-        row.name,
-        row.sourceName ?? '',
-        row.categoryName ?? '',
-        row.streamName ?? '',
-        row.status,
-        row.createdAt ?? '',
-        row.lastChangedAt ?? '',
-      ]);
+    (['created', 'modified', 'closed'] as const).forEach((listKey) => {
+      addBlock(
+        `Tasks ${listKey}`,
+        this.taskHeaders(listKey),
+        tasks[listKey].map((row) => this.taskCells(row, listKey)),
+      );
     });
 
     return {
@@ -344,53 +392,42 @@ export class PortfolioWeeklyReportService {
     appBaseUrl: string | null,
     opts?: ServiceOpts,
   ): Promise<ExportResult<Buffer>> {
-    const { projects, tasks, requests } = await this.list(query, opts);
+    const { requests, projects, tasks } = await this.list(query, opts);
+
+    const eventLabel = { created: 'Created', modified: 'Modified', closed: 'Closed' } as const;
+    const listKeys = ['created', 'modified', 'closed'] as const;
 
     const content = this.buildXlsx(
       [
         {
+          name: 'Requests',
+          headers: ['Event', ...this.requestHeaders('all')],
+          rows: listKeys.flatMap((listKey) =>
+            requests[listKey].map((row) => ({
+              cells: [eventLabel[listKey], ...this.requestCells(row, 'all')] as SheetCellValue[],
+              linkPath: row.itemPath,
+            })),
+          ),
+        },
+        {
           name: 'Projects',
-          headers: ['Project Name', 'Priority', 'Source', 'Category', 'Stream', 'Effort', 'Status', 'Created', 'Last Changed'],
-          rows: projects.map((row) => ({
-            cells: [
-              row.name,
-              row.priority,
-              row.sourceName,
-              row.categoryName,
-              row.streamName,
-              row.progress == null ? null : `${Math.round(row.progress)}%`,
-              row.status,
-              row.createdAt,
-              row.lastChangedAt,
-            ],
-            linkPath: row.itemPath,
-          })),
+          headers: ['Event', ...this.projectHeaders('all')],
+          rows: listKeys.flatMap((listKey) =>
+            projects[listKey].map((row) => ({
+              cells: [eventLabel[listKey], ...this.projectCells(row, 'all')] as SheetCellValue[],
+              linkPath: row.itemPath,
+            })),
+          ),
         },
         {
           name: 'Tasks',
-          headers: ['Task Name', 'Task Type', 'Priority', 'Source', 'Category', 'Stream', 'Status', 'Created', 'Last Changed'],
-          rows: tasks.map((row) => ({
-            cells: [
-              row.name,
-              row.taskTypeName,
-              row.priority,
-              row.sourceName,
-              row.categoryName,
-              row.streamName,
-              row.status,
-              row.createdAt,
-              row.lastChangedAt,
-            ],
-            linkPath: row.itemPath,
-          })),
-        },
-        {
-          name: 'Requests',
-          headers: ['Request Name', 'Source', 'Category', 'Stream', 'Status', 'Created', 'Last Changed'],
-          rows: requests.map((row) => ({
-            cells: [row.name, row.sourceName, row.categoryName, row.streamName, row.status, row.createdAt, row.lastChangedAt],
-            linkPath: row.itemPath,
-          })),
+          headers: ['Event', ...this.taskHeaders('all')],
+          rows: listKeys.flatMap((listKey) =>
+            tasks[listKey].map((row) => ({
+              cells: [eventLabel[listKey], ...this.taskCells(row, 'all')] as SheetCellValue[],
+              linkPath: row.itemPath,
+            })),
+          ),
         },
       ],
       appBaseUrl,
@@ -402,96 +439,290 @@ export class PortfolioWeeklyReportService {
     };
   }
 
-  private async fetchProjectRows(
-    query: WeeklyReportQuery,
-    opts?: ServiceOpts,
-  ): Promise<WeeklyProjectRow[]> {
-    const mg = opts?.manager;
-    if (!mg) return [];
+  /* ---------------------------------------------------------------- */
+  /*  Export cell shapes                                              */
+  /* ---------------------------------------------------------------- */
 
-    const sourceIds = this.normalizeStringArray(query.sourceIds);
-    const categoryIds = this.normalizeStringArray(query.categoryIds);
-    const streamIds = this.normalizeStringArray(query.streamIds);
+  private requestHeaders(shape: ExportShape): string[] {
+    return [
+      'Reference',
+      'Request name',
+      'Source',
+      'Category',
+      'Stream',
+      'Status',
+      ...dateHeaders(shape),
+      ...changeHeaders(shape),
+    ];
+  }
 
-    const sqlParams: any[] = [
+  private requestCells(row: WeeklyRequestRow, shape: ExportShape): SheetCellValue[] {
+    return [
+      row.ref,
+      row.name,
+      row.sourceName,
+      row.categoryName,
+      row.streamName,
+      row.status,
+      ...dateCells(row, shape),
+      ...changeCells(row, shape),
+    ];
+  }
+
+  private projectHeaders(shape: ExportShape): string[] {
+    return [
+      'Reference',
+      'Project name',
+      'Origin',
+      'Priority',
+      'Source',
+      'Category',
+      'Stream',
+      'Effort',
+      'Status',
+      ...dateHeaders(shape),
+      ...changeHeaders(shape),
+    ];
+  }
+
+  private projectCells(row: WeeklyProjectRow, shape: ExportShape): SheetCellValue[] {
+    return [
+      row.ref,
+      row.name,
+      this.projectOriginLabel(row),
+      row.priority,
+      row.sourceName,
+      row.categoryName,
+      row.streamName,
+      row.progress == null ? null : `${Math.round(row.progress)}%`,
+      row.status,
+      ...dateCells(row, shape),
+      ...changeCells(row, shape),
+    ];
+  }
+
+  /** The request a project came from, or the KANAP label of its own origin value. */
+  private projectOriginLabel(row: WeeklyProjectRow): string {
+    if (row.origin) return `${row.origin.ref} ${row.origin.name}`.trim();
+    if (!row.originValue) return '';
+    return ORIGIN_EXPORT_LABELS[row.originValue] ?? humanizeStatus(row.originValue);
+  }
+
+  private taskHeaders(shape: ExportShape): string[] {
+    return [
+      'Reference',
+      'Task name',
+      'Task type',
+      'Priority',
+      'Source',
+      'Category',
+      'Stream',
+      'Status',
+      ...dateHeaders(shape),
+      ...changeHeaders(shape),
+    ];
+  }
+
+  private taskCells(row: WeeklyTaskRow, shape: ExportShape): SheetCellValue[] {
+    return [
+      row.ref,
+      row.name,
+      row.taskTypeName,
+      row.priority,
+      row.sourceName,
+      row.categoryName,
+      row.streamName,
+      row.status,
+      ...dateCells(row, shape),
+      ...changeCells(row, shape),
+    ];
+  }
+
+  /* ---------------------------------------------------------------- */
+  /*  Queries                                                         */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Audit CTEs shared by the three entity queries. Parameters are fixed:
+   * $1 tenant, $2 start day, $3 end day, $4 time zone, $5 closed statuses, $6 noise keys.
+   *
+   * An item counts as closed when the last status event of the period leaves it in a
+   * closed status. The creation event counts: a CSV import or an agent can create a task
+   * already done or a request already rejected, and such an item never gets an update to
+   * detect. Reading the last event also keeps an item reopened later out of the list.
+   */
+  private eventCtes(auditTable: string): string {
+    return `
+      period_events AS (
+        SELECT al.record_id, al.action, al.before_json, al.after_json, al.created_at, al.id
+        FROM audit_log al
+        WHERE al.tenant_id = $1
+          AND al.table_name = '${auditTable}'
+          AND al.record_id IS NOT NULL
+          AND al.action IN ('create', 'update')
+          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
+          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
+      ),
+      status_moves AS (
+        SELECT
+          pe.record_id,
+          pe.created_at,
+          pe.id,
+          pe.before_json->>'status' AS before_status,
+          pe.after_json->>'status' AS after_status
+        FROM period_events pe
+        WHERE pe.action = 'update'
+          AND pe.before_json->>'status' IS DISTINCT FROM pe.after_json->>'status'
+      ),
+      status_events AS (
+        SELECT pe.record_id, pe.created_at, pe.id, pe.after_json->>'status' AS after_status
+        FROM period_events pe
+        WHERE pe.action = 'create'
+           OR pe.before_json->>'status' IS DISTINCT FROM pe.after_json->>'status'
+      ),
+      status_event_last AS (
+        SELECT DISTINCT ON (se.record_id) se.record_id, se.created_at, se.after_status
+        FROM status_events se
+        ORDER BY se.record_id, se.created_at DESC, se.id DESC
+      ),
+      closing AS (
+        SELECT sel.record_id, sel.created_at AS closed_at
+        FROM status_event_last sel
+        WHERE sel.after_status = ANY($5::text[])
+      ),
+      status_first AS (
+        SELECT DISTINCT ON (sm.record_id) sm.record_id, sm.before_status
+        FROM status_moves sm
+        ORDER BY sm.record_id, sm.created_at ASC, sm.id ASC
+      ),
+      status_last AS (
+        SELECT DISTINCT ON (sm.record_id) sm.record_id, sm.after_status
+        FROM status_moves sm
+        ORDER BY sm.record_id, sm.created_at DESC, sm.id DESC
+      ),
+      changed_keys AS (
+        SELECT DISTINCT pe.record_id, keys.k
+        FROM period_events pe
+        CROSS JOIN LATERAL (
+          SELECT jsonb_object_keys(COALESCE(pe.before_json, '{}'::jsonb)) AS k
+          UNION
+          SELECT jsonb_object_keys(COALESCE(pe.after_json, '{}'::jsonb))
+        ) keys
+        WHERE pe.action = 'update'
+          AND (pe.before_json -> keys.k) IS DISTINCT FROM (pe.after_json -> keys.k)
+          AND NOT (keys.k = ANY($6::text[]))
+      ),
+      changed_keys_agg AS (
+        SELECT ck.record_id, array_agg(ck.k ORDER BY ck.k) AS changed_fields
+        FROM changed_keys ck
+        GROUP BY ck.record_id
+      ),
+      agg AS (
+        SELECT
+          pe.record_id,
+          MIN(pe.created_at) FILTER (WHERE pe.action = 'create') AS created_at,
+          MAX(pe.created_at) FILTER (WHERE pe.action = 'update') AS modified_at,
+          COUNT(*) FILTER (WHERE pe.action = 'update') AS update_count
+        FROM period_events pe
+        GROUP BY pe.record_id
+      )
+    `;
+  }
+
+  /** The event columns every entity query selects, given the live-row alias. */
+  private eventColumns(): string {
+    return `
+      (a.created_at AT TIME ZONE $4)::date::text AS created_day,
+      (a.modified_at AT TIME ZONE $4)::date::text AS modified_day,
+      (c.closed_at AT TIME ZONE $4)::date::text AS closed_day,
+      a.update_count,
+      sf.before_status AS status_from,
+      sl.after_status AS status_to,
+      COALESCE(cka.changed_fields, ARRAY[]::text[]) AS changed_fields
+    `;
+  }
+
+  private eventJoins(): string {
+    return `
+      LEFT JOIN closing c ON c.record_id = a.record_id
+      LEFT JOIN status_first sf ON sf.record_id = a.record_id
+      LEFT JOIN status_last sl ON sl.record_id = a.record_id
+      LEFT JOIN changed_keys_agg cka ON cka.record_id = a.record_id
+    `;
+  }
+
+  private baseParams(query: WeeklyReportQuery, closedStatuses: readonly string[]): any[] {
+    return [
       query.tenantId,
       query.startDate,
       query.endDate,
       normalizeReportTimeZone(query.timeZone),
+      [...closedStatuses],
+      CHANGE_NOISE_KEYS,
     ];
-    const filters: string[] = [];
+  }
 
-    if (sourceIds.length > 0) {
-      sqlParams.push(sourceIds);
-      filters.push(`p.source_id::text = ANY($${sqlParams.length}::text[])`);
-    }
-    if (categoryIds.length > 0) {
-      sqlParams.push(categoryIds);
-      filters.push(`p.category_id::text = ANY($${sqlParams.length}::text[])`);
-    }
-    if (streamIds.length > 0) {
-      sqlParams.push(streamIds);
-      filters.push(`p.stream_id::text = ANY($${sqlParams.length}::text[])`);
-    }
+  private async fetchRequestLists(
+    query: WeeklyReportQuery,
+    opts?: ServiceOpts,
+  ): Promise<WeeklyLists<WeeklyRequestRow>> {
+    const mg = opts?.manager;
+    if (!mg) return { created: [], modified: [], closed: [] };
 
-    const whereSql = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+    const sqlParams = this.baseParams(query, CLOSED_STATUSES.requests);
+    const whereSql = this.buildFilterSql(sqlParams, 'r', query, { taskTypes: false });
 
-    const rows = await mg.query(
+    const rows: RawEventRow[] = await mg.query(
       `
-      WITH project_events AS (
-        SELECT
-          al.record_id AS project_id,
-          al.after_json->>'status' AS status,
-          al.created_at,
-          al.id
-        FROM audit_log al
-        WHERE al.tenant_id = $1
-          AND al.table_name = 'portfolio_projects'
-          AND al.record_id IS NOT NULL
-          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
-          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
-          AND (
-            (
-              al.action = 'update'
-              AND al.before_json->>'status' IS NOT NULL
-              AND al.after_json->>'status' IS NOT NULL
-              AND al.before_json->>'status' IS DISTINCT FROM al.after_json->>'status'
-            )
-            OR al.action = 'create'
-          )
-      ),
-      created_events AS (
-        SELECT al.record_id AS project_id, MIN(al.created_at) AS created_at
-        FROM audit_log al
-        WHERE al.tenant_id = $1
-          AND al.table_name = 'portfolio_projects'
-          AND al.action = 'create'
-          AND al.record_id IS NOT NULL
-          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
-          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
-        GROUP BY al.record_id
-      ),
-      latest_events AS (
-        SELECT
-          e.project_id,
-          e.status,
-          (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at,
-          (ce.created_at AT TIME ZONE $4)::date::text AS created_at
-        FROM (
-          SELECT
-            pe.*,
-            ROW_NUMBER() OVER (
-              PARTITION BY pe.project_id
-              ORDER BY pe.created_at DESC, pe.id DESC
-            ) AS rn
-          FROM project_events pe
-        ) e
-        LEFT JOIN created_events ce ON ce.project_id = e.project_id
-        WHERE e.rn = 1
-      )
+      WITH ${this.eventCtes('portfolio_requests')}
       SELECT
-        p.id AS project_id,
+        r.id AS record_id,
+        r.name,
+        r.item_number,
+        r.source_id,
+        ps.name AS source_name,
+        r.category_id,
+        pc.name AS category_name,
+        r.stream_id,
+        pst.name AS stream_name,
+        r.status,
+        (r.created_at AT TIME ZONE $4)::date::text AS live_created_day,
+        ${this.eventColumns()}
+      FROM agg a
+      JOIN portfolio_requests r ON r.id = a.record_id AND r.tenant_id = $1
+      ${this.eventJoins()}
+      LEFT JOIN portfolio_sources ps ON ps.id = r.source_id AND ps.tenant_id = r.tenant_id
+      LEFT JOIN portfolio_categories pc ON pc.id = r.category_id AND pc.tenant_id = r.tenant_id
+      LEFT JOIN portfolio_streams pst ON pst.id = r.stream_id AND pst.tenant_id = r.tenant_id
+      ${whereSql}
+      ORDER BY r.priority_score DESC NULLS LAST, r.name ASC
+      `,
+      sqlParams,
+    );
+
+    return this.bucket(rows, (row, listKey) => ({
+      requestId: row.record_id,
+      ...this.commonFields(row, listKey, 'REQ', '/portfolio/requests', 'summary'),
+    }));
+  }
+
+  private async fetchProjectLists(
+    query: WeeklyReportQuery,
+    opts?: ServiceOpts,
+  ): Promise<WeeklyLists<WeeklyProjectRow>> {
+    const mg = opts?.manager;
+    if (!mg) return { created: [], modified: [], closed: [] };
+
+    const sqlParams = this.baseParams(query, CLOSED_STATUSES.projects);
+    const whereSql = this.buildFilterSql(sqlParams, 'p', query, { taskTypes: false });
+
+    const rows: RawProjectEventRow[] = await mg.query(
+      `
+      WITH ${this.eventCtes('portfolio_projects')}
+      SELECT
+        p.id AS record_id,
         p.name,
+        p.item_number,
         p.priority_score::numeric AS priority,
         p.source_id,
         ps.name AS source_name,
@@ -500,134 +731,68 @@ export class PortfolioWeeklyReportService {
         p.stream_id,
         pst.name AS stream_name,
         p.execution_progress::numeric AS progress,
-        COALESCE(le.status, p.status) AS status,
-        le.created_at,
-        le.last_changed_at
-      FROM latest_events le
-      JOIN portfolio_projects p ON p.id = le.project_id AND p.tenant_id = $1
+        p.status,
+        og.origin_number,
+        og.origin_name,
+        p.origin AS origin_value,
+        (p.created_at AT TIME ZONE $4)::date::text AS live_created_day,
+        ${this.eventColumns()}
+      FROM agg a
+      JOIN portfolio_projects p ON p.id = a.record_id AND p.tenant_id = $1
+      ${this.eventJoins()}
       LEFT JOIN portfolio_sources ps ON ps.id = p.source_id AND ps.tenant_id = p.tenant_id
       LEFT JOIN portfolio_categories pc ON pc.id = p.category_id AND pc.tenant_id = p.tenant_id
       LEFT JOIN portfolio_streams pst ON pst.id = p.stream_id AND pst.tenant_id = p.tenant_id
+      LEFT JOIN LATERAL (
+        SELECT req.item_number AS origin_number, req.name AS origin_name
+        FROM portfolio_request_projects rp
+        JOIN portfolio_requests req ON req.id = rp.request_id AND req.tenant_id = $1
+        WHERE rp.project_id = p.id AND rp.tenant_id = $1
+        ORDER BY rp.created_at ASC
+        LIMIT 1
+      ) og ON TRUE
       ${whereSql}
       ORDER BY p.priority_score DESC NULLS LAST, p.name ASC
       `,
       sqlParams,
     );
 
-    return (rows as RawProjectRow[]).map((row) => ({
-      projectId: row.project_id,
-      itemPath: `/portfolio/projects/${row.project_id}/overview`,
-      name: row.name ?? '',
+    return this.bucket(rows, (row, listKey) => ({
+      projectId: row.record_id,
+      ...this.commonFields(row, listKey, 'PRJ', '/portfolio/projects', 'summary'),
       priority: toNumber(row.priority),
-      sourceId: row.source_id ?? null,
-      sourceName: row.source_name ?? null,
-      categoryId: row.category_id ?? null,
-      categoryName: row.category_name ?? null,
-      streamId: row.stream_id ?? null,
-      streamName: row.stream_name ?? null,
       progress: toNumber(row.progress),
-      status: row.status ?? '',
-      createdAt: toIsoDate(row.created_at),
-      lastChangedAt: toIsoDate(row.last_changed_at),
+      origin:
+        row.origin_number == null
+          ? null
+          : {
+              ref: `REQ-${row.origin_number}`,
+              name: row.origin_name ?? '',
+              itemPath: `/portfolio/requests/REQ-${row.origin_number}/summary`,
+            },
+      originValue: row.origin_value ?? null,
     }));
   }
 
-  private async fetchTaskRows(
+  private async fetchTaskLists(
     query: WeeklyReportQuery,
     opts?: ServiceOpts,
-  ): Promise<WeeklyTaskRow[]> {
+  ): Promise<WeeklyLists<WeeklyTaskRow>> {
     const mg = opts?.manager;
-    if (!mg) return [];
+    if (!mg) return { created: [], modified: [], closed: [] };
 
-    const sourceIds = this.normalizeStringArray(query.sourceIds);
-    const categoryIds = this.normalizeStringArray(query.categoryIds);
-    const streamIds = this.normalizeStringArray(query.streamIds);
-    const taskTypeIds = this.normalizeStringArray(query.taskTypeIds);
+    const sqlParams = this.baseParams(query, CLOSED_STATUSES.tasks);
+    const whereSql = this.buildFilterSql(sqlParams, 't', query, { taskTypes: true }, [
+      `(t.related_object_type IS NULL OR t.related_object_type = 'project')`,
+    ]);
 
-    const sqlParams: any[] = [
-      query.tenantId,
-      query.startDate,
-      query.endDate,
-      normalizeReportTimeZone(query.timeZone),
-    ];
-    const filters: string[] = [];
-
-    if (taskTypeIds.length > 0) {
-      sqlParams.push(taskTypeIds);
-      filters.push(`t.task_type_id::text = ANY($${sqlParams.length}::text[])`);
-    }
-    if (sourceIds.length > 0) {
-      sqlParams.push(sourceIds);
-      filters.push(`t.source_id::text = ANY($${sqlParams.length}::text[])`);
-    }
-    if (categoryIds.length > 0) {
-      sqlParams.push(categoryIds);
-      filters.push(`t.category_id::text = ANY($${sqlParams.length}::text[])`);
-    }
-    if (streamIds.length > 0) {
-      sqlParams.push(streamIds);
-      filters.push(`t.stream_id::text = ANY($${sqlParams.length}::text[])`);
-    }
-
-    const whereSql = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
-
-    const rows = await mg.query(
+    const rows: RawTaskEventRow[] = await mg.query(
       `
-      WITH task_events AS (
-        SELECT
-          al.record_id AS task_id,
-          al.after_json->>'status' AS status,
-          al.created_at,
-          al.id
-        FROM audit_log al
-        WHERE al.tenant_id = $1
-          AND al.table_name = 'tasks'
-          AND al.record_id IS NOT NULL
-          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
-          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
-          AND (
-            (
-              al.action = 'update'
-              AND al.after_json->>'status' IN ('done', 'cancelled')
-              AND al.before_json->>'status' IS NOT NULL
-              AND al.after_json->>'status' IS NOT NULL
-              AND al.before_json->>'status' IS DISTINCT FROM al.after_json->>'status'
-            )
-            OR (al.action = 'create' AND al.after_json->>'status' IS NOT NULL)
-          )
-      ),
-      created_events AS (
-        SELECT al.record_id AS task_id, MIN(al.created_at) AS created_at
-        FROM audit_log al
-        WHERE al.tenant_id = $1
-          AND al.table_name = 'tasks'
-          AND al.action = 'create'
-          AND al.record_id IS NOT NULL
-          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
-          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
-        GROUP BY al.record_id
-      ),
-      latest_events AS (
-        SELECT
-          e.task_id,
-          e.status,
-          (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at,
-          (ce.created_at AT TIME ZONE $4)::date::text AS created_at
-        FROM (
-          SELECT
-            te.*,
-            ROW_NUMBER() OVER (
-              PARTITION BY te.task_id
-              ORDER BY te.created_at DESC, te.id DESC
-            ) AS rn
-          FROM task_events te
-        ) e
-        LEFT JOIN created_events ce ON ce.task_id = e.task_id
-        WHERE e.rn = 1
-      )
+      WITH ${this.eventCtes('tasks')}
       SELECT
-        t.id AS task_id,
+        t.id AS record_id,
         t.title AS name,
+        t.item_number,
         pt.id AS task_type_id,
         pt.name AS task_type_name,
         CASE t.priority_level
@@ -644,11 +809,12 @@ export class PortfolioWeeklyReportService {
         pc.name AS category_name,
         t.stream_id,
         pst.name AS stream_name,
-        le.status,
-        le.created_at,
-        le.last_changed_at
-      FROM latest_events le
-      JOIN tasks t ON t.id = le.task_id AND t.tenant_id = $1
+        t.status,
+        (t.created_at AT TIME ZONE $4)::date::text AS live_created_day,
+        ${this.eventColumns()}
+      FROM agg a
+      JOIN tasks t ON t.id = a.record_id AND t.tenant_id = $1
+      ${this.eventJoins()}
       LEFT JOIN portfolio_task_types pt ON pt.id = t.task_type_id AND pt.tenant_id = t.tenant_id
       LEFT JOIN portfolio_sources ps ON ps.id = t.source_id AND ps.tenant_id = t.tenant_id
       LEFT JOIN portfolio_categories pc ON pc.id = t.category_id AND pc.tenant_id = t.tenant_id
@@ -659,138 +825,33 @@ export class PortfolioWeeklyReportService {
       sqlParams,
     );
 
-    return (rows as RawTaskRow[]).map((row) => ({
-      taskId: row.task_id,
-      itemPath: `/portfolio/tasks/${row.task_id}/overview`,
-      name: row.name ?? '',
+    return this.bucket(rows, (row, listKey) => ({
+      taskId: row.record_id,
+      ...this.commonFields(row, listKey, 'T', '/portfolio/tasks', 'overview'),
       taskTypeId: row.task_type_id ?? null,
       taskTypeName: row.task_type_name ?? null,
       priority: toNumber(row.priority),
-      sourceId: row.source_id ?? null,
-      sourceName: row.source_name ?? null,
-      categoryId: row.category_id ?? null,
-      categoryName: row.category_name ?? null,
-      streamId: row.stream_id ?? null,
-      streamName: row.stream_name ?? null,
-      status: row.status ?? '',
-      createdAt: toIsoDate(row.created_at),
-      lastChangedAt: toIsoDate(row.last_changed_at),
     }));
   }
 
-  private async fetchRequestRows(
-    query: WeeklyReportQuery,
-    opts?: ServiceOpts,
-  ): Promise<WeeklyRequestRow[]> {
-    const mg = opts?.manager;
-    if (!mg) return [];
+  /* ---------------------------------------------------------------- */
+  /*  Row shaping                                                     */
+  /* ---------------------------------------------------------------- */
 
-    const sourceIds = this.normalizeStringArray(query.sourceIds);
-    const categoryIds = this.normalizeStringArray(query.categoryIds);
-    const streamIds = this.normalizeStringArray(query.streamIds);
+  private commonFields(
+    row: RawEventRow,
+    listKey: 'created' | 'modified' | 'closed',
+    prefix: string,
+    routeBase: string,
+    tab: string,
+  ): WeeklyRowCommon {
+    const ref = row.item_number == null ? '' : `${prefix}-${row.item_number}`;
+    const eventAt =
+      listKey === 'created' ? row.created_day : listKey === 'closed' ? row.closed_day : row.modified_day;
 
-    const sqlParams: any[] = [
-      query.tenantId,
-      query.startDate,
-      query.endDate,
-      normalizeReportTimeZone(query.timeZone),
-    ];
-    const filters: string[] = [];
-
-    if (sourceIds.length > 0) {
-      sqlParams.push(sourceIds);
-      filters.push(`r.source_id::text = ANY($${sqlParams.length}::text[])`);
-    }
-    if (categoryIds.length > 0) {
-      sqlParams.push(categoryIds);
-      filters.push(`r.category_id::text = ANY($${sqlParams.length}::text[])`);
-    }
-    if (streamIds.length > 0) {
-      sqlParams.push(streamIds);
-      filters.push(`r.stream_id::text = ANY($${sqlParams.length}::text[])`);
-    }
-
-    const whereSql = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
-
-    const rows = await mg.query(
-      `
-      WITH request_events AS (
-        SELECT
-          al.record_id AS request_id,
-          al.after_json->>'status' AS status,
-          al.created_at,
-          al.id
-        FROM audit_log al
-        WHERE al.tenant_id = $1
-          AND al.table_name = 'portfolio_requests'
-          AND al.record_id IS NOT NULL
-          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
-          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
-          AND (
-            (
-              al.action = 'update'
-              AND al.before_json->>'status' IS NOT NULL
-              AND al.after_json->>'status' IS NOT NULL
-              AND al.before_json->>'status' IS DISTINCT FROM al.after_json->>'status'
-            )
-            OR al.action = 'create'
-          )
-      ),
-      created_events AS (
-        SELECT al.record_id AS request_id, MIN(al.created_at) AS created_at
-        FROM audit_log al
-        WHERE al.tenant_id = $1
-          AND al.table_name = 'portfolio_requests'
-          AND al.action = 'create'
-          AND al.record_id IS NOT NULL
-          AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
-          AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
-        GROUP BY al.record_id
-      ),
-      latest_events AS (
-        SELECT
-          e.request_id,
-          e.status,
-          (e.created_at AT TIME ZONE $4)::date::text AS last_changed_at,
-          (ce.created_at AT TIME ZONE $4)::date::text AS created_at
-        FROM (
-          SELECT
-            re.*,
-            ROW_NUMBER() OVER (
-              PARTITION BY re.request_id
-              ORDER BY re.created_at DESC, re.id DESC
-            ) AS rn
-          FROM request_events re
-        ) e
-        LEFT JOIN created_events ce ON ce.request_id = e.request_id
-        WHERE e.rn = 1
-      )
-      SELECT
-        r.id AS request_id,
-        r.name,
-        r.source_id,
-        ps.name AS source_name,
-        r.category_id,
-        pc.name AS category_name,
-        r.stream_id,
-        pst.name AS stream_name,
-        COALESCE(le.status, r.status) AS status,
-        le.created_at,
-        le.last_changed_at
-      FROM latest_events le
-      JOIN portfolio_requests r ON r.id = le.request_id AND r.tenant_id = $1
-      LEFT JOIN portfolio_sources ps ON ps.id = r.source_id AND ps.tenant_id = r.tenant_id
-      LEFT JOIN portfolio_categories pc ON pc.id = r.category_id AND pc.tenant_id = r.tenant_id
-      LEFT JOIN portfolio_streams pst ON pst.id = r.stream_id AND pst.tenant_id = r.tenant_id
-      ${whereSql}
-      ORDER BY r.priority_score DESC NULLS LAST, r.name ASC
-      `,
-      sqlParams,
-    );
-
-    return (rows as RawRequestRow[]).map((row) => ({
-      requestId: row.request_id,
-      itemPath: `/portfolio/requests/${row.request_id}/summary`,
+    return {
+      ref,
+      itemPath: `${routeBase}/${ref || row.record_id}/${tab}`,
       name: row.name ?? '',
       sourceId: row.source_id ?? null,
       sourceName: row.source_name ?? null,
@@ -799,9 +860,68 @@ export class PortfolioWeeklyReportService {
       streamId: row.stream_id ?? null,
       streamName: row.stream_name ?? null,
       status: row.status ?? '',
-      createdAt: toIsoDate(row.created_at),
-      lastChangedAt: toIsoDate(row.last_changed_at),
-    }));
+      createdAt: row.live_created_day,
+      eventAt,
+      changes:
+        listKey === 'modified'
+          ? {
+              statusFrom: row.status_from ?? null,
+              statusTo: row.status_to ?? null,
+              changedFields: row.changed_fields ?? [],
+            }
+          : null,
+    };
+  }
+
+  /**
+   * Split the queried rows into the three lists. An item created and closed inside the
+   * same period appears in both, and never in modified: modified is what is left.
+   */
+  private bucket<TRaw extends RawEventRow, TRow>(
+    rows: TRaw[],
+    build: (row: TRaw, listKey: 'created' | 'modified' | 'closed') => TRow,
+  ): WeeklyLists<TRow> {
+    const lists: WeeklyLists<TRow> = { created: [], modified: [], closed: [] };
+
+    rows.forEach((row) => {
+      const isCreated = Boolean(row.created_day);
+      const isClosed = Boolean(row.closed_day);
+      if (isCreated) lists.created.push(build(row, 'created'));
+      if (isClosed) lists.closed.push(build(row, 'closed'));
+      if (!isCreated && !isClosed && Number(row.update_count) > 0) {
+        lists.modified.push(build(row, 'modified'));
+      }
+    });
+
+    return lists;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /*  Helpers                                                         */
+  /* ---------------------------------------------------------------- */
+
+  private buildFilterSql(
+    sqlParams: any[],
+    alias: string,
+    query: WeeklyReportQuery,
+    opts: { taskTypes: boolean },
+    extraFilters: string[] = [],
+  ): string {
+    const filters = [...extraFilters];
+
+    const push = (values: string[] | undefined, column: string) => {
+      const normalized = this.normalizeStringArray(values);
+      if (normalized.length === 0) return;
+      sqlParams.push(normalized);
+      filters.push(`${alias}.${column}::text = ANY($${sqlParams.length}::text[])`);
+    };
+
+    if (opts.taskTypes) push(query.taskTypeIds, 'task_type_id');
+    push(query.sourceIds, 'source_id');
+    push(query.categoryIds, 'category_id');
+    push(query.streamIds, 'stream_id');
+
+    return filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
   }
 
   private normalizeStringArray(values?: string[]): string[] {
@@ -864,7 +984,7 @@ export class PortfolioWeeklyReportService {
         if (target) {
           hyperlinkIndex += 1;
           const relId = `rId${hyperlinkIndex}`;
-          const nameCellRef = `A${rowNumber}`;
+          const nameCellRef = `B${rowNumber}`;
           hyperlinks.push(`<hyperlink ref="${nameCellRef}" r:id="${relId}"/>`);
           hyperlinkRels.push(
             `<Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${xmlEscape(target)}" TargetMode="External"/>`,

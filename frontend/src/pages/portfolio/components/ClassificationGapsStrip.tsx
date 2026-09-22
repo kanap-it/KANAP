@@ -71,7 +71,7 @@ export default function ClassificationGapsStrip({ data }: { data: Classification
         {t('reports.toClassify.title')}
       </Typography>
       {rows.length === 0 ? (
-        <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.tertiary' }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
           {t('reports.toClassify.allClassified')}
         </Typography>
       ) : (
@@ -94,7 +94,9 @@ export default function ClassificationGapsStrip({ data }: { data: Classification
                       {figure.label}
                     </Typography>
                   ) : (
-                    <Typography key={figure.key} sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.tertiary' }}>{figure.label}</Typography>
+                    // A zero still has to be readable: secondary ink, not tertiary, which
+                    // falls under the readable contrast on the dark strip surface.
+                    <Typography key={figure.key} sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>{figure.label}</Typography>
                   ),
                 ])}
               </Box>

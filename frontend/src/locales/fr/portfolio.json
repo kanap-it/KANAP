@@ -773,7 +773,9 @@
           "stream": "Filière",
           "taskType": "Type de tâche",
           "timeLogged": "Temps enregistré",
-          "title": "Titre"
+          "title": "Titre",
+          "owners": "Responsables",
+          "viewers": "Observateurs"
         },
         "values": {
           "empty": "(vide)",
@@ -1094,7 +1096,7 @@
       },
       "weekly": {
         "title": "Rapport hebdomadaire",
-        "description": "Synthèse hebdomadaire des mises à jour de projets, de l'activité des tâches et des changements de demandes."
+        "description": "Demandes, projets et tâches créés, modifiés et clôturés sur une période."
       }
     },
     "itemTypes": {
@@ -1222,7 +1224,7 @@
     },
     "weekly": {
       "title": "Rapport hebdomadaire",
-      "subtitle": "Synthèse hebdomadaire pour les parties prenantes : mises à jour de projets, activité des tâches et changements de demandes.",
+      "subtitle": "Demandes, projets et tâches sur la période : ce qui a été créé, modifié et clôturé.",
       "filters": {
         "startDate": "Date de début",
         "endDate": "Date de fin",
@@ -1246,33 +1248,60 @@
         "loadFailed": "Échec du chargement des données du rapport.",
         "exportFailed": "Échec de l'export"
       },
-      "summary": {
-        "projectUpdates_one": "{{count}} mise à jour de projet",
-        "projectUpdates_other": "{{count}} mises à jour de projets",
-        "tasksCreated_one": "{{count}} tâche créée",
-        "tasksCreated_other": "{{count}} tâches créées",
-        "tasksClosed_one": "{{count}} clôturée",
-        "tasksClosed_other": "{{count}} clôturées",
-        "requestUpdates_one": "{{count}} mise à jour de demande",
-        "requestUpdates_other": "{{count}} mises à jour de demandes"
-      },
       "sections": {
-        "projectUpdates": "Mises à jour de projets",
-        "taskActivity": "Activité des tâches",
-        "requestUpdates": "Mises à jour de demandes"
+        "requests": "Demandes",
+        "projects": "Projets",
+        "tasks": "Tâches"
+      },
+      "lists": {
+        "created": "Créations",
+        "modified": "Modifications",
+        "closed": "Clôtures"
+      },
+      "summary": {
+        "created_one": "{{count}} création",
+        "created_other": "{{count}} créations",
+        "modified_one": "{{count}} modification",
+        "modified_other": "{{count}} modifications",
+        "closed_one": "{{count}} clôture",
+        "closed_other": "{{count}} clôtures"
+      },
+      "empty": {
+        "requests": {
+          "created": "Aucune demande créée sur cette période.",
+          "modified": "Aucune demande modifiée sur cette période.",
+          "closed": "Aucune demande clôturée sur cette période."
+        },
+        "projects": {
+          "created": "Aucun projet créé sur cette période.",
+          "modified": "Aucun projet modifié sur cette période.",
+          "closed": "Aucun projet clôturé sur cette période."
+        },
+        "tasks": {
+          "created": "Aucune tâche créée sur cette période.",
+          "modified": "Aucune tâche modifiée sur cette période.",
+          "closed": "Aucune tâche clôturée sur cette période."
+        }
       },
       "columns": {
+        "reference": "Référence",
+        "requestName": "Nom de la demande",
         "projectName": "Nom du projet",
         "taskName": "Nom de la tâche",
-        "requestName": "Nom de la demande",
         "taskType": "Type de tâche",
+        "origin": "Origine",
         "priority": "Priorité",
         "source": "Source",
         "category": "Catégorie",
         "stream": "Filière",
         "progress": "Charge",
         "status": "Statut",
-        "created": "Créé le"
+        "changes": "Modifications",
+        "date": {
+          "created": "Créé le",
+          "modified": "Modifié le",
+          "closed": "Clôturé le"
+        }
       }
     }
   },
@@ -1530,7 +1559,10 @@
         "targetDeliveryDate": "Date de livraison cible",
         "taskCreated": "Tâche créée",
         "itTeam": "Équipe IT",
-        "businessEffortAllocationMode": "Mode de ventilation de la charge métier"
+        "businessEffortAllocationMode": "Mode de ventilation de la charge métier",
+        "actualStart": "Début réel",
+        "actualEnd": "Fin réelle",
+        "convertedDate": "Converti le"
       },
       "values": {
         "allDimensionsNotAssessed": "Toutes les dimensions non évaluées",

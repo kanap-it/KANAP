@@ -7,7 +7,6 @@ import {
   CircularProgress,
   ListItemText,
   MenuItem,
-  Paper,
   Stack,
   TextField,
   Typography,
@@ -16,8 +15,16 @@ import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import ReportLayout from '../../components/reports/ReportLayout';
+import ReportLayout, {
+  ReportFilter,
+  reportFilterMenuProps,
+  reportFilterSelectSx,
+  reportGridHeight,
+  useFillViewportHeight,
+} from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
+import DateEUField from '../../components/fields/DateEUField';
+import { drawerDatePickerSx, drawerMenuItemSx } from '../../theme/formSx';
 import api from '../../api';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../i18n/useLocale';
@@ -71,8 +78,11 @@ const getDefaultStartDate = (): string => {
   return toIsoDate(date);
 };
 
-const humanize = (value: string): string =>
-  value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+// Sentence case, never Title Case: only the first letter of the whole label is raised.
+const humanize = (value: string): string => {
+  const words = value.replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
 
 const parseFilename = (contentDisposition: string | undefined, fallback: string): string => {
   if (!contentDisposition) return fallback;
@@ -130,6 +140,7 @@ export default function StatusChangeReport() {
   const [exportingFormat, setExportingFormat] = useState<'csv' | 'xlsx' | null>(null);
 
   const isValidPeriod = Boolean(startDate && endDate && startDate <= endDate);
+  const { ref: gridRef, height: fillHeight } = useFillViewportHeight();
 
   const { data: filterValuesData, isPlaceholderData: isStaleFilterValues } = useQuery<FilterValuesResponse>({
     queryKey: ['portfolio-status-change-filter-values', startDate, endDate, itemTypes],
@@ -370,168 +381,181 @@ export default function StatusChangeReport() {
       rootLabel={t('reports.title')}
       filters={(
         <>
-          <TextField
+          <DateEUField
             label={t('reports.statusChange.filters.startDate')}
-            type="date"
-            size="small"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            InputLabelProps={{ shrink: true }}
+            valueYmd={startDate}
+            onChangeYmd={setStartDate}
+            sx={{ width: 160 }}
+            textFieldSx={drawerDatePickerSx}
           />
-          <TextField
+          <DateEUField
             label={t('reports.statusChange.filters.endDate')}
-            type="date"
-            size="small"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            InputLabelProps={{ shrink: true }}
+            valueYmd={endDate}
+            onChangeYmd={setEndDate}
+            sx={{ width: 160 }}
+            textFieldSx={drawerDatePickerSx}
           />
-          <TextField
-            select
-            size="small"
-            label={t('reports.statusChange.filters.status')}
-            value={statuses}
-            SelectProps={{
-              multiple: true,
-              renderValue: (selected) => {
-                const values = selected as string[];
-                if (values.length === 0) return t('reports.statusChange.filters.allStatuses');
-                return values.map((status) => getStatusLabel(status)).join(', ');
-              },
-            }}
-            onChange={(e) => {
-              const next = e.target.value as unknown as string[];
-              setStatuses(Array.isArray(next) ? next : [next]);
-            }}
-            sx={{ minWidth: 220 }}
-          >
-            {statusOptions.map((status) => (
-              <MenuItem key={status} value={status}>
-                <Checkbox checked={statuses.includes(status)} />
-                <ListItemText primary={getStatusLabel(status)} />
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label={t('reports.statusChange.filters.itemType')}
-            value={itemTypes}
-            SelectProps={{
-              multiple: true,
-              renderValue: (selected) => {
-                const values = selected as StatusChangeItemType[];
-                if (values.length === 0) return t('reports.statusChange.filters.allItemTypes');
-                return values
-                  .map((value) => itemTypeOptionByValue.get(value)?.label || value)
-                  .join(', ');
-              },
-            }}
-            onChange={(e) => {
-              const next = e.target.value as unknown as StatusChangeItemType[];
-              setItemTypes(Array.isArray(next) ? next : [next]);
-            }}
-            sx={{ minWidth: 220 }}
-          >
-            {itemTypeOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                <Checkbox checked={itemTypes.includes(option.value)} />
-                <ListItemText primary={option.label} />
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label={t('reports.statusChange.filters.source')}
-            value={sourceIds}
-            SelectProps={{
-              multiple: true,
-              renderValue: (selected) => {
-                const values = selected as string[];
-                if (values.length === 0) return t('reports.statusChange.filters.allSources');
-                return values
-                  .map((id) => sourceOptionById.get(id)?.name || id)
-                  .join(', ');
-              },
-            }}
-            onChange={(e) => {
-              const next = e.target.value as unknown as string[];
-              setSourceIds(Array.isArray(next) ? next : [next]);
-            }}
-            sx={{ minWidth: 220 }}
-          >
-            {sourceOptions.map((option) => (
-              <MenuItem key={option.id} value={option.id}>
-                <Checkbox checked={sourceIds.includes(option.id)} />
-                <ListItemText primary={option.name} />
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label={t('reports.statusChange.filters.category')}
-            value={categoryIds}
-            SelectProps={{
-              multiple: true,
-              renderValue: (selected) => {
-                const values = selected as string[];
-                if (values.length === 0) return t('reports.statusChange.filters.allCategories');
-                return values
-                  .map((id) => categoryOptionById.get(id)?.name || id)
-                  .join(', ');
-              },
-            }}
-            onChange={(e) => {
-              const next = e.target.value as unknown as string[];
-              setCategoryIds(Array.isArray(next) ? next : [next]);
-            }}
-            sx={{ minWidth: 230 }}
-          >
-            {categoryOptions.map((option) => (
-              <MenuItem key={option.id} value={option.id}>
-                <Checkbox checked={categoryIds.includes(option.id)} />
-                <ListItemText primary={option.name} />
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label={t('reports.statusChange.filters.stream')}
-            value={streamIds}
-            disabled={categoryIds.length === 0}
-            SelectProps={{
-              multiple: true,
-              renderValue: (selected) => {
-                const values = selected as string[];
-                if (values.length === 0) return t('reports.statusChange.filters.allStreams');
-                return values
-                  .map((id) => streamOptionById.get(id)?.name || id)
-                  .join(', ');
-              },
-            }}
-            onChange={(e) => {
-              const next = e.target.value as unknown as string[];
-              setStreamIds(Array.isArray(next) ? next : [next]);
-            }}
-            sx={{ minWidth: 220 }}
-          >
-            {scopedStreamOptions.map((option) => (
-              <MenuItem key={option.id} value={option.id}>
-                <Checkbox checked={streamIds.includes(option.id)} />
-                <ListItemText primary={option.name} />
-              </MenuItem>
-            ))}
-          </TextField>
+          <ReportFilter label={t('reports.statusChange.filters.status')}>
+            <TextField
+              select
+              size="small"
+              value={statuses}
+              SelectProps={{
+                multiple: true,
+                displayEmpty: true,
+                MenuProps: reportFilterMenuProps,
+                renderValue: (selected) => {
+                  const values = selected as string[];
+                  if (values.length === 0) return t('reports.statusChange.filters.allStatuses');
+                  return values.map((status) => getStatusLabel(status)).join(', ');
+                },
+              }}
+              onChange={(e) => {
+                const next = e.target.value as unknown as string[];
+                setStatuses(Array.isArray(next) ? next : [next]);
+              }}
+              sx={reportFilterSelectSx}
+            >
+              {statusOptions.map((status) => (
+                <MenuItem key={status} value={status} sx={drawerMenuItemSx}>
+                  <Checkbox size="small" checked={statuses.includes(status)} />
+                  <ListItemText primary={getStatusLabel(status)} primaryTypographyProps={{ fontSize: 13 }} />
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
+          <ReportFilter label={t('reports.statusChange.filters.itemType')}>
+            <TextField
+              select
+              size="small"
+              value={itemTypes}
+              SelectProps={{
+                multiple: true,
+                displayEmpty: true,
+                MenuProps: reportFilterMenuProps,
+                renderValue: (selected) => {
+                  const values = selected as StatusChangeItemType[];
+                  if (values.length === 0) return t('reports.statusChange.filters.allItemTypes');
+                  return values
+                    .map((value) => itemTypeOptionByValue.get(value)?.label || value)
+                    .join(', ');
+                },
+              }}
+              onChange={(e) => {
+                const next = e.target.value as unknown as StatusChangeItemType[];
+                setItemTypes(Array.isArray(next) ? next : [next]);
+              }}
+              sx={reportFilterSelectSx}
+            >
+              {itemTypeOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value} sx={drawerMenuItemSx}>
+                  <Checkbox size="small" checked={itemTypes.includes(option.value)} />
+                  <ListItemText primary={option.label} primaryTypographyProps={{ fontSize: 13 }} />
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
+          <ReportFilter label={t('reports.statusChange.filters.source')}>
+            <TextField
+              select
+              size="small"
+              value={sourceIds}
+              SelectProps={{
+                multiple: true,
+                displayEmpty: true,
+                MenuProps: reportFilterMenuProps,
+                renderValue: (selected) => {
+                  const values = selected as string[];
+                  if (values.length === 0) return t('reports.statusChange.filters.allSources');
+                  return values
+                    .map((id) => sourceOptionById.get(id)?.name || id)
+                    .join(', ');
+                },
+              }}
+              onChange={(e) => {
+                const next = e.target.value as unknown as string[];
+                setSourceIds(Array.isArray(next) ? next : [next]);
+              }}
+              sx={reportFilterSelectSx}
+            >
+              {sourceOptions.map((option) => (
+                <MenuItem key={option.id} value={option.id} sx={drawerMenuItemSx}>
+                  <Checkbox size="small" checked={sourceIds.includes(option.id)} />
+                  <ListItemText primary={option.name} primaryTypographyProps={{ fontSize: 13 }} />
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
+          <ReportFilter label={t('reports.statusChange.filters.category')} width={230}>
+            <TextField
+              select
+              size="small"
+              value={categoryIds}
+              SelectProps={{
+                multiple: true,
+                displayEmpty: true,
+                MenuProps: reportFilterMenuProps,
+                renderValue: (selected) => {
+                  const values = selected as string[];
+                  if (values.length === 0) return t('reports.statusChange.filters.allCategories');
+                  return values
+                    .map((id) => categoryOptionById.get(id)?.name || id)
+                    .join(', ');
+                },
+              }}
+              onChange={(e) => {
+                const next = e.target.value as unknown as string[];
+                setCategoryIds(Array.isArray(next) ? next : [next]);
+              }}
+              sx={reportFilterSelectSx}
+            >
+              {categoryOptions.map((option) => (
+                <MenuItem key={option.id} value={option.id} sx={drawerMenuItemSx}>
+                  <Checkbox size="small" checked={categoryIds.includes(option.id)} />
+                  <ListItemText primary={option.name} primaryTypographyProps={{ fontSize: 13 }} />
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
+          <ReportFilter label={t('reports.statusChange.filters.stream')}>
+            <TextField
+              select
+              size="small"
+              value={streamIds}
+              disabled={categoryIds.length === 0}
+              SelectProps={{
+                multiple: true,
+                displayEmpty: true,
+                MenuProps: reportFilterMenuProps,
+                renderValue: (selected) => {
+                  const values = selected as string[];
+                  if (values.length === 0) return t('reports.statusChange.filters.allStreams');
+                  return values
+                    .map((id) => streamOptionById.get(id)?.name || id)
+                    .join(', ');
+                },
+              }}
+              onChange={(e) => {
+                const next = e.target.value as unknown as string[];
+                setStreamIds(Array.isArray(next) ? next : [next]);
+              }}
+              sx={reportFilterSelectSx}
+            >
+              {scopedStreamOptions.map((option) => (
+                <MenuItem key={option.id} value={option.id} sx={drawerMenuItemSx}>
+                  <Checkbox size="small" checked={streamIds.includes(option.id)} />
+                  <ListItemText primary={option.name} primaryTypographyProps={{ fontSize: 13 }} />
+                </MenuItem>
+              ))}
+            </TextField>
+          </ReportFilter>
         </>
       )}
       actions={(
         <>
           <Button
             size="small"
-            variant="outlined"
+            variant="action"
             onClick={() => handleDownload('csv')}
             disabled={!isValidPeriod || rows.length === 0 || exportingFormat !== null}
           >
@@ -539,7 +563,7 @@ export default function StatusChangeReport() {
           </Button>
           <Button
             size="small"
-            variant="outlined"
+            variant="action"
             onClick={() => handleDownload('xlsx')}
             disabled={!isValidPeriod || rows.length === 0 || exportingFormat !== null}
           >
@@ -561,14 +585,15 @@ export default function StatusChangeReport() {
           <Alert severity="error">{exportError}</Alert>
         )}
 
-        <Paper variant="outlined" sx={{ p: 1.5 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
+        <Box>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 400, color: 'kanap.text.secondary' }}>
               {t('reports.statusChange.itemCount', { count: rows.length })}
             </Typography>
-            {(isLoading || isFetching) && <CircularProgress size={18} />}
+            {(isLoading || isFetching) && <CircularProgress size={14} />}
           </Stack>
-          <Box component={AgGridBox} sx={{ width: '100%', height: 560 }}>
+          {/* The grid takes whatever is left of the viewport, like the portfolio list pages. */}
+          <Box component={AgGridBox} ref={gridRef} sx={{ width: '100%', height: reportGridHeight(fillHeight, rows.length) }}>
             <AgGridReact<StatusChangeRow>
               rowData={rows}
               columnDefs={columns}
@@ -583,7 +608,7 @@ export default function StatusChangeReport() {
               getRowId={(params) => `${params.data.itemType}:${params.data.itemId}`}
             />
           </Box>
-        </Paper>
+        </Box>
       </Stack>
     </ReportLayout>
   );
