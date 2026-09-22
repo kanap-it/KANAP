@@ -153,7 +153,7 @@ async function run() {
   assert.deepEqual(buildMonths('2026-04-30', 6)[5], { periodStart: '2026-04-01', periodEnd: '2026-04-30' });
 
   /* ----------------------------------------------------------------- */
-  /*  Stage age brackets                                               */
+  /*  Creation age brackets                                            */
   /* ----------------------------------------------------------------- */
 
   assert.equal(monthBucketOf(0), 'underOneMonth');
@@ -598,16 +598,16 @@ async function run() {
   assert.ok(projectCreatedAge.sql.includes('l.created_at AT TIME ZONE $3'));
   assert.equal(projectCreatedAge.params[3], report.endDate);
 
-  const projectStage = calls.find(
+  const projectByStatus = calls.find(
     (call) => call.sql.includes('open_items AS') && String(call.params[1]) === 'portfolio_projects',
   )!;
-  assert.deepEqual(projectStage.params[2], ['waiting_list', 'planned', 'in_progress', 'in_testing', 'on_hold']);
-  assert.equal(projectStage.params[4], report.endDate, 'the age is read against the report day');
+  assert.deepEqual(projectByStatus.params[2], ['waiting_list', 'planned', 'in_progress', 'in_testing', 'on_hold']);
+  assert.equal(projectByStatus.params[4], report.endDate, 'the age is read against the report day');
   // The clock starts on the last event that brought the item to the status it holds now, and
   // falls back to the creation instant when the audit never mentions a status.
-  assert.ok(projectStage.sql.includes('e.status = o.status'));
-  assert.ok(projectStage.sql.includes('COALESCE(en.created_at, o.created_at)'));
-  assert.ok(projectStage.sql.includes('o.planned_end < $5::date'));
+  assert.ok(projectByStatus.sql.includes('e.status = o.status'));
+  assert.ok(projectByStatus.sql.includes('COALESCE(en.created_at, o.created_at)'));
+  assert.ok(projectByStatus.sql.includes('o.planned_end < $5::date'));
 
   // A manager is mandatory: the report has no way to reach a tenant-scoped connection without it.
   await assert.rejects(() => svc.getReport(tenantId, {}, {}));

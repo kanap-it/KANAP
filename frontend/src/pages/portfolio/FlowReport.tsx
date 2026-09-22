@@ -91,7 +91,7 @@ type FlowReportResponse = {
 
 type EntityKey = 'tasks' | 'requests' | 'projects';
 /** The two entities read month by month and broken down by the status they sit in. */
-type StageKey = 'requests' | 'projects';
+type MonthlyKey = 'requests' | 'projects';
 
 const ENTITY_KEYS: EntityKey[] = ['tasks', 'requests', 'projects'];
 const MONTH_BUCKETS: MonthBucket[] = ['underOneMonth', 'oneToThreeMonths', 'threeToSixMonths', 'overSixMonths'];
@@ -545,7 +545,7 @@ export default function FlowReport() {
   );
 
   const monthColumns = useMemo<ColDef<MonthTableRow>[]>(() => {
-    const trio = (key: StageKey): ColDef<MonthTableRow>[] => [
+    const trio = (key: MonthlyKey): ColDef<MonthTableRow>[] => [
       {
         headerName: t(`reports.flow.columns.${key}Created`),
         width: 150,
@@ -683,7 +683,7 @@ export default function FlowReport() {
   type CreatedAgeTableRow = CreatedAgeRow & { isTotal: boolean };
 
   const createdAgeRows = useCallback(
-    (key: StageKey): CreatedAgeTableRow[] => {
+    (key: MonthlyKey): CreatedAgeTableRow[] => {
       const table = data?.age[key];
       if (!table) return [];
       return [
@@ -695,7 +695,7 @@ export default function FlowReport() {
   );
 
   const createdAgeColumns = useCallback(
-    (key: StageKey): Array<ColDef<CreatedAgeTableRow> | ColGroupDef<CreatedAgeTableRow>> => {
+    (key: MonthlyKey): Array<ColDef<CreatedAgeTableRow> | ColGroupDef<CreatedAgeTableRow>> => {
       const today = data?.endDate ?? '';
       const statusScope = (row: CreatedAgeTableRow): FilterModel =>
         row.isTotal ? {} : { status: { filterType: 'set', values: [row.status] } };
@@ -1082,7 +1082,7 @@ export default function FlowReport() {
     };
   });
 
-  const ageGrids: Array<{ key: StageKey; title: string; empty: string }> = [
+  const ageGrids: Array<{ key: MonthlyKey; title: string; empty: string }> = [
     { key: 'requests', title: t('reports.flow.subsections.openRequests'), empty: t('reports.flow.empty.openRequests') },
     { key: 'projects', title: t('reports.flow.subsections.openProjects'), empty: t('reports.flow.empty.openProjects') },
   ];
