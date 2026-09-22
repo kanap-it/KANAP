@@ -1036,6 +1036,11 @@
   "reports": {
     "title": "Portfolio-Reporting",
     "subtitle": "Entdecken Sie Portfolio-Berichte zu Kapazität, Aufwand und Statustrends.",
+    "sections": {
+      "past": "Was passiert ist",
+      "current": "Was gerade läuft",
+      "upcoming": "Was als Nächstes kommt"
+    },
     "steering": {
       "period_one": "Letzter {{count}} Tag",
       "period_other": "Letzte {{count}} Tage",
@@ -1086,7 +1091,7 @@
       "allClassified": "Alles Offene ist klassifiziert"
     },
     "byAssignee": {
-      "title": "Nach Zuständigkeit",
+      "title": "Handlungsbedarf nach Zuständigkeit",
       "subtitle": "Wo die offene Arbeit liegt, Team für Team und Person für Person, mit dem, was überfällig ist und nicht mehr vorankommt.",
       "columns": {
         "assignee": "Zuständig",
@@ -1119,15 +1124,19 @@
         "description": "Visualisieren Sie den erwarteten Aufwand im Vergleich zur Kapazität von Mitwirkenden und Teams."
       },
       "weekly": {
-        "title": "Wochenbericht",
+        "title": "Periodenrückblick",
         "description": "Anfragen, Projekte und Aufgaben, die in einem Zeitraum erstellt, geändert und geschlossen wurden."
+      },
+      "byPerson": {
+        "title": "Aktivität nach Person",
+        "description": "Aufgaben, die jede Person in einem Zeitraum erstellt, geändert und geschlossen hat, mit den erfassten Tagen."
       },
       "flow": {
         "title": "Fluss und Alter",
         "description": "Was Woche für Woche hinzukommt und abgeschlossen wird, wie alt die offenen Aufgaben sind und wie lange ein Abschluss dauert."
       },
       "byAssignee": {
-        "title": "Nach Zuständigkeit",
+        "title": "Handlungsbedarf nach Zuständigkeit",
         "description": "Offene, überfällige und liegengebliebene Aufgaben, Team für Team und Person für Person."
       }
     },
@@ -1205,7 +1214,7 @@
       }
     },
     "weekly": {
-      "title": "Wochenbericht",
+      "title": "Periodenrückblick",
       "subtitle": "Anfragen, Projekte und Aufgaben im Zeitraum: was erstellt, geändert und geschlossen wurde.",
       "filters": {
         "startDate": "Startdatum",

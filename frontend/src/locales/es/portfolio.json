@@ -1036,6 +1036,11 @@
   "reports": {
     "title": "Reportes del portafolio",
     "subtitle": "Explore los reportes del portafolio centrados en la capacidad, el esfuerzo y las tendencias de estado.",
+    "sections": {
+      "past": "Lo que ha pasado",
+      "current": "Lo que está en curso",
+      "upcoming": "Lo que viene"
+    },
     "steering": {
       "period_one": "Último {{count}} día",
       "period_other": "Últimos {{count}} días",
@@ -1086,7 +1091,7 @@
       "allClassified": "Todo lo abierto está clasificado"
     },
     "byAssignee": {
-      "title": "Por responsable",
+      "title": "Puntos de atención por responsable",
       "subtitle": "Dónde está el trabajo abierto, equipo por equipo y persona por persona, con lo que está atrasado y lo que ya no avanza.",
       "columns": {
         "assignee": "Responsable",
@@ -1119,15 +1124,19 @@
         "description": "Visualice el esfuerzo esperado frente a la capacidad de los colaboradores y equipos."
       },
       "weekly": {
-        "title": "Reporte semanal",
+        "title": "Balance del periodo",
         "description": "Solicitudes, proyectos y tareas creadas, modificadas y cerradas en un periodo."
+      },
+      "byPerson": {
+        "title": "Actividad por persona",
+        "description": "Las tareas que cada persona creó, modificó y cerró en un periodo, con los días registrados."
       },
       "flow": {
         "title": "Flujo y antigüedad",
         "description": "Lo que entra y lo que se cierra semana tras semana, la antigüedad de las tareas abiertas y el tiempo que lleva cerrar."
       },
       "byAssignee": {
-        "title": "Por responsable",
+        "title": "Puntos de atención por responsable",
         "description": "Las tareas abiertas, atrasadas y sin movimiento, equipo por equipo y persona por persona."
       }
     },
@@ -1205,7 +1214,7 @@
       }
     },
     "weekly": {
-      "title": "Reporte semanal",
+      "title": "Balance del periodo",
       "subtitle": "Solicitudes, proyectos y tareas del periodo: lo que se creó, se modificó y se cerró.",
       "filters": {
         "startDate": "Fecha de inicio",

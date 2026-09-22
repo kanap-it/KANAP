@@ -419,6 +419,19 @@ describe('WeeklyReport by person', () => {
     expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBe('person');
   });
 
+  it('opens on the by-person reading carried by the URL, over the remembered one', async () => {
+    // The "Activity by person" card of the hub opens this same page with `groupBy=person`.
+    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'type');
+    mockApi(personReport());
+    renderReport('/portfolio/reports/weekly?groupBy=person');
+
+    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+    const call = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly');
+    expect(call?.[1]?.params?.groupBy).toBe('person');
+    expect(screen.getAllByText('Period review').length).toBeGreaterThan(0);
+    expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBe('person');
+  });
+
   it('opens on the remembered reading, team first, then person, with the counts and the time', async () => {
     window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(personReport());

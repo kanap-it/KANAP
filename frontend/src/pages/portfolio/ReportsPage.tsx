@@ -44,6 +44,65 @@ function ReportCard({ title, description, onClick }: { title: string; descriptio
   );
 }
 
+type ReportCardEntry = { key: string; to: string; titleKey: string; descriptionKey: string };
+type ReportSection = { key: string; titleKey: string; cards: ReportCardEntry[] };
+
+/**
+ * The hub reads by horizon: what happened, what is in progress, what comes next. A new report
+ * is one more entry in the row it answers.
+ */
+const REPORT_SECTIONS: ReportSection[] = [
+  {
+    key: 'past',
+    titleKey: 'reports.sections.past',
+    cards: [
+      {
+        key: 'weekly',
+        to: '/portfolio/reports/weekly',
+        titleKey: 'reports.cards.weekly.title',
+        descriptionKey: 'reports.cards.weekly.description',
+      },
+      {
+        // Same page as the period review, opened on its by-person reading.
+        key: 'byPerson',
+        to: '/portfolio/reports/weekly?groupBy=person',
+        titleKey: 'reports.cards.byPerson.title',
+        descriptionKey: 'reports.cards.byPerson.description',
+      },
+    ],
+  },
+  {
+    key: 'current',
+    titleKey: 'reports.sections.current',
+    cards: [
+      {
+        key: 'flow',
+        to: '/portfolio/reports/flow',
+        titleKey: 'reports.cards.flow.title',
+        descriptionKey: 'reports.cards.flow.description',
+      },
+      {
+        key: 'byAssignee',
+        to: '/portfolio/reports/by-assignee',
+        titleKey: 'reports.cards.byAssignee.title',
+        descriptionKey: 'reports.cards.byAssignee.description',
+      },
+    ],
+  },
+  {
+    key: 'upcoming',
+    titleKey: 'reports.sections.upcoming',
+    cards: [
+      {
+        key: 'capacityHeatmap',
+        to: '/portfolio/reports/capacity-heatmap',
+        titleKey: 'reports.cards.capacityHeatmap.title',
+        descriptionKey: 'reports.cards.capacityHeatmap.description',
+      },
+    ],
+  },
+];
+
 export default function ReportsPage() {
   const navigate = useNavigate();
   const { t } = useTranslation('portfolio');
@@ -60,36 +119,28 @@ export default function ReportsPage() {
       </Typography>
       <SteeringStrip />
       <ClassificationGapsStrip data={gaps} />
-      <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={4} lg={3}>
-          <ReportCard
-            title={t('reports.cards.capacityHeatmap.title')}
-            description={t('reports.cards.capacityHeatmap.description')}
-            onClick={() => navigate('/portfolio/reports/capacity-heatmap')}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4} lg={3}>
-          <ReportCard
-            title={t('reports.cards.weekly.title')}
-            description={t('reports.cards.weekly.description')}
-            onClick={() => navigate('/portfolio/reports/weekly')}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4} lg={3}>
-          <ReportCard
-            title={t('reports.cards.flow.title')}
-            description={t('reports.cards.flow.description')}
-            onClick={() => navigate('/portfolio/reports/flow')}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4} lg={3}>
-          <ReportCard
-            title={t('reports.cards.byAssignee.title')}
-            description={t('reports.cards.byAssignee.description')}
-            onClick={() => navigate('/portfolio/reports/by-assignee')}
-          />
-        </Grid>
-      </Grid>
+      {REPORT_SECTIONS.map((section) => (
+        <Box key={section.key} component="section" aria-labelledby={`reports-section-${section.key}`}>
+          <Typography
+            id={`reports-section-${section.key}`}
+            component="h2"
+            sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.tertiary', mb: 1 }}
+          >
+            {t(section.titleKey)}
+          </Typography>
+          <Grid container spacing={2}>
+            {section.cards.map((card) => (
+              <Grid key={card.key} item xs={12} sm={6} md={4} lg={3}>
+                <ReportCard
+                  title={t(card.titleKey)}
+                  description={t(card.descriptionKey)}
+                  onClick={() => navigate(card.to)}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      ))}
     </Box>
   );
 }

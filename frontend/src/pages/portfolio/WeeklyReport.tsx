@@ -570,7 +570,16 @@ export default function WeeklyReport() {
   const { hasLevel } = useAuth();
   const canOpenContributor = hasLevel('portfolio_settings', 'reader');
 
-  const [groupBy, setGroupBy] = useState<WeeklyGroupBy>(readGroupBy);
+  // A `groupBy` handed over in the URL (the "Activity by person" card) wins over the remembered
+  // reading and becomes the remembered one, exactly as a click on the toggle would.
+  const [groupBy, setGroupBy] = useState<WeeklyGroupBy>(() => {
+    const fromUrl = searchParams.get('groupBy');
+    if (fromUrl === 'person' || fromUrl === 'type') {
+      writeGroupBy(fromUrl);
+      return fromUrl;
+    }
+    return readGroupBy();
+  });
   const [collapsedPeople, setCollapsedPeople] = useState<string[]>(readCollapsedPeople);
 
   const changeGroupBy = useCallback((next: WeeklyGroupBy) => {

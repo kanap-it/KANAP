@@ -1036,6 +1036,11 @@
   "reports": {
     "title": "Portfolio reporting",
     "subtitle": "Explore portfolio reports focused on capacity, workload, and portfolio status trends.",
+    "sections": {
+      "past": "What happened",
+      "current": "What is in progress",
+      "upcoming": "What comes next"
+    },
     "steering": {
       "period_one": "Last {{count}} day",
       "period_other": "Last {{count}} days",
@@ -1086,7 +1091,7 @@
       "allClassified": "Everything open is classified"
     },
     "byAssignee": {
-      "title": "By assignee",
+      "title": "Attention by assignee",
       "subtitle": "Where the open work sits, team by team and person by person, with what is late and what has not moved.",
       "columns": {
         "assignee": "Assignee",
@@ -1119,15 +1124,19 @@
         "description": "Visualize expected workload vs capacity for contributors and teams."
       },
       "weekly": {
-        "title": "Weekly report",
+        "title": "Period review",
         "description": "Requests, projects and tasks created, modified and closed over a period."
+      },
+      "byPerson": {
+        "title": "Activity by person",
+        "description": "Tasks each person created, changed and closed over a period, with the days they logged."
       },
       "flow": {
         "title": "Flow and age",
         "description": "What comes in and goes out week after week, how old the open tasks are, and how long a closing takes."
       },
       "byAssignee": {
-        "title": "By assignee",
+        "title": "Attention by assignee",
         "description": "Open and overdue tasks and those without movement, team by team and person by person."
       }
     },
@@ -1205,7 +1214,7 @@
       }
     },
     "weekly": {
-      "title": "Weekly report",
+      "title": "Period review",
       "subtitle": "Requests, projects and tasks over the period: what was created, modified and closed.",
       "filters": {
         "startDate": "Start date",
