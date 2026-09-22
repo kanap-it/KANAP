@@ -4,6 +4,7 @@ import { PermissionGuard } from '../auth/permission.guard';
 import { RequireLevel } from '../auth/require-level.decorator';
 import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { FlowReportResponse } from './dto/flow-report.dto';
+import { parseCsvIds } from './services/portfolio-report-filters';
 import { PortfolioFlowReportService } from './services/portfolio-flow-report.service';
 
 @UseGuards(JwtAuthGuard)
@@ -17,7 +18,13 @@ export class PortfolioFlowReportController {
   getFlowReport(@Query() query: any, @Tenant() ctx: TenantRequest): Promise<FlowReportResponse> {
     return this.svc.getReport(
       ctx.tenantId,
-      { weeks: query?.weeks, timeZone: String(query?.tz || '').trim() || undefined },
+      {
+        weeks: query?.weeks,
+        months: query?.months,
+        timeZone: String(query?.tz || '').trim() || undefined,
+        sourceIds: parseCsvIds(query?.sourceIds),
+        categoryIds: parseCsvIds(query?.categoryIds),
+      },
       { manager: ctx.manager },
     );
   }

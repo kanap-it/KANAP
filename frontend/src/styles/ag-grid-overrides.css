@@ -152,3 +152,21 @@
   font-weight: 500;
   cursor: default;
 }
+
+/* Report grids that share a row wrap their header sentence over several lines. The break
+   belongs between words: "Over 6 / months", never "Over 6 / month / s". */
+.ag-theme-quartz .ag-header-cell-wrap-text .ag-header-cell-text,
+.ag-theme-quartz-dark .ag-header-cell-wrap-text .ag-header-cell-text,
+.ag-theme-quartz .ag-cell-wrap-text,
+.ag-theme-quartz-dark .ag-cell-wrap-text {
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+
+/* Report grids that share a row with others: the default 18px cell padding eats the room a
+   wrapped header sentence needs, so these grids breathe on 10px instead. */
+.ag-theme-quartz.kanap-dense-grid,
+.ag-theme-quartz-dark.kanap-dense-grid {
+  --ag-cell-horizontal-padding: 10px;
+}

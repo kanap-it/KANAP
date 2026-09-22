@@ -9,7 +9,7 @@ import { formatShortDate } from '../../../lib/dateFormat';
 import { getProjectStatusLabel } from '../../../utils/portfolioI18n';
 import { getDotColor, PROJECT_STATUS_COLORS } from '../../../utils/statusColors';
 import { textTabSx, textTabsSx } from '../../../theme/formSx';
-import { projectsPath, requestsPath, tasksPath } from './portfolioListLinks';
+import { BLANK, projectsPath, requestsPath, tasksPath } from './portfolioListLinks';
 
 export type SteeringFlow = {
   created: number;
@@ -225,8 +225,8 @@ function StaleProjectsDialog({
  * is waiting for someone. Flow figures stay neutral; only what needs a decision is orange.
  *
  * A figure is a link only when the matching list can show exactly the same population. The
- * counts come from the audit trail, which no list filter reproduces, so "created" and "closed"
- * are plain text, and so is the unassigned figure, which the task list cannot filter on.
+ * period counts come from the audit trail, which no list filter reproduces, so "created" and
+ * "closed" stay plain text. The attention figures all open the task list.
  */
 export default function SteeringStrip() {
   const { t } = useTranslation('portfolio');
@@ -337,7 +337,7 @@ export default function SteeringStrip() {
                 {
                   key: 'unassigned',
                   label: t('reports.steering.attention.unassigned', { count: unassignedTasks }),
-                  to: null,
+                  to: unassignedTasks > 0 ? tasksPath({ assignee_user_id: BLANK }) : null,
                   tone: unassignedTasks > 0 ? 'attention' : 'muted',
                 },
               ]}

@@ -84,6 +84,9 @@ const applyProjectInvolvementScope = (
 const projectDateFields = new Map<string, string>([
   ['planned_start', 'p.planned_start'],
   ['planned_end', 'p.planned_end'],
+  // The creation day, not the instant: the grid sends plain days, and the portfolio reports
+  // link to age brackets counted in whole days.
+  ['created_at', 'p.created_at::date'],
 ]);
 
 const compileDateFilterCondition = (

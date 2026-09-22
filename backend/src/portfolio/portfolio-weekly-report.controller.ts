@@ -8,16 +8,8 @@ import { Tenant, TenantRequest } from '../common/decorators/tenant.decorator';
 import { isCalendarDate } from '../common/report-period';
 import { resolveAppBaseUrl, resolveNotificationBaseUrl } from '../common/url';
 import { Features } from '../config/features';
+import { parseCsvIds as parseCsv } from './services/portfolio-report-filters';
 import { PortfolioWeeklyReportService, WeeklyReportQuery } from './services/portfolio-weekly-report.service';
-
-const parseCsv = (value?: unknown): string[] => {
-  if (value == null) return [];
-  const raw = Array.isArray(value) ? value.join(',') : String(value);
-  return raw
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-};
 
 const normalizeProto = (value?: unknown): 'http' | 'https' => {
   const raw = String(value ?? '')

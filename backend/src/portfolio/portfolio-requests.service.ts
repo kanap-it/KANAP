@@ -137,6 +137,9 @@ const applyRequestInvolvementScope = (
 
 const requestDateFields = new Map<string, string>([
   ['target_delivery_date', 'r.target_delivery_date'],
+  // The creation day, not the instant: the grid sends plain days, and the portfolio reports
+  // link to age brackets counted in whole days.
+  ['created_at', 'r.created_at::date'],
 ]);
 
 const compileDateFilterCondition = (
@@ -496,6 +499,14 @@ export class PortfolioRequestsService {
     const compiledFilters: CompiledCondition[] = [];
     if (fm) {
       for (const [field, model] of Object.entries(fm)) {
+        const dateField = requestDateFields.get(field);
+        if (dateField) {
+          const cond = compileDateFilterCondition(model, dateField, nextParam);
+          if (cond) {
+            compiledFilters.push(cond);
+            continue;
+          }
+        }
         const target = targets[field];
         if (!target) continue;
         const cond = compileAgFilterCondition(model, target, nextParam);
