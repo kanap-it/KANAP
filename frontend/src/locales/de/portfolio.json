@@ -1354,14 +1354,19 @@
       "sections": {
         "flow": "Fluss",
         "age": "Alter der offenen Arbeit",
-        "leadTime": "Mittlere Zeit bis zum Abschluss"
+        "leadTime": "Mittlere Zeit bis zum Abschluss",
+        "byStatus": "Nach Status",
+        "byStatusHint": "Wie viele offene Elemente in jedem Status liegen und wie viele schon lange dort sind."
       },
       "subsections": {
         "tasksByWeek": "Aufgaben pro Woche",
         "itemsByMonth": "Anfragen und Projekte pro Monat",
         "openTasks": "Offene Aufgaben",
-        "requestStages": "Anfragen nach Phase",
-        "projectStages": "Projekte nach Phase",
+        "openRequests": "Offene Anfragen",
+        "openProjects": "Offene Projekte",
+        "tasksByStatus": "Aufgaben nach Status",
+        "requestsByStatus": "Anfragen nach Status",
+        "projectsByStatus": "Projekte nach Status",
         "tasksByType": "Aufgaben nach Typ",
         "requestOutcomes": "Anfragen nach Ergebnis",
         "projectCompletion": "Abgeschlossene Projekte"
@@ -1381,7 +1386,15 @@
         "closedOverMonths_other": "bei {{count}} Abschlüssen · {{months}} Monate",
         "noClosing": "Kein Abschluss in diesem Zeitraum",
         "days": "{{count}} T",
-        "noValue": "—"
+        "noValue": "—",
+        "alreadyClosed": {
+          "tasks_one": "{{count}} bereits abgeschlossen erstellt",
+          "tasks_other": "{{count}} bereits abgeschlossen erstellt",
+          "requests_one": "{{count}} bereits abgeschlossen erstellt",
+          "requests_other": "{{count}} bereits abgeschlossen erstellt",
+          "projects_one": "{{count}} bereits abgeschlossen erstellt",
+          "projects_other": "{{count}} bereits abgeschlossen erstellt"
+        }
       },
       "charts": {
         "created": "Erstellt",
@@ -1399,9 +1412,14 @@
         "closeList": "Schließen"
       },
       "list": {
-        "since": "In dieser Phase seit {{date}}",
+        "since": "In diesem Status seit {{date}}",
         "plannedEnd": "Geplantes Ende {{date}}",
-        "overdue": "überschritten"
+        "overdue": "überschritten",
+        "stuck": {
+          "tasks": "seit über 30 Tagen in diesem Status",
+          "requests": "seit über 3 Monaten in diesem Status",
+          "projects": "seit über 3 Monaten in diesem Status"
+        }
       },
       "columns": {
         "week": "Woche",
@@ -1416,7 +1434,17 @@
         "projectsClosed": "Abgeschlossene Projekte",
         "projectsOpen": "Offene Projekte",
         "taskType": "Aufgabentyp",
-        "stage": "Phase",
+        "status": "Status",
+        "open": {
+          "tasks": "Offen",
+          "requests": "Offen",
+          "projects": "Offen"
+        },
+        "stuck": {
+          "tasks": "Seit über 30 Tagen in diesem Status",
+          "requests": "Seit über 3 Monaten in diesem Status",
+          "projects": "Seit über 3 Monaten in diesem Status"
+        },
         "upTo7": "0–7 T",
         "from8To30": "8–30 T",
         "from31To90": "31–90 T",
@@ -1447,9 +1475,14 @@
       },
       "empty": {
         "age": "Keine offene Aufgabe zu melden.",
-        "requestStages": "Keine offene Anfrage zu melden.",
-        "projectStages": "Kein offenes Projekt zu melden.",
+        "openRequests": "Keine offene Anfrage zu melden.",
+        "openProjects": "Kein offenes Projekt zu melden.",
         "leadTimeByType": "Keine Aufgabe in diesem Zeitraum abgeschlossen."
+      },
+      "groups": {
+        "tasks": "Erstellt vor",
+        "requests": "Erstellt vor",
+        "projects": "Erstellt vor"
       }
     }
   },

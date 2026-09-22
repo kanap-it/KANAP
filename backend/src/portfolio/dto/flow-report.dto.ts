@@ -36,8 +36,8 @@ export type AgeRow = {
 };
 
 /**
- * How long a request or a project has been sitting in its current stage, in whole local days
- * between the day it entered that stage and today. The bounds are fixed:
+ * How long ago an open request or project was created, in whole local days between its
+ * creation day and today. The bounds are fixed:
  *
  * - `underOneMonth`: 0 to 29 days
  * - `oneToThreeMonths`: 30 to 91 days
@@ -54,44 +54,72 @@ export const MONTH_BUCKETS: Array<{ key: MonthBucket; from: number; to: number |
   { key: 'overSixMonths', from: 183, to: null },
 ];
 
-/** The open items of one stage, spread over the brackets. */
-export type StageAgeRow = {
-  /** Live status of the stage, e.g. `waiting_list`. The UI holds the label. */
+/** The open items of one status, spread over the creation-age brackets. */
+export type CreatedAgeRow = {
+  /** Live status, e.g. `waiting_list`. The UI holds the label. */
   status: string;
   buckets: Record<MonthBucket, number>;
   total: number;
-  /** Projects only: how many of the row's items are past their planned end. */
-  plannedEndPassed?: number;
 };
 
-/** One open request or project, the unit behind every figure of a stage age table. */
-export type StageAgeItem = {
+/** Status by status, how long ago the open items were created. */
+export type CreatedAgeTable = {
+  /** One row per status of the journey, in order, even when the status is empty. */
+  rows: CreatedAgeRow[];
+  total: CreatedAgeRow;
+};
+
+/**
+ * Days an item has to sit in the same status before it counts as stuck. A task is read on a
+ * month, a request or a project on a quarter: they do not move at the same speed.
+ */
+export const STUCK_THRESHOLD_DAYS = { tasks: 30, requests: 91, projects: 91 } as const;
+
+/** One open item that has been sitting in the same status for longer than the threshold. */
+export type StuckItem = {
   id: string;
-  /** Business reference, `REQ-12` or `PRJ-3`. */
+  /** Business reference, `T-8`, `REQ-12` or `PRJ-3`. */
   ref: string;
   itemPath: string;
   name: string;
   status: string;
-  /** Local day the item entered its current stage, `YYYY-MM-DD`. */
+  /** Local day the item entered its current status, `YYYY-MM-DD`. */
   statusSince: string;
-  bucket: MonthBucket;
   /** Projects only. */
   plannedEnd?: string | null;
   plannedEndPassed?: boolean;
 };
 
-/** Stage by stage, how long the open items have been waiting, plus the items themselves. */
-export type StageAgeTable = {
-  /** One row per stage of the journey, in order, even when the stage is empty. */
-  rows: StageAgeRow[];
-  total: StageAgeRow;
-  items: StageAgeItem[];
+/** How many open items one status holds, and how many of them have stopped moving. */
+export type ByStatusRow = {
+  status: string;
+  open: number;
+  /** Open items whose time in this status is strictly over `thresholdDays`. */
+  stuck: number;
+  /** Projects only: how many of the row's open items are past their planned end. */
+  plannedEndPassed?: number;
+};
+
+/** The stagnation table of one entity: where the open work sits and what is not moving. */
+export type ByStatusTable = {
+  thresholdDays: number;
+  rows: ByStatusRow[];
+  total: ByStatusRow;
+  /** The stuck items only — no list filters on time in status, so the report holds them. */
+  items: StuckItem[];
 };
 
 /** How long it took to close, over the window of the entity's own grain. */
 export type LeadTime = {
+  /** Closings of the window, the weekly report's rule. */
   closedCount: number;
-  /** Median days between creation and closing, one decimal. Null when nothing closed. */
+  /**
+   * The closings the median is read on: the ones whose closing event is a real transition.
+   * An item imported already closed carries a closing event of its own creation, a zero-day
+   * lead time by construction, and would pull every median to the floor.
+   */
+  measuredCount: number;
+  /** Median days between creation and closing, one decimal. Null when nothing was measured. */
   medianDays: number | null;
 };
 
@@ -99,7 +127,7 @@ export type LeadTimeByType = { taskTypeId: string | null; taskTypeName: string |
 
 /** Closings of finished projects, with how far off the planned end they landed. */
 export type ProjectDoneLeadTime = LeadTime & {
-  /** Finished projects of the window that carried a planned end. */
+  /** Measured finished projects of the window that carried a planned end. */
   withPlannedEnd: number;
   /** Median of (closing day − planned end) in days, positive when late. Null when none. */
   medianOverrunDays: number | null;
@@ -116,11 +144,14 @@ export type FlowReportResponse = {
   /** Instant the figures were read, ISO 8601. */
   asOf: string;
   flow: { tasks: FlowSeries; requests: FlowSeries; projects: FlowSeries };
+  /** How long ago the open work was created — the same reading for the three entities. */
   age: {
     tasks: { rows: AgeRow[]; total: AgeRow };
-    requests: StageAgeTable;
-    projects: StageAgeTable;
+    requests: CreatedAgeTable;
+    projects: CreatedAgeTable;
   };
+  /** Where the open work sits, and what has not moved out of its status. */
+  byStatus: { tasks: ByStatusTable; requests: ByStatusTable; projects: ByStatusTable };
   leadTime: {
     tasks: LeadTime;
     tasksByType: LeadTimeByType[];

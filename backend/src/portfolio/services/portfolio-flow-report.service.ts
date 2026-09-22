@@ -4,6 +4,10 @@ import { normalizeReportTimeZone } from '../../common/report-period';
 import {
   AgeBucket,
   AgeRow,
+  ByStatusRow,
+  ByStatusTable,
+  CreatedAgeRow,
+  CreatedAgeTable,
   FLOW_DEFAULT_MONTHS,
   FLOW_DEFAULT_WEEKS,
   FLOW_MONTHS,
@@ -16,9 +20,8 @@ import {
   MONTH_BUCKETS,
   MonthBucket,
   ProjectDoneLeadTime,
-  StageAgeItem,
-  StageAgeRow,
-  StageAgeTable,
+  STUCK_THRESHOLD_DAYS,
+  StuckItem,
 } from '../dto/flow-report.dto';
 import { CLOSED_STATUSES } from './portfolio-weekly-report.service';
 
@@ -33,7 +36,7 @@ const TASK_SCOPE_SQL = `(t.related_object_type IS NULL OR t.related_object_type 
  * The statuses each entity counts as open. They mirror `portfolioListLinks.ts` on the front,
  * because every figure that links to a list has to count the same population the list shows.
  * For requests and projects the order is the order of the journey, and it is also the order
- * the stage age table reads in.
+ * the age and the by-status tables read in.
  */
 const OPEN_STATUSES = {
   tasks: ['open', 'in_progress', 'pending', 'in_testing'],
@@ -61,9 +64,11 @@ type EntitySpec = {
    * `planned_end`, `item_number` and `name`.
    */
   liveSql: string;
-  /** Business reference prefix and workspace route, for the stage age items. */
+  /** Business reference prefix and workspace route, for the stuck items. */
   refPrefix: string;
   routeBase: string;
+  /** Workspace tab the item opens on, the same one the weekly report links to. */
+  routeTab: string;
 };
 
 const ENTITIES: Record<EntityKey, EntitySpec> = {
@@ -79,6 +84,7 @@ const ENTITIES: Record<EntityKey, EntitySpec> = {
     `,
     refPrefix: 'T',
     routeBase: '/portfolio/tasks',
+    routeTab: 'overview',
   },
   requests: {
     table: 'portfolio_requests',
@@ -92,6 +98,7 @@ const ENTITIES: Record<EntityKey, EntitySpec> = {
     `,
     refPrefix: 'REQ',
     routeBase: '/portfolio/requests',
+    routeTab: 'summary',
   },
   projects: {
     table: 'portfolio_projects',
@@ -105,6 +112,7 @@ const ENTITIES: Record<EntityKey, EntitySpec> = {
     `,
     refPrefix: 'PRJ',
     routeBase: '/portfolio/projects',
+    routeTab: 'summary',
   },
 };
 
@@ -184,13 +192,15 @@ export function buildMonths(today: string, months: number): Array<{ periodStart:
 }
 
 type PeriodRow = { idx: number | string; created: number | string; closed: number | string; open_at_end: number | string };
+type RawLead = { closedCount: number; measuredCount: number; medianDays: number | null };
 type TotalsRow = {
   open_now: number | string;
   closed_count: number | string;
+  measured_count: number | string;
   median_days: number | string | null;
-  by_type: Array<{ taskTypeId: string | null; taskTypeName: string | null; closedCount: number; medianDays: number | null }> | null;
-  by_outcome: Record<string, { closedCount: number; medianDays: number | null }> | null;
-  done: { closedCount: number; medianDays: number | null; withPlannedEnd: number; medianOverrunDays: number | null } | null;
+  by_type: Array<{ taskTypeId: string | null; taskTypeName: string | null } & RawLead> | null;
+  by_outcome: Record<string, RawLead> | null;
+  done: (RawLead & { withPlannedEnd: number; medianOverrunDays: number | null }) | null;
 };
 type AgeSqlRow = {
   task_type_id: string | null;
@@ -201,7 +211,9 @@ type AgeSqlRow = {
   over_90: number | string;
   total: number | string;
 };
-type StageAgeSqlRow = {
+type CreatedAgeSqlRow = { status: string } & Record<string, number | string>;
+
+type OpenItemSqlRow = {
   id: string;
   item_number: number | string | null;
   name: string | null;
@@ -212,7 +224,7 @@ type StageAgeSqlRow = {
   planned_end_passed: boolean;
 };
 
-const emptyLeadTime = (): LeadTime => ({ closedCount: 0, medianDays: null });
+const emptyLeadTime = (): LeadTime => ({ closedCount: 0, measuredCount: 0, medianDays: null });
 
 /** The bracket a whole number of days falls in. */
 export function monthBucketOf(ageDays: number): MonthBucket {
@@ -254,7 +266,17 @@ export class PortfolioFlowReportService {
     const startDate = weekBounds[0].periodStart;
     const monthsStartDate = monthBounds[0].periodStart;
 
-    const [tasks, requests, projects, taskAge, requestAge, projectAge] = await Promise.all([
+    const [
+      tasks,
+      requests,
+      projects,
+      taskAge,
+      requestAge,
+      projectAge,
+      taskStatuses,
+      requestStatuses,
+      projectStatuses,
+    ] = await Promise.all([
       this.entity(manager, 'tasks', {
         tenantId,
         timeZone,
@@ -280,8 +302,11 @@ export class PortfolioFlowReportService {
         endDate,
       }),
       this.taskAge(manager, tenantId, timeZone, endDate),
-      this.stageAge(manager, 'requests', tenantId, timeZone, endDate),
-      this.stageAge(manager, 'projects', tenantId, timeZone, endDate),
+      this.createdAge(manager, 'requests', tenantId, timeZone, endDate),
+      this.createdAge(manager, 'projects', tenantId, timeZone, endDate),
+      this.byStatus(manager, 'tasks', tenantId, timeZone, endDate),
+      this.byStatus(manager, 'requests', tenantId, timeZone, endDate),
+      this.byStatus(manager, 'projects', tenantId, timeZone, endDate),
     ]);
 
     return {
@@ -294,6 +319,7 @@ export class PortfolioFlowReportService {
       asOf: new Date().toISOString(),
       flow: { tasks: tasks.series, requests: requests.series, projects: projects.series },
       age: { tasks: taskAge, requests: requestAge, projects: projectAge },
+      byStatus: { tasks: taskStatuses, requests: requestStatuses, projects: projectStatuses },
       leadTime: {
         tasks: tasks.leadTime,
         tasksByType: tasks.byType,
@@ -336,7 +362,7 @@ export class PortfolioFlowReportService {
           AND al.action IN ('create', 'update')
       ),
       ev AS (
-        SELECT a.id, a.created_at, a.aid, a.after_status AS status
+        SELECT a.id, a.created_at, a.aid, a.action, a.after_status AS status
         FROM audit a
         WHERE a.after_status IS NOT NULL
           AND (a.action = 'create' OR a.before_status IS DISTINCT FROM a.after_status)
@@ -428,8 +454,12 @@ export class PortfolioFlowReportService {
     spec: EntitySpec,
     params: any[],
   ): Promise<TotalsRow | undefined> {
+    // An item whose closing event is its own creation row was imported already closed: its
+    // lead time is zero by construction and says nothing about how long the work took.
+    const MEASURED = `lt.close_action = 'update'`;
+
     const medianOf = (condition: string) =>
-      `ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY lt.days) FILTER (WHERE ${condition})::numeric, 1)::float8`;
+      `ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY lt.days) FILTER (WHERE (${condition}) AND ${MEASURED})::numeric, 1)::float8`;
 
     const byType =
       key === 'tasks'
@@ -440,6 +470,7 @@ export class PortfolioFlowReportService {
               'taskTypeId', x.type_id,
               'taskTypeName', x.type_name,
               'closedCount', x.closed_count,
+              'measuredCount', x.measured_count,
               'medianDays', x.median_days
             )
             ORDER BY x.no_type, x.display_order, x.type_name
@@ -450,7 +481,8 @@ export class PortfolioFlowReportService {
                    tt.display_order,
                    (tt.id IS NULL) AS no_type,
                    COUNT(*)::int AS closed_count,
-                   ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY lt.days)::numeric, 1)::float8 AS median_days
+                   COUNT(*) FILTER (WHERE ${MEASURED})::int AS measured_count,
+                   ${medianOf('TRUE')} AS median_days
             FROM lead_time lt
             LEFT JOIN portfolio_task_types tt ON tt.id = lt.task_type_id AND tt.tenant_id = $1
             GROUP BY tt.id, tt.name, tt.display_order
@@ -468,10 +500,12 @@ export class PortfolioFlowReportService {
           SELECT json_build_object(
             'converted', json_build_object(
               'closedCount', COUNT(*) FILTER (WHERE lt.close_status = 'converted'),
+              'measuredCount', COUNT(*) FILTER (WHERE lt.close_status = 'converted' AND ${MEASURED}),
               'medianDays', ${medianOf(`lt.close_status = 'converted'`)}
             ),
             'rejected', json_build_object(
               'closedCount', COUNT(*) FILTER (WHERE lt.close_status = 'rejected'),
+              'measuredCount', COUNT(*) FILTER (WHERE lt.close_status = 'rejected' AND ${MEASURED}),
               'medianDays', ${medianOf(`lt.close_status = 'rejected'`)}
             )
           )
@@ -488,11 +522,14 @@ export class PortfolioFlowReportService {
         (
           SELECT json_build_object(
             'closedCount', COUNT(*) FILTER (WHERE lt.close_status = 'done'),
+            'measuredCount', COUNT(*) FILTER (WHERE lt.close_status = 'done' AND ${MEASURED}),
             'medianDays', ${medianOf(`lt.close_status = 'done'`)},
-            'withPlannedEnd', COUNT(*) FILTER (WHERE lt.close_status = 'done' AND lt.planned_end IS NOT NULL),
+            'withPlannedEnd', COUNT(*) FILTER (
+              WHERE lt.close_status = 'done' AND lt.planned_end IS NOT NULL AND ${MEASURED}
+            ),
             'medianOverrunDays', ROUND(
               percentile_cont(0.5) WITHIN GROUP (ORDER BY lt.overrun_days)
-                FILTER (WHERE lt.close_status = 'done' AND lt.planned_end IS NOT NULL)::numeric,
+                FILTER (WHERE lt.close_status = 'done' AND lt.planned_end IS NOT NULL AND ${MEASURED})::numeric,
               1
             )::float8
           )
@@ -505,14 +542,14 @@ export class PortfolioFlowReportService {
       `
       WITH ${this.historyCtes(spec)},
       window_last AS (
-        SELECT DISTINCT ON (e.id) e.id, e.status, e.created_at
+        SELECT DISTINCT ON (e.id) e.id, e.status, e.created_at, e.action
         FROM ev e
         WHERE e.created_at >= ($8::date::timestamp AT TIME ZONE $4)
           AND e.created_at < (($9::date + 1)::timestamp AT TIME ZONE $4)
         ORDER BY e.id, e.created_at DESC, e.aid DESC
       ),
       lead_time AS (
-        SELECT i.id, i.task_type_id, i.planned_end, wl.status AS close_status,
+        SELECT i.id, i.task_type_id, i.planned_end, wl.status AS close_status, wl.action AS close_action,
                EXTRACT(EPOCH FROM (wl.created_at - i.created_instant)) / 86400.0 AS days,
                ((wl.created_at AT TIME ZONE $4)::date - i.planned_end) AS overrun_days
         FROM window_last wl
@@ -522,7 +559,8 @@ export class PortfolioFlowReportService {
       SELECT
         (SELECT COUNT(*)::int FROM live l WHERE l.status = ANY($7::text[])) AS open_now,
         (SELECT COUNT(*)::int FROM lead_time) AS closed_count,
-        (SELECT ROUND(percentile_cont(0.5) WITHIN GROUP (ORDER BY lt.days)::numeric, 1)::float8 FROM lead_time lt) AS median_days,
+        (SELECT COUNT(*) FILTER (WHERE ${MEASURED})::int FROM lead_time lt) AS measured_count,
+        (SELECT ${medianOf('TRUE')} FROM lead_time lt) AS median_days,
         ${byType} AS by_type,
         ${byOutcome} AS by_outcome,
         ${done} AS done
@@ -584,30 +622,40 @@ export class PortfolioFlowReportService {
     });
 
     const closedCount = num(totals?.closed_count);
-    const shapeLead = (entry: { closedCount?: unknown; medianDays?: unknown } | null | undefined): LeadTime => {
-      const count = num(entry?.closedCount);
-      return { closedCount: count, medianDays: count === 0 ? null : numOrNull(entry?.medianDays) };
+    const measuredCount = num(totals?.measured_count);
+    // The median is only ever read on the measured closings, so it stays null when there is none.
+    const shapeLead = (
+      entry: { closedCount?: unknown; measuredCount?: unknown; medianDays?: unknown } | null | undefined,
+    ): LeadTime => {
+      const measured = num(entry?.measuredCount);
+      return {
+        closedCount: num(entry?.closedCount),
+        measuredCount: measured,
+        medianDays: measured === 0 ? null : numOrNull(entry?.medianDays),
+      };
     };
 
     const doneRaw = totals?.done ?? null;
-    const doneCount = num(doneRaw?.closedCount);
+    const done = shapeLead(doneRaw);
     const withPlannedEnd = num(doneRaw?.withPlannedEnd);
 
     return {
       series: { granularity: ctx.granularity, periods, openNow: num(totals?.open_now) },
-      leadTime: { closedCount, medianDays: closedCount === 0 ? null : numOrNull(totals?.median_days) },
+      leadTime: {
+        closedCount,
+        measuredCount,
+        medianDays: measuredCount === 0 ? null : numOrNull(totals?.median_days),
+      },
       byType: (totals?.by_type ?? []).map((entry) => ({
         taskTypeId: entry.taskTypeId ?? null,
         taskTypeName: entry.taskTypeName ?? null,
-        closedCount: num(entry.closedCount),
-        medianDays: entry.closedCount === 0 ? null : numOrNull(entry.medianDays),
+        ...shapeLead(entry),
       })),
       byOutcome: Object.fromEntries(
         Object.entries(totals?.by_outcome ?? {}).map(([status, entry]) => [status, shapeLead(entry)]),
       ),
       done: {
-        closedCount: doneCount,
-        medianDays: doneCount === 0 ? null : numOrNull(doneRaw?.medianDays),
+        ...done,
         withPlannedEnd,
         medianOverrunDays: withPlannedEnd === 0 ? null : numOrNull(doneRaw?.medianOverrunDays),
       },
@@ -678,24 +726,78 @@ export class PortfolioFlowReportService {
   }
 
   /**
-   * How long every open request or project has been sitting in the stage it is in now.
+   * How long ago the open requests or projects were created, status by status. The measure is
+   * the creation day, the same one the tasks grid reads, so the three grids of the section say
+   * the same thing: "4 projects in progress, created 1 to 3 months ago".
    *
-   * The clock starts on the last audit event that brought the item to its current status — a
-   * project that went back to "on hold" last week counts a week, not the two years since it was
-   * created. An item whose audit says nothing about status falls back to its creation day.
-   *
-   * The query returns the open items themselves, one row each; the stage rows are folded from
-   * them here, so the totals and the lists the report opens can never disagree.
+   * The query groups by status and age so the bracket rule stays in one place, `monthBucketOf`,
+   * which is also what the cells' `created_at` list filters mirror.
    */
-  private async stageAge(
+  private async createdAge(
     manager: EntityManager,
     key: 'requests' | 'projects',
     tenantId: string,
     timeZone: string,
     today: string,
-  ): Promise<StageAgeTable> {
+  ): Promise<CreatedAgeTable> {
+    const spec = ENTITIES[key];
+
+    const rows = (await manager.query(
+      `
+      WITH live AS (${spec.liveSql})
+      SELECT l.status,
+             ($4::date - (l.created_at AT TIME ZONE $3)::date) AS age_days,
+             COUNT(*)::int AS n
+      FROM live l
+      WHERE l.status = ANY($2::text[])
+      GROUP BY l.status, age_days
+      `,
+      [tenantId, [...spec.openStatuses], timeZone, today],
+    )) as CreatedAgeSqlRow[];
+
+    const blankRow = (status: string): CreatedAgeRow => ({ status, buckets: zeroMonthBuckets(), total: 0 });
+
+    // Fixed rows, in the order of the journey, even at zero: a status nobody is sitting in is
+    // itself a reading of the portfolio.
+    const byStatus = new Map(spec.openStatuses.map((status) => [status, blankRow(status)]));
+    const total = blankRow('total');
+
+    for (const row of rows) {
+      const target = byStatus.get(row.status);
+      if (!target) continue;
+      const bucket = monthBucketOf(num(row.age_days));
+      const count = num(row.n);
+      target.buckets[bucket] += count;
+      target.total += count;
+      total.buckets[bucket] += count;
+      total.total += count;
+    }
+
+    return { rows: [...byStatus.values()], total };
+  }
+
+  /**
+   * Where the open work sits and what has stopped moving: per status, how many items are open
+   * and how many have been in that status for longer than the entity's threshold.
+   *
+   * The clock starts on the last audit event that brought the item to its current status — a
+   * project that went back to "on hold" last week counts a week, not the two years since it was
+   * created. An item whose audit says nothing about status falls back to its creation day.
+   *
+   * The query returns the open items themselves, one row each; the rows are folded from them
+   * here, so a figure and the list it opens can never disagree. Only the stuck items travel:
+   * they are the ones no list can filter on.
+   */
+  private async byStatus(
+    manager: EntityManager,
+    key: EntityKey,
+    tenantId: string,
+    timeZone: string,
+    today: string,
+  ): Promise<ByStatusTable> {
     const spec = ENTITIES[key];
     const withPlannedEnd = key === 'projects';
+    const thresholdDays = STUCK_THRESHOLD_DAYS[key];
 
     const rows = (await manager.query(
       `
@@ -741,50 +843,48 @@ export class PortfolioFlowReportService {
       ORDER BY o.item_number
       `,
       [tenantId, spec.table, [...spec.openStatuses], timeZone, today],
-    )) as StageAgeSqlRow[];
+    )) as OpenItemSqlRow[];
 
-    const items: StageAgeItem[] = rows.map((row) => {
+    const blankRow = (status: string): ByStatusRow => {
+      const row: ByStatusRow = { status, open: 0, stuck: 0 };
+      if (withPlannedEnd) row.plannedEndPassed = 0;
+      return row;
+    };
+
+    const byStatus = new Map(spec.openStatuses.map((status) => [status, blankRow(status)]));
+    const total = blankRow('total');
+    const items: StuckItem[] = [];
+
+    for (const row of rows) {
+      const target = byStatus.get(row.status);
+      if (!target) continue;
+      target.open += 1;
+      total.open += 1;
+      if (withPlannedEnd && row.planned_end_passed === true) {
+        target.plannedEndPassed = (target.plannedEndPassed ?? 0) + 1;
+        total.plannedEndPassed = (total.plannedEndPassed ?? 0) + 1;
+      }
+      // "Over 30 days" means over: an item on its thirtieth day in the status still moves.
+      if (num(row.age_days) <= thresholdDays) continue;
+      target.stuck += 1;
+      total.stuck += 1;
+
       const ref = row.item_number == null ? '' : `${spec.refPrefix}-${row.item_number}`;
-      const item: StageAgeItem = {
+      const item: StuckItem = {
         id: row.id,
         ref,
-        itemPath: `${spec.routeBase}/${ref || row.id}/summary`,
+        itemPath: `${spec.routeBase}/${ref || row.id}/${spec.routeTab}`,
         name: row.name ?? '',
         status: row.status,
         statusSince: row.status_since,
-        bucket: monthBucketOf(num(row.age_days)),
       };
       if (withPlannedEnd) {
         item.plannedEnd = row.planned_end ?? null;
         item.plannedEndPassed = row.planned_end_passed === true;
       }
-      return item;
-    });
-
-    const blankRow = (status: string): StageAgeRow => {
-      const row: StageAgeRow = { status, buckets: zeroMonthBuckets(), total: 0 };
-      if (withPlannedEnd) row.plannedEndPassed = 0;
-      return row;
-    };
-
-    // Fixed rows, in the order of the journey, even at zero: a stage nobody is sitting in is
-    // itself a reading of the portfolio.
-    const byStatus = new Map(spec.openStatuses.map((status) => [status, blankRow(status)]));
-    const total = blankRow('total');
-
-    for (const item of items) {
-      const row = byStatus.get(item.status);
-      if (!row) continue;
-      row.buckets[item.bucket] += 1;
-      row.total += 1;
-      total.buckets[item.bucket] += 1;
-      total.total += 1;
-      if (withPlannedEnd && item.plannedEndPassed) {
-        row.plannedEndPassed = (row.plannedEndPassed ?? 0) + 1;
-        total.plannedEndPassed = (total.plannedEndPassed ?? 0) + 1;
-      }
+      items.push(item);
     }
 
-    return { rows: [...byStatus.values()], total, items };
+    return { thresholdDays, rows: [...byStatus.values()], total, items };
   }
 }

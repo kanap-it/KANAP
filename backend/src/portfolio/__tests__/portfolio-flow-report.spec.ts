@@ -21,15 +21,21 @@ function stubManager(answers: {
   periods: Record<string, Array<Record<string, unknown>>>;
   totals: Record<string, Array<Record<string, unknown>>>;
   taskAge: Array<Record<string, unknown>>;
-  stageItems: Record<string, Array<Record<string, unknown>>>;
+  createdAge: Record<string, Array<Record<string, unknown>>>;
+  openItems: Record<string, Array<Record<string, unknown>>>;
 }) {
   const calls: Call[] = [];
   const manager = {
     query: async (sql: string, params: any[]) => {
       calls.push({ sql, params });
       if (sql.includes('open_tasks AS')) return answers.taskAge;
+      // The creation-age query has no table parameter: it is recognised by its open statuses.
+      if (sql.includes('GROUP BY l.status, age_days')) {
+        const first = String((params[1] ?? [])[0]);
+        return answers.createdAge[first === 'pending_review' ? 'requests' : 'projects'] ?? [];
+      }
       const table = String(params[1]);
-      if (sql.includes('open_items AS')) return answers.stageItems[table] ?? [];
+      if (sql.includes('open_items AS')) return answers.openItems[table] ?? [];
       if (sql.includes('open_at_end AS')) return answers.periods[table] ?? [];
       return answers.totals[table] ?? [];
     },
@@ -37,12 +43,11 @@ function stubManager(answers: {
   return { manager, calls };
 }
 
-const emptyTotals = [
-  { open_now: 0, closed_count: 0, median_days: null, by_type: null, by_outcome: null, done: null },
-];
+/** One (status, age) group as the creation-age query hands it over. */
+const ageGroup = (status: string, ageDays: number, n = 1) => ({ status, age_days: ageDays, n });
 
-/** One open item as the stage age query hands it over. */
-const stageItem = (
+/** One open item as the by-status query hands it over. */
+const openItem = (
   itemNumber: number,
   status: string,
   ageDays: number,
@@ -237,36 +242,42 @@ async function run() {
         {
           open_now: 7,
           closed_count: 6,
+          measured_count: 6,
           median_days: 12.44,
           by_type: [
-            { taskTypeId: 't1', taskTypeName: 'Bug', closedCount: 4, medianDays: 8.2 },
-            { taskTypeId: null, taskTypeName: null, closedCount: 2, medianDays: 21 },
+            { taskTypeId: 't1', taskTypeName: 'Bug', closedCount: 4, measuredCount: 4, medianDays: 8.2 },
+            { taskTypeId: null, taskTypeName: null, closedCount: 2, measuredCount: 2, medianDays: 21 },
           ],
           by_outcome: null,
           done: null,
         },
       ],
+      // Two of the five closed requests were imported already closed: they are counted, never
+      // measured, and the medians ignore them.
       portfolio_requests: [
         {
           open_now: 4,
           closed_count: 5,
+          measured_count: 3,
           median_days: 9,
           by_type: null,
           by_outcome: {
-            converted: { closedCount: 3, medianDays: 6.25 },
-            rejected: { closedCount: 2, medianDays: 14 },
+            converted: { closedCount: 3, measuredCount: 2, medianDays: 6.25 },
+            rejected: { closedCount: 2, measuredCount: 1, medianDays: 14 },
           },
           done: null,
         },
       ],
+      // Every project closing is a creation row: nothing is measurable, so no median at all.
       portfolio_projects: [
         {
           open_now: 14,
           closed_count: 4,
-          median_days: 120,
+          measured_count: 0,
+          median_days: null,
           by_type: null,
           by_outcome: null,
-          done: { closedCount: 2, medianDays: 210.4, withPlannedEnd: 1, medianOverrunDays: 32 },
+          done: { closedCount: 2, measuredCount: 0, medianDays: null, withPlannedEnd: 0, medianOverrunDays: null },
         },
       ],
     },
@@ -290,19 +301,39 @@ async function run() {
         total: 1,
       },
     ],
-    stageItems: {
-      portfolio_requests: [
-        stageItem(3, 'pending_review', 12),
-        stageItem(4, 'pending_review', 200),
-        stageItem(7, 'approved', 91),
+    createdAge: {
+      requests: [
+        ageGroup('pending_review', 12),
+        ageGroup('pending_review', 200),
+        ageGroup('approved', 91),
         // A status nobody reports on any more: it belongs to no fixed row and is left out.
-        stageItem(9, 'archived', 5),
+        ageGroup('archived', 5),
+      ],
+      projects: [
+        ageGroup('in_progress', 29),
+        ageGroup('in_progress', 30, 2),
+        ageGroup('waiting_list', 182),
+        ageGroup('on_hold', 183),
+      ],
+    },
+    openItems: {
+      tasks: [
+        openItem(1, 'open', 10),
+        // Thirty days in the status is the threshold itself, so this one is not stuck yet.
+        openItem(3, 'open', 30),
+        openItem(2, 'in_progress', 31),
+      ],
+      portfolio_requests: [
+        openItem(3, 'pending_review', 12),
+        openItem(4, 'pending_review', 200),
+        openItem(7, 'approved', 91),
+        openItem(9, 'archived', 300),
       ],
       portfolio_projects: [
-        stageItem(1, 'in_progress', 29, { planned_end: '2026-02-01', planned_end_passed: true }),
-        stageItem(2, 'in_progress', 30, { planned_end: '2027-02-01', planned_end_passed: false }),
-        stageItem(5, 'waiting_list', 182),
-        stageItem(6, 'on_hold', 183, { planned_end: '2025-09-09', planned_end_passed: true }),
+        openItem(1, 'in_progress', 29, { planned_end: '2026-02-01', planned_end_passed: true }),
+        openItem(2, 'in_progress', 92, { planned_end: '2027-02-01', planned_end_passed: false }),
+        openItem(5, 'waiting_list', 182),
+        openItem(6, 'on_hold', 183, { planned_end: '2025-09-09', planned_end_passed: true }),
       ],
     },
   });
@@ -349,22 +380,25 @@ async function run() {
   /*  Lead time                                                        */
   /* ----------------------------------------------------------------- */
 
-  assert.deepEqual(report.leadTime.tasks, { closedCount: 6, medianDays: 12.4 });
+  assert.deepEqual(report.leadTime.tasks, { closedCount: 6, measuredCount: 6, medianDays: 12.4 });
   assert.deepEqual(report.leadTime.tasksByType, [
-    { taskTypeId: 't1', taskTypeName: 'Bug', closedCount: 4, medianDays: 8.2 },
-    { taskTypeId: null, taskTypeName: null, closedCount: 2, medianDays: 21 },
+    { taskTypeId: 't1', taskTypeName: 'Bug', closedCount: 4, measuredCount: 4, medianDays: 8.2 },
+    { taskTypeId: null, taskTypeName: null, closedCount: 2, measuredCount: 2, medianDays: 21 },
   ]);
+  // The closings stay at five, the median is read on the three real transitions.
   assert.deepEqual(report.leadTime.requests, {
     closedCount: 5,
+    measuredCount: 3,
     medianDays: 9,
-    converted: { closedCount: 3, medianDays: 6.3 },
-    rejected: { closedCount: 2, medianDays: 14 },
+    converted: { closedCount: 3, measuredCount: 2, medianDays: 6.3 },
+    rejected: { closedCount: 2, measuredCount: 1, medianDays: 14 },
   });
-  // The tile keeps done + cancelled; the duration and the gap read on the finished ones only.
+  // Nothing measurable: the closings are still counted, every median reads as nothing.
   assert.deepEqual(report.leadTime.projects, {
     closedCount: 4,
-    medianDays: 120,
-    done: { closedCount: 2, medianDays: 210.4, withPlannedEnd: 1, medianOverrunDays: 32 },
+    measuredCount: 0,
+    medianDays: null,
+    done: { closedCount: 2, measuredCount: 0, medianDays: null, withPlannedEnd: 0, medianOverrunDays: null },
   });
 
   /* ----------------------------------------------------------------- */
@@ -385,10 +419,10 @@ async function run() {
   });
 
   /* ----------------------------------------------------------------- */
-  /*  Time in the current stage                                        */
+  /*  How long ago the open work was created                           */
   /* ----------------------------------------------------------------- */
 
-  // The rows follow the journey and stay in place even when nobody sits in the stage.
+  // The rows follow the journey and stay in place even when nobody sits in the status.
   assert.deepEqual(
     report.age.requests.rows.map((row) => row.status),
     ['pending_review', 'candidate', 'approved', 'on_hold'],
@@ -411,47 +445,94 @@ async function run() {
   assert.equal(report.age.requests.rows[2].buckets.oneToThreeMonths, 1);
   // A request sitting in a status the report does not follow is left out of every figure.
   assert.equal(report.age.requests.total.total, 3);
-  assert.equal(report.age.requests.items.length, 4);
-  assert.equal(report.age.requests.total.plannedEndPassed, undefined);
+  // The creation-age table holds figures only: its cells open a list, not an inner panel.
+  assert.equal((report.age.requests as any).items, undefined);
+  assert.equal((report.age.requests.total as any).plannedEndPassed, undefined);
 
-  // The requests carry no planned end at all, the projects carry one per item.
-  assert.equal(report.age.requests.items[0].plannedEnd, undefined);
-  assert.deepEqual(report.age.requests.items[0], {
-    id: 'id-3',
-    ref: 'REQ-3',
-    itemPath: '/portfolio/requests/REQ-3/summary',
-    name: 'Item 3',
-    status: 'pending_review',
-    statusSince: '2026-01-15',
-    bucket: 'underOneMonth',
-  });
-  assert.deepEqual(report.age.projects.items[0], {
-    id: 'id-1',
-    ref: 'PRJ-1',
-    itemPath: '/portfolio/projects/PRJ-1/summary',
-    name: 'Item 1',
-    status: 'in_progress',
-    statusSince: '2026-01-15',
-    bucket: 'underOneMonth',
-    plannedEnd: '2026-02-01',
-    plannedEndPassed: true,
-  });
-
-  // 29 days is under a month, 30 days is not: the two in-progress projects split.
+  // 29 days is under a month, 30 days is not: the in-progress projects split, and a group of
+  // two items on the same day lands whole in its bracket.
   assert.deepEqual(report.age.projects.rows[2], {
     status: 'in_progress',
-    buckets: { underOneMonth: 1, oneToThreeMonths: 1, threeToSixMonths: 0, overSixMonths: 0 },
-    total: 2,
-    plannedEndPassed: 1,
+    buckets: { underOneMonth: 1, oneToThreeMonths: 2, threeToSixMonths: 0, overSixMonths: 0 },
+    total: 3,
   });
   assert.equal(report.age.projects.rows[0].buckets.threeToSixMonths, 1);
   assert.equal(report.age.projects.rows[4].buckets.overSixMonths, 1);
   assert.deepEqual(report.age.projects.total, {
     status: 'total',
-    buckets: { underOneMonth: 1, oneToThreeMonths: 1, threeToSixMonths: 1, overSixMonths: 1 },
-    total: 4,
+    buckets: { underOneMonth: 1, oneToThreeMonths: 2, threeToSixMonths: 1, overSixMonths: 1 },
+    total: 5,
+  });
+
+  /* ----------------------------------------------------------------- */
+  /*  Where the open work sits, and what does not move                 */
+  /* ----------------------------------------------------------------- */
+
+  assert.equal(report.byStatus.tasks.thresholdDays, 30);
+  assert.equal(report.byStatus.requests.thresholdDays, 91);
+  assert.equal(report.byStatus.projects.thresholdDays, 91);
+
+  assert.deepEqual(
+    report.byStatus.tasks.rows.map((row) => row.status),
+    ['open', 'in_progress', 'pending', 'in_testing'],
+  );
+  // Thirty days in the status is not "over thirty days": the threshold day itself still moves.
+  assert.deepEqual(report.byStatus.tasks.rows[0], { status: 'open', open: 2, stuck: 0 });
+  assert.deepEqual(report.byStatus.tasks.rows[1], { status: 'in_progress', open: 1, stuck: 1 });
+  assert.deepEqual(report.byStatus.tasks.total, { status: 'total', open: 3, stuck: 1 });
+  // Only the stuck items travel, and a task opens on its own workspace tab.
+  assert.equal(report.byStatus.tasks.items.length, 1);
+  assert.deepEqual(report.byStatus.tasks.items[0], {
+    id: 'id-2',
+    ref: 'T-2',
+    itemPath: '/portfolio/tasks/T-2/overview',
+    name: 'Item 2',
+    status: 'in_progress',
+    statusSince: '2026-01-15',
+  });
+
+  // 91 days is the request threshold itself, so that one is not stuck; the status the report
+  // does not follow is left out of the figures and of the list.
+  assert.deepEqual(report.byStatus.requests.rows[0], { status: 'pending_review', open: 2, stuck: 1 });
+  assert.deepEqual(report.byStatus.requests.rows[2], { status: 'approved', open: 1, stuck: 0 });
+  assert.deepEqual(report.byStatus.requests.total, { status: 'total', open: 3, stuck: 1 });
+  assert.deepEqual(report.byStatus.requests.items.map((item) => item.ref), ['REQ-4']);
+  assert.equal(report.byStatus.requests.items[0].itemPath, '/portfolio/requests/REQ-4/summary');
+  assert.equal(report.byStatus.requests.items[0].plannedEnd, undefined);
+  assert.equal(report.byStatus.requests.rows[0].plannedEndPassed, undefined);
+
+  // Projects carry the planned end on the row and on the item.
+  assert.deepEqual(report.byStatus.projects.rows[2], {
+    status: 'in_progress',
+    open: 2,
+    stuck: 1,
+    plannedEndPassed: 1,
+  });
+  assert.deepEqual(report.byStatus.projects.total, {
+    status: 'total',
+    open: 4,
+    stuck: 3,
     plannedEndPassed: 2,
   });
+  assert.deepEqual(report.byStatus.projects.items.map((item) => item.ref), ['PRJ-2', 'PRJ-5', 'PRJ-6']);
+  assert.deepEqual(report.byStatus.projects.items[2], {
+    id: 'id-6',
+    ref: 'PRJ-6',
+    itemPath: '/portfolio/projects/PRJ-6/summary',
+    name: 'Item 6',
+    status: 'on_hold',
+    statusSince: '2026-01-15',
+    plannedEnd: '2025-09-09',
+    plannedEndPassed: true,
+  });
+
+  // The stuck column is a subset of the open one, row by row and on the total.
+  for (const table of [report.byStatus.tasks, report.byStatus.requests, report.byStatus.projects]) {
+    assert.equal(table.total.open, table.rows.reduce((sum, row) => sum + row.open, 0));
+    assert.equal(table.total.stuck, table.rows.reduce((sum, row) => sum + row.stuck, 0));
+    assert.equal(table.items.length, table.total.stuck);
+    for (const row of table.rows) assert.ok(row.stuck <= row.open);
+  }
 
   // Every row total is the sum of its brackets, and the table total is the sum of the rows.
   for (const table of [report.age.requests, report.age.projects]) {
@@ -471,7 +552,9 @@ async function run() {
   /*  Tenant safety and statement shape                                */
   /* ----------------------------------------------------------------- */
 
-  assert.equal(calls.length, 9);
+  // Six for the three flows, one for the task age, two for the creation age, three for the
+  // by-status tables: twelve statements, no query per item anywhere.
+  assert.equal(calls.length, 12);
   for (const call of calls) {
     assert.equal(call.params[0], tenantId, 'every statement is filtered on the tenant');
     assert.ok(call.sql.includes('tenant_id = $1'), 'the tenant predicate is in the SQL');
@@ -506,6 +589,14 @@ async function run() {
   // The closings of a request or a project are counted over the month window, not the week one.
   assert.equal(requestTotals.params[7], report.monthsStartDate);
   assert.equal(requestTotals.params[8], report.endDate);
+
+  // The creation age is read on the live rows only: no audit table, no event history.
+  const projectCreatedAge = calls.find(
+    (call) => call.sql.includes('GROUP BY l.status, age_days') && String((call.params[1] ?? [])[0]) === 'waiting_list',
+  )!;
+  assert.ok(!projectCreatedAge.sql.includes('audit_log'));
+  assert.ok(projectCreatedAge.sql.includes('l.created_at AT TIME ZONE $3'));
+  assert.equal(projectCreatedAge.params[3], report.endDate);
 
   const projectStage = calls.find(
     (call) => call.sql.includes('open_items AS') && String(call.params[1]) === 'portfolio_projects',

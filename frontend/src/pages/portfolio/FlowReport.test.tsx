@@ -59,28 +59,33 @@ const monthPeriods = (openAtEnd: number[]) => [
   period('2026-01-01', '2026-01-31', 2, 0, openAtEnd[2]),
 ];
 
-const stageItem = (
-  ref: string,
-  status: string,
-  bucket: string,
-  over: Record<string, unknown> = {},
-) => ({
-  id: `id-${ref}`,
-  ref,
-  itemPath: `/portfolio/${ref.startsWith('REQ') ? 'requests' : 'projects'}/${ref}/summary`,
-  name: `Item ${ref}`,
-  status,
-  statusSince: '2026-05-04',
-  bucket,
-  ...over,
-});
-
 const emptyBuckets = { underOneMonth: 0, oneToThreeMonths: 0, threeToSixMonths: 0, overSixMonths: 0 };
 
-const stageRow = (status: string, buckets: Record<string, number>, over: Record<string, unknown> = {}) => ({
+/** One row of a creation-age grid: the brackets, and the total they add up to. */
+const ageRow = (status: string, buckets: Record<string, number>) => ({
   status,
   buckets: { ...emptyBuckets, ...buckets },
   total: Object.values(buckets).reduce((sum, value) => sum + value, 0),
+});
+
+/** One row of a by-status grid. */
+const statusRow = (status: string, open: number, stuck: number, plannedEndPassed?: number) => ({
+  status,
+  open,
+  stuck,
+  ...(plannedEndPassed === undefined ? {} : { plannedEndPassed }),
+});
+
+/** One stuck item, the unit behind a stuck figure. */
+const stuckItem = (ref: string, status: string, over: Record<string, unknown> = {}) => ({
+  id: `id-${ref}`,
+  ref,
+  itemPath: `/portfolio/${ref.startsWith('REQ') ? 'requests' : ref.startsWith('PRJ') ? 'projects' : 'tasks'}/${ref}/${
+    ref.startsWith('T-') ? 'overview' : 'summary'
+  }`,
+  name: `Item ${ref}`,
+  status,
+  statusSince: '2026-05-04',
   ...over,
 });
 
@@ -122,55 +127,85 @@ const report = (over: Record<string, unknown> = {}) => ({
     },
     requests: {
       rows: [
-        stageRow('pending_review', { underOneMonth: 2 }),
-        stageRow('candidate', {}),
-        stageRow('approved', { overSixMonths: 1 }),
-        stageRow('on_hold', { oneToThreeMonths: 1 }),
+        ageRow('pending_review', { underOneMonth: 2 }),
+        ageRow('candidate', {}),
+        ageRow('approved', { overSixMonths: 1 }),
+        ageRow('on_hold', { oneToThreeMonths: 1 }),
       ],
-      total: stageRow('total', { underOneMonth: 2, oneToThreeMonths: 1, overSixMonths: 1 }),
-      items: [
-        stageItem('REQ-1', 'pending_review', 'underOneMonth'),
-        stageItem('REQ-2', 'pending_review', 'underOneMonth'),
-        stageItem('REQ-3', 'approved', 'overSixMonths'),
-        stageItem('REQ-4', 'on_hold', 'oneToThreeMonths'),
-      ],
+      total: ageRow('total', { underOneMonth: 2, oneToThreeMonths: 1, overSixMonths: 1 }),
     },
     projects: {
       rows: [
-        stageRow('waiting_list', { underOneMonth: 1 }, { plannedEndPassed: 0 }),
-        stageRow('planned', { threeToSixMonths: 2 }, { plannedEndPassed: 2 }),
-        stageRow('in_progress', { oneToThreeMonths: 3 }, { plannedEndPassed: 1 }),
-        stageRow('in_testing', {}, { plannedEndPassed: 0 }),
-        stageRow('on_hold', {}, { plannedEndPassed: 0 }),
+        ageRow('waiting_list', { underOneMonth: 1 }),
+        ageRow('planned', { threeToSixMonths: 2 }),
+        ageRow('in_progress', { oneToThreeMonths: 3 }),
+        ageRow('in_testing', {}),
+        ageRow('on_hold', {}),
       ],
-      total: stageRow(
-        'total',
-        { underOneMonth: 1, oneToThreeMonths: 3, threeToSixMonths: 2 },
-        { plannedEndPassed: 3 },
-      ),
+      total: ageRow('total', { underOneMonth: 1, oneToThreeMonths: 3, threeToSixMonths: 2 }),
+    },
+  },
+  byStatus: {
+    tasks: {
+      thresholdDays: 30,
+      rows: [
+        statusRow('open', 5, 1),
+        statusRow('in_progress', 4, 2),
+        statusRow('pending', 2, 0),
+        statusRow('in_testing', 1, 0),
+      ],
+      total: statusRow('total', 12, 3),
       items: [
-        stageItem('PRJ-1', 'waiting_list', 'underOneMonth', { plannedEnd: null, plannedEndPassed: false }),
-        stageItem('PRJ-2', 'planned', 'threeToSixMonths', { plannedEnd: '2026-03-31', plannedEndPassed: true }),
-        stageItem('PRJ-3', 'planned', 'threeToSixMonths', { plannedEnd: '2026-04-30', plannedEndPassed: true }),
-        stageItem('PRJ-4', 'in_progress', 'oneToThreeMonths', { plannedEnd: '2026-02-28', plannedEndPassed: true }),
-        stageItem('PRJ-5', 'in_progress', 'oneToThreeMonths', { plannedEnd: '2027-01-31', plannedEndPassed: false }),
-        stageItem('PRJ-6', 'in_progress', 'oneToThreeMonths', { plannedEnd: null, plannedEndPassed: false }),
+        stuckItem('T-1', 'in_progress'),
+        stuckItem('T-2', 'in_progress'),
+        stuckItem('T-3', 'open'),
+      ],
+    },
+    requests: {
+      thresholdDays: 91,
+      rows: [
+        statusRow('pending_review', 2, 1),
+        statusRow('candidate', 0, 0),
+        statusRow('approved', 1, 1),
+        statusRow('on_hold', 1, 0),
+      ],
+      total: statusRow('total', 4, 2),
+      items: [stuckItem('REQ-1', 'pending_review'), stuckItem('REQ-3', 'approved')],
+    },
+    projects: {
+      thresholdDays: 91,
+      rows: [
+        statusRow('waiting_list', 1, 0, 0),
+        statusRow('planned', 2, 2, 2),
+        statusRow('in_progress', 3, 1, 1),
+        statusRow('in_testing', 0, 0, 0),
+        statusRow('on_hold', 0, 0, 0),
+      ],
+      total: statusRow('total', 6, 3, 3),
+      items: [
+        stuckItem('PRJ-2', 'planned', { plannedEnd: '2026-03-31', plannedEndPassed: true }),
+        stuckItem('PRJ-3', 'planned', { plannedEnd: '2026-04-30', plannedEndPassed: true }),
+        stuckItem('PRJ-4', 'in_progress', { plannedEnd: '2027-01-31', plannedEndPassed: false }),
       ],
     },
   },
   leadTime: {
-    tasks: { closedCount: 6, medianDays: 12.4 },
-    tasksByType: [{ taskTypeId: 'type-bug', taskTypeName: 'Bug', closedCount: 6, medianDays: 12.4 }],
+    tasks: { closedCount: 6, measuredCount: 6, medianDays: 12.4 },
+    tasksByType: [
+      { taskTypeId: 'type-bug', taskTypeName: 'Bug', closedCount: 6, measuredCount: 6, medianDays: 12.4 },
+    ],
     requests: {
       closedCount: 5,
+      measuredCount: 5,
       medianDays: 21,
-      converted: { closedCount: 3, medianDays: 18.5 },
-      rejected: { closedCount: 2, medianDays: 30 },
+      converted: { closedCount: 3, measuredCount: 3, medianDays: 18.5 },
+      rejected: { closedCount: 2, measuredCount: 2, medianDays: 30 },
     },
     projects: {
       closedCount: 0,
+      measuredCount: 0,
       medianDays: null,
-      done: { closedCount: 0, medianDays: null, withPlannedEnd: 0, medianOverrunDays: null },
+      done: { closedCount: 0, measuredCount: 0, medianDays: null, withPlannedEnd: 0, medianOverrunDays: null },
     },
   },
   ...over,
@@ -343,33 +378,70 @@ describe('FlowReport', () => {
     expect(figureButtons('0')).toHaveLength(0);
   });
 
-  it('shows how long the open requests and projects have been in their stage', async () => {
+  it('reads the open requests and projects by status and by how long ago they were created', async () => {
     mockApi(report());
     renderReport();
 
     await waitFor(() => expect(screen.getAllByText('Pending review').length).toBeGreaterThan(0));
 
-    expect(screen.getByText('Requests by stage')).toBeTruthy();
-    expect(screen.getByText('Projects by stage')).toBeTruthy();
+    expect(screen.getByText('Age of open work')).toBeTruthy();
+    expect(screen.getByText('Open requests')).toBeTruthy();
+    expect(screen.getByText('Open projects')).toBeTruthy();
     const headers = screen.getAllByRole('columnheader').map((node) => node.textContent?.trim() ?? '');
-    expect(headers).toContain('Stage');
+    expect(headers).toContain('Status');
     expect(headers).toContain('Under 1 month');
     expect(headers).toContain('Over 6 months');
-    expect(headers).toContain('Planned end passed');
+    // The three grids of the section read the same measure, and say so above the brackets.
+    expect(headers.filter((header) => header === 'Created')).toHaveLength(3);
 
-    // The stages read as the labels the lists use, never as a raw status value.
-    expect(screen.getAllByText('Pending review').length).toBeGreaterThan(0);
+    // The statuses read as the labels the lists use, never as a raw status value.
     expect(screen.getAllByText('Waiting list').length).toBeGreaterThan(0);
     expect(screen.queryByText('pending_review')).toBeNull();
 
-    // A stage total opens the list narrowed to that single stage.
-    const inProgress = linkHref(
-      '3',
-      (href) => href.startsWith('/portfolio/projects') && href.includes('"values":["in_progress"]'),
+    // Planned, created 3 to 6 months ago: today is 2026-07-19, so the bracket runs from
+    // 2026-01-18 to 2026-04-18, and the cell opens the project list on exactly that slice.
+    const cell = linkHref('2', (href) => href.includes('"values":["planned"]') && href.includes('created_at'));
+    expect(cell).toContain('/portfolio/projects?projectScope=all');
+    expect(cell).toContain('"status":{"filterType":"set","values":["planned"]}');
+    expect(cell).toContain(
+      '"created_at":{"filterType":"date","type":"inRange","dateFrom":"2026-01-18","dateTo":"2026-04-18"}',
     );
-    expect(inProgress).toContain('/portfolio/projects?projectScope=all');
-    expect(inProgress).toContain('"status":{"filterType":"set","values":["in_progress"]}');
-    expect(inProgress).not.toContain('planned_end');
+
+    // The oldest bracket is open on the left, the newest open on the right.
+    const oldest = linkHref(
+      '1',
+      (href) => href.includes('"values":["approved"]') && href.includes('lessThan'),
+    );
+    expect(oldest).toContain(
+      '"created_at":{"filterType":"date","type":"lessThan","dateFrom":"2026-01-18"}',
+    );
+    const newest = linkHref(
+      '2',
+      (href) => href.includes('"values":["pending_review"]') && href.includes('greaterThanOrEqual'),
+    );
+    expect(newest).toContain(
+      '"created_at":{"filterType":"date","type":"greaterThanOrEqual","dateFrom":"2026-06-20"}',
+    );
+
+    // A column total keeps the whole open scope and only carries the date.
+    const columnTotal = linkHref(
+      '1',
+      (href) => href.startsWith('/portfolio/requests') && href.includes('lessThan') && !href.includes('["approved"]'),
+    );
+    expect(columnTotal).toContain(
+      '"status":{"filterType":"set","values":["pending_review","candidate","approved","on_hold"]}',
+    );
+
+    // A row total is the status on its own, with no date filter at all.
+    const rowTotal = linkHref(
+      '3',
+      (href) =>
+        href.startsWith('/portfolio/projects') &&
+        href.includes('"values":["in_progress"]') &&
+        !href.includes('created_at'),
+    );
+    expect(rowTotal).not.toContain('created_at');
+    expect(rowTotal).not.toContain('planned_end');
   });
 
   it('sends a planned-end figure to the project list with the exact filter model', async () => {
@@ -397,54 +469,92 @@ describe('FlowReport', () => {
     expect(total).toContain('"planned_end":{"filterType":"date","type":"lessThan","dateFrom":"2026-07-19"}');
   });
 
-  it('opens a list inside the report for a bracket cell, and closes it again', async () => {
+  it('shows where the open work sits and what has stopped moving', async () => {
+    mockApi(report());
+    renderReport();
+
+    await waitFor(() => expect(screen.getAllByText('Waiting list').length).toBeGreaterThan(0));
+
+    expect(screen.getByText('By status')).toBeTruthy();
+    expect(
+      screen.getByText('How many open items sit in each status, and how many have been there for a long time.'),
+    ).toBeTruthy();
+    expect(screen.getByText('Tasks by status')).toBeTruthy();
+    expect(screen.getByText('Requests by status')).toBeTruthy();
+    expect(screen.getByText('Projects by status')).toBeTruthy();
+
+    const headers = screen.getAllByRole('columnheader').map((node) => node.textContent?.trim() ?? '');
+    expect(headers).toContain('Open');
+    // A task is read on a month, a request or a project on a quarter.
+    expect(headers).toContain('In this status for over 30 days');
+    expect(headers).toContain('In this status for over 3 months');
+    expect(headers).toContain('Planned end passed');
+
+    // An open figure opens its list on that single status.
+    const pending = linkHref('2', (href) => href.startsWith('/portfolio/tasks') && href.includes('"values":["pending"]'));
+    expect(pending).toContain('/portfolio/tasks?taskScope=all');
+    expect(pending).toContain('"related_object_type":{"filterType":"set","values":[null,"project"]}');
+    expect(pending).not.toContain('created_at');
+  });
+
+  it('opens the stuck items as a list inside the report, and closes it again', async () => {
     mockApi(report());
     renderReport();
 
     await waitFor(() => expect(screen.getAllByText('Waiting list').length).toBeGreaterThan(0));
     expect(screen.queryByText('Close')).toBeNull();
 
-    // In progress, 1 to 3 months: three projects, and the header says so.
-    const projects = gridUnder('Projects by stage');
-    fireEvent.click(figureButtons('3', projects)[0]);
-
-    await waitFor(() => expect(screen.getByText('In progress · 1 to 3 months · 3')).toBeTruthy());
-    expect(screen.getByText('Item PRJ-4')).toBeTruthy();
-    expect(screen.getByText('Item PRJ-5')).toBeTruthy();
-    expect(screen.getByText('Item PRJ-6')).toBeTruthy();
-    expect(screen.queryByText('Item PRJ-2')).toBeNull();
-    expect(linkHref('PRJ-4')).toBe('/portfolio/projects/PRJ-4/summary');
-    expect(screen.getAllByText('In this stage since 4 May').length).toBe(3);
-    // A project past its planned end says so; one still inside its window does not.
-    expect(screen.getByText('Planned end 28 Feb · past due')).toBeTruthy();
-    expect(screen.getByText('Planned end 31 Jan 2027')).toBeTruthy();
-
-    // Only one panel at a time: another cell replaces the open one.
+    // Planned projects, stuck: two of them, and the header says which figure was clicked.
+    const projects = gridUnder('Projects by status');
     fireEvent.click(figureButtons('2', projects)[0]);
-    await waitFor(() => expect(screen.getByText('Planned · 3 to 6 months · 2')).toBeTruthy());
-    expect(screen.queryByText('In progress · 1 to 3 months · 3')).toBeNull();
+
+    await waitFor(() =>
+      expect(screen.getByText('Planned · in this status for over 3 months · 2')).toBeTruthy(),
+    );
+    expect(screen.getByText('Item PRJ-2')).toBeTruthy();
+    expect(screen.getByText('Item PRJ-3')).toBeTruthy();
+    expect(screen.queryByText('Item PRJ-4')).toBeNull();
+    expect(linkHref('PRJ-2')).toBe('/portfolio/projects/PRJ-2/summary');
+    expect(screen.getAllByText('In this status since 4 May').length).toBe(2);
+    expect(screen.getByText('Planned end 31 Mar · past due')).toBeTruthy();
+
+    // Only one panel at a time: the total of the column replaces the open one.
+    fireEvent.click(figureButtons('3', projects)[0]);
+    await waitFor(() =>
+      expect(screen.getByText('Projects · in this status for over 3 months · 3')).toBeTruthy(),
+    );
+    expect(screen.queryByText('Planned · in this status for over 3 months · 2')).toBeNull();
+    expect(screen.getByText('Item PRJ-4')).toBeTruthy();
 
     fireEvent.click(screen.getByText('Close'));
-    await waitFor(() => expect(screen.queryByText('Planned · 3 to 6 months · 2')).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByText('Projects · in this status for over 3 months · 3')).toBeNull(),
+    );
   });
 
-  it('reads a request bracket and the total row of a stage grid', async () => {
+  it('reads the stuck tasks and requests on their own threshold', async () => {
     mockApi(report());
     renderReport();
 
     await waitFor(() => expect(screen.getAllByText('Pending review').length).toBeGreaterThan(0));
 
-    // Pending review, under 1 month: the two requests the figure counted.
-    const requests = gridUnder('Requests by stage');
-    fireEvent.click(figureButtons('2', requests)[0]);
-    await waitFor(() => expect(screen.getByText('Pending review · Under 1 month · 2')).toBeTruthy());
-    expect(screen.getByText('Item REQ-1')).toBeTruthy();
-    // Requests carry no planned end, so the list never mentions one.
+    // Tasks in progress, stuck for over a month: the two the figure counted, on their own tab.
+    const tasks = gridUnder('Tasks by status');
+    fireEvent.click(figureButtons('2', tasks)[0]);
+    await waitFor(() =>
+      expect(screen.getByText('In progress · in this status for over 30 days · 2')).toBeTruthy(),
+    );
+    expect(linkHref('T-1')).toBe('/portfolio/tasks/T-1/overview');
+    // Tasks carry no planned end, so the list never mentions one.
     expect(within(openPanel()).queryByText(/Planned end/)).toBeNull();
 
-    // The total row of the same column gathers every stage of that bracket.
-    fireEvent.click(figureButtons('2', requests)[1]);
-    await waitFor(() => expect(screen.getByText('Requests · Under 1 month · 2')).toBeTruthy());
+    const requests = gridUnder('Requests by status');
+    fireEvent.click(figureButtons('1', requests)[0]);
+    await waitFor(() =>
+      expect(screen.getByText('Pending review · in this status for over 3 months · 1')).toBeTruthy(),
+    );
+    expect(screen.getByText('Item REQ-1')).toBeTruthy();
+    expect(screen.queryByText('Item REQ-3')).toBeNull();
   });
 
   it('breaks the median time to close down by outcome and by completion', async () => {
@@ -497,11 +607,18 @@ describe('FlowReport', () => {
   });
 
   it('says so when nothing is open and nothing closed', async () => {
-    const emptyStage = (statuses: string[], withPlannedEnd: boolean) => ({
-      rows: statuses.map((status) => stageRow(status, {}, withPlannedEnd ? { plannedEndPassed: 0 } : {})),
-      total: stageRow('total', {}, withPlannedEnd ? { plannedEndPassed: 0 } : {}),
+    const emptyAge = (statuses: string[]) => ({
+      rows: statuses.map((status) => ageRow(status, {})),
+      total: ageRow('total', {}),
+    });
+    const emptyStatus = (statuses: string[], withPlannedEnd: boolean, thresholdDays: number) => ({
+      thresholdDays,
+      rows: statuses.map((status) => statusRow(status, 0, 0, withPlannedEnd ? 0 : undefined)),
+      total: statusRow('total', 0, 0, withPlannedEnd ? 0 : undefined),
       items: [],
     });
+    const requestStatuses = ['pending_review', 'candidate', 'approved', 'on_hold'];
+    const projectStatuses = ['waiting_list', 'planned', 'in_progress', 'in_testing', 'on_hold'];
 
     mockApi(
       report({
@@ -515,22 +632,29 @@ describe('FlowReport', () => {
               total: 0,
             },
           },
-          requests: emptyStage(['pending_review', 'candidate', 'approved', 'on_hold'], false),
-          projects: emptyStage(['waiting_list', 'planned', 'in_progress', 'in_testing', 'on_hold'], true),
+          requests: emptyAge(requestStatuses),
+          projects: emptyAge(projectStatuses),
+        },
+        byStatus: {
+          tasks: emptyStatus(['open', 'in_progress', 'pending', 'in_testing'], false, 30),
+          requests: emptyStatus(requestStatuses, false, 91),
+          projects: emptyStatus(projectStatuses, true, 91),
         },
         leadTime: {
-          tasks: { closedCount: 0, medianDays: null },
+          tasks: { closedCount: 0, measuredCount: 0, medianDays: null },
           tasksByType: [],
           requests: {
             closedCount: 0,
+            measuredCount: 0,
             medianDays: null,
-            converted: { closedCount: 0, medianDays: null },
-            rejected: { closedCount: 0, medianDays: null },
+            converted: { closedCount: 0, measuredCount: 0, medianDays: null },
+            rejected: { closedCount: 0, measuredCount: 0, medianDays: null },
           },
           projects: {
             closedCount: 0,
+            measuredCount: 0,
             medianDays: null,
-            done: { closedCount: 0, medianDays: null, withPlannedEnd: 0, medianOverrunDays: null },
+            done: { closedCount: 0, measuredCount: 0, medianDays: null, withPlannedEnd: 0, medianOverrunDays: null },
           },
         },
       }),
@@ -541,8 +665,30 @@ describe('FlowReport', () => {
     expect(screen.getByText('No open task to report.')).toBeTruthy();
     expect(screen.getByText('No task closed in this period.')).toBeTruthy();
     expect(screen.getAllByText('No closing in this period')).toHaveLength(3);
-    // Every figure of the stage grids is a zero, so none of them is clickable.
+    // Every figure of the grids is a zero, so none of them is clickable.
     expect(figureButtons('0')).toHaveLength(0);
     expect(screen.getAllByRole('link').some((node) => node.textContent?.trim() === '0')).toBe(false);
+  });
+
+  it('drops the weekly link when some closings were imported already closed', async () => {
+    const base = report();
+    mockApi({
+      ...base,
+      leadTime: {
+        ...base.leadTime,
+        requests: { ...base.leadTime.requests, closedCount: 5, measuredCount: 3, medianDays: 21 },
+      },
+    });
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('over 3 closings · 12 months · 2 created already closed')).toBeTruthy());
+    // The weekly report holds the five closings, not the three the median was read on.
+    expect(
+      screen
+        .getAllByRole('link')
+        .some((node) => node.textContent?.includes('created already closed')),
+    ).toBe(false);
+    // The tasks tile measured every one of its closings, so its caption is still a link.
+    expect(linkHref('over 6 closings')).toBe('/portfolio/reports/weekly?startDate=2026-06-29&endDate=2026-07-19');
   });
 });
