@@ -1036,6 +1036,11 @@
   "reports": {
     "title": "Portfolio reporting",
     "subtitle": "Explore portfolio reports focused on capacity, workload, and portfolio status trends.",
+    "sections": {
+      "past": "What happened",
+      "current": "What is in progress",
+      "upcoming": "What comes next"
+    },
     "steering": {
       "period_one": "Last {{count}} day",
       "period_other": "Last {{count}} days",
@@ -1086,7 +1091,7 @@
       "allClassified": "Everything open is classified"
     },
     "byAssignee": {
-      "title": "By assignee",
+      "title": "Attention by contributor",
       "subtitle": "Where the open work sits, team by team and person by person, with what is late and what has not moved.",
       "columns": {
         "assignee": "Assignee",
@@ -1114,76 +1119,26 @@
       "loadFailed": "Failed to load report data."
     },
     "cards": {
-      "statusChange": {
-        "title": "Status change report",
-        "description": "Track standalone tasks, requests, and projects created or with status changes over a period."
-      },
       "capacityHeatmap": {
         "title": "Capacity heatmap",
         "description": "Visualize expected workload vs capacity for contributors and teams."
       },
       "weekly": {
-        "title": "Weekly report",
+        "title": "Period review",
         "description": "Requests, projects and tasks created, modified and closed over a period."
+      },
+      "byPerson": {
+        "title": "Activity by person",
+        "description": "Tasks each person created, changed and closed over a period, with the days they logged."
       },
       "flow": {
         "title": "Flow and age",
         "description": "What comes in and goes out week after week, how old the open tasks are, and how long a closing takes."
       },
       "byAssignee": {
-        "title": "By assignee",
+        "title": "Attention by contributor",
         "description": "Open and overdue tasks and those without movement, team by team and person by person."
       }
-    },
-    "itemTypes": {
-      "task": "Task",
-      "request": "Request",
-      "project": "Project",
-      "tasks": "Tasks",
-      "requests": "Requests",
-      "projects": "Projects"
-    },
-    "statusChange": {
-      "title": "Status change report",
-      "subtitle": "Items created during a selected period, or whose status changed in it (latest event per item in period).",
-      "filters": {
-        "startDate": "Start date",
-        "endDate": "End date",
-        "status": "Status",
-        "allStatuses": "All statuses",
-        "itemType": "Item type",
-        "allItemTypes": "All item types",
-        "source": "Source",
-        "allSources": "All sources",
-        "category": "Category",
-        "allCategories": "All categories",
-        "stream": "Stream",
-        "allStreams": "All streams"
-      },
-      "columns": {
-        "name": "Name",
-        "itemType": "Item type",
-        "priority": "Priority",
-        "status": "Status",
-        "source": "Source",
-        "category": "Category",
-        "stream": "Stream",
-        "company": "Company",
-        "created": "Created",
-        "lastChanged": "Last changed"
-      },
-      "actions": {
-        "exportCsv": "Export CSV",
-        "exportXlsx": "Export XLSX",
-        "exporting": "Exporting..."
-      },
-      "messages": {
-        "invalidPeriod": "Start date must be before or equal to end date.",
-        "loadFailed": "Failed to load report data.",
-        "exportFailed": "Export failed"
-      },
-      "itemCount_one": "{{count}} item",
-      "itemCount_other": "{{count}} items"
     },
     "capacityHeatmap": {
       "title": "Capacity heatmap",
@@ -1259,7 +1214,7 @@
       }
     },
     "weekly": {
-      "title": "Weekly report",
+      "title": "Period review",
       "subtitle": "Requests, projects and tasks over the period: what was created, modified and closed.",
       "filters": {
         "startDate": "Start date",
@@ -1272,6 +1227,8 @@
         "allStreams": "All streams",
         "taskTypes": "Task types",
         "allTaskTypes": "All task types",
+        "statusReached": "Status reached",
+        "allStatuses": "All statuses",
         "selectedCount": "{{count}} selected"
       },
       "actions": {
@@ -1302,23 +1259,6 @@
         "closed_one": "{{count}} closed",
         "closed_other": "{{count}} closed"
       },
-      "empty": {
-        "requests": {
-          "created": "No request created in this period.",
-          "modified": "No request modified in this period.",
-          "closed": "No request closed in this period."
-        },
-        "projects": {
-          "created": "No project created in this period.",
-          "modified": "No project modified in this period.",
-          "closed": "No project closed in this period."
-        },
-        "tasks": {
-          "created": "No task created in this period.",
-          "modified": "No task modified in this period.",
-          "closed": "No task closed in this period."
-        }
-      },
       "columns": {
         "reference": "Reference",
         "requestName": "Request name",
@@ -1330,6 +1270,7 @@
         "source": "Source",
         "category": "Category",
         "stream": "Stream",
+        "company": "Company",
         "progress": "Effort",
         "status": "Status",
         "changes": "Changes",
@@ -1351,8 +1292,7 @@
         "timeLogged": "Time logged {{total}} d (project {{project}} · other {{other}})",
         "days_one": "{{value}} day logged",
         "days_other": "{{value}} days logged",
-        "empty": "Nobody carried a task or logged time in this period.",
-        "noTasks": "No task in this period."
+        "empty": "Nobody carried a task or logged time in this period."
       }
     },
     "flow": {

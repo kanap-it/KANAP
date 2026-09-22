@@ -1036,6 +1036,11 @@
   "reports": {
     "title": "Reporting du portefeuille",
     "subtitle": "Explorez les rapports du portefeuille axés sur la capacité, la charge de travail et les tendances de statut.",
+    "sections": {
+      "past": "Ce qui s'est passé",
+      "current": "Ce qui est en cours",
+      "upcoming": "Ce qui vient"
+    },
     "steering": {
       "period_one": "{{count}} dernier jour",
       "period_other": "{{count}} derniers jours",
@@ -1086,7 +1091,7 @@
       "allClassified": "Tout ce qui est ouvert est classé"
     },
     "byAssignee": {
-      "title": "Par responsable",
+      "title": "Points d'attention par contributeur",
       "subtitle": "Où se trouve le travail ouvert, équipe par équipe et personne par personne, avec ce qui est en retard et ce qui n'avance plus.",
       "columns": {
         "assignee": "Responsable",
@@ -1114,76 +1119,26 @@
       "loadFailed": "Le chargement du rapport a échoué."
     },
     "cards": {
-      "statusChange": {
-        "title": "Rapport de changement de statut",
-        "description": "Suivez les tâches autonomes, demandes et projets créés ou dont le statut a changé sur une période."
-      },
       "capacityHeatmap": {
         "title": "Carte de chaleur de la capacité",
         "description": "Visualisez la charge attendue par rapport à la capacité des contributeurs et des équipes."
       },
       "weekly": {
-        "title": "Rapport hebdomadaire",
+        "title": "Bilan de la période",
         "description": "Demandes, projets et tâches créés, modifiés et clôturés sur une période."
+      },
+      "byPerson": {
+        "title": "Activité par personne",
+        "description": "Les tâches que chaque personne a créées, modifiées et clôturées sur une période, avec les jours saisis."
       },
       "flow": {
         "title": "Flux et ancienneté",
         "description": "Ce qui entre et ce qui sort semaine après semaine, l'âge des tâches ouvertes et le temps qu'il faut pour clôturer."
       },
       "byAssignee": {
-        "title": "Par responsable",
+        "title": "Points d'attention par contributeur",
         "description": "Les tâches ouvertes, en retard et sans mouvement, équipe par équipe et personne par personne."
       }
-    },
-    "itemTypes": {
-      "task": "Tâche",
-      "request": "Demande",
-      "project": "Projet",
-      "tasks": "Tâches",
-      "requests": "Demandes",
-      "projects": "Projets"
-    },
-    "statusChange": {
-      "title": "Rapport de changement de statut",
-      "subtitle": "Éléments créés au cours d'une période sélectionnée ou dont le statut a changé (dernier événement par élément sur la période).",
-      "filters": {
-        "startDate": "Date de début",
-        "endDate": "Date de fin",
-        "status": "Statut",
-        "allStatuses": "Tous les statuts",
-        "itemType": "Type d'élément",
-        "allItemTypes": "Tous les types d'éléments",
-        "source": "Source",
-        "allSources": "Toutes les sources",
-        "category": "Catégorie",
-        "allCategories": "Toutes les catégories",
-        "stream": "Filière",
-        "allStreams": "Toutes les filières"
-      },
-      "columns": {
-        "name": "Nom",
-        "itemType": "Type d'élément",
-        "priority": "Priorité",
-        "status": "Statut",
-        "source": "Source",
-        "category": "Catégorie",
-        "stream": "Filière",
-        "company": "Société",
-        "created": "Créé le",
-        "lastChanged": "Dernière modification"
-      },
-      "actions": {
-        "exportCsv": "Exporter CSV",
-        "exportXlsx": "Exporter XLSX",
-        "exporting": "Export en cours..."
-      },
-      "messages": {
-        "invalidPeriod": "La date de début doit être antérieure ou égale à la date de fin.",
-        "loadFailed": "Échec du chargement des données du rapport.",
-        "exportFailed": "Échec de l'export"
-      },
-      "itemCount_one": "{{count}} élément",
-      "itemCount_other": "{{count}} éléments"
     },
     "capacityHeatmap": {
       "title": "Carte de chaleur de la capacité",
@@ -1259,7 +1214,7 @@
       }
     },
     "weekly": {
-      "title": "Rapport hebdomadaire",
+      "title": "Bilan de la période",
       "subtitle": "Demandes, projets et tâches sur la période : ce qui a été créé, modifié et clôturé.",
       "filters": {
         "startDate": "Date de début",
@@ -1272,6 +1227,8 @@
         "allStreams": "Toutes les filières",
         "taskTypes": "Types de tâche",
         "allTaskTypes": "Tous les types de tâche",
+        "statusReached": "Statut d'arrivée",
+        "allStatuses": "Tous les statuts",
         "selectedCount": "{{count}} sélectionné(s)"
       },
       "actions": {
@@ -1302,23 +1259,6 @@
         "closed_one": "{{count}} clôture",
         "closed_other": "{{count}} clôtures"
       },
-      "empty": {
-        "requests": {
-          "created": "Aucune demande créée sur cette période.",
-          "modified": "Aucune demande modifiée sur cette période.",
-          "closed": "Aucune demande clôturée sur cette période."
-        },
-        "projects": {
-          "created": "Aucun projet créé sur cette période.",
-          "modified": "Aucun projet modifié sur cette période.",
-          "closed": "Aucun projet clôturé sur cette période."
-        },
-        "tasks": {
-          "created": "Aucune tâche créée sur cette période.",
-          "modified": "Aucune tâche modifiée sur cette période.",
-          "closed": "Aucune tâche clôturée sur cette période."
-        }
-      },
       "columns": {
         "reference": "Référence",
         "requestName": "Nom de la demande",
@@ -1330,6 +1270,7 @@
         "source": "Source",
         "category": "Catégorie",
         "stream": "Filière",
+        "company": "Société",
         "progress": "Charge",
         "status": "Statut",
         "changes": "Modifications",
@@ -1351,8 +1292,7 @@
         "timeLogged": "Temps saisi {{total}} j (projet {{project}} · autre {{other}})",
         "days_one": "{{value}} jour saisi",
         "days_other": "{{value}} jours saisis",
-        "empty": "Personne n'a porté de tâche ni saisi de temps sur cette période.",
-        "noTasks": "Aucune tâche sur cette période."
+        "empty": "Personne n'a porté de tâche ni saisi de temps sur cette période."
       }
     },
     "flow": {

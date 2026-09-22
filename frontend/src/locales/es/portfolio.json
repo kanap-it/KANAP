@@ -1036,6 +1036,11 @@
   "reports": {
     "title": "Reportes del portafolio",
     "subtitle": "Explore los reportes del portafolio centrados en la capacidad, el esfuerzo y las tendencias de estado.",
+    "sections": {
+      "past": "Lo que ha pasado",
+      "current": "Lo que está en curso",
+      "upcoming": "Lo que viene"
+    },
     "steering": {
       "period_one": "Último {{count}} día",
       "period_other": "Últimos {{count}} días",
@@ -1086,7 +1091,7 @@
       "allClassified": "Todo lo abierto está clasificado"
     },
     "byAssignee": {
-      "title": "Por responsable",
+      "title": "Puntos de atención por colaborador",
       "subtitle": "Dónde está el trabajo abierto, equipo por equipo y persona por persona, con lo que está atrasado y lo que ya no avanza.",
       "columns": {
         "assignee": "Responsable",
@@ -1114,76 +1119,26 @@
       "loadFailed": "No se ha podido cargar el informe."
     },
     "cards": {
-      "statusChange": {
-        "title": "Reporte de cambios de estado",
-        "description": "Rastree las tareas independientes, solicitudes y proyectos creados o con cambios de estado en un período."
-      },
       "capacityHeatmap": {
         "title": "Mapa de calor de capacidad",
         "description": "Visualice el esfuerzo esperado frente a la capacidad de los colaboradores y equipos."
       },
       "weekly": {
-        "title": "Reporte semanal",
+        "title": "Balance del periodo",
         "description": "Solicitudes, proyectos y tareas creadas, modificadas y cerradas en un periodo."
+      },
+      "byPerson": {
+        "title": "Actividad por persona",
+        "description": "Las tareas que cada persona creó, modificó y cerró en un periodo, con los días registrados."
       },
       "flow": {
         "title": "Flujo y antigüedad",
         "description": "Lo que entra y lo que se cierra semana tras semana, la antigüedad de las tareas abiertas y el tiempo que lleva cerrar."
       },
       "byAssignee": {
-        "title": "Por responsable",
+        "title": "Puntos de atención por colaborador",
         "description": "Las tareas abiertas, atrasadas y sin movimiento, equipo por equipo y persona por persona."
       }
-    },
-    "itemTypes": {
-      "task": "Tarea",
-      "request": "Solicitud",
-      "project": "Proyecto",
-      "tasks": "Tareas",
-      "requests": "Solicitudes",
-      "projects": "Proyectos"
-    },
-    "statusChange": {
-      "title": "Reporte de cambios de estado",
-      "subtitle": "Elementos creados durante un período seleccionado o cuyo estado cambió en él (último evento por elemento en el período).",
-      "filters": {
-        "startDate": "Fecha de inicio",
-        "endDate": "Fecha de fin",
-        "status": "Estado",
-        "allStatuses": "Todos los estados",
-        "itemType": "Tipo de elemento",
-        "allItemTypes": "Todos los tipos de elementos",
-        "source": "Origen",
-        "allSources": "Todos los orígenes",
-        "category": "Categoría",
-        "allCategories": "Todas las categorías",
-        "stream": "Línea",
-        "allStreams": "Todas las líneas"
-      },
-      "columns": {
-        "name": "Nombre",
-        "itemType": "Tipo de elemento",
-        "priority": "Prioridad",
-        "status": "Estado",
-        "source": "Origen",
-        "category": "Categoría",
-        "stream": "Línea",
-        "company": "Empresa",
-        "created": "Creado",
-        "lastChanged": "Última modificación"
-      },
-      "actions": {
-        "exportCsv": "Exportar CSV",
-        "exportXlsx": "Exportar XLSX",
-        "exporting": "Exportando..."
-      },
-      "messages": {
-        "invalidPeriod": "La fecha de inicio debe ser anterior o igual a la fecha de fin.",
-        "loadFailed": "Error al cargar los datos del reporte.",
-        "exportFailed": "Error en la exportación"
-      },
-      "itemCount_one": "{{count}} elemento",
-      "itemCount_other": "{{count}} elementos"
     },
     "capacityHeatmap": {
       "title": "Mapa de calor de capacidad",
@@ -1259,7 +1214,7 @@
       }
     },
     "weekly": {
-      "title": "Reporte semanal",
+      "title": "Balance del periodo",
       "subtitle": "Solicitudes, proyectos y tareas del periodo: lo que se creó, se modificó y se cerró.",
       "filters": {
         "startDate": "Fecha de inicio",
@@ -1272,6 +1227,8 @@
         "allStreams": "Todas las líneas",
         "taskTypes": "Tipos de tarea",
         "allTaskTypes": "Todos los tipos de tarea",
+        "statusReached": "Estado alcanzado",
+        "allStatuses": "Todos los estados",
         "selectedCount": "{{count}} seleccionado(s)"
       },
       "actions": {
@@ -1302,23 +1259,6 @@
         "closed_one": "{{count}} cierre",
         "closed_other": "{{count}} cierres"
       },
-      "empty": {
-        "requests": {
-          "created": "Ninguna solicitud creada en este periodo.",
-          "modified": "Ninguna solicitud modificada en este periodo.",
-          "closed": "Ninguna solicitud cerrada en este periodo."
-        },
-        "projects": {
-          "created": "Ningún proyecto creado en este periodo.",
-          "modified": "Ningún proyecto modificado en este periodo.",
-          "closed": "Ningún proyecto cerrado en este periodo."
-        },
-        "tasks": {
-          "created": "Ninguna tarea creada en este periodo.",
-          "modified": "Ninguna tarea modificada en este periodo.",
-          "closed": "Ninguna tarea cerrada en este periodo."
-        }
-      },
       "columns": {
         "reference": "Referencia",
         "requestName": "Nombre de la solicitud",
@@ -1330,6 +1270,7 @@
         "source": "Origen",
         "category": "Categoría",
         "stream": "Línea",
+        "company": "Empresa",
         "progress": "Esfuerzo",
         "status": "Estado",
         "changes": "Cambios",
@@ -1351,8 +1292,7 @@
         "timeLogged": "Tiempo registrado {{total}} d (proyecto {{project}} · otro {{other}})",
         "days_one": "{{value}} día registrado",
         "days_other": "{{value}} días registrados",
-        "empty": "Nadie llevó una tarea ni registró tiempo en este periodo.",
-        "noTasks": "Ninguna tarea en este periodo."
+        "empty": "Nadie llevó una tarea ni registró tiempo en este periodo."
       }
     },
     "flow": {

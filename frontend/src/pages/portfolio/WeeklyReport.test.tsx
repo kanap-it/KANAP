@@ -170,7 +170,7 @@ describe('WeeklyReport', () => {
     mockApi(report());
     renderReport();
 
-    await waitFor(() => expect(screen.getByText('No request created in this period.')).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText('Created (0)')).toHaveLength(3));
 
     const headings = screen.getAllByRole('heading', { level: 2 }).map((node) => node.textContent);
     expect(headings).toEqual(['Requests', 'Projects', 'Tasks']);
@@ -180,7 +180,7 @@ describe('WeeklyReport', () => {
     expect(screen.getAllByText('Closed (0)')).toHaveLength(3);
   });
 
-  it('keeps an empty list on a single line and renders a grid only when there are rows', async () => {
+  it('keeps an empty list to its heading and renders a grid only when there are rows', async () => {
     mockApi(report({ requests: { created: [requestRow()], modified: [], closed: [] } }));
     renderReport();
 
@@ -188,8 +188,10 @@ describe('WeeklyReport', () => {
 
     expect(screen.getByText('Created (1)')).toBeTruthy();
     expect(screen.getByText('REQ-5')).toBeTruthy();
-    expect(screen.getByText('No request modified in this period.')).toBeTruthy();
-    expect(screen.getByText('No request closed in this period.')).toBeTruthy();
+    // The heading carries the zero; there is no sentence under an empty list.
+    expect(screen.getAllByText('Modified (0)')).toHaveLength(3);
+    expect(screen.queryByText(/in this period\./)).toBeNull();
+    expect(document.querySelectorAll('.ag-root-wrapper')).toHaveLength(1);
   });
 
   it('summarises every entity as created, modified and closed', async () => {
@@ -259,7 +261,7 @@ describe('WeeklyReport', () => {
     await waitFor(() => expect(screen.getAllByText('Cave climate digital twin')).toHaveLength(2));
     expect(screen.getByText('Created (1)')).toBeTruthy();
     expect(screen.getByText('Closed (1)')).toBeTruthy();
-    expect(screen.getByText('No request modified in this period.')).toBeTruthy();
+    expect(screen.getAllByText('Modified (0)')).toHaveLength(3);
   });
 
   it('shows the creation day before the closing day in a closed list', async () => {
@@ -390,6 +392,58 @@ describe('WeeklyReport', () => {
   });
 });
 
+describe('WeeklyReport status reached and company', () => {
+  const lastWeeklyParams = () => {
+    const calls = get.mock.calls.filter(([url]: any[]) => url === '/portfolio/reports/weekly');
+    return calls[calls.length - 1]?.[1]?.params;
+  };
+
+  it('opens on the statuses carried by the URL and ignores an unknown one', async () => {
+    mockApi(report());
+    renderReport('/portfolio/reports/weekly?statuses=done,bogus');
+
+    await waitFor(() => expect(lastWeeklyParams()?.statuses).toBe('done'));
+    expect(screen.getByText('1 selected')).toBeTruthy();
+  });
+
+  it('sends the statuses picked in the menu, grouped by object with their labels', async () => {
+    mockApi(report());
+    renderReport('/portfolio/reports/weekly?statuses=done');
+
+    await waitFor(() => expect(screen.getByText('1 selected')).toBeTruthy());
+    fireEvent.mouseDown(screen.getByText('1 selected'));
+
+    const listbox = await screen.findByRole('listbox');
+    // One group per object, in the owner order, with the labels the app uses, never raw values.
+    expect(within(listbox).getByText('Requests')).toBeTruthy();
+    expect(within(listbox).getByText('Projects')).toBeTruthy();
+    expect(within(listbox).getByText('Tasks')).toBeTruthy();
+    expect(within(listbox).getByText('Pending review')).toBeTruthy();
+    expect(within(listbox).queryByText('pending_review')).toBeNull();
+
+    fireEvent.click(within(listbox).getByText('Rejected'));
+
+    await waitFor(() => expect(lastWeeklyParams()?.statuses).toBe('done,rejected'));
+  });
+
+  it('sends no status filter by default', async () => {
+    mockApi(report());
+    renderReport();
+
+    await waitFor(() => expect(lastWeeklyParams()).toBeTruthy());
+    expect(lastWeeklyParams()?.statuses).toBeUndefined();
+    expect(screen.getByText('All statuses')).toBeTruthy();
+  });
+
+  it('shows the company of each row', async () => {
+    mockApi(report({ requests: { created: [requestRow({ company: 'Fromage & Co SA' })], modified: [], closed: [] } }));
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Fromage & Co SA')).toBeTruthy());
+    expect(screen.getAllByText('Company').length).toBeGreaterThan(0);
+  });
+});
+
 describe('WeeklyReport by person', () => {
   const personReport = () =>
     report({
@@ -404,7 +458,7 @@ describe('WeeklyReport by person', () => {
       byPerson: byPersonPayload(),
     });
 
-  it('asks the API for the by-person reading and remembers the choice', async () => {
+  it('asks the API for the by-person reading from the toggle, without remembering it', async () => {
     mockApi(personReport());
     renderReport();
 
@@ -416,13 +470,43 @@ describe('WeeklyReport by person', () => {
       const call = weeklyCalls[weeklyCalls.length - 1];
       expect(call?.[1]?.params?.groupBy).toBe('person');
     });
-    expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBe('person');
+    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+    expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBeNull();
   });
 
-  it('opens on the remembered reading, team first, then person, with the counts and the time', async () => {
+  it('opens by type without the URL parameter, whatever view was chosen before', async () => {
+    // A previous visit switched to the by-person view (and an older build stored it).
     window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(personReport());
+    const first = renderReport('/portfolio/reports/weekly?groupBy=person');
+    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+    first.unmount();
+
+    get.mockReset();
+    mockApi(personReport());
     renderReport();
+
+    await waitFor(() => expect(screen.getAllByText('Created (1)').length).toBeGreaterThan(0));
+    const call = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly');
+    expect(call?.[1]?.params?.groupBy).toBe('type');
+    expect(screen.queryByText('Operations')).toBeNull();
+  });
+
+  it('opens on the by-person reading carried by the URL', async () => {
+    // The "Activity by person" card of the hub opens this same page with `groupBy=person`.
+    mockApi(personReport());
+    renderReport('/portfolio/reports/weekly?groupBy=person');
+
+    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+    const call = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly');
+    expect(call?.[1]?.params?.groupBy).toBe('person');
+    expect(screen.getAllByText('Period review').length).toBeGreaterThan(0);
+    expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBeNull();
+  });
+
+  it('reads team first, then person, then person, with the counts and the time', async () => {
+    mockApi(personReport());
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
 
@@ -438,7 +522,6 @@ describe('WeeklyReport by person', () => {
   });
 
   it('says nothing about time for a person who logged none', async () => {
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(
       report({
         byPerson: {
@@ -462,17 +545,32 @@ describe('WeeklyReport by person', () => {
         },
       }),
     );
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Isabelle Moreau')).toBeTruthy());
-    expect(screen.getByText('1 created · 0 modified · 0 closed')).toBeTruthy();
+    // Neither the person nor the team line mentions time when none was logged.
+    expect(screen.getAllByText('1 created · 0 modified · 0 closed')).toHaveLength(2);
     expect(screen.queryByText(/Time logged/)).toBeNull();
+    expect(screen.queryByText(/days? logged/)).toBeNull();
+    // Her empty lists are headings only.
+    expect(screen.getByText('Modified (0)')).toBeTruthy();
+    expect(screen.queryByText(/in this period\./)).toBeNull();
+  });
+
+  it('shows an empty Unassigned group as its header line only', async () => {
+    mockApi(report({ byPerson: { ...byPersonPayload(), unassigned: emptyPersonLists() } }));
+    renderReport('/portfolio/reports/weekly?groupBy=person');
+
+    await waitFor(() => expect(screen.getByText('Unassigned')).toBeTruthy());
+    expect(screen.getByText('0 created · 0 modified · 0 closed')).toBeTruthy();
+    expect(screen.queryByText(/No task/)).toBeNull();
+    // Nothing to unfold: the header is not a toggle.
+    expect(screen.getByText('Unassigned').closest('button')).toBeNull();
   });
 
   it('gathers what nobody carried under Unassigned', async () => {
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(personReport());
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Unassigned')).toBeTruthy());
     await waitFor(() => expect(screen.getByText('Archive the old batches')).toBeTruthy());
@@ -480,9 +578,8 @@ describe('WeeklyReport by person', () => {
   });
 
   it('folds a person and remembers it', async () => {
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(personReport());
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Thomas Berger')).toBeTruthy());
 
@@ -498,18 +595,16 @@ describe('WeeklyReport by person', () => {
 
   it('hides the contributor reference from a reader without the portfolio settings right', async () => {
     hasLevel.mockReturnValue(false);
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(personReport());
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Thomas Berger')).toBeTruthy());
     expect(screen.queryByText('CTR-3')).toBeNull();
   });
 
   it('exports the reading shown on screen', async () => {
-    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
     mockApi(personReport());
-    renderReport();
+    renderReport('/portfolio/reports/weekly?groupBy=person');
 
     await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
     fireEvent.click(screen.getByText('Export CSV'));
