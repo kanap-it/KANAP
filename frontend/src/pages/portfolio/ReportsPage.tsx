@@ -117,8 +117,24 @@ export default function ReportsPage() {
       <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
         {t('reports.subtitle')}
       </Typography>
-      <SteeringStrip />
-      <ClassificationGapsStrip data={gaps} />
+      {/*
+        One header row: steering on two thirds, to classify on one third, stacked on a narrow
+        screen. The sizing targets the strips' own root boxes, so a strip with nothing to show
+        (it renders nothing) leaves the other one the whole row instead of an empty column.
+      */}
+      <Box
+        data-testid="reports-header-strips"
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 2,
+          '& > *': { minWidth: 0, flex: { md: '1 1 0' } },
+          '& > *:first-of-type': { flex: { md: '2 1 0' } },
+        }}
+      >
+        <SteeringStrip />
+        <ClassificationGapsStrip data={gaps} />
+      </Box>
       {REPORT_SECTIONS.map((section) => (
         <Box key={section.key} component="section" aria-labelledby={`reports-section-${section.key}`}>
           <Typography

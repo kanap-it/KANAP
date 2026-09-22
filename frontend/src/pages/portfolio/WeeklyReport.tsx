@@ -348,15 +348,16 @@ const buildParams = (args: {
 
 type SubSectionProps<TRow> = {
   heading: string;
-  emptyLabel: string;
   rows: TRow[];
   columns: ColDef<TRow>[];
 };
 
-/** One list inside a section: a counted sub-heading, then a grid or a single line. */
+/**
+ * One list inside a section: a counted sub-heading, then a grid. An empty list is its heading
+ * alone: "Created (0)" already says there is nothing.
+ */
 function WeeklyReportSubSection<TRow extends { ref: string }>({
   heading,
-  emptyLabel,
   rows,
   columns,
 }: SubSectionProps<TRow>) {
@@ -364,15 +365,11 @@ function WeeklyReportSubSection<TRow extends { ref: string }>({
     <Box>
       <Typography
         component="div"
-        sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.secondary', mb: 0.75 }}
+        sx={{ fontSize: 12, fontWeight: 500, color: 'kanap.text.secondary', mb: rows.length > 0 ? 0.75 : 0 }}
       >
         {heading}
       </Typography>
-      {rows.length === 0 ? (
-        <Typography component="div" sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
-          {emptyLabel}
-        </Typography>
-      ) : (
+      {rows.length > 0 && (
         <Box component={AgGridBox} sx={AUTO_HEIGHT_GRID_SX}>
           <AgGridReact<TRow>
             rowData={rows}
@@ -487,7 +484,8 @@ type CollapsibleGroupProps = {
   collapsed: boolean;
   onToggle: () => void;
   level: 'team' | 'person';
-  children: React.ReactNode;
+  /** Nothing to unfold (no task at all): the group is its header line alone. */
+  children?: React.ReactNode;
 };
 
 /**
@@ -506,19 +504,24 @@ function WeeklyCollapsibleGroup({
 }: CollapsibleGroupProps) {
   const contentId = useId();
   const isTeam = level === 'team';
+  const hasBody = children != null && children !== false;
 
   return (
     <Box>
       <Stack direction="row" alignItems="baseline" spacing={1} flexWrap="wrap" sx={{ rowGap: 0.25 }}>
+        {/*
+          The name carries the row's baseline: the chevron is centred on its own, so the button's
+          baseline is the text's and the counts after it sit on the same line.
+        */}
         <Box
-          component="button"
-          type="button"
-          aria-expanded={!collapsed}
-          aria-controls={contentId}
-          onClick={onToggle}
+          component={hasBody ? 'button' : 'div'}
+          type={hasBody ? 'button' : undefined}
+          aria-expanded={hasBody ? !collapsed : undefined}
+          aria-controls={hasBody ? contentId : undefined}
+          onClick={hasBody ? onToggle : undefined}
           sx={{
             display: 'inline-flex',
-            alignItems: 'center',
+            alignItems: 'baseline',
             gap: 0.5,
             p: 0,
             border: 0,
@@ -527,30 +530,35 @@ function WeeklyCollapsibleGroup({
             font: 'inherit',
             fontSize: isTeam ? 16 : 13,
             fontWeight: 500,
-            cursor: 'pointer',
+            cursor: hasBody ? 'pointer' : 'default',
             textAlign: 'left',
           }}
         >
           <ExpandMoreIcon
             sx={{
+              alignSelf: 'center',
               fontSize: 18,
               color: 'kanap.text.secondary',
+              // Kept in place, hidden, on a group with no body: names stay aligned.
+              visibility: hasBody ? 'visible' : 'hidden',
               transform: collapsed ? 'rotate(-90deg)' : 'none',
               transition: 'transform 160ms ease',
             }}
           />
-          {label}
+          <span>{label}</span>
         </Box>
         {after}
         <Typography component="div" sx={{ fontSize: 12, fontWeight: 400, color: 'kanap.text.secondary' }}>
           {meta}
         </Typography>
       </Stack>
-      <Collapse in={!collapsed} timeout={160} id={contentId} sx={PRINT_OPEN_SX}>
-        <Stack spacing={1.5} sx={{ mt: 1.25, pl: isTeam ? 2 : 2.75 }}>
-          {children}
-        </Stack>
-      </Collapse>
+      {hasBody && (
+        <Collapse in={!collapsed} timeout={160} id={contentId} sx={PRINT_OPEN_SX}>
+          <Stack spacing={1.5} sx={{ mt: 1.25, pl: isTeam ? 2 : 2.75 }}>
+            {children}
+          </Stack>
+        </Collapse>
+      )}
     </Box>
   );
 }
@@ -1221,13 +1229,16 @@ export default function WeeklyReport() {
 
   /** The counts that follow a name: created, modified, closed, then the days logged. */
   const personMeta = useCallback(
-    (counts: { created: number; modified: number; closed: number }, days: number) =>
-      [
+    (counts: { created: number; modified: number; closed: number }, days: number) => {
+      const parts = [
         t('reports.weekly.summary.created', { count: counts.created }),
         t('reports.weekly.summary.modified', { count: counts.modified }),
         t('reports.weekly.summary.closed', { count: counts.closed }),
-        t('reports.weekly.byPerson.days', { count: days, value: formatDays(days) }),
-      ].join(' · '),
+      ];
+      // No "0.0 days logged": the mention appears only when someone logged time.
+      if (days > 0) parts.push(t('reports.weekly.byPerson.days', { count: days, value: formatDays(days) }));
+      return parts.join(' · ');
+    },
     [formatDays, t],
   );
 
@@ -1261,30 +1272,23 @@ export default function WeeklyReport() {
   );
 
   /**
-   * The three lists of one person. Someone who carried nothing gets a single line rather than
-   * three empty sections: a group with nothing to say must not cost six lines of screen.
+   * The three lists of one person. Someone who carried nothing has no body at all: the header
+   * line with its 0 · 0 · 0 already says it.
    */
   const personLists = useCallback(
     (lists: WeeklyPersonLists, keyPrefix: string) => {
       const isEmpty = LIST_KEYS.every((listKey) => lists[listKey].length === 0);
-      if (isEmpty) {
-        return (
-          <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
-            {t('reports.weekly.byPerson.noTasks')}
-          </Typography>
-        );
-      }
+      if (isEmpty) return null;
       return LIST_KEYS.map((listKey) => (
         <WeeklyReportSubSection<WeeklyTaskRow>
           key={`${keyPrefix}-${listKey}`}
           heading={subHeading(listKey, lists[listKey].length)}
-          emptyLabel={t(`reports.weekly.empty.tasks.${listKey}`)}
           rows={lists[listKey]}
           columns={taskColumns[listKey]}
         />
       ));
     },
-    [subHeading, t, taskColumns],
+    [subHeading, taskColumns],
   );
 
   const hasPersonRows =
@@ -1653,7 +1657,6 @@ export default function WeeklyReport() {
             <WeeklyReportSubSection<WeeklyRequestRow>
               key={listKey}
               heading={subHeading(listKey, requests[listKey].length)}
-              emptyLabel={t(`reports.weekly.empty.requests.${listKey}`)}
               rows={requests[listKey]}
               columns={requestColumns[listKey]}
             />
@@ -1670,7 +1673,6 @@ export default function WeeklyReport() {
             <WeeklyReportSubSection<WeeklyProjectRow>
               key={listKey}
               heading={subHeading(listKey, projects[listKey].length)}
-              emptyLabel={t(`reports.weekly.empty.projects.${listKey}`)}
               rows={projects[listKey]}
               columns={projectColumns[listKey]}
             />
@@ -1687,7 +1689,6 @@ export default function WeeklyReport() {
             <WeeklyReportSubSection<WeeklyTaskRow>
               key={listKey}
               heading={subHeading(listKey, tasks[listKey].length)}
-              emptyLabel={t(`reports.weekly.empty.tasks.${listKey}`)}
               rows={tasks[listKey]}
               columns={taskColumns[listKey]}
             />

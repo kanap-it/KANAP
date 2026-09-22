@@ -1091,7 +1091,7 @@
       "allClassified": "Tout ce qui est ouvert est classé"
     },
     "byAssignee": {
-      "title": "Points d'attention par responsable",
+      "title": "Points d'attention par contributeur",
       "subtitle": "Où se trouve le travail ouvert, équipe par équipe et personne par personne, avec ce qui est en retard et ce qui n'avance plus.",
       "columns": {
         "assignee": "Responsable",
@@ -1136,7 +1136,7 @@
         "description": "Ce qui entre et ce qui sort semaine après semaine, l'âge des tâches ouvertes et le temps qu'il faut pour clôturer."
       },
       "byAssignee": {
-        "title": "Points d'attention par responsable",
+        "title": "Points d'attention par contributeur",
         "description": "Les tâches ouvertes, en retard et sans mouvement, équipe par équipe et personne par personne."
       }
     },
@@ -1259,23 +1259,6 @@
         "closed_one": "{{count}} clôture",
         "closed_other": "{{count}} clôtures"
       },
-      "empty": {
-        "requests": {
-          "created": "Aucune demande créée sur cette période.",
-          "modified": "Aucune demande modifiée sur cette période.",
-          "closed": "Aucune demande clôturée sur cette période."
-        },
-        "projects": {
-          "created": "Aucun projet créé sur cette période.",
-          "modified": "Aucun projet modifié sur cette période.",
-          "closed": "Aucun projet clôturé sur cette période."
-        },
-        "tasks": {
-          "created": "Aucune tâche créée sur cette période.",
-          "modified": "Aucune tâche modifiée sur cette période.",
-          "closed": "Aucune tâche clôturée sur cette période."
-        }
-      },
       "columns": {
         "reference": "Référence",
         "requestName": "Nom de la demande",
@@ -1309,8 +1292,7 @@
         "timeLogged": "Temps saisi {{total}} j (projet {{project}} · autre {{other}})",
         "days_one": "{{value}} jour saisi",
         "days_other": "{{value}} jours saisis",
-        "empty": "Personne n'a porté de tâche ni saisi de temps sur cette période.",
-        "noTasks": "Aucune tâche sur cette période."
+        "empty": "Personne n'a porté de tâche ni saisi de temps sur cette période."
       }
     },
     "flow": {

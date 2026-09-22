@@ -55,7 +55,7 @@ describe('ReportsPage', () => {
     const cardsOf = (index: number) =>
       within(rows[index]).getAllByRole('button').map((button) => button.querySelector('p')?.textContent);
     expect(cardsOf(0)).toEqual(['Period review', 'Activity by person']);
-    expect(cardsOf(1)).toEqual(['Flow and age', 'Attention by assignee']);
+    expect(cardsOf(1)).toEqual(['Flow and age', 'Attention by contributor']);
     expect(cardsOf(2)).toEqual(['Capacity heatmap']);
     expect(screen.getAllByRole('button')).toHaveLength(5);
 

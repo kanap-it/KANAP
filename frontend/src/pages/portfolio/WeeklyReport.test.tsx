@@ -170,7 +170,7 @@ describe('WeeklyReport', () => {
     mockApi(report());
     renderReport();
 
-    await waitFor(() => expect(screen.getByText('No request created in this period.')).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText('Created (0)')).toHaveLength(3));
 
     const headings = screen.getAllByRole('heading', { level: 2 }).map((node) => node.textContent);
     expect(headings).toEqual(['Requests', 'Projects', 'Tasks']);
@@ -180,7 +180,7 @@ describe('WeeklyReport', () => {
     expect(screen.getAllByText('Closed (0)')).toHaveLength(3);
   });
 
-  it('keeps an empty list on a single line and renders a grid only when there are rows', async () => {
+  it('keeps an empty list to its heading and renders a grid only when there are rows', async () => {
     mockApi(report({ requests: { created: [requestRow()], modified: [], closed: [] } }));
     renderReport();
 
@@ -188,8 +188,10 @@ describe('WeeklyReport', () => {
 
     expect(screen.getByText('Created (1)')).toBeTruthy();
     expect(screen.getByText('REQ-5')).toBeTruthy();
-    expect(screen.getByText('No request modified in this period.')).toBeTruthy();
-    expect(screen.getByText('No request closed in this period.')).toBeTruthy();
+    // The heading carries the zero; there is no sentence under an empty list.
+    expect(screen.getAllByText('Modified (0)')).toHaveLength(3);
+    expect(screen.queryByText(/in this period\./)).toBeNull();
+    expect(document.querySelectorAll('.ag-root-wrapper')).toHaveLength(1);
   });
 
   it('summarises every entity as created, modified and closed', async () => {
@@ -259,7 +261,7 @@ describe('WeeklyReport', () => {
     await waitFor(() => expect(screen.getAllByText('Cave climate digital twin')).toHaveLength(2));
     expect(screen.getByText('Created (1)')).toBeTruthy();
     expect(screen.getByText('Closed (1)')).toBeTruthy();
-    expect(screen.getByText('No request modified in this period.')).toBeTruthy();
+    expect(screen.getAllByText('Modified (0)')).toHaveLength(3);
   });
 
   it('shows the creation day before the closing day in a closed list', async () => {
@@ -530,8 +532,25 @@ describe('WeeklyReport by person', () => {
     renderReport();
 
     await waitFor(() => expect(screen.getByText('Isabelle Moreau')).toBeTruthy());
-    expect(screen.getByText('1 created · 0 modified · 0 closed')).toBeTruthy();
+    // Neither the person nor the team line mentions time when none was logged.
+    expect(screen.getAllByText('1 created · 0 modified · 0 closed')).toHaveLength(2);
     expect(screen.queryByText(/Time logged/)).toBeNull();
+    expect(screen.queryByText(/days? logged/)).toBeNull();
+    // Her empty lists are headings only.
+    expect(screen.getByText('Modified (0)')).toBeTruthy();
+    expect(screen.queryByText(/in this period\./)).toBeNull();
+  });
+
+  it('shows an empty Unassigned group as its header line only', async () => {
+    window.localStorage.setItem('kanap.portfolioReports.weeklyGroupBy', 'person');
+    mockApi(report({ byPerson: { ...byPersonPayload(), unassigned: emptyPersonLists() } }));
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Unassigned')).toBeTruthy());
+    expect(screen.getByText('0 created · 0 modified · 0 closed')).toBeTruthy();
+    expect(screen.queryByText(/No task/)).toBeNull();
+    // Nothing to unfold: the header is not a toggle.
+    expect(screen.getByText('Unassigned').closest('button')).toBeNull();
   });
 
   it('gathers what nobody carried under Unassigned', async () => {

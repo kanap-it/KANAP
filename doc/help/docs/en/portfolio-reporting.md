@@ -23,7 +23,7 @@ The Portfolio Reporting landing page lists available portfolio reports as cards,
 
 **What is in progress**
 - **Flow and age**: what comes in and goes out week after week, how old the open work is, and how long a closing takes.
-- **Attention by assignee**: open, overdue and stalled tasks, team by team and person by person.
+- **Attention by contributor**: open, overdue and stalled tasks, team by team and person by person.
 
 **What comes next**
 - **Capacity Heatmap**: expected workload against capacity, for contributors and teams.

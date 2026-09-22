@@ -105,7 +105,7 @@ describe('ByAssigneeReport', () => {
     get.mockReturnValue(new Promise(() => {}));
     renderReport();
     // Title and breadcrumb both carry the report name.
-    expect(screen.getAllByText('Attention by assignee').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Attention by contributor').length).toBeGreaterThan(0);
     expect(screen.queryByRole('table')).toBeNull();
   });
 

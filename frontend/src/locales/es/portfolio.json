@@ -1091,7 +1091,7 @@
       "allClassified": "Todo lo abierto está clasificado"
     },
     "byAssignee": {
-      "title": "Puntos de atención por responsable",
+      "title": "Puntos de atención por colaborador",
       "subtitle": "Dónde está el trabajo abierto, equipo por equipo y persona por persona, con lo que está atrasado y lo que ya no avanza.",
       "columns": {
         "assignee": "Responsable",
@@ -1136,7 +1136,7 @@
         "description": "Lo que entra y lo que se cierra semana tras semana, la antigüedad de las tareas abiertas y el tiempo que lleva cerrar."
       },
       "byAssignee": {
-        "title": "Puntos de atención por responsable",
+        "title": "Puntos de atención por colaborador",
         "description": "Las tareas abiertas, atrasadas y sin movimiento, equipo por equipo y persona por persona."
       }
     },
@@ -1259,23 +1259,6 @@
         "closed_one": "{{count}} cierre",
         "closed_other": "{{count}} cierres"
       },
-      "empty": {
-        "requests": {
-          "created": "Ninguna solicitud creada en este periodo.",
-          "modified": "Ninguna solicitud modificada en este periodo.",
-          "closed": "Ninguna solicitud cerrada en este periodo."
-        },
-        "projects": {
-          "created": "Ningún proyecto creado en este periodo.",
-          "modified": "Ningún proyecto modificado en este periodo.",
-          "closed": "Ningún proyecto cerrado en este periodo."
-        },
-        "tasks": {
-          "created": "Ninguna tarea creada en este periodo.",
-          "modified": "Ninguna tarea modificada en este periodo.",
-          "closed": "Ninguna tarea cerrada en este periodo."
-        }
-      },
       "columns": {
         "reference": "Referencia",
         "requestName": "Nombre de la solicitud",
@@ -1309,8 +1292,7 @@
         "timeLogged": "Tiempo registrado {{total}} d (proyecto {{project}} · otro {{other}})",
         "days_one": "{{value}} día registrado",
         "days_other": "{{value}} días registrados",
-        "empty": "Nadie llevó una tarea ni registró tiempo en este periodo.",
-        "noTasks": "Ninguna tarea en este periodo."
+        "empty": "Nadie llevó una tarea ni registró tiempo en este periodo."
       }
     },
     "flow": {
