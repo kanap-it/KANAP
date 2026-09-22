@@ -388,19 +388,12 @@ export default function FlowReport() {
   );
 
   /**
-   * One entity's list, on the report's open scope, its own narrowing and the page filter.
-   *
-   * The task list reads a task's source and category through its project when the task itself
-   * carries none (`COALESCE(t.source_id, pp.source_id)`), while the report counts the value the
-   * task holds, exactly like the weekly report. Under a classification filter the two therefore
-   * count different populations, so a task figure stops being a link rather than opening a list
-   * that does not match it. Requests and projects carry their own value and are unaffected.
+   * One entity's list, on the report's open scope, its own narrowing and the page filter. The
+   * report reads a task's source and category the way the task list does — the task's own
+   * value, falling back to its project's — so a figure and the list it opens always agree.
    */
   const listLink = useCallback(
-    (key: EntityKey, extra: FilterModel = {}): string | null => {
-      if (key === 'tasks' && Object.keys(listFilter).length > 0) return null;
-      return entityListPath(key, { ...extra, ...listFilter });
-    },
+    (key: EntityKey, extra: FilterModel = {}): string => entityListPath(key, { ...extra, ...listFilter }),
     [listFilter],
   );
 
@@ -731,7 +724,7 @@ export default function FlowReport() {
         const value = bucket ? row.buckets[bucket] : row.total;
         const weight = row.isTotal ? 500 : 400;
         const to = listLink('tasks', { ...typeFilter(row), ...(bucket ? bracketFilter(bucket) : {}) });
-        if (value === 0 || !today || !to) return <span style={{ fontWeight: weight }}>{value}</span>;
+        if (value === 0 || !today) return <span style={{ fontWeight: weight }}>{value}</span>;
         return (
           <RouterLink to={to} style={{ color: 'inherit', fontWeight: weight }}>
             {value}
@@ -826,7 +819,7 @@ export default function FlowReport() {
           const value = bucket ? row.buckets[bucket] : row.total;
           const weight = row.isTotal ? 500 : 400;
           const to = listLink(key, { ...statusScope(row), ...(bucket ? bracketFilter(bucket) : {}) });
-          if (value === 0 || !today || !to) return <span style={{ fontWeight: weight }}>{value}</span>;
+          if (value === 0 || !today) return <span style={{ fontWeight: weight }}>{value}</span>;
           return (
             <RouterLink to={to} style={{ color: 'inherit', fontWeight: weight }}>
               {value}
@@ -913,7 +906,7 @@ export default function FlowReport() {
         if (!row) return null;
         const weight = row.isTotal ? 500 : 400;
         const to = listLink(key, statusScope(row));
-        if (row.open === 0 || !to) return <span style={{ fontWeight: weight }}>{row.open}</span>;
+        if (row.open === 0) return <span style={{ fontWeight: weight }}>{row.open}</span>;
         return (
           <RouterLink to={to} style={{ color: 'inherit', fontWeight: weight }}>
             {row.open}
@@ -962,7 +955,6 @@ export default function FlowReport() {
           ...statusScope(row),
           planned_end: { filterType: 'date', type: 'lessThan', dateFrom: today },
         });
-        if (!to) return <span style={{ fontWeight: weight }}>{value}</span>;
         return (
           <RouterLink to={to} style={{ color: 'inherit', fontWeight: weight }}>
             {value}

@@ -23,7 +23,7 @@ import {
   STUCK_THRESHOLD_DAYS,
   StuckItem,
 } from '../dto/flow-report.dto';
-import { normalizeIdList, pushSetFilter } from './portfolio-report-filters';
+import { normalizeIdList, pushSetFilterExpr } from './portfolio-report-filters';
 import { CLOSED_STATUSES } from './portfolio-weekly-report.service';
 
 /**
@@ -64,8 +64,13 @@ export type FlowFilters = { sourceIds: string[]; categoryIds: string[] };
 type EntitySpec = {
   /** Live table and `audit_log.table_name`, which are the same string for the three. */
   table: string;
-  /** Alias the live rows carry inside `liveSql`, the one the filters are written against. */
-  alias: string;
+  /**
+   * How the source and the category of a live row are read by the classification filters. A
+   * task falls back to its project's value, the way the task list resolves it, so a filtered
+   * report and the list it opens count the same population.
+   */
+  sourceExpr: string;
+  categoryExpr: string;
   closedStatuses: readonly string[];
   openStatuses: readonly string[];
   /**
@@ -83,13 +88,18 @@ type EntitySpec = {
 const ENTITIES: Record<EntityKey, EntitySpec> = {
   tasks: {
     table: 'tasks',
-    alias: 't',
+    sourceExpr: 'COALESCE(t.source_id, pp.source_id)',
+    categoryExpr: 'COALESCE(t.category_id, pp.category_id)',
     closedStatuses: CLOSED_STATUSES.tasks,
     openStatuses: OPEN_STATUSES.tasks,
     liveSql: `
       SELECT t.id, t.created_at, t.status, t.task_type_id,
              NULL::date AS planned_end, t.item_number, t.title AS name
       FROM tasks t
+      LEFT JOIN portfolio_projects pp
+        ON pp.id = t.related_object_id
+       AND t.related_object_type = 'project'
+       AND pp.tenant_id = t.tenant_id
       WHERE t.tenant_id = $1 AND ${TASK_SCOPE_SQL}
     `,
     refPrefix: 'T',
@@ -98,7 +108,8 @@ const ENTITIES: Record<EntityKey, EntitySpec> = {
   },
   requests: {
     table: 'portfolio_requests',
-    alias: 'r',
+    sourceExpr: 'r.source_id',
+    categoryExpr: 'r.category_id',
     closedStatuses: CLOSED_STATUSES.requests,
     openStatuses: OPEN_STATUSES.requests,
     liveSql: `
@@ -113,7 +124,8 @@ const ENTITIES: Record<EntityKey, EntitySpec> = {
   },
   projects: {
     table: 'portfolio_projects',
-    alias: 'p',
+    sourceExpr: 'p.source_id',
+    categoryExpr: 'p.category_id',
     closedStatuses: CLOSED_STATUSES.projects,
     openStatuses: OPEN_STATUSES.projects,
     liveSql: `
@@ -379,8 +391,8 @@ export class PortfolioFlowReportService {
    */
   private liveFilter(sqlParams: any[], spec: EntitySpec, filters: FlowFilters): string {
     const predicates = [
-      pushSetFilter(sqlParams, spec.alias, 'source_id', filters.sourceIds),
-      pushSetFilter(sqlParams, spec.alias, 'category_id', filters.categoryIds),
+      pushSetFilterExpr(sqlParams, spec.sourceExpr, filters.sourceIds),
+      pushSetFilterExpr(sqlParams, spec.categoryExpr, filters.categoryIds),
     ].filter((predicate): predicate is string => predicate != null);
     return predicates.length === 0 ? '' : ` AND ${predicates.join(' AND ')}`;
   }

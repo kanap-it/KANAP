@@ -731,19 +731,22 @@ describe('FlowReport', () => {
     const openRequests = linkHref('4', (href) => href.startsWith('/portfolio/requests'));
     expect(openRequests).toContain('"source_name":{"filterType":"set","values":["Service desk"]}');
     expect(openRequests).not.toContain('category_name');
-    // And so does every other list destination: the age grids and the by-status grids all read
-    // the same population.
+    // And so does every other list destination: the task tile, the age grids and the by-status
+    // grids all read the same population.
     const lists = allHrefs().filter(
-      (href) => href.startsWith('/portfolio/requests') || href.startsWith('/portfolio/projects'),
+      (href) => href.startsWith('/portfolio/tasks')
+        || href.startsWith('/portfolio/requests')
+        || href.startsWith('/portfolio/projects'),
     );
-    expect(lists.length).toBeGreaterThan(8);
+    expect(lists.length).toBeGreaterThan(10);
     expect(lists.every((href) => href.includes('"source_name":{"filterType":"set","values":["Service desk"]}'))).toBe(
       true,
     );
-    // The task list resolves a task's source through its project, so it would not show the 12
-    // the report counted: the task figures stop being links while a filter is active.
-    expect(allHrefs().some((href) => href.startsWith('/portfolio/tasks'))).toBe(false);
-    expect(screen.getAllByText('12').length).toBeGreaterThan(0);
+    // The report reads a task's source the way the task list does, so the task figures keep
+    // opening their list under a filter.
+    const openTasks = linkHref('12');
+    expect(openTasks).toContain('/portfolio/tasks?taskScope=all');
+    expect(openTasks).toContain('"source_name":{"filterType":"set","values":["Service desk"]}');
     const weekly = allHrefs().filter((href) => href.startsWith('/portfolio/reports/weekly'));
     expect(weekly.length).toBeGreaterThan(0);
     expect(weekly.every((href) => href.endsWith('&sourceIds=src-desk'))).toBe(true);
@@ -779,7 +782,8 @@ describe('FlowReport', () => {
     await waitFor(() => expect(reportCalls()[reportCalls().length - 1].categoryIds).toBe('cat-run'));
     const withBoth = reportCalls()[reportCalls().length - 1];
     expect(withBoth.sourceIds).toBe('src-mail');
-    const bothLink = linkHref('6', (href) => href.startsWith('/portfolio/projects') && !href.includes('planned_end'));
+    const bothLink = linkHref('12');
+    expect(bothLink).toContain('/portfolio/tasks?taskScope=all');
     expect(bothLink).toContain('"source_name":{"filterType":"set","values":["Email"]}');
     expect(bothLink).toContain('"category_name":{"filterType":"set","values":["Run"]}');
     expect(linkHref('over 6 closings')).toBe(
@@ -795,10 +799,10 @@ describe('FlowReport', () => {
 
     await waitFor(() => expect(reportCalls()[reportCalls().length - 1].sourceIds).toBeUndefined());
     expect(screen.getByText('All sources')).toBeTruthy();
-    // The category alone still holds, so the task figures stay plain text.
-    expect(allHrefs().some((href) => href.startsWith('/portfolio/tasks'))).toBe(false);
-    expect(linkHref('6', (href) => href.startsWith('/portfolio/projects') && !href.includes('planned_end')))
-      .not.toContain('source_name');
+    // The category alone still holds, so the links keep it and drop the source.
+    const afterClear = linkHref('12');
+    expect(afterClear).not.toContain('source_name');
+    expect(afterClear).toContain('"category_name":{"filterType":"set","values":["Run"]}');
   });
 
   it('drops the weekly link when some closings were imported already closed', async () => {

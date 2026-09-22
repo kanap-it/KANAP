@@ -647,8 +647,12 @@ async function run() {
     const count = call.params.length;
     assert.deepEqual(call.params[count - 2], ['s1', 's2'], 'the sources travel as a bound parameter');
     assert.deepEqual(call.params[count - 1], ['c1'], 'the categories travel as a bound parameter');
-    assert.ok(call.sql.includes(`source_id::text = ANY($${count - 1}::text[])`));
-    assert.ok(call.sql.includes(`category_id::text = ANY($${count}::text[])`));
+    // The shape of the left-hand side is entity-specific and checked below; here it is the
+    // numbering that matters, one statement at a time.
+    assert.ok(call.sql.includes(`source_id)::text = ANY($${count - 1}::text[])`)
+      || call.sql.includes(`.source_id::text = ANY($${count - 1}::text[])`));
+    assert.ok(call.sql.includes(`category_id)::text = ANY($${count}::text[])`)
+      || call.sql.includes(`.category_id::text = ANY($${count}::text[])`));
     assert.ok(!call.sql.includes("'s1'"), 'a value is never interpolated into the SQL');
   }
 
@@ -658,21 +662,38 @@ async function run() {
     (call) => call.sql.includes('open_items AS') && String(call.params[1]) === 'tasks',
   )!;
   assert.ok(
-    filteredTaskStatus.sql.indexOf('t.source_id::text') < filteredTaskStatus.sql.indexOf('audit AS'),
+    filteredTaskStatus.sql.indexOf('COALESCE(t.source_id, pp.source_id)::text')
+      < filteredTaskStatus.sql.indexOf('audit AS'),
     'the predicate sits inside the live CTE',
   );
-  // Each entity writes the filter against its own alias.
-  assert.ok(filteredTaskStatus.sql.includes('t.source_id::text'));
-  assert.ok(
-    filtered.calls
-      .find((call) => call.sql.includes('open_items AS') && String(call.params[1]) === 'portfolio_requests')!
-      .sql.includes('r.category_id::text'),
-  );
-  assert.ok(
-    filtered.calls
-      .find((call) => call.sql.includes('open_items AS') && String(call.params[1]) === 'portfolio_projects')!
-      .sql.includes('p.source_id::text'),
-  );
+
+  // A task reads its source and its category through its project when it carries none, the way
+  // the task list resolves them: the report and the list it opens count the same population.
+  for (const call of filtered.calls.filter((entry) => String(entry.params[1]) === 'tasks')) {
+    assert.ok(call.sql.includes('COALESCE(t.source_id, pp.source_id)::text = ANY('));
+    assert.ok(call.sql.includes('COALESCE(t.category_id, pp.category_id)::text = ANY('));
+    assert.ok(call.sql.includes('LEFT JOIN portfolio_projects pp'));
+    assert.ok(call.sql.includes("t.related_object_type = 'project'"));
+    assert.ok(call.sql.includes('pp.tenant_id = t.tenant_id'), 'the project join stays on the tenant');
+    assert.ok(!/[^(]t\.source_id::text/.test(call.sql), 'the task value alone is never the filter');
+  }
+  // The task age query is read on the same live rows, project join included.
+  const taskAgeCall = filtered.calls.find((call) => call.sql.includes('open_tasks AS'))!;
+  assert.ok(taskAgeCall.sql.includes('COALESCE(t.source_id, pp.source_id)::text = ANY('));
+
+  // A request and a project carry their own value: no join, no fallback.
+  const requestStatus = filtered.calls.find(
+    (call) => call.sql.includes('open_items AS') && String(call.params[1]) === 'portfolio_requests',
+  )!;
+  assert.ok(requestStatus.sql.includes('r.category_id::text = ANY('));
+  assert.ok(requestStatus.sql.includes('r.source_id::text = ANY('));
+  assert.ok(!requestStatus.sql.includes('COALESCE(r.'));
+  assert.ok(!requestStatus.sql.includes('portfolio_projects pp'));
+  const projectStatus = filtered.calls.find(
+    (call) => call.sql.includes('open_items AS') && String(call.params[1]) === 'portfolio_projects',
+  )!;
+  assert.ok(projectStatus.sql.includes('p.source_id::text = ANY('));
+  assert.ok(!projectStatus.sql.includes('COALESCE(p.'));
 
   // One filter on its own leaves the other one out entirely.
   const sourceOnly = stubManager(emptyAnswers());
@@ -684,7 +705,8 @@ async function run() {
   assert.deepEqual(sourceOnlyReport.categoryIds, []);
   for (const call of sourceOnly.calls) {
     assert.ok(!call.sql.includes('category_id::text'));
-    assert.ok(call.sql.includes(`source_id::text = ANY($${call.params.length}::text[])`));
+    assert.ok(call.sql.includes(`source_id)::text = ANY($${call.params.length}::text[])`)
+      || call.sql.includes(`.source_id::text = ANY($${call.params.length}::text[])`));
   }
 
   // No filter at all reads exactly the statements the report always read.

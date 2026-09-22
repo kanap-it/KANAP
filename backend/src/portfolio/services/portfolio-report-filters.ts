@@ -30,15 +30,25 @@ export const normalizeIdList = (values?: string[]): string[] => {
  * Appends one set predicate to a statement's own parameter list and returns it, or `null` when
  * the filter is empty. The index is read off the list it was just pushed onto, so the same
  * filter can be built again for a statement that takes a different number of parameters.
+ *
+ * The left-hand side is an expression rather than a column: a task's source and category are
+ * read through its project when the task carries none, exactly like the task list.
  */
-export const pushSetFilter = (
+export const pushSetFilterExpr = (
   sqlParams: any[],
-  alias: string,
-  column: string,
+  expression: string,
   values: string[] | undefined,
 ): string | null => {
   const normalized = normalizeIdList(values);
   if (normalized.length === 0) return null;
   sqlParams.push(normalized);
-  return `${alias}.${column}::text = ANY($${sqlParams.length}::text[])`;
+  return `${expression}::text = ANY($${sqlParams.length}::text[])`;
 };
+
+/** The same, on a plain column of one alias. */
+export const pushSetFilter = (
+  sqlParams: any[],
+  alias: string,
+  column: string,
+  values: string[] | undefined,
+): string | null => pushSetFilterExpr(sqlParams, `${alias}.${column}`, values);

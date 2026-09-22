@@ -3,7 +3,7 @@ import AdmZip = require('adm-zip');
 import { EntityManager } from 'typeorm';
 import { neutralizeCsvFormulaValue } from '../../common/csv/csv-export.service';
 import { normalizeReportTimeZone } from '../../common/report-period';
-import { pushSetFilter } from './portfolio-report-filters';
+import { pushSetFilter, pushSetFilterExpr } from './portfolio-report-filters';
 
 export type WeeklyReportQuery = {
   tenantId: string;
@@ -783,9 +783,19 @@ export class PortfolioWeeklyReportService {
     if (!mg) return { created: [], modified: [], closed: [] };
 
     const sqlParams = this.baseParams(query, CLOSED_STATUSES.tasks);
-    const whereSql = this.buildFilterSql(sqlParams, 't', query, { taskTypes: true }, [
-      `(t.related_object_type IS NULL OR t.related_object_type = 'project')`,
-    ]);
+    const whereSql = this.buildFilterSql(
+      sqlParams,
+      't',
+      query,
+      {
+        taskTypes: true,
+        classification: {
+          source: 'COALESCE(t.source_id, pp.source_id)',
+          category: 'COALESCE(t.category_id, pp.category_id)',
+        },
+      },
+      [`(t.related_object_type IS NULL OR t.related_object_type = 'project')`],
+    );
 
     const rows: RawTaskEventRow[] = await mg.query(
       `
@@ -816,6 +826,11 @@ export class PortfolioWeeklyReportService {
       FROM agg a
       JOIN tasks t ON t.id = a.record_id AND t.tenant_id = $1
       ${this.eventJoins()}
+      -- The project a task hangs off, for the classification it inherits when it has none.
+      LEFT JOIN portfolio_projects pp
+        ON pp.id = t.related_object_id
+       AND t.related_object_type = 'project'
+       AND pp.tenant_id = t.tenant_id
       LEFT JOIN portfolio_task_types pt ON pt.id = t.task_type_id AND pt.tenant_id = t.tenant_id
       LEFT JOIN portfolio_sources ps ON ps.id = t.source_id AND ps.tenant_id = t.tenant_id
       LEFT JOIN portfolio_categories pc ON pc.id = t.category_id AND pc.tenant_id = t.tenant_id
@@ -901,11 +916,16 @@ export class PortfolioWeeklyReportService {
   /*  Helpers                                                         */
   /* ---------------------------------------------------------------- */
 
+  /**
+   * `classification` names how the source and the category are read. Tasks pass the inherited
+   * expression, `COALESCE(t.source_id, pp.source_id)`, the way the task list resolves them: a
+   * filtered weekly report and the list it links to then count the same population.
+   */
   private buildFilterSql(
     sqlParams: any[],
     alias: string,
     query: WeeklyReportQuery,
-    opts: { taskTypes: boolean },
+    opts: { taskTypes: boolean; classification?: { source: string; category: string } },
     extraFilters: string[] = [],
   ): string {
     const filters = [...extraFilters];
@@ -915,9 +935,14 @@ export class PortfolioWeeklyReportService {
       if (predicate) filters.push(predicate);
     };
 
+    const pushExpr = (values: string[] | undefined, expression: string) => {
+      const predicate = pushSetFilterExpr(sqlParams, expression, values);
+      if (predicate) filters.push(predicate);
+    };
+
     if (opts.taskTypes) push(query.taskTypeIds, 'task_type_id');
-    push(query.sourceIds, 'source_id');
-    push(query.categoryIds, 'category_id');
+    pushExpr(query.sourceIds, opts.classification?.source ?? `${alias}.source_id`);
+    pushExpr(query.categoryIds, opts.classification?.category ?? `${alias}.category_id`);
     push(query.streamIds, 'stream_id');
 
     return filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
