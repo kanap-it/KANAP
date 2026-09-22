@@ -124,6 +124,18 @@ const TILE_SX = {
   py: 1.25,
 } as const;
 
+/**
+ * Three grids share a row from `md`, so a column is narrow: the header sentence wraps over
+ * as many lines as it needs instead of ending in an ellipsis nobody can read.
+ */
+const DENSE_COL_DEF = {
+  sortable: false,
+  resizable: true,
+  suppressMenu: true,
+  wrapHeaderText: true,
+  autoHeaderHeight: true,
+} as const;
+
 const LINK_SX = {
   color: 'inherit',
   textDecoration: 'none',
@@ -618,7 +630,7 @@ export default function FlowReport() {
     const bucketColumn = (bucket: AgeBucket): ColDef<AgeTableRow> => ({
       headerName: t(`reports.flow.columns.${bucket}`),
       flex: 1,
-      minWidth: 84,
+      minWidth: 56,
       type: 'numericColumn',
       valueGetter: (params) => params.data?.buckets[bucket] ?? 0,
       cellRenderer: cell(bucket),
@@ -627,8 +639,8 @@ export default function FlowReport() {
     return [
       {
         headerName: t('reports.flow.columns.taskType'),
-        flex: 1.4,
-        minWidth: 110,
+        flex: 1.6,
+        minWidth: 80,
         valueGetter: (params) => {
           if (!params.data) return '';
           if (params.data.isTotal) return t('reports.flow.rows.total');
@@ -643,7 +655,7 @@ export default function FlowReport() {
       {
         headerName: t('reports.flow.columns.total'),
         flex: 0.8,
-        minWidth: 72,
+        minWidth: 52,
         type: 'numericColumn',
         valueGetter: (params) => params.data?.total ?? 0,
         cellRenderer: cell(null),
@@ -753,8 +765,12 @@ export default function FlowReport() {
       const columns: ColDef<StageTableRow>[] = [
         {
           headerName: t('reports.flow.columns.stage'),
-          flex: 1.4,
-          minWidth: 110,
+          flex: 1.6,
+          minWidth: 80,
+          // A stage is a sentence ("Waiting list", "En attente de revue"): it wraps rather
+          // than ending in an ellipsis that hides which stage the row is.
+          wrapText: true,
+          autoHeight: true,
           valueGetter: (params) => {
             if (!params.data) return '';
             return params.data.isTotal
@@ -766,15 +782,15 @@ export default function FlowReport() {
         ...MONTH_BUCKETS.map<ColDef<StageTableRow>>((bucket) => ({
           headerName: bucketLabel(bucket),
           flex: 1,
-          minWidth: 84,
+          minWidth: 58,
           type: 'numericColumn',
           valueGetter: (params) => params.data?.buckets[bucket] ?? 0,
           cellRenderer: bucketCell(bucket),
         })),
         {
           headerName: t('reports.flow.columns.total'),
-          flex: 0.8,
-          minWidth: 72,
+          flex: 0.7,
+          minWidth: 52,
           type: 'numericColumn',
           valueGetter: (params) => params.data?.total ?? 0,
           cellRenderer: totalCell,
@@ -784,8 +800,8 @@ export default function FlowReport() {
       if (key === 'projects') {
         columns.push({
           headerName: t('reports.flow.columns.plannedEndPassed'),
-          flex: 1.1,
-          minWidth: 96,
+          flex: 1.0,
+          minWidth: 76,
           type: 'numericColumn',
           valueGetter: (params) => params.data?.plannedEndPassed ?? 0,
           cellRenderer: plannedEndCell,
@@ -811,19 +827,21 @@ export default function FlowReport() {
     () => [
       {
         headerName: t('reports.flow.columns.taskType'),
-        flex: 1,
-        minWidth: 180,
+        flex: 1.4,
+        minWidth: 100,
         valueGetter: (params) => params.data?.taskTypeName ?? t('reports.flow.rows.noType'),
       },
       {
         headerName: t('reports.flow.columns.closedCount'),
-        width: 120,
+        flex: 1,
+        minWidth: 76,
         type: 'numericColumn',
         valueGetter: (params) => params.data?.closedCount ?? 0,
       },
       {
         headerName: t('reports.flow.columns.medianDays'),
-        width: 140,
+        flex: 1,
+        minWidth: 84,
         type: 'numericColumn',
         valueGetter: (params) => medianText(params.data?.medianDays ?? null),
       },
@@ -845,19 +863,21 @@ export default function FlowReport() {
     () => [
       {
         headerName: t('reports.flow.columns.outcome'),
-        flex: 1,
-        minWidth: 160,
+        flex: 1.4,
+        minWidth: 100,
         valueGetter: (params) => (params.data ? t(`reports.flow.rows.${params.data.outcome}`) : ''),
       },
       {
         headerName: t('reports.flow.columns.closedCount'),
-        width: 120,
+        flex: 1,
+        minWidth: 76,
         type: 'numericColumn',
         valueGetter: (params) => params.data?.closedCount ?? 0,
       },
       {
         headerName: t('reports.flow.columns.medianDays'),
-        width: 140,
+        flex: 1,
+        minWidth: 84,
         type: 'numericColumn',
         valueGetter: (params) => medianText(params.data?.medianDays ?? null),
       },
@@ -873,21 +893,22 @@ export default function FlowReport() {
     () => [
       {
         headerName: t('reports.flow.columns.completed'),
-        flex: 1,
-        minWidth: 120,
+        flex: 0.8,
+        minWidth: 70,
         type: 'numericColumn',
         valueGetter: (params) => params.data?.closedCount ?? 0,
       },
       {
         headerName: t('reports.flow.columns.medianDuration'),
-        width: 160,
+        flex: 1,
+        minWidth: 84,
         type: 'numericColumn',
         valueGetter: (params) => medianText(params.data?.medianDays ?? null),
       },
       {
         headerName: t('reports.flow.columns.medianGap'),
-        flex: 1.4,
-        minWidth: 220,
+        flex: 2,
+        minWidth: 130,
         type: 'numericColumn',
         valueGetter: (params) => {
           const row = params.data;
@@ -1089,7 +1110,7 @@ export default function FlowReport() {
             </Box>
             <Box>
               <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.itemsByMonth')}</Typography>
-              <Box component={AgGridBox} sx={{ width: '100%' }}>
+              <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
                 <AgGridReact<MonthTableRow>
                   rowData={monthRows}
                   columnDefs={monthColumns}
@@ -1113,7 +1134,10 @@ export default function FlowReport() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+            // The three grids only fit side by side on a wide screen; below that they stack
+            // full width rather than hiding their last columns behind a scrollbar. The
+            // projects grid carries one column more than the other two, so it gets the room.
+            gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr)' },
             gap: 1.5,
             alignItems: 'start',
           }}
@@ -1125,11 +1149,11 @@ export default function FlowReport() {
                 {t('reports.flow.empty.age')}
               </Typography>
             ) : (
-              <Box component={AgGridBox} sx={{ width: '100%' }}>
+              <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
                 <AgGridReact<AgeTableRow>
                   rowData={ageRows}
                   columnDefs={ageColumns}
-                  defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                  defaultColDef={DENSE_COL_DEF}
                   suppressCellFocus
                   domLayout="autoHeight"
                   getRowId={(params) => (params.data.isTotal ? 'total' : params.data.taskTypeId ?? 'none')}
@@ -1148,11 +1172,11 @@ export default function FlowReport() {
                     {grid.empty}
                   </Typography>
                 ) : (
-                  <Box component={AgGridBox} sx={{ width: '100%' }}>
+                  <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
                     <AgGridReact<StageTableRow>
                       rowData={rows}
                       columnDefs={stageColumns(grid.key)}
-                      defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                      defaultColDef={DENSE_COL_DEF}
                       suppressCellFocus
                       domLayout="autoHeight"
                       getRowId={(params) => (params.data.isTotal ? 'total' : params.data.status)}
@@ -1273,7 +1297,7 @@ export default function FlowReport() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+            gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' },
             gap: 1.5,
             alignItems: 'start',
           }}
@@ -1285,11 +1309,11 @@ export default function FlowReport() {
                 {t('reports.flow.empty.leadTimeByType')}
               </Typography>
             ) : (
-              <Box component={AgGridBox} sx={{ width: '100%' }}>
+              <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
                 <AgGridReact<LeadTimeByType>
                   rowData={data?.leadTime.tasksByType ?? []}
                   columnDefs={leadColumns}
-                  defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                  defaultColDef={DENSE_COL_DEF}
                   suppressCellFocus
                   domLayout="autoHeight"
                   getRowId={(params) => params.data.taskTypeId ?? 'none'}
@@ -1300,11 +1324,11 @@ export default function FlowReport() {
 
           <Box>
             <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.requestOutcomes')}</Typography>
-            <Box component={AgGridBox} sx={{ width: '100%' }}>
+            <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
               <AgGridReact<OutcomeRow>
                 rowData={outcomeRows}
                 columnDefs={outcomeColumns}
-                defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                defaultColDef={DENSE_COL_DEF}
                 suppressCellFocus
                 domLayout="autoHeight"
                 getRowId={(params) => params.data.outcome}
@@ -1314,11 +1338,11 @@ export default function FlowReport() {
 
           <Box>
             <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.projectCompletion')}</Typography>
-            <Box component={AgGridBox} sx={{ width: '100%' }}>
+            <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
               <AgGridReact<DoneRow>
                 rowData={doneRows}
                 columnDefs={doneColumns}
-                defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                defaultColDef={DENSE_COL_DEF}
                 suppressCellFocus
                 domLayout="autoHeight"
                 getRowId={() => 'done'}
