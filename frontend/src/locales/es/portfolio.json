@@ -1097,6 +1097,10 @@
       "weekly": {
         "title": "Reporte semanal",
         "description": "Solicitudes, proyectos y tareas creadas, modificadas y cerradas en un periodo."
+      },
+      "flow": {
+        "title": "Flujo y antigüedad",
+        "description": "Lo que entra y lo que se cierra semana tras semana, la antigüedad de las tareas abiertas y el tiempo que lleva cerrar."
       }
     },
     "itemTypes": {
@@ -1302,6 +1306,76 @@
           "modified": "Modificado el",
           "closed": "Cerrado el"
         }
+      }
+    },
+    "flow": {
+      "title": "Flujo y antigüedad",
+      "subtitle": "Lo que entra y lo que se cierra semana tras semana, cuánto llevan esperando las tareas abiertas y el tiempo que lleva cerrar.",
+      "filters": {
+        "period": "Periodo",
+        "periodOption_one": "{{count}} semana",
+        "periodOption_other": "{{count}} semanas"
+      },
+      "sections": {
+        "flow": "Flujo semanal",
+        "age": "Antigüedad de las tareas abiertas",
+        "leadTime": "Plazo medio de cierre"
+      },
+      "tiles": {
+        "tasks": "Tareas",
+        "requests": "Solicitudes",
+        "projects": "Proyectos",
+        "openToday": "abiertas hoy",
+        "deltaSince": "{{delta}} desde el {{date}}",
+        "steady": "Sin cambios desde el {{date}}",
+        "trendLabel": "Elementos abiertos al final de cada una de las últimas semanas",
+        "closedOver_one": "sobre {{count}} cierre",
+        "closedOver_other": "sobre {{count}} cierres",
+        "noClosing": "Ningún cierre en el periodo",
+        "days": "{{count}} d",
+        "noValue": "—"
+      },
+      "charts": {
+        "created": "Creados",
+        "closed": "Cerrados",
+        "openAtEnd": "Abiertos al final de la semana",
+        "weekOf": "Semana del {{date}}",
+        "weekRange": "del {{from}} al {{to}}"
+      },
+      "actions": {
+        "showTable": "Ver la tabla",
+        "hideTable": "Ocultar la tabla"
+      },
+      "columns": {
+        "week": "Semana",
+        "tasksCreated": "Tareas creadas",
+        "tasksClosed": "Tareas cerradas",
+        "tasksOpen": "Tareas abiertas",
+        "requestsCreated": "Solicitudes creadas",
+        "requestsClosed": "Solicitudes cerradas",
+        "requestsOpen": "Solicitudes abiertas",
+        "projectsCreated": "Proyectos creados",
+        "projectsClosed": "Proyectos cerrados",
+        "projectsOpen": "Proyectos abiertos",
+        "taskType": "Tipo de tarea",
+        "upTo7": "0–7 d",
+        "from8To30": "8–30 d",
+        "from31To90": "31–90 d",
+        "over90": "Más de 90 d",
+        "total": "Total",
+        "closedCount": "Cerradas",
+        "medianDays": "Plazo medio"
+      },
+      "rows": {
+        "noType": "Sin tipo",
+        "total": "Total"
+      },
+      "messages": {
+        "loadFailed": "No se ha podido cargar el informe."
+      },
+      "empty": {
+        "age": "Ninguna tarea abierta que mostrar.",
+        "leadTimeByType": "Ninguna tarea cerrada en el periodo."
       }
     }
   },

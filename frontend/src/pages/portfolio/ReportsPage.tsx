@@ -82,6 +82,13 @@ export default function ReportsPage() {
             onClick={() => navigate('/portfolio/reports/weekly')}
           />
         </Grid>
+        <Grid item xs={12} sm={6} md={4} lg={3}>
+          <ReportCard
+            title={t('reports.cards.flow.title')}
+            description={t('reports.cards.flow.description')}
+            onClick={() => navigate('/portfolio/reports/flow')}
+          />
+        </Grid>
       </Grid>
     </Box>
   );

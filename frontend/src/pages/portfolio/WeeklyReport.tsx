@@ -17,7 +17,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ICellRendererParams, ValueGetterParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ReportLayout, {
   ReportFilter,
   reportFilterMenuProps,
@@ -184,6 +184,23 @@ const getDefaultStartDate = (): string => {
   const date = new Date();
   date.setDate(date.getDate() - 7);
   return toIsoDate(date);
+};
+
+/** True for a real `YYYY-MM-DD` day: `2026-02-31` has the right shape but does not exist. */
+const isCalendarDate = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
+
+/**
+ * A day handed over in the URL, when it is a real one. The flow report links here with the
+ * bounds of a week, and any other caller can do the same; anything unusable falls back to the
+ * report's own default rather than sending a broken period to the API.
+ */
+const dayFromParams = (params: URLSearchParams, key: string, fallback: string): string => {
+  const raw = String(params.get(key) || '').trim();
+  return isCalendarDate(raw) ? raw : fallback;
 };
 
 const humanize = (value: string): string =>
@@ -360,8 +377,11 @@ export default function WeeklyReport() {
   const mode = theme.palette.mode;
   const today = useMemo(() => toIsoDate(new Date()), []);
 
-  const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
-  const [endDate, setEndDate] = useState<string>(today);
+  const [searchParams] = useSearchParams();
+  const [startDate, setStartDate] = useState<string>(() =>
+    dayFromParams(searchParams, 'startDate', getDefaultStartDate()),
+  );
+  const [endDate, setEndDate] = useState<string>(() => dayFromParams(searchParams, 'endDate', today));
 
   const [sourceAll, setSourceAll] = useState(true);
   const [sourceIds, setSourceIds] = useState<string[]>([]);
