@@ -1114,10 +1114,6 @@
       "loadFailed": "Der Bericht konnte nicht geladen werden."
     },
     "cards": {
-      "statusChange": {
-        "title": "Statusänderungsbericht",
-        "description": "Verfolgen Sie eigenständige Aufgaben, Anfragen und Projekte, die in einem Zeitraum erstellt wurden oder deren Status sich geändert hat."
-      },
       "capacityHeatmap": {
         "title": "Kapazitäts-Heatmap",
         "description": "Visualisieren Sie den erwarteten Aufwand im Vergleich zur Kapazität von Mitwirkenden und Teams."
@@ -1134,56 +1130,6 @@
         "title": "Nach Zuständigkeit",
         "description": "Offene, überfällige und liegengebliebene Aufgaben, Team für Team und Person für Person."
       }
-    },
-    "itemTypes": {
-      "task": "Aufgabe",
-      "request": "Anfrage",
-      "project": "Projekt",
-      "tasks": "Aufgaben",
-      "requests": "Anfragen",
-      "projects": "Projekte"
-    },
-    "statusChange": {
-      "title": "Statusänderungsbericht",
-      "subtitle": "Elemente, die in einem ausgewählten Zeitraum erstellt wurden oder deren Status sich geändert hat (letztes Ereignis pro Element im Zeitraum).",
-      "filters": {
-        "startDate": "Startdatum",
-        "endDate": "Enddatum",
-        "status": "Status",
-        "allStatuses": "Alle Status",
-        "itemType": "Elementtyp",
-        "allItemTypes": "Alle Elementtypen",
-        "source": "Quelle",
-        "allSources": "Alle Quellen",
-        "category": "Kategorie",
-        "allCategories": "Alle Kategorien",
-        "stream": "Stream",
-        "allStreams": "Alle Streams"
-      },
-      "columns": {
-        "name": "Name",
-        "itemType": "Elementtyp",
-        "priority": "Priorität",
-        "status": "Status",
-        "source": "Quelle",
-        "category": "Kategorie",
-        "stream": "Stream",
-        "company": "Unternehmen",
-        "created": "Erstellt",
-        "lastChanged": "Zuletzt geändert"
-      },
-      "actions": {
-        "exportCsv": "CSV exportieren",
-        "exportXlsx": "XLSX exportieren",
-        "exporting": "Wird exportiert..."
-      },
-      "messages": {
-        "invalidPeriod": "Das Startdatum muss vor oder gleich dem Enddatum liegen.",
-        "loadFailed": "Berichtsdaten konnten nicht geladen werden.",
-        "exportFailed": "Export fehlgeschlagen"
-      },
-      "itemCount_one": "{{count}} Element",
-      "itemCount_other": "{{count}} Elemente"
     },
     "capacityHeatmap": {
       "title": "Kapazitäts-Heatmap",

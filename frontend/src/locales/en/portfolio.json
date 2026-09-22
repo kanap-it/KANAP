@@ -1114,10 +1114,6 @@
       "loadFailed": "Failed to load report data."
     },
     "cards": {
-      "statusChange": {
-        "title": "Status change report",
-        "description": "Track standalone tasks, requests, and projects created or with status changes over a period."
-      },
       "capacityHeatmap": {
         "title": "Capacity heatmap",
         "description": "Visualize expected workload vs capacity for contributors and teams."
@@ -1134,56 +1130,6 @@
         "title": "By assignee",
         "description": "Open and overdue tasks and those without movement, team by team and person by person."
       }
-    },
-    "itemTypes": {
-      "task": "Task",
-      "request": "Request",
-      "project": "Project",
-      "tasks": "Tasks",
-      "requests": "Requests",
-      "projects": "Projects"
-    },
-    "statusChange": {
-      "title": "Status change report",
-      "subtitle": "Items created during a selected period, or whose status changed in it (latest event per item in period).",
-      "filters": {
-        "startDate": "Start date",
-        "endDate": "End date",
-        "status": "Status",
-        "allStatuses": "All statuses",
-        "itemType": "Item type",
-        "allItemTypes": "All item types",
-        "source": "Source",
-        "allSources": "All sources",
-        "category": "Category",
-        "allCategories": "All categories",
-        "stream": "Stream",
-        "allStreams": "All streams"
-      },
-      "columns": {
-        "name": "Name",
-        "itemType": "Item type",
-        "priority": "Priority",
-        "status": "Status",
-        "source": "Source",
-        "category": "Category",
-        "stream": "Stream",
-        "company": "Company",
-        "created": "Created",
-        "lastChanged": "Last changed"
-      },
-      "actions": {
-        "exportCsv": "Export CSV",
-        "exportXlsx": "Export XLSX",
-        "exporting": "Exporting..."
-      },
-      "messages": {
-        "invalidPeriod": "Start date must be before or equal to end date.",
-        "loadFailed": "Failed to load report data.",
-        "exportFailed": "Export failed"
-      },
-      "itemCount_one": "{{count}} item",
-      "itemCount_other": "{{count}} items"
     },
     "capacityHeatmap": {
       "title": "Capacity heatmap",

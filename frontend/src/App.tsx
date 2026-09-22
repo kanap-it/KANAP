@@ -91,7 +91,6 @@ const PortfolioProjectWorkspacePage = React.lazy(() => import('./pages/portfolio
 const PortfolioPlanningPage = React.lazy(() => import('./pages/portfolio/PlanningPage'));
 const PortfolioReportsPage = React.lazy(() => import('./pages/portfolio/ReportsPage'));
 const CapacityHeatmapReport = React.lazy(() => import('./pages/portfolio/CapacityHeatmapReport'));
-const StatusChangeReport = React.lazy(() => import('./pages/portfolio/StatusChangeReport'));
 const WeeklyReport = React.lazy(() => import('./pages/portfolio/WeeklyReport'));
 const FlowReport = React.lazy(() => import('./pages/portfolio/FlowReport'));
 const ByAssigneeReport = React.lazy(() => import('./pages/portfolio/ByAssigneeReport'));
@@ -354,7 +353,6 @@ function AppRoutes() {
           <Route path="/portfolio/planning" element={<PortfolioPlanningPage />} />
           <Route path="/portfolio/reports" element={<PortfolioReportsPage />} />
           <Route path="/portfolio/reports/capacity-heatmap" element={<CapacityHeatmapReport />} />
-          <Route path="/portfolio/reports/status-change" element={<StatusChangeReport />} />
           <Route path="/portfolio/reports/weekly" element={<WeeklyReport />} />
           <Route path="/portfolio/reports/flow" element={<FlowReport />} />
           <Route path="/portfolio/reports/by-assignee" element={<ByAssigneeReport />} />

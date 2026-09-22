@@ -1114,10 +1114,6 @@
       "loadFailed": "Le chargement du rapport a échoué."
     },
     "cards": {
-      "statusChange": {
-        "title": "Rapport de changement de statut",
-        "description": "Suivez les tâches autonomes, demandes et projets créés ou dont le statut a changé sur une période."
-      },
       "capacityHeatmap": {
         "title": "Carte de chaleur de la capacité",
         "description": "Visualisez la charge attendue par rapport à la capacité des contributeurs et des équipes."
@@ -1134,56 +1130,6 @@
         "title": "Par responsable",
         "description": "Les tâches ouvertes, en retard et sans mouvement, équipe par équipe et personne par personne."
       }
-    },
-    "itemTypes": {
-      "task": "Tâche",
-      "request": "Demande",
-      "project": "Projet",
-      "tasks": "Tâches",
-      "requests": "Demandes",
-      "projects": "Projets"
-    },
-    "statusChange": {
-      "title": "Rapport de changement de statut",
-      "subtitle": "Éléments créés au cours d'une période sélectionnée ou dont le statut a changé (dernier événement par élément sur la période).",
-      "filters": {
-        "startDate": "Date de début",
-        "endDate": "Date de fin",
-        "status": "Statut",
-        "allStatuses": "Tous les statuts",
-        "itemType": "Type d'élément",
-        "allItemTypes": "Tous les types d'éléments",
-        "source": "Source",
-        "allSources": "Toutes les sources",
-        "category": "Catégorie",
-        "allCategories": "Toutes les catégories",
-        "stream": "Filière",
-        "allStreams": "Toutes les filières"
-      },
-      "columns": {
-        "name": "Nom",
-        "itemType": "Type d'élément",
-        "priority": "Priorité",
-        "status": "Statut",
-        "source": "Source",
-        "category": "Catégorie",
-        "stream": "Filière",
-        "company": "Société",
-        "created": "Créé le",
-        "lastChanged": "Dernière modification"
-      },
-      "actions": {
-        "exportCsv": "Exporter CSV",
-        "exportXlsx": "Exporter XLSX",
-        "exporting": "Export en cours..."
-      },
-      "messages": {
-        "invalidPeriod": "La date de début doit être antérieure ou égale à la date de fin.",
-        "loadFailed": "Échec du chargement des données du rapport.",
-        "exportFailed": "Échec de l'export"
-      },
-      "itemCount_one": "{{count}} élément",
-      "itemCount_other": "{{count}} éléments"
     },
     "capacityHeatmap": {
       "title": "Carte de chaleur de la capacité",

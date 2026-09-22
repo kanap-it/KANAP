@@ -63,13 +63,6 @@ export default function ReportsPage() {
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={4} lg={3}>
           <ReportCard
-            title={t('reports.cards.statusChange.title')}
-            description={t('reports.cards.statusChange.description')}
-            onClick={() => navigate('/portfolio/reports/status-change')}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4} lg={3}>
-          <ReportCard
             title={t('reports.cards.capacityHeatmap.title')}
             description={t('reports.cards.capacityHeatmap.description')}
             onClick={() => navigate('/portfolio/reports/capacity-heatmap')}

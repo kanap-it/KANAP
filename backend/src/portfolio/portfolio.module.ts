@@ -67,7 +67,6 @@ import { PortfolioClassificationGapsService } from './services/portfolio-classif
 import { PortfolioSteeringSummaryService } from './services/portfolio-steering-summary.service';
 import { PortfolioFlowReportService } from './services/portfolio-flow-report.service';
 import { PortfolioAssigneeAttentionService } from './services/portfolio-assignee-attention.service';
-import { PortfolioStatusChangeReportService } from './services/portfolio-status-change-report.service';
 import { PortfolioWeeklyReportService } from './services/portfolio-weekly-report.service';
 
 // Decomposed portfolio projects services
@@ -103,7 +102,6 @@ import { PortfolioSteeringSummaryController } from './portfolio-steering-summary
 import { PortfolioFlowReportController } from './portfolio-flow-report.controller';
 import { PortfolioAssigneeAttentionController } from './portfolio-assignee-attention.controller';
 import { PortfolioRoadmapController } from './portfolio-roadmap.controller';
-import { PortfolioStatusChangeReportController } from './portfolio-status-change-report.controller';
 import { PortfolioWeeklyReportController } from './portfolio-weekly-report.controller';
 
 // CSV Services
@@ -190,7 +188,6 @@ const entities = [
     PortfolioSteeringSummaryService,
     PortfolioFlowReportService,
     PortfolioAssigneeAttentionService,
-    PortfolioStatusChangeReportService,
     PortfolioWeeklyReportService,
     // CSV services
     PortfolioRequestsCsvService,
@@ -226,7 +223,6 @@ const entities = [
     PortfolioSteeringSummaryController,
     PortfolioFlowReportController,
     PortfolioAssigneeAttentionController,
-    PortfolioStatusChangeReportController,
     PortfolioWeeklyReportController,
     PortfolioRoadmapController,
   ],
