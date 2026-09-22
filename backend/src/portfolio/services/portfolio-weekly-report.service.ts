@@ -46,6 +46,8 @@ type WeeklyRowCommon = {
   streamName: string | null;
   /** Current status of the live row. */
   status: string;
+  /** Day the item was created, whether or not that day falls in the period. */
+  createdAt: string | null;
   /** Creation, last modification or closing day, depending on the list. */
   eventAt: string | null;
   /** Filled on the "modified" list only. */
@@ -56,7 +58,10 @@ export type WeeklyProjectRow = WeeklyRowCommon & {
   projectId: string;
   priority: number | null;
   progress: number | null;
+  /** The request the project was converted from, when there is one. */
   origin: WeeklyProjectOrigin | null;
+  /** Raw `portfolio_projects.origin`: standard, fast_track or legacy. */
+  originValue: string | null;
 };
 
 export type WeeklyTaskRow = WeeklyRowCommon & {
@@ -120,6 +125,42 @@ const CLOSED_STATUSES = {
  * the row rather than describe it.
  */
 const CHANGE_NOISE_KEYS = ['updated_at', 'created_at', 'id', 'tenant_id', 'item_number', 'status'];
+
+/**
+ * KANAP vocabulary for `portfolio_projects.origin`. The exports have no i18n, so they
+ * carry the English labels the UI shows for the same values.
+ */
+const ORIGIN_EXPORT_LABELS: Record<string, string> = {
+  standard: 'Request',
+  fast_track: 'Fast-track',
+  legacy: 'Legacy',
+};
+
+/**
+ * Column shape of an export block. The three list keys mirror the on-screen lists;
+ * `all` is the single sheet the XLSX writes, where every event kind shares one table.
+ */
+type ExportShape = 'created' | 'modified' | 'closed' | 'all';
+
+/** Date columns of an export block, in order. */
+const dateHeaders = (shape: ExportShape): string[] => {
+  if (shape === 'created') return ['Created on'];
+  if (shape === 'modified') return ['Modified on'];
+  if (shape === 'closed') return ['Created on', 'Closed on'];
+  return ['Created on', 'Date'];
+};
+
+const dateCells = (row: WeeklyRowCommon, shape: ExportShape): SheetCellValue[] => {
+  if (shape === 'created') return [row.eventAt];
+  if (shape === 'modified') return [row.eventAt];
+  return [row.createdAt, row.eventAt];
+};
+
+const changeHeaders = (shape: ExportShape): string[] =>
+  shape === 'modified' || shape === 'all' ? ['Changes'] : [];
+
+const changeCells = (row: WeeklyRowCommon, shape: ExportShape): SheetCellValue[] =>
+  shape === 'modified' || shape === 'all' ? [formatChanges(row.changes)] : [];
 
 const BOM = '﻿';
 
@@ -193,6 +234,7 @@ type RawEventRow = {
   stream_id: string | null;
   stream_name: string | null;
   status: string | null;
+  live_created_day: string | null;
   created_day: string | null;
   modified_day: string | null;
   closed_day: string | null;
@@ -207,6 +249,7 @@ type RawProjectEventRow = RawEventRow & {
   progress: number | string | null;
   origin_number: number | string | null;
   origin_name: string | null;
+  origin_value: string | null;
 };
 
 type RawTaskEventRow = RawEventRow & {
@@ -358,30 +401,30 @@ export class PortfolioWeeklyReportService {
       [
         {
           name: 'Requests',
-          headers: ['Event', ...this.requestHeaders('modified')],
+          headers: ['Event', ...this.requestHeaders('all')],
           rows: listKeys.flatMap((listKey) =>
             requests[listKey].map((row) => ({
-              cells: [eventLabel[listKey], ...this.requestCells(row, 'modified')] as SheetCellValue[],
+              cells: [eventLabel[listKey], ...this.requestCells(row, 'all')] as SheetCellValue[],
               linkPath: row.itemPath,
             })),
           ),
         },
         {
           name: 'Projects',
-          headers: ['Event', ...this.projectHeaders('modified')],
+          headers: ['Event', ...this.projectHeaders('all')],
           rows: listKeys.flatMap((listKey) =>
             projects[listKey].map((row) => ({
-              cells: [eventLabel[listKey], ...this.projectCells(row, 'modified')] as SheetCellValue[],
+              cells: [eventLabel[listKey], ...this.projectCells(row, 'all')] as SheetCellValue[],
               linkPath: row.itemPath,
             })),
           ),
         },
         {
           name: 'Tasks',
-          headers: ['Event', ...this.taskHeaders('modified')],
+          headers: ['Event', ...this.taskHeaders('all')],
           rows: listKeys.flatMap((listKey) =>
             tasks[listKey].map((row) => ({
-              cells: [eventLabel[listKey], ...this.taskCells(row, 'modified')] as SheetCellValue[],
+              cells: [eventLabel[listKey], ...this.taskCells(row, 'all')] as SheetCellValue[],
               linkPath: row.itemPath,
             })),
           ),
@@ -400,26 +443,34 @@ export class PortfolioWeeklyReportService {
   /*  Export cell shapes                                              */
   /* ---------------------------------------------------------------- */
 
-  private requestHeaders(listKey: 'created' | 'modified' | 'closed'): string[] {
-    const base = ['Reference', 'Request name', 'Source', 'Category', 'Stream', 'Status', 'Date'];
-    return listKey === 'modified' ? [...base, 'Changes'] : base;
+  private requestHeaders(shape: ExportShape): string[] {
+    return [
+      'Reference',
+      'Request name',
+      'Source',
+      'Category',
+      'Stream',
+      'Status',
+      ...dateHeaders(shape),
+      ...changeHeaders(shape),
+    ];
   }
 
-  private requestCells(row: WeeklyRequestRow, listKey: 'created' | 'modified' | 'closed'): SheetCellValue[] {
-    const base: SheetCellValue[] = [
+  private requestCells(row: WeeklyRequestRow, shape: ExportShape): SheetCellValue[] {
+    return [
       row.ref,
       row.name,
       row.sourceName,
       row.categoryName,
       row.streamName,
       row.status,
-      row.eventAt,
+      ...dateCells(row, shape),
+      ...changeCells(row, shape),
     ];
-    return listKey === 'modified' ? [...base, formatChanges(row.changes)] : base;
   }
 
-  private projectHeaders(listKey: 'created' | 'modified' | 'closed'): string[] {
-    const base = [
+  private projectHeaders(shape: ExportShape): string[] {
+    return [
       'Reference',
       'Project name',
       'Origin',
@@ -429,34 +480,51 @@ export class PortfolioWeeklyReportService {
       'Stream',
       'Effort',
       'Status',
-      'Date',
+      ...dateHeaders(shape),
+      ...changeHeaders(shape),
     ];
-    return listKey === 'modified' ? [...base, 'Changes'] : base;
   }
 
-  private projectCells(row: WeeklyProjectRow, listKey: 'created' | 'modified' | 'closed'): SheetCellValue[] {
-    const base: SheetCellValue[] = [
+  private projectCells(row: WeeklyProjectRow, shape: ExportShape): SheetCellValue[] {
+    return [
       row.ref,
       row.name,
-      row.origin ? `${row.origin.ref} ${row.origin.name}`.trim() : 'Created directly',
+      this.projectOriginLabel(row),
       row.priority,
       row.sourceName,
       row.categoryName,
       row.streamName,
       row.progress == null ? null : `${Math.round(row.progress)}%`,
       row.status,
-      row.eventAt,
+      ...dateCells(row, shape),
+      ...changeCells(row, shape),
     ];
-    return listKey === 'modified' ? [...base, formatChanges(row.changes)] : base;
   }
 
-  private taskHeaders(listKey: 'created' | 'modified' | 'closed'): string[] {
-    const base = ['Reference', 'Task name', 'Task type', 'Priority', 'Source', 'Category', 'Stream', 'Status', 'Date'];
-    return listKey === 'modified' ? [...base, 'Changes'] : base;
+  /** The request a project came from, or the KANAP label of its own origin value. */
+  private projectOriginLabel(row: WeeklyProjectRow): string {
+    if (row.origin) return `${row.origin.ref} ${row.origin.name}`.trim();
+    if (!row.originValue) return '';
+    return ORIGIN_EXPORT_LABELS[row.originValue] ?? humanizeStatus(row.originValue);
   }
 
-  private taskCells(row: WeeklyTaskRow, listKey: 'created' | 'modified' | 'closed'): SheetCellValue[] {
-    const base: SheetCellValue[] = [
+  private taskHeaders(shape: ExportShape): string[] {
+    return [
+      'Reference',
+      'Task name',
+      'Task type',
+      'Priority',
+      'Source',
+      'Category',
+      'Stream',
+      'Status',
+      ...dateHeaders(shape),
+      ...changeHeaders(shape),
+    ];
+  }
+
+  private taskCells(row: WeeklyTaskRow, shape: ExportShape): SheetCellValue[] {
+    return [
       row.ref,
       row.name,
       row.taskTypeName,
@@ -465,9 +533,9 @@ export class PortfolioWeeklyReportService {
       row.categoryName,
       row.streamName,
       row.status,
-      row.eventAt,
+      ...dateCells(row, shape),
+      ...changeCells(row, shape),
     ];
-    return listKey === 'modified' ? [...base, formatChanges(row.changes)] : base;
   }
 
   /* ---------------------------------------------------------------- */
@@ -477,6 +545,11 @@ export class PortfolioWeeklyReportService {
   /**
    * Audit CTEs shared by the three entity queries. Parameters are fixed:
    * $1 tenant, $2 start day, $3 end day, $4 time zone, $5 closed statuses, $6 noise keys.
+   *
+   * An item counts as closed when the last status event of the period leaves it in a
+   * closed status. The creation event counts: a CSV import or an agent can create a task
+   * already done or a request already rejected, and such an item never gets an update to
+   * detect. Reading the last event also keeps an item reopened later out of the list.
    */
   private eventCtes(auditTable: string): string {
     return `
@@ -501,12 +574,21 @@ export class PortfolioWeeklyReportService {
         WHERE pe.action = 'update'
           AND pe.before_json->>'status' IS DISTINCT FROM pe.after_json->>'status'
       ),
+      status_events AS (
+        SELECT pe.record_id, pe.created_at, pe.id, pe.after_json->>'status' AS after_status
+        FROM period_events pe
+        WHERE pe.action = 'create'
+           OR pe.before_json->>'status' IS DISTINCT FROM pe.after_json->>'status'
+      ),
+      status_event_last AS (
+        SELECT DISTINCT ON (se.record_id) se.record_id, se.created_at, se.after_status
+        FROM status_events se
+        ORDER BY se.record_id, se.created_at DESC, se.id DESC
+      ),
       closing AS (
-        SELECT sm.record_id, MAX(sm.created_at) AS closed_at
-        FROM status_moves sm
-        WHERE sm.after_status = ANY($5::text[])
-          AND (sm.before_status IS NULL OR NOT (sm.before_status = ANY($5::text[])))
-        GROUP BY sm.record_id
+        SELECT sel.record_id, sel.created_at AS closed_at
+        FROM status_event_last sel
+        WHERE sel.after_status = ANY($5::text[])
       ),
       status_first AS (
         SELECT DISTINCT ON (sm.record_id) sm.record_id, sm.before_status
@@ -604,6 +686,7 @@ export class PortfolioWeeklyReportService {
         r.stream_id,
         pst.name AS stream_name,
         r.status,
+        (r.created_at AT TIME ZONE $4)::date::text AS live_created_day,
         ${this.eventColumns()}
       FROM agg a
       JOIN portfolio_requests r ON r.id = a.record_id AND r.tenant_id = $1
@@ -651,6 +734,8 @@ export class PortfolioWeeklyReportService {
         p.status,
         og.origin_number,
         og.origin_name,
+        p.origin AS origin_value,
+        (p.created_at AT TIME ZONE $4)::date::text AS live_created_day,
         ${this.eventColumns()}
       FROM agg a
       JOIN portfolio_projects p ON p.id = a.record_id AND p.tenant_id = $1
@@ -685,6 +770,7 @@ export class PortfolioWeeklyReportService {
               name: row.origin_name ?? '',
               itemPath: `/portfolio/requests/REQ-${row.origin_number}/summary`,
             },
+      originValue: row.origin_value ?? null,
     }));
   }
 
@@ -724,6 +810,7 @@ export class PortfolioWeeklyReportService {
         t.stream_id,
         pst.name AS stream_name,
         t.status,
+        (t.created_at AT TIME ZONE $4)::date::text AS live_created_day,
         ${this.eventColumns()}
       FROM agg a
       JOIN tasks t ON t.id = a.record_id AND t.tenant_id = $1
@@ -773,6 +860,7 @@ export class PortfolioWeeklyReportService {
       streamId: row.stream_id ?? null,
       streamName: row.stream_name ?? null,
       status: row.status ?? '',
+      createdAt: row.live_created_day,
       eventAt,
       changes:
         listKey === 'modified'

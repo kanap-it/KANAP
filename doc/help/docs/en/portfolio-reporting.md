@@ -194,9 +194,11 @@ Each of the three sections holds the same three lists.
 
 - **Created** — items created during the period.
 - **Modified** — items changed during the period without being created or closed in it.
-- **Closed** — items that moved into a closed status during the period.
+- **Closed** — items whose last status change of the period leaves them in a closed status.
 
-An item created and closed inside the same period appears in both lists. It never appears under Modified: Modified is what is left once creations and closures are accounted for.
+An item created and closed inside the same period appears in both lists, with its own date in each. It never appears under Modified: Modified is what is left once creations and closures are accounted for.
+
+The creation counts as a status change. A CSV import or an agent can create a task already done, or a request already rejected. Such an item is listed as created and as closed on the same day, even though nobody ever changed its status afterwards.
 
 Closed means different statuses per type:
 
@@ -215,7 +217,13 @@ The Tasks section covers portfolio tasks only: standalone tasks and tasks attach
 The Projects created list carries an **Origin** column.
 
 - A project converted from a request shows that request, for example `REQ-12 Cave climate digital twin`. Click it to open the request.
-- A project created straight in the projects list shows **Created directly**.
+- A project created without a request shows how it entered the portfolio, in the words used everywhere else in KANAP: **Fast-track**, **Legacy** or **Request**.
+
+### Folding a section
+
+Each section title carries a chevron. Click the title row to fold the section away, and click it again to open it. A folded section keeps its counts next to its title, so you still see what it holds.
+
+Your choice is remembered on this browser, section by section. Printing is not affected: a printed report always carries the three sections in full.
 
 ### What changed
 
@@ -248,6 +256,8 @@ Every list starts with the business reference (`REQ-12`, `PRJ-3`, `T-4`) and the
 
 The date column carries the creation day on the created lists, the last change day on the modified lists, and the closing day on the closed lists. Days are read in your own time zone.
 
+The closed lists carry two dates: **Created on**, then **Closed on**. The creation day is always shown, even when the item was created long before the period. It tells you at a glance how long the item took.
+
 Modified lists add the **Changes** column at the end.
 
 ### Exports
@@ -255,7 +265,7 @@ Modified lists add the **Changes** column at the end.
 - **CSV** — nine blocks in the order of the page, each with its own heading and header row.
 - **XLSX** — three sheets, Requests, Projects and Tasks. Rows run created, then modified, then closed, with a leading **Event** column that says which list a row comes from. The name cell links back to the item.
 
-Both exports carry the reference, the origin of a project, the changes of a modified row and the event date.
+Both exports carry the reference, the origin of a project, the changes of a modified row and the event date. The closed rows also carry the creation day.
 
 ## Tips
 - **Keep contributor profiles updated**: Capacity is based on contributor availability and historical time stats.

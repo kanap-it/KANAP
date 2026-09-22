@@ -1283,9 +1283,6 @@
           "closed": "Ninguna tarea cerrada en este periodo."
         }
       },
-      "origin": {
-        "direct": "Creado directamente"
-      },
       "columns": {
         "reference": "Referencia",
         "requestName": "Nombre de la solicitud",
@@ -1301,9 +1298,9 @@
         "status": "Estado",
         "changes": "Cambios",
         "date": {
-          "created": "Creado",
-          "modified": "Último cambio",
-          "closed": "Cerrado"
+          "created": "Creado el",
+          "modified": "Modificado el",
+          "closed": "Cerrado el"
         }
       }
     }

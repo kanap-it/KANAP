@@ -194,9 +194,11 @@ Cada una de las tres secciones contiene las mismas tres listas.
 
 - **Creaciones** — elementos creados durante el periodo.
 - **Modificaciones** — elementos modificados durante el periodo sin haber sido creados ni cerrados en él.
-- **Cierres** — elementos que pasaron a un estado de cierre durante el periodo.
+- **Cierres** — elementos cuyo último cambio de estado del periodo los deja en un estado de cierre.
 
-Un elemento creado y cerrado dentro del mismo periodo aparece en ambas listas. Nunca aparece en Modificaciones: Modificaciones es lo que queda una vez contabilizadas las creaciones y los cierres.
+Un elemento creado y cerrado dentro del mismo periodo aparece en ambas listas, con su propia fecha en cada una. Nunca aparece en Modificaciones: Modificaciones es lo que queda una vez contabilizadas las creaciones y los cierres.
+
+La creación cuenta como un cambio de estado. Una importación CSV o un agente puede crear una tarea ya terminada, o una solicitud ya rechazada. Ese elemento figura como creado y como cerrado el mismo día, aunque nadie haya cambiado su estado después.
 
 El cierre se apoya en estados distintos según el tipo:
 
@@ -215,7 +217,13 @@ La sección Tareas cubre solo las tareas del portafolio: las tareas independient
 La lista de proyectos creados incluye una columna **Procedencia**.
 
 - Un proyecto convertido a partir de una solicitud muestra esa solicitud, por ejemplo `REQ-12 Cave climate digital twin`. Haga clic para abrir la solicitud.
-- Un proyecto creado directamente en la lista de proyectos muestra **Creado directamente**.
+- Un proyecto creado sin solicitud muestra cómo entró en el portafolio, con las palabras que KANAP utiliza en todas partes: **Fast-track**, **Histórico** o **Solicitud**.
+
+### Plegar una sección
+
+Cada título de sección lleva un galón. Haga clic en la línea del título para plegar la sección y vuelva a hacer clic para abrirla. Una sección plegada conserva sus recuentos junto al título, así que sigue viendo lo que contiene.
+
+Su elección se recuerda en este navegador, sección por sección. La impresión no se ve afectada: un informe impreso siempre lleva las tres secciones completas.
 
 ### Qué ha cambiado
 
@@ -248,6 +256,8 @@ Cada lista empieza por la referencia de negocio (`REQ-12`, `PRJ-3`, `T-4`) y el 
 
 La columna de fecha lleva el día de creación en las listas de creaciones, el día del último cambio en las listas de modificaciones y el día de cierre en las listas de cierres. Los días se leen en su propia zona horaria.
 
+Las listas de cierres llevan dos fechas: **Creado el** y después **Cerrado el**. El día de creación se muestra siempre, incluso cuando el elemento se creó mucho antes del periodo. Indica de un vistazo cuánto tiempo ha llevado el elemento.
+
 Las listas de modificaciones añaden la columna **Cambios** al final.
 
 ### Exportaciones
@@ -255,7 +265,7 @@ Las listas de modificaciones añaden la columna **Cambios** al final.
 - **CSV** — nueve bloques en el orden de la página, cada uno con su propio título y su fila de encabezado.
 - **XLSX** — tres hojas: Requests, Projects y Tasks. Las filas van de las creaciones a las modificaciones y después a los cierres, con una columna **Event** inicial que indica de qué lista procede cada fila. La celda del nombre enlaza con el elemento.
 
-Ambas exportaciones llevan la referencia, la procedencia de un proyecto, los cambios de una fila modificada y la fecha del evento.
+Ambas exportaciones llevan la referencia, la procedencia de un proyecto, los cambios de una fila modificada y la fecha del evento. Las filas de cierre llevan además el día de creación.
 
 ## Consejos
 - **Mantenga los perfiles de colaboradores actualizados**: La capacidad se basa en la disponibilidad de colaboradores y estadísticas históricas de tiempo.

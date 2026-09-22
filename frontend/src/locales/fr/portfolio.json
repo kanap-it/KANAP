@@ -1283,9 +1283,6 @@
           "closed": "Aucune tâche clôturée sur cette période."
         }
       },
-      "origin": {
-        "direct": "Créé directement"
-      },
       "columns": {
         "reference": "Référence",
         "requestName": "Nom de la demande",
@@ -1302,7 +1299,7 @@
         "changes": "Modifications",
         "date": {
           "created": "Créé le",
-          "modified": "Dernière modification",
+          "modified": "Modifié le",
           "closed": "Clôturé le"
         }
       }

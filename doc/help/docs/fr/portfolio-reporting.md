@@ -194,9 +194,11 @@ Chacune des trois sections contient les trois mêmes listes.
 
 - **Créations** — les éléments créés pendant la période.
 - **Modifications** — les éléments modifiés pendant la période sans y avoir été créés ni clôturés.
-- **Clôtures** — les éléments passés à un statut de clôture pendant la période.
+- **Clôtures** — les éléments dont le dernier changement de statut de la période les laisse dans un statut de clôture.
 
-Un élément créé et clôturé dans la même période apparaît dans les deux listes. Il n'apparaît jamais sous Modifications : Modifications correspond à ce qui reste une fois les créations et les clôtures prises en compte.
+Un élément créé et clôturé dans la même période apparaît dans les deux listes, avec sa propre date dans chacune. Il n'apparaît jamais sous Modifications : Modifications correspond à ce qui reste une fois les créations et les clôtures prises en compte.
+
+La création compte comme un changement de statut. Un import CSV ou un agent peut créer une tâche déjà terminée, ou une demande déjà rejetée. Un tel élément figure en création et en clôture le même jour, même si personne n'a jamais changé son statut ensuite.
 
 La clôture repose sur des statuts différents selon le type :
 
@@ -215,7 +217,13 @@ La section Tâches ne couvre que les tâches du portefeuille : les tâches auton
 La liste des projets créés comporte une colonne **Origine**.
 
 - Un projet issu de la conversion d'une demande affiche cette demande, par exemple `REQ-12 Cave climate digital twin`. Cliquez dessus pour ouvrir la demande.
-- Un projet créé directement dans la liste des projets affiche **Créé directement**.
+- Un projet créé sans demande affiche la façon dont il est entré dans le portefeuille, dans les mots employés partout ailleurs dans KANAP : **Fast-track**, **Historique** ou **Demande**.
+
+### Replier une section
+
+Chaque titre de section porte un chevron. Cliquez sur la ligne du titre pour replier la section, cliquez à nouveau pour la rouvrir. Une section repliée garde ses compteurs à côté de son titre : vous voyez toujours ce qu'elle contient.
+
+Votre choix est mémorisé sur ce navigateur, section par section. L'impression n'est pas affectée : un rapport imprimé porte toujours les trois sections en entier.
 
 ### Ce qui a changé
 
@@ -248,6 +256,8 @@ Chaque liste commence par la référence métier (`REQ-12`, `PRJ-3`, `T-4`) et l
 
 La colonne de date porte le jour de création sur les listes de créations, le jour de la dernière modification sur les listes de modifications et le jour de clôture sur les listes de clôtures. Les jours sont lus dans votre propre fuseau horaire.
 
+Les listes de clôtures portent deux dates : **Créé le**, puis **Clôturé le**. Le jour de création est toujours affiché, même lorsque l'élément a été créé bien avant la période. Il indique d'un coup d'œil le temps qu'a pris l'élément.
+
 Les listes de modifications ajoutent la colonne **Modifications** à la fin.
 
 ### Exports
@@ -255,7 +265,7 @@ Les listes de modifications ajoutent la colonne **Modifications** à la fin.
 - **CSV** — neuf blocs dans l'ordre de la page, chacun avec son propre titre et sa ligne d'en-tête.
 - **XLSX** — trois feuilles : Requests, Projects et Tasks. Les lignes vont des créations aux modifications puis aux clôtures, avec une colonne **Event** en tête qui indique de quelle liste vient la ligne. La cellule du nom renvoie vers l'élément.
 
-Les deux exports portent la référence, l'origine d'un projet, les modifications d'une ligne modifiée et la date de l'événement.
+Les deux exports portent la référence, l'origine d'un projet, les modifications d'une ligne modifiée et la date de l'événement. Les lignes de clôture portent aussi le jour de création.
 
 ## Conseils
 - **Gardez les profils de contributeurs à jour** : La capacité est basée sur la disponibilité des contributeurs et les statistiques de temps historiques.

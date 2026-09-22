@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Checkbox,
   CircularProgress,
+  Collapse,
   ListItemText,
   MenuItem,
   Stack,
@@ -12,6 +13,7 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ICellRendererParams, ValueGetterParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -63,6 +65,7 @@ type WeeklyRowCommon = {
   streamId: string | null;
   streamName: string | null;
   status: string;
+  createdAt: string | null;
   eventAt: string | null;
   changes: WeeklyChangeSummary | null;
 };
@@ -72,6 +75,7 @@ type WeeklyProjectRow = WeeklyRowCommon & {
   priority: number | null;
   progress: number | null;
   origin: WeeklyProjectOrigin | null;
+  originValue: string | null;
 };
 
 type WeeklyTaskRow = WeeklyRowCommon & {
@@ -107,6 +111,27 @@ type FilterValuesResponse = {
 };
 
 const LIST_KEYS: WeeklyListKey[] = ['created', 'modified', 'closed'];
+
+type WeeklySectionKey = 'requests' | 'projects' | 'tasks';
+
+const collapsedStorageKey = (section: WeeklySectionKey) =>
+  `kanap.portfolioReports.weekly.collapsed.${section}`;
+
+const readCollapsed = (section: WeeklySectionKey): boolean => {
+  try {
+    return window.localStorage.getItem(collapsedStorageKey(section)) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const writeCollapsed = (section: WeeklySectionKey, collapsed: boolean) => {
+  try {
+    window.localStorage.setItem(collapsedStorageKey(section), collapsed ? '1' : '0');
+  } catch {
+    /* private mode or blocked storage: the group simply stays open on the next visit. */
+  }
+};
 
 const EMPTY_REQUESTS: WeeklyLists<WeeklyRequestRow> = { created: [], modified: [], closed: [] };
 const EMPTY_PROJECTS: WeeklyLists<WeeklyProjectRow> = { created: [], modified: [], closed: [] };
@@ -245,6 +270,88 @@ function WeeklyReportSubSection<TRow extends { ref: string }>({
   );
 }
 
+type SectionProps = {
+  title: string;
+  counts: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+};
+
+/**
+ * One entity group: a title row that folds the group away, then its three lists. The
+ * counts follow the title while the group is folded, so navigation stays informative.
+ * Print keeps every group open: a folded group is a reading convenience, not a filter.
+ */
+function WeeklyReportSection({ title, counts, collapsed, onToggle, children }: SectionProps) {
+  const contentId = useId();
+
+  return (
+    <Box sx={SECTION_SX}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        onClick={onToggle}
+        sx={{ cursor: 'pointer', userSelect: 'none', mb: collapsed ? 0 : 1.5 }}
+      >
+        <Typography component="h2" sx={{ ...SECTION_TITLE_SX, mb: 0 }}>
+          <Box
+            component="button"
+            type="button"
+            aria-expanded={!collapsed}
+            aria-controls={contentId}
+            onClick={(event: React.MouseEvent) => {
+              event.stopPropagation();
+              onToggle();
+            }}
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.5,
+              p: 0,
+              border: 0,
+              bgcolor: 'transparent',
+              color: 'inherit',
+              font: 'inherit',
+              cursor: 'pointer',
+            }}
+          >
+            <ExpandMoreIcon
+              sx={{
+                fontSize: 18,
+                color: 'kanap.text.secondary',
+                transform: collapsed ? 'rotate(-90deg)' : 'none',
+                transition: 'transform 160ms ease',
+              }}
+            />
+            {title}
+          </Box>
+        </Typography>
+        {collapsed && (
+          <Typography sx={{ fontSize: 12, fontWeight: 400, color: 'kanap.text.secondary' }}>
+            {counts}
+          </Typography>
+        )}
+      </Stack>
+      <Collapse
+        in={!collapsed}
+        timeout={160}
+        id={contentId}
+        sx={{
+          '@media print': {
+            height: 'auto !important',
+            overflow: 'visible !important',
+            visibility: 'visible !important',
+          },
+        }}
+      >
+        <Stack spacing={1.5}>{children}</Stack>
+      </Collapse>
+    </Box>
+  );
+}
+
 export default function WeeklyReport() {
   const navigate = useNavigate();
   const { t } = useTranslation(['portfolio', 'errors']);
@@ -264,6 +371,20 @@ export default function WeeklyReport() {
   const [streamIds, setStreamIds] = useState<string[]>([]);
   const [taskTypeAll, setTaskTypeAll] = useState(true);
   const [taskTypeIds, setTaskTypeIds] = useState<string[]>([]);
+
+  const [collapsedSections, setCollapsedSections] = useState<Record<WeeklySectionKey, boolean>>(() => ({
+    requests: readCollapsed('requests'),
+    projects: readCollapsed('projects'),
+    tasks: readCollapsed('tasks'),
+  }));
+
+  const toggleSection = useCallback((section: WeeklySectionKey) => {
+    setCollapsedSections((previous) => {
+      const next = !previous[section];
+      writeCollapsed(section, next);
+      return { ...previous, [section]: next };
+    });
+  }, []);
 
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportingFormat, setExportingFormat] = useState<'csv' | 'xlsx' | null>(null);
@@ -562,6 +683,17 @@ export default function WeeklyReport() {
     [locale, t],
   );
 
+  /** Creation day of the item, shown next to the closing day in the closed lists. */
+  const createdOnColumn = useCallback(
+    <TRow extends WeeklyRowCommon>(): ColDef<TRow> => ({
+      field: 'createdAt' as any,
+      headerName: t('reports.weekly.columns.date.created'),
+      width: 130,
+      valueFormatter: (params) => formatShortDate(params.value || null, locale),
+    }),
+    [locale, t],
+  );
+
   const priorityColumn = useCallback(
     <TRow extends WeeklyRowCommon & { priority: number | null }>(): ColDef<TRow> => ({
       field: 'priority' as any,
@@ -609,13 +741,24 @@ export default function WeeklyReport() {
     [t],
   );
 
+  /** The request a project was converted from, or the KANAP label of its own origin. */
+  const originLabel = useCallback(
+    (row?: WeeklyProjectRow | null): string => {
+      if (!row) return '';
+      if (row.origin) return `${row.origin.ref} ${row.origin.name}`.trim();
+      if (!row.originValue) return '';
+      return t(`origin.${row.originValue}`, { defaultValue: humanize(row.originValue) });
+    },
+    [t],
+  );
+
   const OriginCell = useCallback(
     (params: ICellRendererParams<WeeklyProjectRow, unknown>) => {
       const origin = params.data?.origin ?? null;
       if (!origin) {
         return (
           <Box component="span" sx={{ color: 'kanap.text.tertiary' }}>
-            {t('reports.weekly.origin.direct')}
+            {originLabel(params.data)}
           </Box>
         );
       }
@@ -632,7 +775,7 @@ export default function WeeklyReport() {
         </Box>
       );
     },
-    [navigate, t],
+    [navigate, originLabel],
   );
 
   /* -------------------------------------------------------------- */
@@ -645,11 +788,21 @@ export default function WeeklyReport() {
       nameColumn<WeeklyRequestRow>(t('reports.weekly.columns.requestName')),
       ...classificationColumns<WeeklyRequestRow>(),
       statusColumn<WeeklyRequestRow>(),
+      ...(listKey === 'closed' ? [createdOnColumn<WeeklyRequestRow>()] : []),
       dateColumn<WeeklyRequestRow>(listKey),
       ...(listKey === 'modified' ? [changesColumn<WeeklyRequestRow>('request')] : []),
     ];
     return { created: build('created'), modified: build('modified'), closed: build('closed') };
-  }, [changesColumn, classificationColumns, dateColumn, nameColumn, refColumn, statusColumn, t]);
+  }, [
+    changesColumn,
+    classificationColumns,
+    createdOnColumn,
+    dateColumn,
+    nameColumn,
+    refColumn,
+    statusColumn,
+    t,
+  ]);
 
   const projectColumns = useMemo<Record<WeeklyListKey, ColDef<WeeklyProjectRow>[]>>(() => {
     const build = (listKey: WeeklyListKey): ColDef<WeeklyProjectRow>[] => [
@@ -661,10 +814,7 @@ export default function WeeklyReport() {
             headerName: t('reports.weekly.columns.origin'),
             flex: 1,
             minWidth: 200,
-            valueGetter: (params: ValueGetterParams<WeeklyProjectRow>) =>
-              params.data?.origin
-                ? `${params.data.origin.ref} ${params.data.origin.name}`.trim()
-                : t('reports.weekly.origin.direct'),
+            valueGetter: (params: ValueGetterParams<WeeklyProjectRow>) => originLabel(params.data),
             cellRenderer: OriginCell,
           } as ColDef<WeeklyProjectRow>]
         : []),
@@ -678,6 +828,7 @@ export default function WeeklyReport() {
         valueFormatter: (params) => (params.value == null ? '' : `${Math.round(Number(params.value))}%`),
       },
       statusColumn<WeeklyProjectRow>(),
+      ...(listKey === 'closed' ? [createdOnColumn<WeeklyProjectRow>()] : []),
       dateColumn<WeeklyProjectRow>(listKey),
       ...(listKey === 'modified' ? [changesColumn<WeeklyProjectRow>('project')] : []),
     ];
@@ -686,7 +837,9 @@ export default function WeeklyReport() {
     OriginCell,
     changesColumn,
     classificationColumns,
+    createdOnColumn,
     dateColumn,
+    originLabel,
     nameColumn,
     priorityColumn,
     refColumn,
@@ -707,6 +860,7 @@ export default function WeeklyReport() {
       priorityColumn<WeeklyTaskRow>(),
       ...classificationColumns<WeeklyTaskRow>(),
       statusColumn<WeeklyTaskRow>(),
+      ...(listKey === 'closed' ? [createdOnColumn<WeeklyTaskRow>()] : []),
       dateColumn<WeeklyTaskRow>(listKey),
       ...(listKey === 'modified' ? [changesColumn<WeeklyTaskRow>('task')] : []),
     ];
@@ -714,6 +868,7 @@ export default function WeeklyReport() {
   }, [
     changesColumn,
     classificationColumns,
+    createdOnColumn,
     dateColumn,
     nameColumn,
     priorityColumn,
@@ -766,13 +921,19 @@ export default function WeeklyReport() {
     ? getApiErrorMessage(error, t, t('reports.weekly.messages.loadFailed'))
     : null;
 
-  const summaryFor = useCallback(
-    (entityLabel: string, lists: WeeklyLists<unknown>) =>
-      `${entityLabel} ${t('reports.weekly.summary.created', { count: lists.created.length })} · ${t(
-        'reports.weekly.summary.modified',
-        { count: lists.modified.length },
-      )} · ${t('reports.weekly.summary.closed', { count: lists.closed.length })}`,
+  const countsFor = useCallback(
+    (lists: WeeklyLists<unknown>) =>
+      [
+        t('reports.weekly.summary.created', { count: lists.created.length }),
+        t('reports.weekly.summary.modified', { count: lists.modified.length }),
+        t('reports.weekly.summary.closed', { count: lists.closed.length }),
+      ].join(' · '),
     [t],
+  );
+
+  const summaryFor = useCallback(
+    (entityLabel: string, lists: WeeklyLists<unknown>) => `${entityLabel} ${countsFor(lists)}`,
+    [countsFor],
   );
 
   const subHeading = useCallback(
@@ -990,56 +1151,56 @@ export default function WeeklyReport() {
           {(isLoading || isFetching) && <CircularProgress size={14} />}
         </Stack>
 
-        <Box sx={SECTION_SX}>
-          <Typography component="h2" sx={SECTION_TITLE_SX}>
-            {t('reports.weekly.sections.requests')}
-          </Typography>
-          <Stack spacing={1.5}>
-            {LIST_KEYS.map((listKey) => (
-              <WeeklyReportSubSection<WeeklyRequestRow>
-                key={listKey}
-                heading={subHeading(listKey, requests[listKey].length)}
-                emptyLabel={t(`reports.weekly.empty.requests.${listKey}`)}
-                rows={requests[listKey]}
-                columns={requestColumns[listKey]}
-              />
-            ))}
-          </Stack>
-        </Box>
+        <WeeklyReportSection
+          title={t('reports.weekly.sections.requests')}
+          counts={countsFor(requests)}
+          collapsed={collapsedSections.requests}
+          onToggle={() => toggleSection('requests')}
+        >
+          {LIST_KEYS.map((listKey) => (
+            <WeeklyReportSubSection<WeeklyRequestRow>
+              key={listKey}
+              heading={subHeading(listKey, requests[listKey].length)}
+              emptyLabel={t(`reports.weekly.empty.requests.${listKey}`)}
+              rows={requests[listKey]}
+              columns={requestColumns[listKey]}
+            />
+          ))}
+        </WeeklyReportSection>
 
-        <Box sx={SECTION_SX}>
-          <Typography component="h2" sx={SECTION_TITLE_SX}>
-            {t('reports.weekly.sections.projects')}
-          </Typography>
-          <Stack spacing={1.5}>
-            {LIST_KEYS.map((listKey) => (
-              <WeeklyReportSubSection<WeeklyProjectRow>
-                key={listKey}
-                heading={subHeading(listKey, projects[listKey].length)}
-                emptyLabel={t(`reports.weekly.empty.projects.${listKey}`)}
-                rows={projects[listKey]}
-                columns={projectColumns[listKey]}
-              />
-            ))}
-          </Stack>
-        </Box>
+        <WeeklyReportSection
+          title={t('reports.weekly.sections.projects')}
+          counts={countsFor(projects)}
+          collapsed={collapsedSections.projects}
+          onToggle={() => toggleSection('projects')}
+        >
+          {LIST_KEYS.map((listKey) => (
+            <WeeklyReportSubSection<WeeklyProjectRow>
+              key={listKey}
+              heading={subHeading(listKey, projects[listKey].length)}
+              emptyLabel={t(`reports.weekly.empty.projects.${listKey}`)}
+              rows={projects[listKey]}
+              columns={projectColumns[listKey]}
+            />
+          ))}
+        </WeeklyReportSection>
 
-        <Box sx={SECTION_SX}>
-          <Typography component="h2" sx={SECTION_TITLE_SX}>
-            {t('reports.weekly.sections.tasks')}
-          </Typography>
-          <Stack spacing={1.5}>
-            {LIST_KEYS.map((listKey) => (
-              <WeeklyReportSubSection<WeeklyTaskRow>
-                key={listKey}
-                heading={subHeading(listKey, tasks[listKey].length)}
-                emptyLabel={t(`reports.weekly.empty.tasks.${listKey}`)}
-                rows={tasks[listKey]}
-                columns={taskColumns[listKey]}
-              />
-            ))}
-          </Stack>
-        </Box>
+        <WeeklyReportSection
+          title={t('reports.weekly.sections.tasks')}
+          counts={countsFor(tasks)}
+          collapsed={collapsedSections.tasks}
+          onToggle={() => toggleSection('tasks')}
+        >
+          {LIST_KEYS.map((listKey) => (
+            <WeeklyReportSubSection<WeeklyTaskRow>
+              key={listKey}
+              heading={subHeading(listKey, tasks[listKey].length)}
+              emptyLabel={t(`reports.weekly.empty.tasks.${listKey}`)}
+              rows={tasks[listKey]}
+              columns={taskColumns[listKey]}
+            />
+          ))}
+        </WeeklyReportSection>
       </Stack>
     </ReportLayout>
   );

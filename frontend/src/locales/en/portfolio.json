@@ -1283,9 +1283,6 @@
           "closed": "No task closed in this period."
         }
       },
-      "origin": {
-        "direct": "Created directly"
-      },
       "columns": {
         "reference": "Reference",
         "requestName": "Request name",
@@ -1301,9 +1298,9 @@
         "status": "Status",
         "changes": "Changes",
         "date": {
-          "created": "Created",
-          "modified": "Last change",
-          "closed": "Closed"
+          "created": "Created on",
+          "modified": "Modified on",
+          "closed": "Closed on"
         }
       }
     }

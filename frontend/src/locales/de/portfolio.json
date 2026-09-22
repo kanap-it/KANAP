@@ -1283,9 +1283,6 @@
           "closed": "In diesem Zeitraum wurde keine Aufgabe geschlossen."
         }
       },
-      "origin": {
-        "direct": "Direkt erstellt"
-      },
       "columns": {
         "reference": "Referenz",
         "requestName": "Anfragenname",
@@ -1301,9 +1298,9 @@
         "status": "Status",
         "changes": "Änderungen",
         "date": {
-          "created": "Erstellt",
-          "modified": "Letzte Änderung",
-          "closed": "Geschlossen"
+          "created": "Erstellt am",
+          "modified": "Geändert am",
+          "closed": "Geschlossen am"
         }
       }
     }

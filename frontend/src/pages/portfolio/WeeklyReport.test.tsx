@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@mui/material/styles';
 import { MemoryRouter } from 'react-router-dom';
@@ -7,6 +7,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../i18n';
 import { ThemeModeProvider, createAppTheme } from '../../config/ThemeContext';
 import WeeklyReport from './WeeklyReport';
+
+/** This jsdom build ships no Storage. The page guards against that; the specs need one. */
+if (!window.localStorage) {
+  const store = new Map<string, string>();
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => (store.has(key) ? store.get(key)! : null),
+      setItem: (key: string, value: string) => { store.set(key, String(value)); },
+      removeItem: (key: string) => { store.delete(key); },
+      clear: () => { store.clear(); },
+      key: (index: number) => Array.from(store.keys())[index] ?? null,
+      get length() { return store.size; },
+    },
+  });
+}
 
 const get = vi.fn();
 vi.mock('../../api', () => ({ default: { get: (...args: any[]) => get(...args) } }));
@@ -25,6 +41,7 @@ const requestRow = (over: Record<string, unknown> = {}) => ({
   streamId: null,
   streamName: null,
   status: 'converted',
+  createdAt: '2026-09-10',
   eventAt: '2026-09-14',
   changes: null,
   ...over,
@@ -42,11 +59,13 @@ const projectRow = (over: Record<string, unknown> = {}) => ({
   streamId: null,
   streamName: null,
   status: 'planned',
+  createdAt: '2026-09-14',
   eventAt: '2026-09-14',
   changes: null,
   priority: 70,
   progress: 0,
   origin: null,
+  originValue: 'fast_track',
   ...over,
 });
 
@@ -83,6 +102,7 @@ function renderReport() {
 
 beforeEach(() => {
   get.mockReset();
+  window.localStorage.clear();
 });
 
 describe('WeeklyReport', () => {
@@ -130,16 +150,18 @@ describe('WeeklyReport', () => {
     expect(screen.getByText(/Tasks 0 created · 0 modified · 0 closed/)).toBeTruthy();
   });
 
-  it('shows the origin of a project converted from a request, and "Created directly" otherwise', async () => {
+  it('shows the source request of a converted project, and the KANAP origin label otherwise', async () => {
     mockApi(
       report({
         projects: {
           created: [
             projectRow(),
+            projectRow({ projectId: 'p3', ref: 'PRJ-18', name: 'Old cellar mapping', originValue: 'legacy' }),
             projectRow({
               projectId: 'p2',
               ref: 'PRJ-17',
               name: 'Smart packaging',
+              originValue: 'standard',
               origin: {
                 ref: 'REQ-2',
                 name: 'Smart packaging automation',
@@ -155,9 +177,76 @@ describe('WeeklyReport', () => {
     renderReport();
 
     await waitFor(() => expect(screen.getByText('Smart packaging')).toBeTruthy());
-    expect(screen.getByText('Created directly')).toBeTruthy();
+    expect(screen.getByText('Fast-track')).toBeTruthy();
+    expect(screen.getByText('Legacy')).toBeTruthy();
     expect(screen.getByText('REQ-2')).toBeTruthy();
     expect(screen.getByText('Smart packaging automation')).toBeTruthy();
+    expect(screen.queryByText('Created directly')).toBeNull();
+  });
+
+  it('lists an item created and closed in the same period in both grids', async () => {
+    mockApi(
+      report({
+        requests: {
+          created: [requestRow({ eventAt: '2026-09-10' })],
+          modified: [],
+          closed: [requestRow({ eventAt: '2026-09-14' })],
+        },
+      }),
+    );
+    renderReport();
+
+    await waitFor(() => expect(screen.getAllByText('Cave climate digital twin')).toHaveLength(2));
+    expect(screen.getByText('Created (1)')).toBeTruthy();
+    expect(screen.getByText('Closed (1)')).toBeTruthy();
+    expect(screen.getByText('No request modified in this period.')).toBeTruthy();
+  });
+
+  it('shows the creation day before the closing day in a closed list', async () => {
+    mockApi(
+      report({
+        requests: { created: [], modified: [], closed: [requestRow({ eventAt: '2026-09-14' })] },
+      }),
+    );
+    renderReport();
+
+    await waitFor(() => expect(screen.getByText('Cave climate digital twin')).toBeTruthy());
+
+    const headers = screen
+      .getAllByRole('columnheader')
+      .map((node) => node.textContent?.trim() ?? '');
+    expect(headers).toContain('Created on');
+    expect(headers).toContain('Closed on');
+    expect(headers.indexOf('Created on')).toBeLessThan(headers.indexOf('Closed on'));
+    expect(screen.getByText('10 Sep')).toBeTruthy();
+    expect(screen.getByText('14 Sep')).toBeTruthy();
+  });
+
+  it('folds a group, keeps its counts in the title row and remembers the choice', async () => {
+    mockApi(report({ requests: { created: [requestRow()], modified: [], closed: [] } }));
+    const view = renderReport();
+
+    await waitFor(() => expect(screen.getByText('Cave climate digital twin')).toBeTruthy());
+
+    const requestsHeading = screen.getAllByRole('heading', { level: 2 })[0];
+    const toggle = within(requestsHeading).getByRole('button');
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(toggle.getAttribute('aria-expanded')).toBe('false'));
+    expect(window.localStorage.getItem('kanap.portfolioReports.weekly.collapsed.requests')).toBe('1');
+    expect(screen.getByText('1 created · 0 modified · 0 closed')).toBeTruthy();
+
+    view.unmount();
+    mockApi(report({ requests: { created: [requestRow()], modified: [], closed: [] } }));
+    renderReport();
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('heading', { level: 2 })[0].querySelector('button')?.getAttribute('aria-expanded'),
+      ).toBe('false'),
+    );
   });
 
   it('spells out what changed on a modified row', async () => {

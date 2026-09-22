@@ -194,9 +194,11 @@ Jeder der drei Abschnitte enthält dieselben drei Listen.
 
 - **Erstellt** — im Zeitraum erstellte Elemente.
 - **Geändert** — Elemente, die im Zeitraum geändert, aber weder erstellt noch geschlossen wurden.
-- **Geschlossen** — Elemente, die im Zeitraum in einen Abschlussstatus gewechselt sind.
+- **Geschlossen** — Elemente, die der letzte Statuswechsel des Zeitraums in einem Abschlussstatus zurücklässt.
 
-Ein Element, das im selben Zeitraum erstellt und geschlossen wurde, erscheint in beiden Listen. Unter Geändert erscheint es nie: Geändert ist das, was nach Erstellungen und Abschlüssen übrig bleibt.
+Ein Element, das im selben Zeitraum erstellt und geschlossen wurde, erscheint in beiden Listen, jeweils mit seinem eigenen Datum. Unter Geändert erscheint es nie: Geändert ist das, was nach Erstellungen und Abschlüssen übrig bleibt.
+
+Die Erstellung zählt als Statuswechsel. Ein CSV-Import oder ein Agent kann eine Aufgabe bereits erledigt oder eine Anfrage bereits abgelehnt anlegen. Ein solches Element steht am selben Tag unter Erstellt und unter Geschlossen, obwohl danach niemand seinen Status geändert hat.
 
 Geschlossen bedeutet je nach Typ andere Status:
 
@@ -215,7 +217,13 @@ Der Abschnitt Aufgaben umfasst nur Portfolio-Aufgaben: eigenständige Aufgaben u
 Die Liste der erstellten Projekte enthält eine Spalte **Herkunft**.
 
 - Ein aus einer Anfrage umgewandeltes Projekt zeigt diese Anfrage, zum Beispiel `REQ-12 Cave climate digital twin`. Ein Klick öffnet die Anfrage.
-- Ein direkt in der Projektliste erstelltes Projekt zeigt **Direkt erstellt**.
+- Ein Projekt ohne Anfrage zeigt, wie es ins Portfolio gekommen ist, in den Worten, die KANAP überall sonst verwendet: **Fast-track**, **Altbestand** oder **Anfrage**.
+
+### Einen Abschnitt einklappen
+
+Jeder Abschnittstitel trägt ein Chevron. Klicken Sie auf die Titelzeile, um den Abschnitt einzuklappen, und erneut, um ihn zu öffnen. Ein eingeklappter Abschnitt behält seine Zahlen neben dem Titel, Sie sehen also weiterhin, was er enthält.
+
+Ihre Wahl wird in diesem Browser gemerkt, Abschnitt für Abschnitt. Der Druck bleibt davon unberührt: Ein gedruckter Bericht enthält immer alle drei Abschnitte vollständig.
 
 ### Was sich geändert hat
 
@@ -248,6 +256,8 @@ Jede Liste beginnt mit der Geschäftsreferenz (`REQ-12`, `PRJ-3`, `T-4`) und dem
 
 Die Datumsspalte trägt den Erstellungstag in den Erstellt-Listen, den Tag der letzten Änderung in den Geändert-Listen und den Abschlusstag in den Geschlossen-Listen. Die Tage werden in Ihrer eigenen Zeitzone gelesen.
 
+Die Geschlossen-Listen tragen zwei Daten: **Erstellt am**, dann **Geschlossen am**. Der Erstellungstag wird immer gezeigt, auch wenn das Element lange vor dem Zeitraum entstanden ist. Er zeigt auf einen Blick, wie lange das Element gedauert hat.
+
 Die Geändert-Listen ergänzen am Ende die Spalte **Änderungen**.
 
 ### Exporte
@@ -255,7 +265,7 @@ Die Geändert-Listen ergänzen am Ende die Spalte **Änderungen**.
 - **CSV** — neun Blöcke in der Reihenfolge der Seite, jeder mit eigener Überschrift und Kopfzeile.
 - **XLSX** — drei Blätter: Requests, Projects und Tasks. Die Zeilen laufen von den Erstellungen über die Änderungen zu den Abschlüssen, mit einer führenden Spalte **Event**, die angibt, aus welcher Liste eine Zeile stammt. Die Namenszelle verweist zurück auf das Element.
 
-Beide Exporte enthalten die Referenz, die Herkunft eines Projekts, die Änderungen einer geänderten Zeile und das Datum des Ereignisses.
+Beide Exporte enthalten die Referenz, die Herkunft eines Projekts, die Änderungen einer geänderten Zeile und das Datum des Ereignisses. Die geschlossenen Zeilen tragen zusätzlich den Erstellungstag.
 
 ## Tipps
 - **Mitwirkenden-Profile aktuell halten**: Die Kapazität basiert auf der Verfügbarkeit und den historischen Zeitstatistiken der Mitwirkenden.
