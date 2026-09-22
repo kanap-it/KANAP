@@ -1185,6 +1185,10 @@
         "title": "Aktivität nach Person",
         "description": "Aufgaben, die jede Person in einem Zeitraum erstellt, geändert und geschlossen hat, mit den erfassten Tagen."
       },
+      "timeLogged": {
+        "title": "Erfasste Zeit",
+        "description": "Wohin die erfassten Tage gehen, Monat für Monat: Projekte oder andere Arbeit, Team für Team."
+      },
       "flow": {
         "title": "Fluss und Alter",
         "description": "Was Woche für Woche hinzukommt und abgeschlossen wird, wie alt die offenen Aufgaben sind und wie lange ein Abschluss dauert."
@@ -1508,6 +1512,46 @@
         "requests": "Erstellt vor",
         "projects": "Erstellt vor"
       }
+    },
+    "timeLogged": {
+      "title": "Erfasste Zeit",
+      "subtitle": "Erfasste Tage Monat für Monat, für Projekte oder andere Arbeit, nach Team und nach Person.",
+      "horizon": "Zeitraum",
+      "monthOption_one": "{{count}} Monat",
+      "monthOption_other": "{{count}} Monate",
+      "days": "{{value}} T",
+      "tiles": {
+        "projectDays": "Projekttage",
+        "otherDays": "Andere Tage",
+        "total": "Gesamt",
+        "projectShare": "Projektanteil",
+        "withoutEntries_one": "Mitwirkender ohne Erfassung",
+        "withoutEntries_other": "Mitwirkende ohne Erfassung",
+        "ofContributors_one": "von {{count}} Mitwirkenden",
+        "ofContributors_other": "von {{count}} Mitwirkenden"
+      },
+      "chart": {
+        "title": "Erfasste Tage pro Monat",
+        "project": "Projekttage",
+        "other": "Andere Tage"
+      },
+      "table": {
+        "title": "Nach Team und Monat",
+        "hint": "Erfasste Tage pro Monat. Unter jeder Zahl: Projekttage / andere Tage.",
+        "team": "Team"
+      },
+      "csv": {
+        "team": "Team",
+        "person": "Person",
+        "month": "Monat",
+        "projectDays": "Projekttage",
+        "otherDays": "Andere Tage",
+        "totalDays": "Tage gesamt"
+      },
+      "noTeam": "Kein Team",
+      "unknownUser": "Unbekannter Benutzer",
+      "empty": "Keine Mitwirkenden und keine erfasste Zeit im Zeitraum.",
+      "loadFailed": "Berichtsdaten konnten nicht geladen werden."
     }
   },
   "contributors": {

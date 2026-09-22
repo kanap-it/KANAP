@@ -1185,6 +1185,10 @@
         "title": "Activity by person",
         "description": "Tasks each person created, changed and closed over a period, with the days they logged."
       },
+      "timeLogged": {
+        "title": "Time logged",
+        "description": "Where the logged days go, month after month: projects or other work, team by team."
+      },
       "flow": {
         "title": "Flow and age",
         "description": "What comes in and goes out week after week, how old the open tasks are, and how long a closing takes."
@@ -1508,6 +1512,46 @@
         "requests": "Created",
         "projects": "Created"
       }
+    },
+    "timeLogged": {
+      "title": "Time logged",
+      "subtitle": "Days logged month after month, on projects or on other work, team by team and person by person.",
+      "horizon": "Period",
+      "monthOption_one": "{{count}} month",
+      "monthOption_other": "{{count}} months",
+      "days": "{{value}} d",
+      "tiles": {
+        "projectDays": "Project days",
+        "otherDays": "Other days",
+        "total": "Total",
+        "projectShare": "Project share",
+        "withoutEntries_one": "Contributor without entries",
+        "withoutEntries_other": "Contributors without entries",
+        "ofContributors_one": "of {{count}} contributor",
+        "ofContributors_other": "of {{count}} contributors"
+      },
+      "chart": {
+        "title": "Days logged by month",
+        "project": "Project days",
+        "other": "Other days"
+      },
+      "table": {
+        "title": "By team and month",
+        "hint": "Days logged per month. Below each figure: project days / other days.",
+        "team": "Team"
+      },
+      "csv": {
+        "team": "Team",
+        "person": "Person",
+        "month": "Month",
+        "projectDays": "Project days",
+        "otherDays": "Other days",
+        "totalDays": "Total days"
+      },
+      "noTeam": "No team",
+      "unknownUser": "Unknown user",
+      "empty": "No contributor and no time logged over the period.",
+      "loadFailed": "Failed to load report data."
     }
   },
   "contributors": {
