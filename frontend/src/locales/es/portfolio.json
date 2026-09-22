@@ -1287,6 +1287,9 @@
           "closed": "Cerrado el"
         }
       },
+      "changes": {
+        "labelSeparator": ": "
+      },
       "changeValues": {
         "empty": "vacío",
         "unknown": "desconocido",

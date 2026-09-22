@@ -1287,6 +1287,9 @@
           "closed": "Closed on"
         }
       },
+      "changes": {
+        "labelSeparator": ": "
+      },
       "changeValues": {
         "empty": "empty",
         "unknown": "unknown",

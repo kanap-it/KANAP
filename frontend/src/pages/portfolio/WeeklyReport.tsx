@@ -952,7 +952,7 @@ export default function WeeklyReport() {
       const fields = changes.fields.map((field) => {
         const before = formatChangeValue(field.kind, field.before, t, locale);
         const after = formatChangeValue(field.kind, field.after, t, locale);
-        return `${getWeeklyFieldLabel(t, entity, field.key)}: ${before} → ${after}`;
+        return `${getWeeklyFieldLabel(t, entity, field.key)}${t('reports.weekly.changes.labelSeparator')}${before} → ${after}`;
       });
       return { chain, fields };
     },

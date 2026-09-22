@@ -1287,6 +1287,9 @@
           "closed": "Clôturé le"
         }
       },
+      "changes": {
+        "labelSeparator": " : "
+      },
       "changeValues": {
         "empty": "vide",
         "unknown": "inconnu",
