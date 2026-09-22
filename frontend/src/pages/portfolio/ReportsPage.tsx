@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/PageHeader';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
+import AssigneeAttentionBlock from './components/AssigneeAttentionBlock';
 import ClassificationGapsStrip, { ClassificationGaps } from './components/ClassificationGapsStrip';
 import SteeringStrip from './components/SteeringStrip';
 
@@ -60,6 +61,7 @@ export default function ReportsPage() {
       </Typography>
       <SteeringStrip />
       <ClassificationGapsStrip data={gaps} />
+      <AssigneeAttentionBlock />
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={4} lg={3}>
           <ReportCard

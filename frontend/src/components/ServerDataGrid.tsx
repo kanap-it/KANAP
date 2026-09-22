@@ -440,9 +440,10 @@ export default function ServerDataGrid<T extends { id?: string | number }>({
     }
   }, [columnStateManager, columnPreferencesKey, onColumnStateChange]);
 
-  // Get visible columns for the chooser
+  // Get visible columns for the chooser. A column the caller keeps out of the tool panel only
+  // exists to carry a filter coming from a link, so it never shows up in the list either.
   const visibleColumns = useMemo(() => {
-    return columns.map(col => {
+    return columns.filter(col => !col.suppressColumnsToolPanel).map(col => {
       const field = col.field || col.colId || '';
       const columnState = currentColumnState.find(state => state.colId === field);
       const isRequired = col.required || requiredColumns.includes(field);

@@ -1085,6 +1085,32 @@
       "taskType": "{{n}} ohne Typ",
       "allClassified": "Alles Offene ist klassifiziert"
     },
+    "byAssignee": {
+      "title": "Nach Zuständigkeit",
+      "columns": {
+        "assignee": "Zuständig",
+        "open": "Offen",
+        "overdue": "Überfällig",
+        "stale": "Ohne Bewegung"
+      },
+      "summary": {
+        "open_one": "{{count}} offen",
+        "open_other": "{{count}} offen",
+        "overdue_one": "{{count}} überfällig",
+        "overdue_other": "{{count}} überfällig",
+        "stale_one": "{{count}} ohne Bewegung",
+        "stale_other": "{{count}} ohne Bewegung",
+        "unassigned_one": "{{count}} ohne Zuständigkeit",
+        "unassigned_other": "{{count}} ohne Zuständigkeit"
+      },
+      "staleLabel": "Ohne Bewegung seit",
+      "staleOption_one": "{{count}} Tag",
+      "staleOption_other": "{{count}} Tagen",
+      "unassigned": "Ohne Zuständigkeit",
+      "noTeam": "Ohne Team",
+      "total": "Gesamt",
+      "empty": "Keine offene Aufgabe"
+    },
     "cards": {
       "statusChange": {
         "title": "Statusänderungsbericht",

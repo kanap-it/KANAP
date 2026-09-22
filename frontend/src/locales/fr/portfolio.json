@@ -1085,6 +1085,32 @@
       "taskType": "{{n}} sans type",
       "allClassified": "Tout ce qui est ouvert est classé"
     },
+    "byAssignee": {
+      "title": "Par responsable",
+      "columns": {
+        "assignee": "Responsable",
+        "open": "Ouvertes",
+        "overdue": "En retard",
+        "stale": "Sans mouvement"
+      },
+      "summary": {
+        "open_one": "{{count}} ouverte",
+        "open_other": "{{count}} ouvertes",
+        "overdue_one": "{{count}} en retard",
+        "overdue_other": "{{count}} en retard",
+        "stale_one": "{{count}} sans mouvement",
+        "stale_other": "{{count}} sans mouvement",
+        "unassigned_one": "{{count}} non affectée",
+        "unassigned_other": "{{count}} non affectées"
+      },
+      "staleLabel": "Sans mouvement depuis",
+      "staleOption_one": "{{count}} jour",
+      "staleOption_other": "{{count}} jours",
+      "unassigned": "Non affectées",
+      "noTeam": "Sans équipe",
+      "total": "Total",
+      "empty": "Aucune tâche ouverte"
+    },
     "cards": {
       "statusChange": {
         "title": "Rapport de changement de statut",

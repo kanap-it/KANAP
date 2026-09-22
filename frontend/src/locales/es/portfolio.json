@@ -1085,6 +1085,32 @@
       "taskType": "{{n}} sin tipo",
       "allClassified": "Todo lo abierto está clasificado"
     },
+    "byAssignee": {
+      "title": "Por responsable",
+      "columns": {
+        "assignee": "Responsable",
+        "open": "Abiertas",
+        "overdue": "Atrasadas",
+        "stale": "Sin movimiento"
+      },
+      "summary": {
+        "open_one": "{{count}} abierta",
+        "open_other": "{{count}} abiertas",
+        "overdue_one": "{{count}} atrasada",
+        "overdue_other": "{{count}} atrasadas",
+        "stale_one": "{{count}} sin movimiento",
+        "stale_other": "{{count}} sin movimiento",
+        "unassigned_one": "{{count}} sin responsable",
+        "unassigned_other": "{{count}} sin responsable"
+      },
+      "staleLabel": "Sin movimiento desde hace",
+      "staleOption_one": "{{count}} día",
+      "staleOption_other": "{{count}} días",
+      "unassigned": "Sin responsable",
+      "noTeam": "Sin equipo",
+      "total": "Total",
+      "empty": "Ninguna tarea abierta"
+    },
     "cards": {
       "statusChange": {
         "title": "Reporte de cambios de estado",

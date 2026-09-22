@@ -1085,6 +1085,32 @@
       "taskType": "{{n}} without type",
       "allClassified": "Everything open is classified"
     },
+    "byAssignee": {
+      "title": "By assignee",
+      "columns": {
+        "assignee": "Assignee",
+        "open": "Open",
+        "overdue": "Overdue",
+        "stale": "No movement"
+      },
+      "summary": {
+        "open_one": "{{count}} open",
+        "open_other": "{{count}} open",
+        "overdue_one": "{{count}} overdue",
+        "overdue_other": "{{count}} overdue",
+        "stale_one": "{{count}} without movement",
+        "stale_other": "{{count}} without movement",
+        "unassigned_one": "{{count}} unassigned",
+        "unassigned_other": "{{count}} unassigned"
+      },
+      "staleLabel": "No movement for",
+      "staleOption_one": "{{count}} day",
+      "staleOption_other": "{{count}} days",
+      "unassigned": "Unassigned",
+      "noTeam": "No team",
+      "total": "Total",
+      "empty": "No open task"
+    },
     "cards": {
       "statusChange": {
         "title": "Status change report",
