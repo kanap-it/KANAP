@@ -161,7 +161,7 @@ async function run() {
   const line = csv.content.split('\n').find((entry) => entry.startsWith('T-1;'));
   assert.ok(line, 'the modified task has its line');
   assert.ok(
-    line!.includes('Open → In progress → In testing → Done; Assignee user: Thomas Berger → Isabelle Moreau; '),
+    line!.includes('Open → In progress → In testing → Done; Assignee: Thomas Berger → Isabelle Moreau; '),
     line,
   );
   assert.ok(line!.includes('Description: Long cellar note.'));

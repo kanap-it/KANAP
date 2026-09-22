@@ -418,6 +418,8 @@ type SectionProps = {
   counts: string;
   collapsed: boolean;
   onToggle: () => void;
+  /** Nothing in any of the three lists: the group is its title and its counts, on one line. */
+  empty?: boolean;
   children: React.ReactNode;
 };
 
@@ -425,9 +427,12 @@ type SectionProps = {
  * One entity group: a title row that folds the group away, then its three lists. The
  * counts follow the title while the group is folded, so navigation stays informative.
  * Print keeps every group open: a folded group is a reading convenience, not a filter.
+ * An empty group has nothing to unfold: it stays a single line.
  */
-function WeeklyReportSection({ title, counts, collapsed, onToggle, children }: SectionProps) {
+function WeeklyReportSection({ title, counts, collapsed: collapsedByUser, onToggle, empty = false, children }: SectionProps) {
   const contentId = useId();
+  const collapsed = collapsedByUser || empty;
+  const toggle = empty ? () => undefined : onToggle;
 
   return (
     <Box sx={SECTION_SX}>
@@ -435,18 +440,19 @@ function WeeklyReportSection({ title, counts, collapsed, onToggle, children }: S
         direction="row"
         alignItems="center"
         spacing={1}
-        onClick={onToggle}
-        sx={{ cursor: 'pointer', userSelect: 'none', mb: collapsed ? 0 : 1.5 }}
+        onClick={toggle}
+        sx={{ cursor: empty ? 'default' : 'pointer', userSelect: 'none', mb: collapsed ? 0 : 1.5 }}
       >
         <Typography component="h2" sx={{ ...SECTION_TITLE_SX, mb: 0 }}>
           <Box
             component="button"
             type="button"
-            aria-expanded={!collapsed}
-            aria-controls={contentId}
+            aria-expanded={empty ? undefined : !collapsed}
+            aria-controls={empty ? undefined : contentId}
+            disabled={empty}
             onClick={(event: React.MouseEvent) => {
               event.stopPropagation();
-              onToggle();
+              toggle();
             }}
             sx={{
               display: 'inline-flex',
@@ -457,13 +463,14 @@ function WeeklyReportSection({ title, counts, collapsed, onToggle, children }: S
               bgcolor: 'transparent',
               color: 'inherit',
               font: 'inherit',
-              cursor: 'pointer',
+              cursor: empty ? 'default' : 'pointer',
             }}
           >
             <ExpandMoreIcon
               sx={{
                 fontSize: 18,
                 color: 'kanap.text.secondary',
+                visibility: empty ? 'hidden' : 'visible',
                 transform: collapsed ? 'rotate(-90deg)' : 'none',
                 transition: 'transform 160ms ease',
               }}
@@ -477,6 +484,7 @@ function WeeklyReportSection({ title, counts, collapsed, onToggle, children }: S
           </Typography>
         )}
       </Stack>
+      {!empty && (
       <Collapse
         in={!collapsed}
         timeout={160}
@@ -491,6 +499,7 @@ function WeeklyReportSection({ title, counts, collapsed, onToggle, children }: S
       >
         <Stack spacing={1.5}>{children}</Stack>
       </Collapse>
+      )}
     </Box>
   );
 }
@@ -1565,6 +1574,7 @@ export default function WeeklyReport() {
           <Button
             size="small"
             variant="action"
+            sx={{ whiteSpace: 'nowrap' }}
             onClick={() => handleDownload('csv')}
             disabled={!isValidPeriod || totalRows === 0 || exportingFormat !== null}
           >
@@ -1573,6 +1583,7 @@ export default function WeeklyReport() {
           <Button
             size="small"
             variant="action"
+            sx={{ whiteSpace: 'nowrap' }}
             onClick={() => handleDownload('xlsx')}
             disabled={!isValidPeriod || totalRows === 0 || exportingFormat !== null}
           >
@@ -1706,6 +1717,7 @@ export default function WeeklyReport() {
           counts={countsFor(requests)}
           collapsed={collapsedSections.requests}
           onToggle={() => toggleSection('requests')}
+          empty={LIST_KEYS.every((listKey) => requests[listKey].length === 0)}
         >
           {LIST_KEYS.map((listKey) => (
             <WeeklyReportSubSection<WeeklyRequestRow>
@@ -1724,6 +1736,7 @@ export default function WeeklyReport() {
           counts={countsFor(projects)}
           collapsed={collapsedSections.projects}
           onToggle={() => toggleSection('projects')}
+          empty={LIST_KEYS.every((listKey) => projects[listKey].length === 0)}
         >
           {LIST_KEYS.map((listKey) => (
             <WeeklyReportSubSection<WeeklyProjectRow>
@@ -1742,6 +1755,7 @@ export default function WeeklyReport() {
           counts={countsFor(tasks)}
           collapsed={collapsedSections.tasks}
           onToggle={() => toggleSection('tasks')}
+          empty={LIST_KEYS.every((listKey) => tasks[listKey].length === 0)}
         >
           {LIST_KEYS.map((listKey) => (
             <WeeklyReportSubSection<WeeklyTaskRow>

@@ -315,8 +315,8 @@ const dateCells = (row: WeeklyRowCommon, shape: ExportShape): SheetCellValue[] =
 const changeHeaders = (shape: ExportShape): string[] =>
   shape === 'modified' || shape === 'all' ? ['Changes'] : [];
 
-const changeCells = (row: WeeklyRowCommon, shape: ExportShape): SheetCellValue[] =>
-  shape === 'modified' || shape === 'all' ? [formatChanges(row.changes)] : [];
+const changeCells = (row: WeeklyRowCommon, shape: ExportShape, entity: ExportChangeEntity): SheetCellValue[] =>
+  shape === 'modified' || shape === 'all' ? [formatChanges(row.changes, entity)] : [];
 
 /** The status reached over the period, as `status_reached` resolves it in `eventCtes`. */
 const STATUS_REACHED_EXPR = 'sr.status';
@@ -361,6 +361,76 @@ const toNumber = (value: number | string | null): number | null => {
   return Number.isFinite(next) ? next : null;
 };
 
+/**
+ * English labels of the changed columns, the words the screen uses (`WeeklyReportChangeLabels.ts`
+ * on the frontend, from the item history labels). The exports have no i18n, so the English
+ * wording is kept here; a column missing from both maps falls back to `humanizeKey`.
+ */
+const PORTFOLIO_CHANGE_LABELS: Record<string, string> = {
+  name: 'Name',
+  purpose: 'Purpose',
+  current_situation: 'Current situation',
+  expected_benefits: 'Expected benefits',
+  risks: 'Risks',
+  feasibility_review: 'Feasibility review',
+  source_id: 'Source',
+  category_id: 'Category',
+  stream_id: 'Stream',
+  requestor_id: 'Requestor',
+  target_delivery_date: 'Target delivery date',
+  origin_task_id: 'Origin task',
+  company_id: 'Company',
+  department_id: 'Department',
+  business_sponsor_id: 'Business sponsor',
+  business_lead_id: 'Business lead',
+  it_sponsor_id: 'IT sponsor',
+  it_lead_id: 'IT lead',
+  planned_start: 'Planned start',
+  planned_end: 'Planned end',
+  actual_start: 'Actual start',
+  actual_end: 'Actual end',
+  converted_date: 'Converted on',
+  estimated_effort_it: 'IT effort',
+  estimated_effort_business: 'Business effort',
+  actual_effort_it: 'Actual IT effort',
+  actual_effort_business: 'Actual business effort',
+  execution_progress: 'Effort',
+  priority_score: 'Priority score',
+  priority_override: 'Priority override',
+  override_value: 'Override value',
+  override_justification: 'Override justification',
+  criteria_values: 'Evaluation criteria',
+  scheduling_mode: 'Scheduling mode',
+  it_effort_allocation_mode: 'IT effort allocation mode',
+  business_effort_allocation_mode: 'Business effort allocation mode',
+};
+
+const TASK_CHANGE_LABELS: Record<string, string> = {
+  title: 'Title',
+  description: 'Description',
+  task_type_id: 'Task type',
+  priority_level: 'Priority',
+  creator_id: 'Requestor',
+  assignee_user_id: 'Assignee',
+  due_date: 'Due date',
+  start_date: 'Start date',
+  labels: 'Labels',
+  phase_id: 'Phase',
+  source_id: 'Source',
+  category_id: 'Category',
+  stream_id: 'Stream',
+  company_id: 'Company',
+  owner_ids: 'Owners',
+  viewer_ids: 'Viewers',
+  related_object_id: 'Related to',
+  related_object_type: 'Related to',
+};
+
+type ExportChangeEntity = 'request' | 'project' | 'task';
+
+const changeLabel = (entity: ExportChangeEntity, key: string): string =>
+  (entity === 'task' ? TASK_CHANGE_LABELS[key] : PORTFOLIO_CHANGE_LABELS[key]) ?? humanizeKey(key);
+
 const humanizeKey = (key: string): string =>
   key
     .replace(/_id$/, '')
@@ -386,7 +456,7 @@ export const formatExportChangeValue = (kind: WeeklyChangeKind, value: string | 
  * Human readable "Changes" cell for the exports: the status chain, then one
  * "Label: before → after" per field, `;` between the parts.
  */
-export const formatChanges = (changes: WeeklyChangeSummary | null): string => {
+export const formatChanges = (changes: WeeklyChangeSummary | null, entity: ExportChangeEntity): string => {
   if (!changes) return '';
   const parts: string[] = [];
   if (changes.statusChain.length > 1) {
@@ -395,7 +465,7 @@ export const formatChanges = (changes: WeeklyChangeSummary | null): string => {
   changes.fields.forEach((field) => {
     const before = formatExportChangeValue(field.kind, field.before);
     const after = formatExportChangeValue(field.kind, field.after);
-    parts.push(`${humanizeKey(field.key)}: ${before} → ${after}`);
+    parts.push(`${changeLabel(entity, field.key)}: ${before} → ${after}`);
   });
   return parts.join('; ');
 };
@@ -798,9 +868,9 @@ export class PortfolioWeeklyReportService {
       row.categoryName,
       row.streamName,
       row.company,
-      row.status,
+      humanizeStatus(row.status),
       ...dateCells(row, shape),
-      ...changeCells(row, shape),
+      ...changeCells(row, shape, 'request'),
     ];
   }
 
@@ -832,9 +902,9 @@ export class PortfolioWeeklyReportService {
       row.streamName,
       row.company,
       row.progress == null ? null : `${Math.round(row.progress)}%`,
-      row.status,
+      humanizeStatus(row.status),
       ...dateCells(row, shape),
-      ...changeCells(row, shape),
+      ...changeCells(row, shape, 'project'),
     ];
   }
 
@@ -905,9 +975,9 @@ export class PortfolioWeeklyReportService {
       row.categoryName,
       row.streamName,
       row.company,
-      row.status,
+      humanizeStatus(row.status),
       ...dateCells(row, shape),
-      ...changeCells(row, shape),
+      ...changeCells(row, shape, 'task'),
     ];
   }
 

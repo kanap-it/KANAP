@@ -180,18 +180,19 @@ beforeEach(() => {
 });
 
 describe('WeeklyReport', () => {
-  it('shows the three sections in the owner order, each with created, modified and closed', async () => {
+  it('shows the three sections in the owner order, an empty one on a single line', async () => {
     mockApi(report());
     renderReport();
 
-    await waitFor(() => expect(screen.getAllByText('Created (0)')).toHaveLength(3));
+    await waitFor(() => expect(screen.getAllByText('0 created · 0 modified · 0 closed')).toHaveLength(3));
 
     const headings = screen.getAllByRole('heading', { level: 2 }).map((node) => node.textContent);
     expect(headings).toEqual(['Requests', 'Projects', 'Tasks']);
 
-    expect(screen.getAllByText('Created (0)')).toHaveLength(3);
-    expect(screen.getAllByText('Modified (0)')).toHaveLength(3);
-    expect(screen.getAllByText('Closed (0)')).toHaveLength(3);
+    // Nothing to unfold: no list headings under an empty section.
+    expect(screen.queryByText('Created (0)')).toBeNull();
+    expect(screen.queryByText('Modified (0)')).toBeNull();
+    expect(screen.queryByText('Closed (0)')).toBeNull();
   });
 
   it('keeps an empty list to its heading and renders a grid only when there are rows', async () => {
@@ -203,7 +204,7 @@ describe('WeeklyReport', () => {
     expect(screen.getByText('Created (1)')).toBeTruthy();
     expect(screen.getByText('REQ-5')).toBeTruthy();
     // The heading carries the zero; there is no sentence under an empty list.
-    expect(screen.getAllByText('Modified (0)')).toHaveLength(3);
+    expect(screen.getAllByText('Modified (0)')).toHaveLength(1);
     expect(screen.queryByText(/in this period\./)).toBeNull();
     expect(document.querySelectorAll('.ag-root-wrapper')).toHaveLength(1);
   });
@@ -275,7 +276,7 @@ describe('WeeklyReport', () => {
     await waitFor(() => expect(screen.getAllByText('Cave climate digital twin')).toHaveLength(2));
     expect(screen.getByText('Created (1)')).toBeTruthy();
     expect(screen.getByText('Closed (1)')).toBeTruthy();
-    expect(screen.getAllByText('Modified (0)')).toHaveLength(3);
+    expect(screen.getAllByText('Modified (0)')).toHaveLength(1);
   });
 
   it('shows the creation day before the closing day in a closed list', async () => {
