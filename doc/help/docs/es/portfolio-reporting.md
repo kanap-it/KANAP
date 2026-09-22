@@ -15,12 +15,18 @@ Si no ve Informes en el menú, solicite a su administrador que le otorgue acceso
 
 ## Página de informes
 
-La página de Informes del portafolio lista los informes disponibles como tarjetas. Haga clic en una tarjeta para abrir el informe.
+La página de Informes del portafolio lista los informes disponibles como tarjetas, en tres filas que se leen por horizonte. Haga clic en una tarjeta para abrir el informe.
 
-Actualmente disponibles:
-- **Informe de cambios de estado**
-- **Mapa de calor de capacidad**
-- **Informe semanal**
+**Lo que ha pasado**
+- **Balance del periodo**: solicitudes, proyectos y tareas creadas, modificadas y cerradas en un periodo.
+- **Actividad por persona**: la misma página, abierta en su lectura de las tareas por persona.
+
+**Lo que está en curso**
+- **Flujo y antigüedad**: lo que entra y lo que se cierra semana tras semana, la antigüedad del trabajo abierto y el tiempo que lleva cerrar.
+- **Puntos de atención por colaborador**: las tareas abiertas, atrasadas y sin movimiento, equipo por equipo y persona por persona.
+
+**Lo que viene**
+- **Mapa de calor de capacidad**: el esfuerzo esperado frente a la capacidad, para colaboradores y equipos.
 
 ---
 
@@ -83,55 +89,9 @@ Una Línea ausente solo se cuenta cuando el elemento ya tiene una Categoría y e
 
 ### Abrir la lista
 
-Cada cifra mayor que cero es un enlace. Al hacer clic se abre la lista correspondiente, ya filtrada exactamente por los elementos detrás de la cifra, en todo el inquilino. El total de la lista coincide con la cifra en la que hizo clic. Los ceros se muestran como contexto pero no son enlaces.
+Cada cifra mayor que cero es un enlace. Al hacer clic se abre la lista correspondiente, ya filtrada exactamente por los elementos detrás de la cifra, en todo el espacio de trabajo. El total de la lista coincide con la cifra en la que hizo clic. Los ceros se muestran como contexto pero no son enlaces.
 
 Cuando no falta nada, la franja muestra una sola línea confirmando que todo lo abierto está clasificado.
-
----
-
-## Informe de cambios de estado
-
-Use este informe para rastrear elementos creados durante un período seleccionado, o cuyo estado cambió en ese período.
-
-### Qué muestra
-- **Una fila por elemento** (tarea independiente, solicitud o proyecto).
-- **Solo el último evento del período** para cada elemento, ya sea la creación o un cambio de estado.
-- **Estado que lleva ese evento**. En una creación, es el estado con el que se creó el elemento.
-- **Creado**, la fecha de creación cuando el elemento se creó dentro del período, y vacía en caso contrario.
-- **Última modificación** fecha del evento retenido.
-
-### Filtros
-- **Fecha de inicio** y **Fecha de fin** (período obligatorio)
-- **Estado** (selección múltiple)
-- **Tipo de elemento** (selección múltiple: Tareas, Solicitudes, Proyectos)
-- **Origen** (selección múltiple)
-- **Categoría** (selección múltiple)
-- **Flujo** (selección múltiple; disponible cuando al menos una categoría está seleccionada)
-
-### Reglas de inclusión
-- El elemento se incluye si se creó durante el período seleccionado, o si su estado cambió en ese período.
-- Un elemento creado y luego movido a otro estado en el mismo período aparece una sola vez, con el estado de su último evento.
-- Para tareas, solo se incluyen **tareas independientes** (las tareas vinculadas a proyectos se excluyen).
-- El filtrado de estado se aplica al estado que lleva el evento retenido.
-- El periodo, la fecha **Creado** y la fecha **Última modificación** siguen la zona horaria de su navegador.
-
-### Columnas de la tabla
-- **Nombre** (cliclable; abre el elemento)
-- **Tipo de elemento**
-- **Prioridad**
-- **Estado**
-- **Origen**
-- **Categoría**
-- **Flujo**
-- **Empresa**
-- **Creado**
-- **Última modificación**
-
-El orden predeterminado es por **Prioridad** (mayor primero). Puede ordenar por cualquier columna.
-
-### Exportaciones
-- Exportación **CSV**
-- Exportación **XLSX** con nombres de elementos clicables
 
 ---
 
@@ -184,7 +144,7 @@ Haga clic en una fila de colaborador para abrir un desglose por proyecto:
 
 ---
 
-## Informe semanal
+## Balance del periodo
 
 Utilice este informe para ver qué ha ocurrido con las solicitudes, los proyectos y las tareas durante un periodo. El informe sigue el embudo del portafolio: primero las solicitudes, después los proyectos y después las tareas.
 
@@ -192,9 +152,9 @@ Utilice este informe para ver qué ha ocurrido con las solicitudes, los proyecto
 
 Cada una de las tres secciones contiene las mismas tres listas.
 
-- **Creaciones** — elementos creados durante el periodo.
-- **Modificaciones** — elementos modificados durante el periodo sin haber sido creados ni cerrados en él.
-- **Cierres** — elementos cuyo último cambio de estado del periodo los deja en un estado de cierre.
+- **Creaciones**: elementos creados durante el periodo.
+- **Modificaciones**: elementos modificados durante el periodo sin haber sido creados ni cerrados en él.
+- **Cierres**: elementos cuyo último cambio de estado del periodo los deja en un estado de cierre.
 
 Un elemento creado y cerrado dentro del mismo periodo aparece en ambas listas, con su propia fecha en cada una. Nunca aparece en Modificaciones: Modificaciones es lo que queda una vez contabilizadas las creaciones y los cierres.
 
@@ -210,7 +170,7 @@ Cada lista indica su recuento en el título. Una lista vacía ocupa una sola lí
 
 ### Qué tareas cuentan
 
-La sección Tareas cubre solo las tareas del portafolio: las tareas independientes y las tareas asociadas a un proyecto. Las tareas asociadas a un contrato, a una partida de gasto, a una línea CAPEX o a un incidente quedan fuera. Es más restrictivo que en versiones anteriores del informe, que contaban todas las tareas.
+La sección Tareas cubre solo las tareas del portafolio: las tareas independientes y las tareas asociadas a un proyecto. Las tareas asociadas a un contrato, a una partida de gasto, a una partida CAPEX o a un incidente quedan fuera. Es más restrictivo que en versiones anteriores del informe, que contaban todas las tareas.
 
 ### De dónde viene un proyecto
 
@@ -241,18 +201,25 @@ La redacción coincide con el historial del propio elemento. Los campos que se r
 - **Categoría** (selección múltiple)
 - **Línea** (selección múltiple; limitada a las categorías seleccionadas)
 - **Tipos de tarea** (selección múltiple; se aplica a la sección Tareas)
+- **Estado alcanzado** (selección múltiple, agrupada por solicitudes, proyectos y tareas)
 
-Los filtros se aplican a las nueve listas.
+Los filtros se aplican a las nueve listas y a la lectura por persona.
+
+**Estado alcanzado** conserva los elementos cuyo último cambio de estado del periodo los dejó en uno de los estados seleccionados. La creación cuenta como un cambio de estado: un elemento creado durante el periodo y que no se ha movido después alcanzó el estado con el que se creó. Un elemento cuyo estado no cambió durante el periodo no coincide con ningún estado, así que desaparece en cuanto se selecciona un estado. El estado que muestra la columna Estado es el que el elemento tiene hoy, y puede ser distinto: una tarea cerrada durante el periodo y reabierta después alcanzó **Completada** y muestra **Abierta**.
+
+Un estado compartido por varios tipos, como Completado o En pausa, es una sola opción: si lo marca en Tareas, también queda marcado en Proyectos.
 
 ### Columnas de la tabla
 
 Cada lista empieza por la referencia de negocio (`REQ-12`, `PRJ-3`, `T-4`) y el nombre. Al hacer clic en el nombre se abre el elemento.
 
-**Solicitudes**: Referencia, Nombre de la solicitud, Origen, Categoría, Línea, Estado, fecha del evento.
+**Solicitudes**: Referencia, Nombre de la solicitud, Origen, Categoría, Línea, Empresa, Estado, fecha del evento.
 
-**Proyectos**: Referencia, Nombre del proyecto, Procedencia (lista de creaciones), Prioridad, Origen, Categoría, Línea, Esfuerzo, Estado, fecha del evento.
+**Proyectos**: Referencia, Nombre del proyecto, Procedencia (lista de creaciones), Prioridad, Origen, Categoría, Línea, Empresa, Esfuerzo, Estado, fecha del evento.
 
-**Tareas**: Referencia, Nombre de la tarea, Tipo de tarea, Prioridad, Origen, Categoría, Línea, Estado, fecha del evento.
+**Tareas**: Referencia, Nombre de la tarea, Tipo de tarea, Prioridad, Origen, Categoría, Línea, Empresa, Estado, fecha del evento.
+
+Una tarea sin empresa propia muestra la empresa de su proyecto, igual que la lista de tareas.
 
 La columna de fecha lleva el día de creación en las listas de creaciones, el día del último cambio en las listas de modificaciones y el día de cierre en las listas de cierres. Los días se leen en su propia zona horaria.
 
@@ -262,13 +229,13 @@ Las listas de modificaciones añaden la columna **Cambios** al final.
 
 ### Exportaciones
 
-- **CSV** — nueve bloques en el orden de la página, cada uno con su propio título y su fila de encabezado.
-- **XLSX** — tres hojas: Requests, Projects y Tasks. Las filas van de las creaciones a las modificaciones y después a los cierres, con una columna **Event** inicial que indica de qué lista procede cada fila. La celda del nombre enlaza con el elemento.
+- **CSV**: nueve bloques en el orden de la página, cada uno con su propio título y su fila de encabezado.
+- **XLSX**: tres hojas, Requests, Projects y Tasks. Las filas van de las creaciones a las modificaciones y después a los cierres, con una columna **Event** inicial que indica de qué lista procede cada fila. La celda del nombre enlaza con el elemento.
 
-Ambas exportaciones llevan la referencia, la procedencia de un proyecto, los cambios de una fila modificada y la fecha del evento. Las filas de cierre llevan además el día de creación.
+Ambas exportaciones llevan la referencia, la empresa, la procedencia de un proyecto, los cambios de una fila modificada y la fecha del evento. Las filas de cierre llevan además el día de creación.
 
 ## Consejos
 - **Mantenga los perfiles de colaboradores actualizados**: La capacidad se basa en la disponibilidad de colaboradores y estadísticas históricas de tiempo.
 - **Use filtros de equipo**: Limite el alcance del informe a un departamento o función.
 - **Revise el trabajo sin asignar**: Ayuda a detectar proyectos con asignaciones faltantes o responsables ausentes.
-- **Informe semanal para reuniones de seguimiento**: Exporte el Informe semanal como XLSX y compártalo con los interesados para reuniones de estado.
+- **Balance del periodo para reuniones de seguimiento**: Exporte el Balance del periodo como XLSX y compártalo con los interesados para reuniones de estado.

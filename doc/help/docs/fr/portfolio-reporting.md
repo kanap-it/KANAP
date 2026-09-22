@@ -15,12 +15,18 @@ Si vous ne voyez pas Rapports dans le menu, demandez à votre administrateur de 
 
 ## Page d'accueil des rapports
 
-La page d'accueil des rapports du portefeuille liste les rapports disponibles sous forme de cartes. Cliquez sur une carte pour ouvrir le rapport.
+La page d'accueil des rapports du portefeuille liste les rapports disponibles sous forme de cartes, sur trois rangées qui se lisent par horizon. Cliquez sur une carte pour ouvrir le rapport.
 
-Actuellement disponibles :
-- **Rapport de changements de statut**
-- **Carte thermique de capacité**
-- **Rapport hebdomadaire**
+**Ce qui s'est passé**
+- **Bilan de la période** : demandes, projets et tâches créés, modifiés et clôturés sur une période.
+- **Activité par personne** : la même page, ouverte sur sa lecture des tâches par personne.
+
+**Ce qui est en cours**
+- **Flux et ancienneté** : ce qui entre et ce qui sort semaine après semaine, l'âge du travail ouvert et le temps qu'il faut pour clôturer.
+- **Points d'attention par contributeur** : les tâches ouvertes, en retard et sans mouvement, équipe par équipe et personne par personne.
+
+**Ce qui vient**
+- **Carte de chaleur de la capacité** : la charge attendue par rapport à la capacité, pour les contributeurs et les équipes.
 
 ---
 
@@ -45,7 +51,7 @@ Créés et clôturés proviennent de l'historique des modifications. Ils couvren
 
 ### Quelles tâches sont comptées
 
-Chaque chiffre de tâche ne compte que les tâches autonomes et les tâches de projet. Les tâches rattachées à un contrat, à une ligne de dépense, à une ligne CAPEX ou à un incident relèvent de ces processus et sont exclues partout dans ce bandeau.
+Chaque chiffre de tâche ne compte que les tâches autonomes et les tâches de projet. Les tâches rattachées à un contrat, à une ligne de dépense, à un poste CAPEX ou à un incident relèvent de ces processus et sont exclues partout dans ce bandeau.
 
 ### À traiter
 
@@ -73,7 +79,7 @@ Chaque ligne indique combien de ces éléments n'ont ni Source, ni Catégorie, n
 
 ### Quelles tâches sont exclues
 
-Seules les tâches autonomes et les tâches de projet sont comptées. Les tâches rattachées à un contrat, à une ligne de dépense, à une ligne CAPEX ou à un incident ne portent jamais de classification. Les compter signalerait un écart que personne ne peut combler.
+Seules les tâches autonomes et les tâches de projet sont comptées. Les tâches rattachées à un contrat, à une ligne de dépense, à un poste CAPEX ou à un incident ne portent jamais de classification. Les compter signalerait un écart que personne ne peut combler.
 
 Une tâche de projet sans classification propre hérite de celle de son projet, et la liste des tâches affiche cette valeur héritée. Les compteurs suivent la même règle : un chiffre ne vous envoie donc jamais vers une liste où la colonne est déjà remplie.
 
@@ -83,59 +89,13 @@ Une Filière manquante n'est comptée que si l'élément a déjà une Catégorie
 
 ### Ouvrir la liste
 
-Chaque chiffre supérieur à zéro est un lien. Un clic ouvre la liste correspondante, déjà filtrée sur exactement les éléments derrière le chiffre, pour tout le locataire. Le total de la liste correspond au chiffre cliqué. Les zéros sont affichés pour le contexte mais ne sont pas cliquables.
+Chaque chiffre supérieur à zéro est un lien. Un clic ouvre la liste correspondante, déjà filtrée sur exactement les éléments derrière le chiffre, pour tout le tenant. Le total de la liste correspond au chiffre cliqué. Les zéros sont affichés pour le contexte mais ne sont pas cliquables.
 
 Quand rien ne manque, le bandeau affiche une seule ligne confirmant que tout ce qui est ouvert est classé.
 
 ---
 
-## Rapport de changements de statut
-
-Utilisez ce rapport pour suivre les éléments créés pendant une période sélectionnée, ou dont le statut a changé pendant cette période.
-
-### Ce qu'il affiche
-- **Une ligne par élément** (tâche autonome, demande ou projet).
-- **Dernier événement de la période** uniquement pour chaque élément, qu'il s'agisse de la création ou d'un changement de statut.
-- **Statut porté par cet événement**. Pour une création, il s'agit du statut avec lequel l'élément a été créé.
-- **Date de création**, renseignée lorsque l'élément a été créé dans la période, vide sinon.
-- **Date de dernière modification** pour l'événement retenu.
-
-### Filtres
-- **Date de début** et **Date de fin** (période obligatoire)
-- **Statut** (multi-sélection)
-- **Type d'élément** (multi-sélection : Tâches, Demandes, Projets)
-- **Source** (multi-sélection)
-- **Catégorie** (multi-sélection)
-- **Flux** (multi-sélection ; disponible lorsqu'au moins une catégorie est sélectionnée)
-
-### Règles d'inclusion
-- L'élément est inclus s'il a été créé pendant la période sélectionnée, ou si son statut a changé pendant cette période.
-- Un élément créé puis passé à un autre statut dans la même période apparaît une seule fois, avec le statut de son dernier événement.
-- Pour les tâches, seules les **tâches autonomes** sont incluses (les tâches liées à un projet sont exclues).
-- Le filtrage de statut s'applique au statut porté par l'événement retenu.
-- La période, la date **Créé le** et la date **Dernière modification** suivent le fuseau horaire de votre navigateur.
-
-### Colonnes du tableau
-- **Nom** (cliquable ; ouvre l'élément)
-- **Type d'élément**
-- **Priorité**
-- **Statut**
-- **Source**
-- **Catégorie**
-- **Flux**
-- **Société**
-- **Créé le**
-- **Dernière modification**
-
-Tri par défaut par **Priorité** (la plus haute en premier). Vous pouvez trier par n'importe quelle colonne.
-
-### Exports
-- Export **CSV**
-- Export **XLSX** avec noms d'éléments cliquables
-
----
-
-## Rapport Carte thermique de capacité
+## Rapport Carte de chaleur de la capacité
 
 Utilisez ce rapport pour comprendre la charge de travail actuelle, la pression sur la capacité et le travail non assigné.
 
@@ -178,13 +138,13 @@ Cliquez sur une ligne de contributeur pour ouvrir un détail par projet :
 - Les noms de projets sont cliquables et ouvrent l'onglet **Avancement** du projet.
 
 ### Exports
-- **CSV** : Exporter le tableau de la carte thermique
+- **CSV** : Exporter le tableau de la carte de chaleur
 - **PNG** : Capture du rapport
 - **Imprimer** : Imprimer ou enregistrer en PDF
 
 ---
 
-## Rapport hebdomadaire
+## Bilan de la période
 
 Utilisez ce rapport pour voir ce qui est arrivé aux demandes, aux projets et aux tâches sur une période. Le rapport suit l'entonnoir du portefeuille : les demandes d'abord, puis les projets, puis les tâches.
 
@@ -192,9 +152,9 @@ Utilisez ce rapport pour voir ce qui est arrivé aux demandes, aux projets et au
 
 Chacune des trois sections contient les trois mêmes listes.
 
-- **Créations** — les éléments créés pendant la période.
-- **Modifications** — les éléments modifiés pendant la période sans y avoir été créés ni clôturés.
-- **Clôtures** — les éléments dont le dernier changement de statut de la période les laisse dans un statut de clôture.
+- **Créations** : les éléments créés pendant la période.
+- **Modifications** : les éléments modifiés pendant la période sans y avoir été créés ni clôturés.
+- **Clôtures** : les éléments dont le dernier changement de statut de la période les laisse dans un statut de clôture.
 
 Un élément créé et clôturé dans la même période apparaît dans les deux listes, avec sa propre date dans chacune. Il n'apparaît jamais sous Modifications : Modifications correspond à ce qui reste une fois les créations et les clôtures prises en compte.
 
@@ -210,7 +170,7 @@ Chaque liste indique son nombre dans son titre. Une liste vide tient sur une seu
 
 ### Quelles tâches sont comptées
 
-La section Tâches ne couvre que les tâches du portefeuille : les tâches autonomes et les tâches rattachées à un projet. Les tâches rattachées à un contrat, à une ligne de dépense, à une ligne CAPEX ou à un incident sont exclues. C'est plus restreint que dans les versions précédentes du rapport, qui comptaient toutes les tâches.
+La section Tâches ne couvre que les tâches du portefeuille : les tâches autonomes et les tâches rattachées à un projet. Les tâches rattachées à un contrat, à une ligne de dépense, à un poste CAPEX ou à un incident sont exclues. C'est plus restreint que dans les versions précédentes du rapport, qui comptaient toutes les tâches.
 
 ### D'où vient un projet
 
@@ -241,18 +201,25 @@ La formulation reprend celle du fil d'historique de l'élément. Les champs ré�
 - **Catégorie** (sélection multiple)
 - **Filière** (sélection multiple ; limitée aux catégories sélectionnées)
 - **Types de tâche** (sélection multiple ; s'applique à la section Tâches)
+- **Statut d'arrivée** (sélection multiple, groupée par demandes, projets et tâches)
 
-Les filtres s'appliquent aux neuf listes.
+Les filtres s'appliquent aux neuf listes, ainsi qu'à la lecture par personne.
+
+**Statut d'arrivée** conserve les éléments que le dernier changement de statut de la période a laissés dans l'un des statuts sélectionnés. La création compte comme un changement de statut : un élément créé pendant la période et jamais déplacé ensuite a atteint le statut avec lequel il a été créé. Un élément dont le statut n'a pas changé pendant la période ne correspond à aucun statut : il disparaît dès qu'un statut est sélectionné. Le statut affiché dans la colonne Statut est celui que l'élément porte aujourd'hui, et il peut être différent : une tâche clôturée pendant la période puis rouverte depuis a atteint **Terminé**, et affiche **Ouvert**.
+
+Un statut commun à plusieurs types, comme Terminé ou Suspendu, est un seul choix : le cocher sous Tâches le coche aussi sous Projets.
 
 ### Colonnes du tableau
 
 Chaque liste commence par la référence métier (`REQ-12`, `PRJ-3`, `T-4`) et le nom. Un clic sur le nom ouvre l'élément.
 
-**Demandes** : Référence, Nom de la demande, Source, Catégorie, Filière, Statut, date de l'événement.
+**Demandes** : Référence, Nom de la demande, Source, Catégorie, Filière, Société, Statut, date de l'événement.
 
-**Projets** : Référence, Nom du projet, Origine (liste des créations), Priorité, Source, Catégorie, Filière, Charge, Statut, date de l'événement.
+**Projets** : Référence, Nom du projet, Origine (liste des créations), Priorité, Source, Catégorie, Filière, Société, Charge, Statut, date de l'événement.
 
-**Tâches** : Référence, Nom de la tâche, Type de tâche, Priorité, Source, Catégorie, Filière, Statut, date de l'événement.
+**Tâches** : Référence, Nom de la tâche, Type de tâche, Priorité, Source, Catégorie, Filière, Société, Statut, date de l'événement.
+
+Une tâche sans société propre affiche la société de son projet, comme le fait la liste des tâches.
 
 La colonne de date porte le jour de création sur les listes de créations, le jour de la dernière modification sur les listes de modifications et le jour de clôture sur les listes de clôtures. Les jours sont lus dans votre propre fuseau horaire.
 
@@ -262,13 +229,13 @@ Les listes de modifications ajoutent la colonne **Modifications** à la fin.
 
 ### Exports
 
-- **CSV** — neuf blocs dans l'ordre de la page, chacun avec son propre titre et sa ligne d'en-tête.
-- **XLSX** — trois feuilles : Requests, Projects et Tasks. Les lignes vont des créations aux modifications puis aux clôtures, avec une colonne **Event** en tête qui indique de quelle liste vient la ligne. La cellule du nom renvoie vers l'élément.
+- **CSV** : neuf blocs dans l'ordre de la page, chacun avec son propre titre et sa ligne d'en-tête.
+- **XLSX** : trois feuilles, Requests, Projects et Tasks. Les lignes vont des créations aux modifications puis aux clôtures, avec une colonne **Event** en tête qui indique de quelle liste vient la ligne. La cellule du nom renvoie vers l'élément.
 
-Les deux exports portent la référence, l'origine d'un projet, les modifications d'une ligne modifiée et la date de l'événement. Les lignes de clôture portent aussi le jour de création.
+Les deux exports portent la référence, la société, l'origine d'un projet, les modifications d'une ligne modifiée et la date de l'événement. Les lignes de clôture portent aussi le jour de création.
 
 ## Conseils
 - **Gardez les profils de contributeurs à jour** : La capacité est basée sur la disponibilité des contributeurs et les statistiques de temps historiques.
 - **Utilisez les filtres par équipe** : Limitez le rapport à un département ou une fonction.
 - **Vérifiez le travail non assigné** : Aide à repérer les projets avec des allocations manquantes ou des responsables manquants.
-- **Rapport hebdomadaire pour les stand-ups** : Exportez le rapport hebdomadaire en XLSX et partagez-le avec les parties prenantes pour les réunions de statut.
+- **Bilan de la période pour les stand-ups** : Exportez le bilan de la période en XLSX et partagez-le avec les parties prenantes pour les réunions de statut.

@@ -15,12 +15,18 @@ Wenn Sie Berichte nicht im Menü sehen, bitten Sie Ihren Administrator, Ihnen Zu
 
 ## Berichts-Startseite
 
-Die Startseite der Portfolio-Berichte listet verfügbare Portfolio-Berichte als Karten auf. Klicken Sie auf eine Karte, um den Bericht zu öffnen.
+Die Startseite der Portfolio-Berichte listet verfügbare Portfolio-Berichte als Karten auf, in drei Reihen, die nach Zeithorizont gelesen werden. Klicken Sie auf eine Karte, um den Bericht zu öffnen.
 
-Derzeit verfügbar:
-- **Statusänderungsbericht**
-- **Kapazitäts-Heatmap**
-- **Wochenbericht**
+**Was passiert ist**
+- **Periodenrückblick**: Anfragen, Projekte und Aufgaben, die in einem Zeitraum erstellt, geändert und geschlossen wurden.
+- **Aktivität nach Person**: dieselbe Seite, geöffnet auf ihrer Sicht der Aufgaben nach Person.
+
+**Was gerade läuft**
+- **Fluss und Alter**: was Woche für Woche hinzukommt und abgeschlossen wird, wie alt die offene Arbeit ist und wie lange ein Abschluss dauert.
+- **Handlungsbedarf nach Mitwirkenden**: offene, überfällige und liegengebliebene Aufgaben, Team für Team und Person für Person.
+
+**Was als Nächstes kommt**
+- **Kapazitäts-Heatmap**: erwarteter Aufwand im Vergleich zur Kapazität, für Mitwirkende und Teams.
 
 ---
 
@@ -89,52 +95,6 @@ Fehlt nichts, zeigt der Streifen eine einzige Zeile, die bestätigt, dass alles 
 
 ---
 
-## Statusänderungsbericht
-
-Verwenden Sie diesen Bericht, um Elemente zu verfolgen, die in einem ausgewählten Zeitraum erstellt wurden oder deren Status sich in diesem Zeitraum geändert hat.
-
-### Was er zeigt
-- **Eine Zeile pro Element** (eigenständige Aufgabe, Anfrage oder Projekt).
-- **Nur das letzte Ereignis im Zeitraum** für jedes Element, ob dieses Ereignis die Erstellung oder eine Statusänderung ist.
-- **Status, den dieses Ereignis trägt**. Bei einer Erstellung ist das der Status, mit dem das Element erstellt wurde.
-- **Erstellt**-Datum, ausgefüllt wenn das Element innerhalb des Zeitraums erstellt wurde, sonst leer.
-- **Zuletzt geändert**-Datum für das beibehaltene Ereignis.
-
-### Filter
-- **Startdatum** und **Enddatum** (erforderlicher Zeitraum)
-- **Status** (Mehrfachauswahl)
-- **Elementtyp** (Mehrfachauswahl: Aufgaben, Anfragen, Projekte)
-- **Quelle** (Mehrfachauswahl)
-- **Kategorie** (Mehrfachauswahl)
-- **Stream** (Mehrfachauswahl; verfügbar wenn mindestens eine Kategorie ausgewählt ist)
-
-### Einschlussregeln
-- Das Element wird eingeschlossen, wenn es während des ausgewählten Zeitraums erstellt wurde oder sich sein Status in diesem Zeitraum geändert hat.
-- Ein Element, das im selben Zeitraum erstellt und danach in einen anderen Status versetzt wurde, erscheint einmal, mit dem Status seines letzten Ereignisses.
-- Bei Aufgaben werden nur **eigenständige Aufgaben** eingeschlossen (projektverknüpfte Aufgaben sind ausgeschlossen).
-- Die Statusfilterung gilt für den Status, den das beibehaltene Ereignis trägt.
-- Der Zeitraum, das Datum **Erstellt** und das Datum **Zuletzt geändert** richten sich nach der Zeitzone Ihres Browsers.
-
-### Tabellenspalten
-- **Name** (klickbar; öffnet das Element)
-- **Elementtyp**
-- **Priorität**
-- **Status**
-- **Quelle**
-- **Kategorie**
-- **Stream**
-- **Unternehmen**
-- **Erstellt**
-- **Zuletzt geändert**
-
-Standardsortierung ist nach **Priorität** (höchste zuerst). Sie können nach jeder Spalte sortieren.
-
-### Exporte
-- **CSV**-Export
-- **XLSX**-Export mit klickbaren Elementnamen
-
----
-
 ## Kapazitäts-Heatmap-Bericht
 
 Verwenden Sie diesen Bericht, um aktuelle Arbeitslast, Kapazitätsdruck und nicht zugewiesene Arbeit zu verstehen.
@@ -184,7 +144,7 @@ Klicken Sie auf eine Mitwirkenden-Zeile, um eine Projektaufschlüsselung zu öff
 
 ---
 
-## Wochenbericht
+## Periodenrückblick
 
 Mit diesem Bericht sehen Sie, was in einem Zeitraum mit Anfragen, Projekten und Aufgaben geschehen ist. Der Bericht folgt dem Portfolio-Trichter: zuerst die Anfragen, dann die Projekte, dann die Aufgaben.
 
@@ -192,9 +152,9 @@ Mit diesem Bericht sehen Sie, was in einem Zeitraum mit Anfragen, Projekten und 
 
 Jeder der drei Abschnitte enthält dieselben drei Listen.
 
-- **Erstellt** — im Zeitraum erstellte Elemente.
-- **Geändert** — Elemente, die im Zeitraum geändert, aber weder erstellt noch geschlossen wurden.
-- **Geschlossen** — Elemente, die der letzte Statuswechsel des Zeitraums in einem Abschlussstatus zurücklässt.
+- **Erstellt**: im Zeitraum erstellte Elemente.
+- **Geändert**: Elemente, die im Zeitraum geändert, aber weder erstellt noch geschlossen wurden.
+- **Geschlossen**: Elemente, die der letzte Statuswechsel des Zeitraums in einem Abschlussstatus zurücklässt.
 
 Ein Element, das im selben Zeitraum erstellt und geschlossen wurde, erscheint in beiden Listen, jeweils mit seinem eigenen Datum. Unter Geändert erscheint es nie: Geändert ist das, was nach Erstellungen und Abschlüssen übrig bleibt.
 
@@ -210,7 +170,7 @@ Jede Liste zeigt ihre Anzahl in der Überschrift. Eine leere Liste bleibt einzei
 
 ### Welche Aufgaben zählen
 
-Der Abschnitt Aufgaben umfasst nur Portfolio-Aufgaben: eigenständige Aufgaben und Aufgaben an einem Projekt. Aufgaben an einem Vertrag, einer Ausgabenposition, einer CAPEX-Zeile oder einem Vorfall bleiben außen vor. Das ist enger gefasst als in früheren Fassungen des Berichts, die jede Aufgabe gezählt haben.
+Der Abschnitt Aufgaben umfasst nur Portfolio-Aufgaben: eigenständige Aufgaben und Aufgaben an einem Projekt. Aufgaben an einem Vertrag, einer Ausgabenposition, einer CAPEX-Position oder einem Vorfall bleiben außen vor. Das ist enger gefasst als in früheren Fassungen des Berichts, die jede Aufgabe gezählt haben.
 
 ### Woher ein Projekt stammt
 
@@ -241,18 +201,25 @@ Die Formulierung entspricht dem Verlauf am Element selbst. Felder, die bei jedem
 - **Kategorie** (Mehrfachauswahl)
 - **Stream** (Mehrfachauswahl; beschränkt auf die gewählten Kategorien)
 - **Aufgabentypen** (Mehrfachauswahl; gilt für den Abschnitt Aufgaben)
+- **Erreichter Status** (Mehrfachauswahl, gruppiert nach Anfragen, Projekten und Aufgaben)
 
-Die Filter gelten für alle neun Listen.
+Die Filter gelten für alle neun Listen und für die Sicht nach Person.
+
+**Erreichter Status** behält die Elemente, die der letzte Statuswechsel des Zeitraums in einem der gewählten Status zurückgelassen hat. Die Erstellung zählt als Statuswechsel: Ein Element, das im Zeitraum erstellt und danach nie verschoben wurde, hat den Status erreicht, mit dem es erstellt wurde. Ein Element, dessen Status sich im Zeitraum nicht geändert hat, passt zu keinem Status und fällt heraus, sobald ein Status gewählt ist. Die Spalte Status zeigt den Status, den das Element heute hat, und der kann abweichen: Eine Aufgabe, die im Zeitraum geschlossen und seitdem wieder geöffnet wurde, hat **Erledigt** erreicht und zeigt **Offen**.
+
+Ein Status, den mehrere Typen teilen, etwa Erledigt oder Pausiert, ist eine einzige Auswahl: Wenn Sie ihn unter Aufgaben ankreuzen, ist er auch unter Projekte angekreuzt.
 
 ### Tabellenspalten
 
 Jede Liste beginnt mit der Geschäftsreferenz (`REQ-12`, `PRJ-3`, `T-4`) und dem Namen. Ein Klick auf den Namen öffnet das Element.
 
-**Anfragen**: Referenz, Anfragenname, Quelle, Kategorie, Stream, Status, Datum des Ereignisses.
+**Anfragen**: Referenz, Anfragenname, Quelle, Kategorie, Stream, Unternehmen, Status, Datum des Ereignisses.
 
-**Projekte**: Referenz, Projektname, Herkunft (Liste der Erstellungen), Priorität, Quelle, Kategorie, Stream, Aufwand, Status, Datum des Ereignisses.
+**Projekte**: Referenz, Projektname, Herkunft (Liste der Erstellungen), Priorität, Quelle, Kategorie, Stream, Unternehmen, Aufwand, Status, Datum des Ereignisses.
 
-**Aufgaben**: Referenz, Aufgabenname, Aufgabentyp, Priorität, Quelle, Kategorie, Stream, Status, Datum des Ereignisses.
+**Aufgaben**: Referenz, Aufgabenname, Aufgabentyp, Priorität, Quelle, Kategorie, Stream, Unternehmen, Status, Datum des Ereignisses.
+
+Eine Aufgabe ohne eigenes Unternehmen zeigt das Unternehmen ihres Projekts, so wie die Aufgabenliste es liest.
 
 Die Datumsspalte trägt den Erstellungstag in den Erstellt-Listen, den Tag der letzten Änderung in den Geändert-Listen und den Abschlusstag in den Geschlossen-Listen. Die Tage werden in Ihrer eigenen Zeitzone gelesen.
 
@@ -262,13 +229,13 @@ Die Geändert-Listen ergänzen am Ende die Spalte **Änderungen**.
 
 ### Exporte
 
-- **CSV** — neun Blöcke in der Reihenfolge der Seite, jeder mit eigener Überschrift und Kopfzeile.
-- **XLSX** — drei Blätter: Requests, Projects und Tasks. Die Zeilen laufen von den Erstellungen über die Änderungen zu den Abschlüssen, mit einer führenden Spalte **Event**, die angibt, aus welcher Liste eine Zeile stammt. Die Namenszelle verweist zurück auf das Element.
+- **CSV**: neun Blöcke in der Reihenfolge der Seite, jeder mit eigener Überschrift und Kopfzeile.
+- **XLSX**: drei Blätter, Requests, Projects und Tasks. Die Zeilen laufen von den Erstellungen über die Änderungen zu den Abschlüssen, mit einer führenden Spalte **Event**, die angibt, aus welcher Liste eine Zeile stammt. Die Namenszelle verweist zurück auf das Element.
 
-Beide Exporte enthalten die Referenz, die Herkunft eines Projekts, die Änderungen einer geänderten Zeile und das Datum des Ereignisses. Die geschlossenen Zeilen tragen zusätzlich den Erstellungstag.
+Beide Exporte enthalten die Referenz, das Unternehmen, die Herkunft eines Projekts, die Änderungen einer geänderten Zeile und das Datum des Ereignisses. Die geschlossenen Zeilen tragen zusätzlich den Erstellungstag.
 
 ## Tipps
 - **Mitwirkenden-Profile aktuell halten**: Die Kapazität basiert auf der Verfügbarkeit und den historischen Zeitstatistiken der Mitwirkenden.
 - **Teamfilter verwenden**: Den Bericht auf eine Abteilung oder Funktion eingrenzen.
 - **Nicht zugewiesene Arbeit überprüfen**: Hilft, Projekte mit fehlenden Zuordnungen oder fehlenden Leitern aufzudecken.
-- **Wochenbericht für Stand-ups**: Den Wochenbericht als XLSX exportieren und mit Stakeholdern für Statusmeetings teilen.
+- **Periodenrückblick für Stand-ups**: Den Periodenrückblick als XLSX exportieren und mit Stakeholdern für Statusmeetings teilen.
