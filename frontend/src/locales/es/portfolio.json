@@ -1219,6 +1219,8 @@
       "filters": {
         "startDate": "Fecha de inicio",
         "endDate": "Fecha de fin",
+        "type": "Tipo",
+        "allTypes": "Todos los tipos",
         "source": "Origen",
         "allSources": "Todos los orígenes",
         "category": "Categoría",
@@ -1286,12 +1288,7 @@
         }
       },
       "byPerson": {
-        "groupBy": {
-          "label": "Agrupación",
-          "type": "Por tipo",
-          "person": "Por persona"
-        },
-        "note": "Las solicitudes y los proyectos siguen en la vista por tipo.",
+        "note": "Este informe cubre las tareas. Las solicitudes y los proyectos están en el <link />.",
         "noTeam": "Sin equipo",
         "unassigned": "Sin asignar",
         "timeLogged": "Tiempo registrado {{total}} d (proyecto {{project}} · otro {{other}})",

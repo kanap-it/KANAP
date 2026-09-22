@@ -98,6 +98,12 @@ function mockApi(data: unknown, filterValues: unknown = EMPTY_FILTER_VALUES) {
   });
 }
 
+/** The parameters of the last call to the report endpoint. */
+const lastWeeklyParams = () => {
+  const calls = get.mock.calls.filter(([url]: any[]) => url === '/portfolio/reports/weekly');
+  return calls[calls.length - 1]?.[1]?.params;
+};
+
 function renderReport(entry = '/portfolio/reports/weekly') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -401,11 +407,6 @@ describe('WeeklyReport', () => {
 });
 
 describe('WeeklyReport status reached and company', () => {
-  const lastWeeklyParams = () => {
-    const calls = get.mock.calls.filter(([url]: any[]) => url === '/portfolio/reports/weekly');
-    return calls[calls.length - 1]?.[1]?.params;
-  };
-
   it('opens on the statuses carried by the URL and ignores an unknown one', async () => {
     mockApi(report());
     renderReport('/portfolio/reports/weekly?statuses=done,bogus');
@@ -466,19 +467,17 @@ describe('WeeklyReport by person', () => {
       byPerson: byPersonPayload(),
     });
 
-  it('asks the API for the by-person reading from the toggle, without remembering it', async () => {
+  it('offers no switch between the two reports: the URL alone decides', async () => {
     mockApi(personReport());
     renderReport();
 
-    await waitFor(() => expect(screen.getByText('By person')).toBeTruthy());
-    fireEvent.click(screen.getByText('By person'));
-
-    await waitFor(() => {
-      const weeklyCalls = get.mock.calls.filter(([url]: any[]) => url === '/portfolio/reports/weekly');
-      const call = weeklyCalls[weeklyCalls.length - 1];
-      expect(call?.[1]?.params?.groupBy).toBe('person');
-    });
-    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText('Created (1)').length).toBeGreaterThan(0));
+    // Title and breadcrumb leaf.
+    expect(screen.getAllByText('Period review')).toHaveLength(2);
+    expect(screen.queryByText('Grouping')).toBeNull();
+    expect(screen.queryByText('By type')).toBeNull();
+    expect(screen.queryByText('By person')).toBeNull();
+    expect(lastWeeklyParams()?.groupBy).toBe('type');
     expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBeNull();
   });
 
@@ -508,7 +507,11 @@ describe('WeeklyReport by person', () => {
     await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
     const call = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly');
     expect(call?.[1]?.params?.groupBy).toBe('person');
-    expect(screen.getAllByText('Period review').length).toBeGreaterThan(0);
+    // Its own report: its own title, breadcrumb and subtitle, the ones of its hub card.
+    expect(screen.getAllByText('Activity by person')).toHaveLength(2);
+    expect(
+      screen.getByText('Tasks each person created, changed and closed over a period, with the days they logged.'),
+    ).toBeTruthy();
     expect(window.localStorage.getItem('kanap.portfolioReports.weeklyGroupBy')).toBeNull();
   });
 
@@ -518,7 +521,10 @@ describe('WeeklyReport by person', () => {
 
     await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
 
-    expect(screen.getByText('Requests and projects stay in the by-type view.')).toBeTruthy();
+    const note = screen.getByText(
+      (_, node) => node?.tagName === 'P' && (node.textContent ?? '').startsWith('This report covers tasks.'),
+    );
+    expect(note.textContent).toBe('This report covers tasks. Requests and projects are in the Period review.');
     expect(screen.getByText('Thomas Berger')).toBeTruthy();
     expect(screen.getByText('CTR-3')).toBeTruthy();
     expect(screen.getByText('1 created · 0 modified · 1 closed · 3.5 days logged')).toBeTruthy();
@@ -624,6 +630,35 @@ describe('WeeklyReport by person', () => {
     expect(call?.[1]?.params?.groupBy).toBe('person');
     expect(call?.[1]?.params?.format).toBe('csv');
   });
+
+  it('has no type filter in the by-person view, which reads tasks only', async () => {
+    mockApi(personReport());
+    renderReport('/portfolio/reports/weekly?groupBy=person&entities=request');
+
+    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+    expect(screen.queryByText('All types')).toBeNull();
+    expect(screen.queryByText('Type')).toBeNull();
+    expect(lastWeeklyParams()?.entities).toBeUndefined();
+  });
+
+  it('links the by-person view to the period review on the same period and filters', async () => {
+    mockApi(personReport());
+    renderReport(
+      '/portfolio/reports/weekly?groupBy=person&startDate=2026-09-14&endDate=2026-09-20&sourceIds=src-desk&projectIds=p-1&teamIds=team-1',
+    );
+
+    await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy());
+    const link = screen.getByRole('link', { name: 'Period review' });
+    const [path, search] = (link.getAttribute('href') ?? '').split('?');
+    expect(path).toBe('/portfolio/reports/weekly');
+    const params = new URLSearchParams(search);
+    expect(params.get('groupBy')).toBeNull();
+    expect(params.get('startDate')).toBe('2026-09-14');
+    expect(params.get('endDate')).toBe('2026-09-20');
+    expect(params.get('sourceIds')).toBe('src-desk');
+    expect(params.get('projectIds')).toBe('p-1');
+    expect(params.get('teamIds')).toBe('team-1');
+  });
 });
 
 describe('WeeklyReport project and team', () => {
@@ -666,4 +701,115 @@ describe('WeeklyReport project and team', () => {
       expect(weeklyCalls().some((params) => params.projectIds === 'p-1' && params.teamIds === 'team-1')).toBe(true),
     );
   });
+});
+
+describe('WeeklyReport filter options', () => {
+  const CATALOGUE = {
+    sources: [
+      { id: 'src-desk', name: 'Service desk' },
+      { id: 'src-mail', name: 'Email' },
+    ],
+    categories: [
+      { id: 'cat-run', name: 'Run' },
+      { id: 'cat-build', name: 'Build' },
+    ],
+    streams: [
+      { id: 'str-ops', name: 'Operations', categoryId: 'cat-run' },
+      { id: 'str-new', name: 'New products', categoryId: 'cat-build' },
+    ],
+    taskTypes: [{ id: 'tt-bug', name: 'Bug' }],
+  };
+
+  it('offers every value of the catalogue, and a value unticked can be ticked again', async () => {
+    // The rows carry one source only; the other one is offered all the same.
+    mockApi(
+      report({ requests: { created: [requestRow({ sourceId: 'src-desk', sourceName: 'Service desk' })], modified: [], closed: [] } }),
+      CATALOGUE,
+    );
+    renderReport();
+    await waitFor(() => expect(screen.getByText('All sources')).toBeTruthy());
+
+    fireEvent.mouseDown(screen.getByText('All sources'));
+    let listbox = await screen.findByRole('listbox');
+    expect(within(listbox).getAllByRole('option').map((node) => node.textContent)).toEqual(['Service desk', 'Email']);
+    fireEvent.click(within(listbox).getByText('Service desk'));
+    await waitFor(() => expect(lastWeeklyParams()?.sourceIds).toBe('src-mail'));
+
+    // The value unticked stays in the list, whatever rows came back.
+    mockApi(report(), CATALOGUE);
+    fireEvent.keyDown(listbox, { key: 'Escape' });
+    fireEvent.mouseDown(await screen.findByText('1 selected'));
+    listbox = await screen.findByRole('listbox');
+    expect(within(listbox).getAllByRole('option').map((node) => node.textContent)).toEqual(['Service desk', 'Email']);
+    fireEvent.click(within(listbox).getByText('Service desk'));
+    // Both ticked again: no filter at all.
+    await waitFor(() => expect(lastWeeklyParams()?.sourceIds).toBeUndefined());
+    expect(screen.getByText('All sources')).toBeTruthy();
+  });
+
+  it('offers the streams of the categories picked, from the catalogue', async () => {
+    mockApi(report(), CATALOGUE);
+    renderReport('/portfolio/reports/weekly?categoryIds=cat-build');
+    await waitFor(() => expect(lastWeeklyParams()?.categoryIds).toBe('cat-build'));
+    const streams = screen.getByText('All streams');
+    await waitFor(() => expect(streams.getAttribute('aria-disabled')).toBeNull());
+
+    fireEvent.mouseDown(streams);
+    const listbox = await screen.findByRole('listbox');
+    expect(within(listbox).getAllByRole('option').map((node) => node.textContent)).toEqual(['New products']);
+  });
+});
+
+describe('WeeklyReport type', () => {
+  it('reads the objects from the URL, sends them and shows their sections only', async () => {
+    mockApi(report({ projects: { created: [projectRow()], modified: [], closed: [] } }));
+    renderReport('/portfolio/reports/weekly?entities=project,task,bogus');
+
+    await waitFor(() => expect(lastWeeklyParams()?.entities).toBe('project,task'));
+    await waitFor(() => expect(screen.getAllByRole('heading', { level: 2 }).map((node) => node.textContent)).toEqual([
+      'Projects',
+      'Tasks',
+    ]));
+    expect(screen.getByText('Projects, Tasks')).toBeTruthy();
+    expect(screen.queryByText(/Requests \d+ created/)).toBeNull();
+    expect(screen.getByText(/Projects 1 created · 0 modified · 0 closed \| Tasks 0 created/)).toBeTruthy();
+
+    // The export covers the same objects.
+    fireEvent.click(screen.getByText('Export CSV'));
+    await waitFor(() =>
+      expect(get.mock.calls.some(([url]: any[]) => url === '/portfolio/reports/weekly/export')).toBe(true),
+    );
+    const exportCall = get.mock.calls.find(([url]: any[]) => url === '/portfolio/reports/weekly/export');
+    expect(exportCall?.[1]?.params?.entities).toBe('project,task');
+  });
+
+  it('sends the objects picked in the menu, and nothing once all three are back', async () => {
+    mockApi(report());
+    renderReport();
+    await waitFor(() => expect(screen.getByText('All types')).toBeTruthy());
+    expect(lastWeeklyParams()?.entities).toBeUndefined();
+
+    fireEvent.mouseDown(screen.getByText('All types'));
+    const listbox = await screen.findByRole('listbox');
+    expect(within(listbox).getAllByRole('option').map((node) => node.textContent)).toEqual([
+      'Requests',
+      'Projects',
+      'Tasks',
+    ]);
+    fireEvent.click(within(listbox).getByText('Tasks'));
+    await waitFor(() => expect(lastWeeklyParams()?.entities).toBe('request,project'));
+    // The menu is modal: closed, the page behind it can be read again.
+    fireEvent.keyDown(listbox, { key: 'Escape' });
+    await waitFor(() =>
+      expect(screen.getAllByRole('heading', { level: 2 }).map((node) => node.textContent)).toEqual([
+        'Requests',
+        'Projects',
+      ]),
+    );
+
+    fireEvent.mouseDown(screen.getByText('Requests, Projects'));
+    fireEvent.click(within(await screen.findByRole('listbox')).getByText('Tasks'));
+    await waitFor(() => expect(lastWeeklyParams()?.entities).toBeUndefined());
+  });
+
 });
