@@ -1338,6 +1338,20 @@
           "modified": "Geändert am",
           "closed": "Geschlossen am"
         }
+      },
+      "byPerson": {
+        "groupBy": {
+          "label": "Gruppierung",
+          "type": "Nach Typ",
+          "person": "Nach Person"
+        },
+        "note": "Anfragen und Projekte bleiben in der Ansicht nach Typ.",
+        "noTeam": "Ohne Team",
+        "unassigned": "Nicht zugewiesen",
+        "timeLogged": "Erfasste Zeit: {{total}} T (Projekt {{project}} · Sonstiges {{other}})",
+        "days_one": "{{value}} Tag erfasst",
+        "days_other": "{{value}} Tage erfasst",
+        "empty": "In diesem Zeitraum hat niemand eine Aufgabe getragen oder Zeit erfasst."
       }
     },
     "flow": {

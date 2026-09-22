@@ -9,6 +9,8 @@ import {
   ListItemText,
   MenuItem,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
   useTheme,
@@ -17,7 +19,8 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ICellRendererParams, ValueGetterParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../auth/AuthContext';
 import ReportLayout, {
   ReportFilter,
   reportFilterMenuProps,
@@ -25,7 +28,7 @@ import ReportLayout, {
 } from '../../components/reports/ReportLayout';
 import AgGridBox from '../../components/AgGridBox';
 import DateEUField from '../../components/fields/DateEUField';
-import { drawerDatePickerSx, drawerMenuItemSx } from '../../theme/formSx';
+import { drawerDatePickerSx, drawerMenuItemSx, textTabSx, textTabsSx } from '../../theme/formSx';
 import api from '../../api';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../i18n/useLocale';
@@ -97,10 +100,36 @@ type WeeklyLists<TRow> = {
 
 type WeeklyListKey = 'created' | 'modified' | 'closed';
 
+type WeeklyLoggedDays = { project: number; other: number; total: number };
+
+type WeeklyPersonLists = WeeklyLists<WeeklyTaskRow>;
+
+type WeeklyPerson = WeeklyPersonLists & {
+  userId: string;
+  name: string;
+  contributorRef: string | null;
+  loggedDays: WeeklyLoggedDays;
+};
+
+type WeeklyTeamGroup = {
+  teamId: string | null;
+  teamName: string | null;
+  members: WeeklyPerson[];
+  totals: { created: number; modified: number; closed: number; loggedDays: number };
+};
+
+type WeeklyByPerson = {
+  teams: WeeklyTeamGroup[];
+  unassigned: WeeklyPersonLists;
+};
+
+type WeeklyGroupBy = 'type' | 'person';
+
 type WeeklyReportResponse = {
   requests: WeeklyLists<WeeklyRequestRow>;
   projects: WeeklyLists<WeeklyProjectRow>;
   tasks: WeeklyLists<WeeklyTaskRow>;
+  byPerson?: WeeklyByPerson;
 };
 
 type FilterValuesResponse = {
@@ -131,6 +160,48 @@ const writeCollapsed = (section: WeeklySectionKey, collapsed: boolean) => {
   } catch {
     /* private mode or blocked storage: the group simply stays open on the next visit. */
   }
+};
+
+export const GROUP_BY_STORAGE_KEY = 'kanap.portfolioReports.weeklyGroupBy';
+export const COLLAPSED_PEOPLE_STORAGE_KEY = 'kanap.portfolioReports.weeklyCollapsedPeople';
+
+const readGroupBy = (): WeeklyGroupBy => {
+  try {
+    return window.localStorage.getItem(GROUP_BY_STORAGE_KEY) === 'person' ? 'person' : 'type';
+  } catch {
+    return 'type';
+  }
+};
+
+const writeGroupBy = (groupBy: WeeklyGroupBy) => {
+  try {
+    window.localStorage.setItem(GROUP_BY_STORAGE_KEY, groupBy);
+  } catch {
+    /* Remembering the reading is a convenience, never a requirement. */
+  }
+};
+
+/** Folded groups are remembered by key; everything is open until someone folds it. */
+const readCollapsedPeople = (): string[] => {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(COLLAPSED_PEOPLE_STORAGE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.map((value) => String(value)) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeCollapsedPeople = (keys: string[]) => {
+  try {
+    window.localStorage.setItem(COLLAPSED_PEOPLE_STORAGE_KEY, JSON.stringify(keys));
+  } catch {
+    /* Folded groups are a reading convenience; losing them is harmless. */
+  }
+};
+
+const EMPTY_BY_PERSON: WeeklyByPerson = {
+  teams: [],
+  unassigned: { created: [], modified: [], closed: [] },
 };
 
 const EMPTY_REQUESTS: WeeklyLists<WeeklyRequestRow> = { created: [], modified: [], closed: [] };
@@ -239,11 +310,13 @@ const buildParams = (args: {
   categoryIds?: string[];
   streamIds?: string[];
   taskTypeIds?: string[];
+  groupBy: WeeklyGroupBy;
 }) => {
   const params: Record<string, string> = {
     startDate: args.startDate,
     endDate: args.endDate,
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    groupBy: args.groupBy,
   };
 
   if (args.sourceIds && args.sourceIds.length > 0) params.sourceIds = args.sourceIds.join(',');
@@ -379,6 +452,90 @@ function WeeklyReportSection({ title, counts, collapsed, onToggle, children }: S
   );
 }
 
+const PRINT_OPEN_SX = {
+  '@media print': {
+    height: 'auto !important',
+    overflow: 'visible !important',
+    visibility: 'visible !important',
+  },
+} as const;
+
+type CollapsibleGroupProps = {
+  label: string;
+  /** Rendered right after the name: the contributor reference of a person. */
+  after?: React.ReactNode;
+  meta: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  level: 'team' | 'person';
+  children: React.ReactNode;
+};
+
+/**
+ * One folded group of the by-person view: a team, or a person inside a team. The counts stay
+ * next to the name open or closed; they are the reading itself, not a hint about what is
+ * hidden. Print keeps every group open.
+ */
+function WeeklyCollapsibleGroup({
+  label,
+  after,
+  meta,
+  collapsed,
+  onToggle,
+  level,
+  children,
+}: CollapsibleGroupProps) {
+  const contentId = useId();
+  const isTeam = level === 'team';
+
+  return (
+    <Box>
+      <Stack direction="row" alignItems="baseline" spacing={1} flexWrap="wrap" sx={{ rowGap: 0.25 }}>
+        <Box
+          component="button"
+          type="button"
+          aria-expanded={!collapsed}
+          aria-controls={contentId}
+          onClick={onToggle}
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.5,
+            p: 0,
+            border: 0,
+            bgcolor: 'transparent',
+            color: 'kanap.text.primary',
+            font: 'inherit',
+            fontSize: isTeam ? 16 : 13,
+            fontWeight: 500,
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          <ExpandMoreIcon
+            sx={{
+              fontSize: 18,
+              color: 'kanap.text.secondary',
+              transform: collapsed ? 'rotate(-90deg)' : 'none',
+              transition: 'transform 160ms ease',
+            }}
+          />
+          {label}
+        </Box>
+        {after}
+        <Typography component="div" sx={{ fontSize: 12, fontWeight: 400, color: 'kanap.text.secondary' }}>
+          {meta}
+        </Typography>
+      </Stack>
+      <Collapse in={!collapsed} timeout={160} id={contentId} sx={PRINT_OPEN_SX}>
+        <Stack spacing={1.5} sx={{ mt: 1.25, pl: isTeam ? 2 : 2.75 }}>
+          {children}
+        </Stack>
+      </Collapse>
+    </Box>
+  );
+}
+
 export default function WeeklyReport() {
   const navigate = useNavigate();
   const { t } = useTranslation(['portfolio', 'errors']);
@@ -409,6 +566,25 @@ export default function WeeklyReport() {
     projects: readCollapsed('projects'),
     tasks: readCollapsed('tasks'),
   }));
+
+  const { hasLevel } = useAuth();
+  const canOpenContributor = hasLevel('portfolio_settings', 'reader');
+
+  const [groupBy, setGroupBy] = useState<WeeklyGroupBy>(readGroupBy);
+  const [collapsedPeople, setCollapsedPeople] = useState<string[]>(readCollapsedPeople);
+
+  const changeGroupBy = useCallback((next: WeeklyGroupBy) => {
+    setGroupBy(next);
+    writeGroupBy(next);
+  }, []);
+
+  const togglePersonGroup = useCallback((key: string) => {
+    setCollapsedPeople((previous) => {
+      const next = previous.includes(key) ? previous.filter((item) => item !== key) : [...previous, key];
+      writeCollapsedPeople(next);
+      return next;
+    });
+  }, []);
 
   const toggleSection = useCallback((section: WeeklySectionKey) => {
     setCollapsedSections((previous) => {
@@ -454,6 +630,7 @@ export default function WeeklyReport() {
       streamIds,
       taskTypeAll,
       taskTypeIds,
+      groupBy,
     ],
     queryFn: async () => {
       const params = buildParams({
@@ -463,6 +640,7 @@ export default function WeeklyReport() {
         categoryIds: effectiveCategoryIds,
         streamIds: effectiveStreamIds,
         taskTypeIds: effectiveTaskTypeIds,
+        groupBy,
       });
       const res = await api.get('/portfolio/reports/weekly', { params });
       return res.data as WeeklyReportResponse;
@@ -479,6 +657,7 @@ export default function WeeklyReport() {
   const requests = reportData?.requests ?? EMPTY_REQUESTS;
   const projects = reportData?.projects ?? EMPTY_PROJECTS;
   const tasks = reportData?.tasks ?? EMPTY_TASKS;
+  const byPerson = reportData?.byPerson ?? EMPTY_BY_PERSON;
 
   const allRows = useMemo<WeeklyRowCommon[]>(
     () =>
@@ -927,6 +1106,7 @@ export default function WeeklyReport() {
         categoryIds: effectiveCategoryIds,
         streamIds: effectiveStreamIds,
         taskTypeIds: effectiveTaskTypeIds,
+        groupBy,
       }) as Record<string, string>;
       params.format = format;
 
@@ -977,6 +1157,53 @@ export default function WeeklyReport() {
     [t],
   );
 
+  /** Always one decimal, in the reader's locale: 3,5 in French, 3.5 in English. */
+  const formatDays = useCallback(
+    (value: number) =>
+      Number(value || 0).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    [locale],
+  );
+
+  /** The counts that follow a name: created, modified, closed, then the days logged. */
+  const personMeta = useCallback(
+    (counts: { created: number; modified: number; closed: number }, days: number) =>
+      [
+        t('reports.weekly.summary.created', { count: counts.created }),
+        t('reports.weekly.summary.modified', { count: counts.modified }),
+        t('reports.weekly.summary.closed', { count: counts.closed }),
+        t('reports.weekly.byPerson.days', { count: days, value: formatDays(days) }),
+      ].join(' · '),
+    [formatDays, t],
+  );
+
+  const personTimeLine = useCallback(
+    (logged: WeeklyLoggedDays) =>
+      t('reports.weekly.byPerson.timeLogged', {
+        total: formatDays(logged.total),
+        project: formatDays(logged.project),
+        other: formatDays(logged.other),
+      }),
+    [formatDays, t],
+  );
+
+  const personLists = useCallback(
+    (lists: WeeklyPersonLists, keyPrefix: string) =>
+      LIST_KEYS.map((listKey) => (
+        <WeeklyReportSubSection<WeeklyTaskRow>
+          key={`${keyPrefix}-${listKey}`}
+          heading={subHeading(listKey, lists[listKey].length)}
+          emptyLabel={t(`reports.weekly.empty.tasks.${listKey}`)}
+          rows={lists[listKey]}
+          columns={taskColumns[listKey]}
+        />
+      )),
+    [subHeading, t, taskColumns],
+  );
+
+  const hasPersonRows =
+    byPerson.teams.length > 0 ||
+    LIST_KEYS.some((listKey) => byPerson.unassigned[listKey].length > 0);
+
   return (
     <ReportLayout
       title={t('reports.weekly.title')}
@@ -985,6 +1212,25 @@ export default function WeeklyReport() {
       rootLabel={t('reports.title')}
       filters={(
         <>
+          <ReportFilter label={t('reports.weekly.byPerson.groupBy.label')} width={190}>
+            <Tabs
+              value={groupBy}
+              onChange={(_event, next: WeeklyGroupBy) => changeGroupBy(next)}
+              aria-label={t('reports.weekly.byPerson.groupBy.label')}
+              sx={{ ...textTabsSx, mt: '6px' }}
+            >
+              <Tab
+                value="type"
+                label={t('reports.weekly.byPerson.groupBy.type')}
+                sx={textTabSx(groupBy === 'type')}
+              />
+              <Tab
+                value="person"
+                label={t('reports.weekly.byPerson.groupBy.person')}
+                sx={textTabSx(groupBy === 'person')}
+              />
+            </Tabs>
+          </ReportFilter>
           <DateEUField
             label={t('reports.weekly.filters.startDate')}
             valueYmd={startDate}
@@ -1187,6 +1433,89 @@ export default function WeeklyReport() {
           {(isLoading || isFetching) && <CircularProgress size={14} />}
         </Stack>
 
+        {groupBy === 'person' ? (
+          <>
+            <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
+              {t('reports.weekly.byPerson.note')}
+            </Typography>
+
+            {!hasPersonRows && (
+              <Box sx={SECTION_SX}>
+                <Typography sx={{ fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
+                  {t('reports.weekly.byPerson.empty')}
+                </Typography>
+              </Box>
+            )}
+
+            {byPerson.teams.map((team) => {
+              const teamGroupKey = `team:${team.teamId ?? 'no-team'}`;
+              return (
+                <Box key={teamGroupKey} sx={SECTION_SX}>
+                  <WeeklyCollapsibleGroup
+                    level="team"
+                    label={team.teamName ?? t('reports.weekly.byPerson.noTeam')}
+                    meta={personMeta(team.totals, team.totals.loggedDays)}
+                    collapsed={collapsedPeople.includes(teamGroupKey)}
+                    onToggle={() => togglePersonGroup(teamGroupKey)}
+                  >
+                    {team.members.map((member) => {
+                      const personGroupKey = `person:${member.userId}`;
+                      return (
+                        <WeeklyCollapsibleGroup
+                          key={personGroupKey}
+                          level="person"
+                          label={member.name}
+                          after={
+                            member.contributorRef && canOpenContributor ? (
+                              <Typography
+                                component={RouterLink}
+                                to={`/portfolio/contributors/${member.contributorRef}`}
+                                sx={{
+                                  ...MONO_CELL_STYLE,
+                                  color: 'kanap.text.tertiary',
+                                  textDecoration: 'none',
+                                  fontSize: 11,
+                                  '&:hover': { textDecoration: 'underline' },
+                                }}
+                              >
+                                {member.contributorRef}
+                              </Typography>
+                            ) : null
+                          }
+                          meta={`${personMeta(
+                            {
+                              created: member.created.length,
+                              modified: member.modified.length,
+                              closed: member.closed.length,
+                            },
+                            member.loggedDays.total,
+                          )} · ${personTimeLine(member.loggedDays)}`}
+                          collapsed={collapsedPeople.includes(personGroupKey)}
+                          onToggle={() => togglePersonGroup(personGroupKey)}
+                        >
+                          {personLists(member, personGroupKey)}
+                        </WeeklyCollapsibleGroup>
+                      );
+                    })}
+                  </WeeklyCollapsibleGroup>
+                </Box>
+              );
+            })}
+
+            <Box sx={SECTION_SX}>
+              <WeeklyCollapsibleGroup
+                level="team"
+                label={t('reports.weekly.byPerson.unassigned')}
+                meta={countsFor(byPerson.unassigned)}
+                collapsed={collapsedPeople.includes('unassigned')}
+                onToggle={() => togglePersonGroup('unassigned')}
+              >
+                {personLists(byPerson.unassigned, 'unassigned')}
+              </WeeklyCollapsibleGroup>
+            </Box>
+          </>
+        ) : (
+          <>
         <WeeklyReportSection
           title={t('reports.weekly.sections.requests')}
           counts={countsFor(requests)}
@@ -1237,6 +1566,8 @@ export default function WeeklyReport() {
             />
           ))}
         </WeeklyReportSection>
+          </>
+        )}
       </Stack>
     </ReportLayout>
   );

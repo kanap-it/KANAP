@@ -1338,6 +1338,20 @@
           "modified": "Modificado el",
           "closed": "Cerrado el"
         }
+      },
+      "byPerson": {
+        "groupBy": {
+          "label": "Agrupación",
+          "type": "Por tipo",
+          "person": "Por persona"
+        },
+        "note": "Las solicitudes y los proyectos siguen en la vista por tipo.",
+        "noTeam": "Sin equipo",
+        "unassigned": "Sin asignar",
+        "timeLogged": "Tiempo registrado: {{total}} d (proyecto {{project}} · otro {{other}})",
+        "days_one": "{{value}} día registrado",
+        "days_other": "{{value}} días registrados",
+        "empty": "Nadie llevó una tarea ni registró tiempo en este periodo."
       }
     },
     "flow": {
