@@ -236,7 +236,7 @@ export default function AnalyticsCategoryReport() {
       data: chartData,
       series,
       axes: [
-        { type: 'number', position: 'bottom' },
+        { type: 'category', position: 'bottom' },
         { type: 'number', position: 'left' },
       ],
       legend: { enabled: true },

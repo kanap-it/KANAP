@@ -258,7 +258,7 @@ export default function BudgetColumnsCompareReport() {
       onExportChartPng={() => chartRef.current?.download(`budget-columns-compare-${itemType}`)}
     >
       <Stack direction="column" spacing={2} alignItems="stretch">
-        <Box>
+        <Box className="report-print-hide">
           <FormControlLabel
             control={<Checkbox checked={yearGrouping} onChange={(e) => setYearGrouping(e.target.checked)} />}
             label={t("reports.filters.yearGrouping")}
