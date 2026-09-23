@@ -1171,7 +1171,7 @@
     "cards": {
       "upcoming": {
         "title": "Upcoming",
-        "description": "Tasks falling due, planned project ends and starts, requests awaiting review and requested deliveries."
+        "description": "Planned project ends and starts, requests awaiting review and requested deliveries, tasks falling due."
       },
       "capacityHeatmap": {
         "title": "Capacity heatmap",

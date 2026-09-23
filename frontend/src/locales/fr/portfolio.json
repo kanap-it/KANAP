@@ -1171,7 +1171,7 @@
     "cards": {
       "upcoming": {
         "title": "À venir",
-        "description": "Tâches à échéance, fins et démarrages de projet prévus, demandes en attente et livraisons demandées."
+        "description": "Fins et démarrages de projet prévus, demandes en attente et livraisons demandées, tâches à échéance."
       },
       "capacityHeatmap": {
         "title": "Carte de chaleur de la capacité",

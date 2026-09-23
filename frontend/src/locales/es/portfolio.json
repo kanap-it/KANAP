@@ -1171,7 +1171,7 @@
     "cards": {
       "upcoming": {
         "title": "Próximamente",
-        "description": "Tareas que vencen, finales e inicios de proyecto previstos, solicitudes en espera y entregas solicitadas."
+        "description": "Finales e inicios de proyecto previstos, solicitudes en espera y entregas solicitadas, tareas que vencen."
       },
       "capacityHeatmap": {
         "title": "Mapa de calor de capacidad",

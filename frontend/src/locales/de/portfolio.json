@@ -1171,7 +1171,7 @@
     "cards": {
       "upcoming": {
         "title": "Demnächst",
-        "description": "Fällige Aufgaben, geplante Projektenden und -starts, wartende Anträge und gewünschte Liefertermine."
+        "description": "Geplante Projektenden und -starts, wartende Anträge und gewünschte Liefertermine, fällige Aufgaben."
       },
       "capacityHeatmap": {
         "title": "Kapazitäts-Heatmap",
