@@ -1,11 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Box, Stack, Typography, IconButton, Tooltip, Breadcrumbs, Link as MLink } from '@mui/material';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { Box, Stack, Typography, IconButton, Tooltip, Breadcrumbs, Link as MLink, ThemeProvider, useTheme } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import PrintIcon from '@mui/icons-material/Print';
 import ImageIcon from '@mui/icons-material/Image';
 import { Link as RouterLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { FieldLabel } from '../design';
 import { compactSelectMenuProps } from '../../theme/formSx';
+import { lightIslandTheme } from '../../config/ThemeContext';
+import { useLocale } from '../../i18n/useLocale';
+import { ReportPrintContext } from './reportPrint';
 
 /**
  * Label-above wrapper for a filter control in a report filter bar. The charter bans
@@ -87,6 +92,26 @@ export function reportGridHeight(fillHeight: number, rowCount: number, minHeight
   return Math.max(minHeight, Math.min(fillHeight, contentHeight));
 }
 
+/**
+ * Print mode of a report. `beforeprint` fires for the toolbar button, Ctrl+P and the
+ * browser menu alike, and the browser lays the pages out right after the handlers
+ * return, so the switch is flushed synchronously. `afterprint` puts the screen back.
+ */
+function useReportPrintMode() {
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => {
+    const onBeforePrint = () => flushSync(() => setPrinting(true));
+    const onAfterPrint = () => setPrinting(false);
+    window.addEventListener('beforeprint', onBeforePrint);
+    window.addEventListener('afterprint', onAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', onBeforePrint);
+      window.removeEventListener('afterprint', onAfterPrint);
+    };
+  }, []);
+  return printing;
+}
+
 export default function ReportLayout({
   title,
   subtitle,
@@ -108,6 +133,12 @@ export default function ReportLayout({
   onExportChartPng?: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation(['ops']);
+  const locale = useLocale();
+  const screenTheme = useTheme();
+  const printing = useReportPrintMode();
+  const print = useCallback(() => window.print(), []);
+
   // Auto-print when `?print=1` present
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -116,69 +147,86 @@ export default function ReportLayout({
     }
   }, []);
 
+  const printedOn = printing
+    ? new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date())
+    : null;
+
   return (
-    <Stack spacing={1.5} sx={{ width: '100%', alignSelf: 'stretch' }} className="report-print-frame">
-      <Box>
-        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 0.5, fontSize: 12 }}>
-          <MLink component={RouterLink} to={rootTo} underline="hover" color="inherit" sx={{ fontSize: 12 }}>
-            {rootLabel}
-          </MLink>
-          <Typography sx={{ fontSize: 12, color: 'kanap.text.secondary' }}>{title}</Typography>
-        </Breadcrumbs>
-        <Typography sx={{ fontSize: 22, fontWeight: 500, lineHeight: 1.3, color: 'kanap.text.primary' }}>
-          {title}
-        </Typography>
-        {subtitle && (
-          <Typography sx={{ mt: 0.5, fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
-            {subtitle}
-          </Typography>
-        )}
-      </Box>
-      <Box
-        sx={{
-          bgcolor: 'kanap.bg.drawer',
-          border: '1px solid',
-          borderColor: 'kanap.border.soft',
-          borderRadius: '8px',
-          px: 2,
-          py: 1.5,
-        }}
-      >
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'flex-end' }} justifyContent="space-between">
-          <Stack
-            direction="row"
-            spacing={2}
-            useFlexGap
-            alignItems="flex-end"
-            sx={{ flexWrap: 'wrap', rowGap: { xs: 1, md: 1.5 } }}
+    <ReportPrintContext.Provider value={printing}>
+      {/* Paper is white: the print view always uses the light palette, whatever the screen mode. */}
+      <ThemeProvider theme={printing ? lightIslandTheme : screenTheme}>
+        <Stack spacing={1.5} sx={{ width: '100%', alignSelf: 'stretch' }} className="report-print-frame">
+          <Box>
+            <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 0.5, fontSize: 12 }} className="report-print-hide">
+              <MLink component={RouterLink} to={rootTo} underline="hover" color="inherit" sx={{ fontSize: 12 }}>
+                {rootLabel}
+              </MLink>
+              <Typography sx={{ fontSize: 12, color: 'kanap.text.secondary' }}>{title}</Typography>
+            </Breadcrumbs>
+            <Stack direction="row" alignItems="baseline" justifyContent="space-between" spacing={2}>
+              <Typography sx={{ fontSize: 22, fontWeight: 500, lineHeight: 1.3, color: 'kanap.text.primary' }}>
+                {title}
+              </Typography>
+              {printedOn && (
+                <Typography sx={{ fontSize: 12, color: 'kanap.text.secondary', whiteSpace: 'nowrap' }}>
+                  {t('reports.shared.printedOn', { date: printedOn })}
+                </Typography>
+              )}
+            </Stack>
+            {subtitle && (
+              <Typography sx={{ mt: 0.5, fontSize: 13, fontWeight: 400, color: 'kanap.text.secondary' }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+          <Box
+            className="report-print-hide"
+            sx={{
+              bgcolor: 'kanap.bg.drawer',
+              border: '1px solid',
+              borderColor: 'kanap.border.soft',
+              borderRadius: '8px',
+              px: 2,
+              py: 1.5,
+            }}
           >
-            {filters}
-          </Stack>
-          <Stack direction="row" spacing={1} alignItems="center">
-            {actions}
-            {onExportTableCsv && (
-              <Tooltip title="Export table as CSV">
-                <IconButton size="small" onClick={onExportTableCsv} aria-label="Export table as CSV" sx={{ color: 'kanap.text.secondary' }}>
-                  <DownloadIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-            {onExportChartPng && (
-              <Tooltip title="Export chart as PNG">
-                <IconButton size="small" onClick={onExportChartPng} aria-label="Export chart as PNG" sx={{ color: 'kanap.text.secondary' }}>
-                  <ImageIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-            <Tooltip title="Print / Save as PDF">
-              <IconButton size="small" onClick={() => window.print()} aria-label="Print report" sx={{ color: 'kanap.text.secondary' }}>
-                <PrintIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'flex-end' }} justifyContent="space-between">
+              <Stack
+                direction="row"
+                spacing={2}
+                useFlexGap
+                alignItems="flex-end"
+                sx={{ flexWrap: 'wrap', rowGap: { xs: 1, md: 1.5 } }}
+              >
+                {filters}
+              </Stack>
+              <Stack direction="row" spacing={1} alignItems="center">
+                {actions}
+                {onExportTableCsv && (
+                  <Tooltip title="Export table as CSV">
+                    <IconButton size="small" onClick={onExportTableCsv} aria-label="Export table as CSV" sx={{ color: 'kanap.text.secondary' }}>
+                      <DownloadIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {onExportChartPng && (
+                  <Tooltip title="Export chart as PNG">
+                    <IconButton size="small" onClick={onExportChartPng} aria-label="Export chart as PNG" sx={{ color: 'kanap.text.secondary' }}>
+                      <ImageIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                <Tooltip title="Print / Save as PDF">
+                  <IconButton size="small" onClick={print} aria-label="Print report" sx={{ color: 'kanap.text.secondary' }}>
+                    <PrintIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            </Stack>
+          </Box>
+          {children}
         </Stack>
-      </Box>
-      {children}
-    </Stack>
+      </ThemeProvider>
+    </ReportPrintContext.Provider>
   );
 }

@@ -18,10 +18,9 @@ import {
   Typography,
 } from '@mui/material';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { AgGridReact } from 'ag-grid-react';
+import ReportGrid from '../../components/reports/ReportGrid';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
-import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import api from '../../api';
 import { metricLabels, MetricKey } from './reportMetrics';
@@ -541,7 +540,7 @@ export default function GlobalChargebackReport() {
       onExportChartPng={exportChart}
     >
       <Stack spacing={2}>
-        <Paper variant="outlined" sx={{ p: 2 }}>
+        <Paper variant="outlined" sx={{ p: 2 }} className="report-print-summary">
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between">
             <Box>
               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t("reports.globalChargeback.overallTotal")}</Typography>
@@ -585,17 +584,15 @@ export default function GlobalChargebackReport() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t("reports.globalChargeback.companyTotalsDescription")}
               </Typography>
-              <Box component={AgGridBox}>
-                <AgGridReact
-                  rowData={companyRows}
-                  columnDefs={companyColumns}
-                  defaultColDef={{ sortable: true, resizable: true }}
-                  onGridReady={(event) => {
-                    companyGridApiRef.current = event.api;
-                  }}
-                  domLayout="autoHeight"
-                />
-              </Box>
+              <ReportGrid
+                rowData={companyRows}
+                columnDefs={companyColumns}
+                defaultColDef={{ sortable: true, resizable: true }}
+                onGridReady={(event) => {
+                  companyGridApiRef.current = event.api;
+                }}
+                domLayout="autoHeight"
+              />
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t("reports.globalChargeback.distributionTitle")}</Typography>
@@ -613,18 +610,16 @@ export default function GlobalChargebackReport() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               {t("reports.globalChargeback.detailedDescription")}
             </Typography>
-            <Box component={AgGridBox}>
-              <AgGridReact
-                rowData={groupedDetailedRows}
-                columnDefs={detailedColumns}
-                defaultColDef={{ sortable: true, resizable: true }}
-                onGridReady={(event) => {
-                  detailedGridApiRef.current = event.api;
-                }}
-                getRowStyle={(params) => (params.data?.rowType === 'company' ? { fontWeight: 600 } : undefined)}
-                domLayout="autoHeight"
-              />
-            </Box>
+            <ReportGrid
+              rowData={groupedDetailedRows}
+              columnDefs={detailedColumns}
+              defaultColDef={{ sortable: true, resizable: true }}
+              onGridReady={(event) => {
+                detailedGridApiRef.current = event.api;
+              }}
+              getRowStyle={(params) => (params.data?.rowType === 'company' ? { fontWeight: 600 } : undefined)}
+              domLayout="autoHeight"
+            />
             <Divider sx={{ my: 2 }} />
             <Typography variant="body2" color="text.secondary">{t("reports.globalChargeback.globalTotal")}</Typography>
             <Typography variant="subtitle2">{formatCurrency(totalAmount)}</Typography>
@@ -638,22 +633,22 @@ export default function GlobalChargebackReport() {
               {t("reports.globalChargeback.flowsDescription")}
             </Typography>
             {nettedFlows.length > 0 ? (
-              <Box component={AgGridBox}>
-                <AgGridReact
-                  rowData={nettedFlows}
-                  columnDefs={flowsColumns}
-                  defaultColDef={{ sortable: true, resizable: true }}
-                  onGridReady={(event) => {
-                    flowsGridApiRef.current = event.api;
-                  }}
-                  domLayout="autoHeight"
-                />
-              </Box>
+              <ReportGrid
+                rowData={nettedFlows}
+                columnDefs={flowsColumns}
+                defaultColDef={{ sortable: true, resizable: true }}
+                onGridReady={(event) => {
+                  flowsGridApiRef.current = event.api;
+                }}
+                domLayout="autoHeight"
+              />
             ) : (
               <Typography variant="body2" color="text.secondary">{t("reports.globalChargeback.noFlows")}</Typography>
             )}
-            <Divider sx={{ my: 2 }} />
-            <Button variant="outlined" size="small" onClick={exportFlowsCsv}>{t("reports.globalChargeback.exportFlowsCsv")}</Button>
+            <Box className="report-print-hide">
+              <Divider sx={{ my: 2 }} />
+              <Button variant="outlined" size="small" onClick={exportFlowsCsv}>{t("reports.globalChargeback.exportFlowsCsv")}</Button>
+            </Box>
           </Paper>
         )}
 
