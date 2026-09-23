@@ -7,8 +7,6 @@ export type ChartCardHandle = {
   download: (fileName?: string) => void;
 };
 
-type Snapshot = { url: string; width: number };
-
 export default forwardRef(function ChartCard(
   {
     title,
@@ -24,19 +22,28 @@ export default forwardRef(function ChartCard(
   const chartRef = useRef<any>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const printing = useReportPrinting();
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const printCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  // A live canvas keeps its screen pixel size on paper and overflows the page. Freeze it
-  // into an image the moment print mode starts, while the chart is still laid out.
+  // A live canvas keeps its screen pixel size on paper and overflows the page. Copy its
+  // pixels into a page-wide canvas the moment print mode starts: synchronous, so the
+  // copy exists before the browser lays the pages out (an <img> would still be decoding).
   useLayoutEffect(() => {
     if (!printing) {
-      setSnapshot(null);
+      setCopied(false);
       return;
     }
-    const canvas = wrapperRef.current?.querySelector('canvas');
-    if (!canvas) return;
+    const live = wrapperRef.current?.querySelector('canvas');
+    const target = printCanvasRef.current;
+    if (!live || !target || live.width === 0 || live.height === 0) return;
     try {
-      setSnapshot({ url: canvas.toDataURL('image/png'), width: canvas.clientWidth || canvas.width });
+      target.width = live.width;
+      target.height = live.height;
+      target.style.maxWidth = `${live.clientWidth || live.width}px`;
+      const ctx = target.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(live, 0, 0);
+      setCopied(true);
     } catch (e) {
       console.warn('Chart snapshot failed', e);
     }
@@ -76,15 +83,15 @@ export default forwardRef(function ChartCard(
       {title && !printing && (
         <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 500 }}>{title}</Typography>
       )}
-      {printing && snapshot && (
-        <img
-          src={snapshot.url}
-          alt={title ?? ''}
-          style={{ display: 'block', width: '100%', maxWidth: snapshot.width, height: 'auto' }}
+      {printing && (
+        <canvas
+          ref={printCanvasRef}
+          aria-label={title}
+          style={{ display: copied ? 'block' : 'none', width: '100%', height: 'auto' }}
         />
       )}
       {/* Same slot in both modes so the chart instance survives the switch to print and back. */}
-      <Box sx={{ height, display: printing && snapshot ? 'none' : undefined }} ref={wrapperRef}>
+      <Box sx={{ height, display: printing && copied ? 'none' : undefined }} ref={wrapperRef}>
         <AgChartsReact ref={chartRef} options={options} />
       </Box>
     </Paper>
