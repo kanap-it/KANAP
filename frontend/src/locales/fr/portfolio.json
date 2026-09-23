@@ -1174,7 +1174,7 @@
         "description": "Fins et démarrages de projet prévus, demandes en attente et livraisons demandées, tâches à échéance."
       },
       "capacityHeatmap": {
-        "title": "Carte de chaleur de la capacité",
+        "title": "Planning de capacité",
         "description": "Visualisez la charge attendue par rapport à la capacité des contributeurs et des équipes."
       },
       "weekly": {
@@ -1195,7 +1195,7 @@
       }
     },
     "capacityHeatmap": {
-      "title": "Carte de chaleur de la capacité",
+      "title": "Planning de capacité",
       "subtitle": "Charge attendue par rapport à la capacité des contributeurs et des équipes",
       "filters": {
         "teams": "Équipes",

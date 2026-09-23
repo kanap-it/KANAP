@@ -43,11 +43,11 @@ Die Kopfzeile zeigt den verwendeten Zeitraum und erlaubt den Wechsel zwischen de
 Eine Zeile je Entität liest sich so: **14 erstellt · 9 abgeschlossen · 52 offen (+5)**.
 
 - **Erstellt**: Elemente, die im Zeitraum angelegt wurden und heute noch vorhanden sind.
-- **Abgeschlossen**: Elemente, die im Zeitraum von einem offenen in einen geschlossenen Status gewechselt sind. Geschlossen heißt Erledigt oder Abgebrochen bei Aufgaben und Projekten, Abgelehnt oder Umgewandelt bei Anfragen.
+- **Abgeschlossen**: Elemente, die der letzte Statuswechsel des Zeitraums geschlossen hinterlassen hat. Die Anlage zählt als Statuswechsel: Ein bereits erledigt angelegtes Element zählt als abgeschlossen. Geschlossen heißt Erledigt oder Abgebrochen bei Aufgaben und Projekten, Abgelehnt oder Umgewandelt bei Anfragen.
 - **Offen**: Elemente, die gerade offen sind, unabhängig davon, was im Zeitraum geschah. Diese Zahl ist ein Link auf die passende Liste.
 - **(+5)**: die Nettoveränderung, nur sichtbar, wenn sie nicht null ist. Sie ist erstellt, plus wieder geöffnet, minus abgeschlossen. Wieder geöffnet sind Elemente, die aus einem geschlossenen Status zurück in einen offenen gewechselt sind. Fahren Sie über die Zahl, um die Formel zu sehen.
 
-Erstellt und abgeschlossen stammen aus der Änderungshistorie. Sie erfassen damit jeden Schreibweg: die Anwendung, einen CSV-Import und die Agenten. Kein Listenfilter bildet diese Historie nach, deshalb sind diese beiden Zahlen keine Links.
+Erstellt und abgeschlossen stammen aus der Änderungshistorie. Sie erfassen damit jeden Schreibweg: die Anwendung, einen CSV-Import und die Agenten. Kein Listenfilter bildet diese Historie nach, deshalb öffnen diese beiden Zahlen den **Periodenrückblick** für dieselben Tage. Seine Listen der erstellten und abgeschlossenen Elemente zeigen genau die hier gezählten Elemente. Eine Null ist kein Link.
 
 ### Welche Aufgaben zählen
 

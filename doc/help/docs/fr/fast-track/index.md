@@ -337,7 +337,7 @@ Le générateur de roadmap prend vos estimations de charge de projet, la disponi
 
 Voir la [référence Planification](../portfolio-planning.md).
 
-### Cartes de chaleur de capacité
+### Planning de capacité
 
 La disponibilité des contributeurs et les affectations de projets se combinent pour vous montrer **qui est surchargé et qui a de la bande passante** -- à travers les équipes et les périodes. Cela prévient le classique « tout le monde est assigné à 5 projets à 100 % ».
 
@@ -347,7 +347,7 @@ Lorsque plusieurs projets se disputent les mêmes contributeurs ou compétences,
 
 ### Reporting exécutif
 
-Les scores de priorité, le statut du projet, l'avancement, le budget et les données de chronologie se consolident dans des **rapports au niveau portefeuille** qui donnent à la direction une image claire sans création manuelle de PowerPoint. Le hub de reporting inclut un rapport de changements de statut, une carte de chaleur de capacité et un rapport hebdomadaire.
+Les scores de priorité, le statut du projet, l'avancement, le budget et les données de chronologie se consolident dans des **rapports au niveau portefeuille** qui donnent à la direction une image claire sans création manuelle de PowerPoint. Le hub de reporting inclut le bilan de la période, le flux et l'ancienneté, les points d'attention par contributeur, le rapport à venir, le temps saisi et le planning de capacité.
 
 Voir la [référence Rapports](../portfolio-reporting.md).
 
@@ -363,7 +363,7 @@ Voir la [référence Rapports](../portfolio-reporting.md).
 | Définir l'équipe projet | Ouvrir le projet > Barre latérale Propriétés du projet > Équipe |
 | Importer un document Word | Ouvrir demande/projet/tâche > bouton Import sur Objet ou Description |
 | Voir le pipeline de projets | Portefeuille > Planification |
-| Vérifier la capacité de l'équipe | Portefeuille > Planification > Vue capacité, ou Portefeuille > Rapports > Carte de chaleur capacité |
+| Vérifier la capacité de l'équipe | Portefeuille > Planification > Vue capacité, ou Portefeuille > Rapports > Planning de capacité |
 | Saisir du temps sur un projet | Ouvrir le projet > onglet Avancement ou Tâches |
 | Générer une roadmap | Portefeuille > Planification > Générateur de roadmap |
 | Consulter les rapports | Portefeuille > Rapports |

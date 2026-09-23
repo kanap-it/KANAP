@@ -133,7 +133,9 @@ export class PortfolioSteeringSummaryService {
   /**
    * One statement per entity: the live rows in scope decide what exists and what is open, the
    * audit events of the period decide what was created, closed or reopened. Grouping the events
-   * by record first makes each figure a count of distinct items, not of events.
+   * by record first makes each figure a count of distinct items, not of events. Created and
+   * closed follow the period review's rules on the same days, so each figure equals the
+   * review's list it links to.
    */
   private async flow(
     manager: EntityManager,
@@ -143,39 +145,48 @@ export class PortfolioSteeringSummaryService {
     const [row] = (await manager.query(
       `
       WITH scope AS (${spec.scopeSql}),
-      events AS (
-        SELECT
-          al.record_id AS id,
-          bool_or(al.action = 'create') AS was_created,
-          bool_or(
-            al.action = 'update'
-            AND al.before_json->>'status' IS NOT NULL
-            AND al.after_json->>'status' IS NOT NULL
-            AND al.after_json->>'status' = ANY($6::text[])
-            AND al.before_json->>'status' <> ALL($6::text[])
-          ) AS was_closed,
-          bool_or(
-            al.action = 'update'
-            AND al.before_json->>'status' IS NOT NULL
-            AND al.after_json->>'status' IS NOT NULL
-            AND al.before_json->>'status' = ANY($6::text[])
-            AND al.after_json->>'status' <> ALL($6::text[])
-          ) AS was_reopened
+      period_events AS (
+        SELECT al.record_id, al.action, al.before_json, al.after_json, al.created_at, al.id
         FROM audit_log al
         WHERE al.tenant_id = $1
           AND al.table_name = $5
           AND al.record_id IS NOT NULL
+          AND al.action IN ('create', 'update')
           AND al.created_at >= ($2::date::timestamp AT TIME ZONE $4)
           AND al.created_at < (($3::date + 1)::timestamp AT TIME ZONE $4)
-        GROUP BY al.record_id
+      ),
+      events AS (
+        SELECT
+          pe.record_id AS id,
+          bool_or(pe.action = 'create') AS was_created,
+          bool_or(
+            pe.action = 'update'
+            AND pe.before_json->>'status' IS NOT NULL
+            AND pe.after_json->>'status' IS NOT NULL
+            AND pe.before_json->>'status' = ANY($6::text[])
+            AND pe.after_json->>'status' <> ALL($6::text[])
+          ) AS was_reopened
+        FROM period_events pe
+        GROUP BY pe.record_id
+      ),
+      -- Closed: the last status event of the period, the creation included, leaves the item in
+      -- a closed status. The period review's rule ("closing" in its event CTEs), so the
+      -- figure and the review's closed list count the same items.
+      status_event_last AS (
+        SELECT DISTINCT ON (pe.record_id) pe.record_id, pe.after_json->>'status' AS after_status
+        FROM period_events pe
+        WHERE pe.action = 'create'
+           OR pe.before_json->>'status' IS DISTINCT FROM pe.after_json->>'status'
+        ORDER BY pe.record_id, pe.created_at DESC, pe.id DESC
       )
       SELECT
         COUNT(*) FILTER (WHERE e.was_created)::int AS created,
-        COUNT(*) FILTER (WHERE e.was_closed)::int AS closed,
+        COUNT(*) FILTER (WHERE sel.after_status = ANY($6::text[]))::int AS closed,
         COUNT(*) FILTER (WHERE e.was_reopened)::int AS reopened,
         COUNT(*) FILTER (WHERE s.is_open)::int AS open_now
       FROM scope s
       LEFT JOIN events e ON e.id = s.id
+      LEFT JOIN status_event_last sel ON sel.record_id = s.id
       `,
       [period.tenantId, period.startDate, period.endDate, period.timeZone, spec.table, spec.closedStatuses],
     )) as FlowRow[];

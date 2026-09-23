@@ -26,7 +26,7 @@ La page d'accueil des rapports du portefeuille liste les rapports disponibles so
 - **Points d'attention par contributeur** : les tâches ouvertes, en retard et sans mouvement, équipe par équipe et personne par personne.
 
 **Ce qui vient**
-- **Carte de chaleur de la capacité** : la charge attendue par rapport à la capacité, pour les contributeurs et les équipes.
+- **Planning de capacité** : la charge attendue par rapport à la capacité, pour les contributeurs et les équipes.
 
 ---
 
@@ -43,11 +43,11 @@ L'en-tête affiche la période utilisée et permet de basculer entre les 7, 30 e
 Une ligne par entité se lit ainsi : **14 créés · 9 clôturés · 52 ouverts (+5)**.
 
 - **Créés** : éléments créés pendant la période et toujours présents aujourd'hui.
-- **Clôturés** : éléments passés d'un statut ouvert à un statut clos pendant la période. Clos signifie Terminé ou Annulé pour les tâches et les projets, Rejeté ou Converti pour les demandes.
+- **Clôturés** : éléments que le dernier changement de statut de la période a laissés clos. La création compte comme un changement de statut : un élément créé déjà terminé compte comme clôturé. Clos signifie Terminé ou Annulé pour les tâches et les projets, Rejeté ou Converti pour les demandes.
 - **Ouverts** : éléments ouverts en ce moment, quoi qu'il se soit passé pendant la période. Ce chiffre est un lien vers la liste correspondante.
 - **(+5)** : la variation nette, affichée seulement quand elle n'est pas nulle. C'est créés, plus rouverts, moins clôturés. Les éléments rouverts sont ceux passés d'un statut clos à un statut ouvert. Survolez le chiffre pour voir la formule.
 
-Créés et clôturés proviennent de l'historique des modifications. Ils couvrent donc toutes les façons d'écrire un élément : l'application, un import CSV et les agents. Aucun filtre de liste ne reproduit cet historique, ces deux chiffres ne sont donc pas des liens.
+Créés et clôturés proviennent de l'historique des modifications. Ils couvrent donc toutes les façons d'écrire un élément : l'application, un import CSV et les agents. Aucun filtre de liste ne reproduit cet historique : ces deux chiffres ouvrent donc le **Bilan de la période** sur les mêmes jours. Ses listes des créations et des clôtures montrent exactement les éléments comptés ici. Un zéro n'est pas un lien.
 
 ### Quelles tâches sont comptées
 
@@ -95,7 +95,7 @@ Quand rien ne manque, le bandeau affiche une seule ligne confirmant que tout ce 
 
 ---
 
-## Rapport Carte de chaleur de la capacité
+## Rapport Planning de capacité
 
 Utilisez ce rapport pour comprendre la charge de travail actuelle, la pression sur la capacité et le travail non assigné.
 
@@ -138,7 +138,7 @@ Cliquez sur une ligne de contributeur pour ouvrir un détail par projet :
 - Les noms de projets sont cliquables et ouvrent l'onglet **Avancement** du projet.
 
 ### Exports
-- **CSV** : Exporter le tableau de la carte de chaleur
+- **CSV** : Exporter le tableau du planning de capacité
 - **PNG** : Capture du rapport
 - **Imprimer** : Imprimer ou enregistrer en PDF
 

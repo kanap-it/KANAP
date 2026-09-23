@@ -44,11 +44,11 @@ The header shows the period in use and lets you switch between the last 7, 30 an
 One line per entity reads like this: **14 created · 9 closed · 52 open (+5)**.
 
 - **Created**: items created during the period and still present today.
-- **Closed**: items that moved from an open status to a closed one during the period. Closed means Done or Cancelled for tasks and projects, Rejected or Converted for requests.
+- **Closed**: items whose last status change of the period left them closed. The creation counts as a status change, so an item created already done counts as closed. Closed means Done or Cancelled for tasks and projects, Rejected or Converted for requests.
 - **Open**: items open right now, whatever happened during the period. This figure is a link to the matching list.
 - **(+5)**: the net change, shown only when it is not zero. It is created, plus reopened, minus closed. Reopened items are items that went from a closed status back to an open one. Hover the figure to see the formula.
 
-Created and closed come from the change history, so they include every way an item can be written: the app, a CSV import and the agents. No list filter reproduces that history, so those two figures are not links.
+Created and closed come from the change history, so they include every way an item can be written: the app, a CSV import and the agents. No list filter reproduces that history, so these two figures open the [Period review](#period-review) on the same days instead. Its created and closed lists show exactly the items counted here. A zero is not a link.
 
 ### Which tasks count
 
