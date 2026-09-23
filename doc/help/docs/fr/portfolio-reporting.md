@@ -26,7 +26,7 @@ La page d'accueil des rapports du portefeuille liste les rapports disponibles so
 - **Points d'attention par contributeur** : les tâches ouvertes, en retard et sans mouvement, équipe par équipe et personne par personne.
 
 **Ce qui vient**
-- **Carte de chaleur de la capacité** : la charge attendue par rapport à la capacité, pour les contributeurs et les équipes.
+- **Planning de capacité** : la charge attendue par rapport à la capacité, pour les contributeurs et les équipes.
 
 ---
 
@@ -95,7 +95,7 @@ Quand rien ne manque, le bandeau affiche une seule ligne confirmant que tout ce 
 
 ---
 
-## Rapport Carte de chaleur de la capacité
+## Rapport Planning de capacité
 
 Utilisez ce rapport pour comprendre la charge de travail actuelle, la pression sur la capacité et le travail non assigné.
 
@@ -138,7 +138,7 @@ Cliquez sur une ligne de contributeur pour ouvrir un détail par projet :
 - Les noms de projets sont cliquables et ouvrent l'onglet **Avancement** du projet.
 
 ### Exports
-- **CSV** : Exporter le tableau de la carte de chaleur
+- **CSV** : Exporter le tableau du planning de capacité
 - **PNG** : Capture du rapport
 - **Imprimer** : Imprimer ou enregistrer en PDF
 
