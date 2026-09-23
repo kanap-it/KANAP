@@ -1,11 +1,29 @@
-/* Print-friendly styles for report pages */
+/*
+ * Report printing ("Print / Save as PDF" on a report page, Ctrl+P works too).
+ * The report frame is the only thing on paper; controls, navigation and the app shell
+ * stay on screen. Grids and charts switch to print-safe renderings in React
+ * (`ReportGrid`, `ChartCard`) while `ReportLayout` is in print mode; this sheet only
+ * handles what CSS can: visibility, page breaks, table typography.
+ */
 @media print {
-  /* Hide everything by default */
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Hide everything by default, then show only the report frame */
   body * {
     visibility: hidden !important;
   }
-  /* Show only the report frame */
-  .report-print-frame, .report-print-frame * {
+  .report-print-frame,
+  .report-print-frame * {
     visibility: visible !important;
   }
   .report-print-frame {
@@ -15,7 +33,106 @@
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+    color: #111827;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
+
+  /* Filter bar, breadcrumb, export buttons: screen-only */
+  .report-print-hide {
+    display: none !important;
+  }
+
+  /* Cards become plain sections: no box, a heading that stays with its table, and a
+     table free to continue on the next page (headers repeat). Only the summary card
+     keeps its frame. */
+  .report-print-frame .MuiPaper-root {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    break-inside: auto;
+  }
+  .report-print-frame .report-print-summary {
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    padding: 12px 16px !important;
+    break-inside: avoid;
+  }
+  .report-print-frame .MuiPaper-root > .MuiTypography-subtitle1 {
+    break-after: avoid;
+    padding-top: 6px;
+    border-top: 1px solid #e5e7eb;
+  }
+  .report-print-frame .MuiPaper-root > .MuiTypography-body2 {
+    break-after: avoid;
+  }
+  .report-print-chart {
+    break-inside: avoid;
+  }
+  .report-print-frame .MuiAlert-root {
+    break-inside: avoid;
+  }
+
+  /* Static rendering of a report grid */
+  .report-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .report-print-table thead {
+    display: table-header-group;
+  }
+  /* Header repeats on every page; the totals row prints once, at the end. */
+  .report-print-table tfoot {
+    display: table-row-group;
+  }
+  .report-print-table tr {
+    break-inside: avoid;
+  }
+  .report-print-table th {
+    text-align: left;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 4px 6px;
+    border-bottom: 1px solid #d1d5db;
+    white-space: nowrap;
+  }
+  .report-print-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+  }
+  .report-print-table tfoot td {
+    font-weight: 600;
+    border-top: 1px solid #9ca3af;
+    border-bottom: none;
+  }
+  .report-print-table .num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Plain MUI tables inside a report (KPI tables): fit the page width */
+  .report-print-frame .MuiTable-root {
+    min-width: 0 !important;
+  }
+  .report-print-frame .MuiTableCell-root {
+    font-size: 11px !important;
+    padding: 4px 6px !important;
+    white-space: nowrap;
+  }
+  .report-print-frame .MuiTableCell-root:first-child {
+    white-space: normal;
+  }
+
+  .report-print-frame a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
   .capacity-heatmap-print {
     max-width: 100% !important;
   }
@@ -28,9 +145,5 @@
   .capacity-heatmap-print .ag-cell {
     padding: 2px 4px !important;
     font-size: 11px !important;
-  }
-  /* Remove page padding/margins to use space efficiently */
-  @page {
-    margin: 12mm;
   }
 }

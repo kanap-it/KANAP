@@ -2,10 +2,9 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Box, IconButton, MenuItem, Paper, Stack, TextField, Typography, Button, Checkbox, FormControlLabel } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/RemoveCircleOutline';
 import AddIcon from '@mui/icons-material/Add';
-import { AgGridReact } from 'ag-grid-react';
+import ReportGrid from '../../components/reports/ReportGrid';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
-import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, pickYearSlot as pickOpexYearSlot } from './useOpexSummary';
 import { useCapexSummaryAll, pickYearSlot as pickCapexYearSlot } from './useCapexSummary';
@@ -270,14 +269,13 @@ export default function BudgetColumnsCompareReport() {
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>
-          <Box component={AgGridBox} sx={{ height: 360 }}>
-            <AgGridReact
-              rowData={groupingEligible ? groupedTableRows : tableRows}
-              columnDefs={groupingEligible ? groupedColumns : columns}
-              defaultColDef={{ sortable: true, resizable: true }}
-              onGridReady={(e) => { gridApiRef.current = e.api; }}
-            />
-          </Box>
+          <ReportGrid
+            wrapperSx={{ height: 360 }}
+            rowData={groupingEligible ? groupedTableRows : tableRows}
+            columnDefs={groupingEligible ? groupedColumns : columns}
+            defaultColDef={{ sortable: true, resizable: true }}
+            onGridReady={(e) => { gridApiRef.current = e.api; }}
+          />
         </Paper>
       </Stack>
       {(opexLoading || capexLoading) && (

@@ -759,7 +759,8 @@
       "keyTable": "Key table",
       "summaryTable": "Summary table",
       "chart": "Chart",
-      "chartUnavailable": "Chart unavailable."
+      "chartUnavailable": "Chart unavailable.",
+      "printedOn": "Printed on {{date}}"
     },
     "filters": {
       "year": "Year",

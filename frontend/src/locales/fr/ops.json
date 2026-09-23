@@ -759,7 +759,8 @@
       "keyTable": "Tableau clé",
       "summaryTable": "Tableau récapitulatif",
       "chart": "Graphique",
-      "chartUnavailable": "Graphique non disponible."
+      "chartUnavailable": "Graphique non disponible.",
+      "printedOn": "Imprimé le {{date}}"
     },
     "filters": {
       "year": "Année",

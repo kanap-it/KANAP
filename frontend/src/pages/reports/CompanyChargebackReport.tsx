@@ -18,10 +18,9 @@ import {
   Typography,
 } from '@mui/material';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { AgGridReact } from 'ag-grid-react';
+import ReportGrid from '../../components/reports/ReportGrid';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
-import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import CompanySelect from '../../components/fields/CompanySelect';
 import api from '../../api';
@@ -457,7 +456,7 @@ export default function CompanyChargebackReport() {
         )}
 
         {isReady && companySummary && (
-          <Paper variant="outlined" sx={{ p: 2 }}>
+          <Paper variant="outlined" sx={{ p: 2 }} className="report-print-summary">
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between">
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{companySummary.name}</Typography>
@@ -510,17 +509,15 @@ export default function CompanyChargebackReport() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t("reports.companyChargeback.departmentTotalsDescription")}
               </Typography>
-              <Box component={AgGridBox}>
-                <AgGridReact
-                  rowData={departments}
-                  columnDefs={departmentColumns}
-                  defaultColDef={{ sortable: true, resizable: true }}
-                  onGridReady={(event) => {
-                    departmentGridRef.current = event.api;
-                  }}
-                  domLayout="autoHeight"
-                />
-              </Box>
+              <ReportGrid
+                rowData={departments}
+                columnDefs={departmentColumns}
+                defaultColDef={{ sortable: true, resizable: true }}
+                onGridReady={(event) => {
+                  departmentGridRef.current = event.api;
+                }}
+                domLayout="autoHeight"
+              />
             </Paper>
             <Paper variant="outlined" sx={{ p: 2, flex: 1 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>{t("reports.companyChargeback.departmentDistribution")}</Typography>
@@ -550,15 +547,13 @@ export default function CompanyChargebackReport() {
               {t("reports.companyChargeback.chargebackItemsDescription")}
             </Typography>
             {items.length > 0 ? (
-              <Box component={AgGridBox}>
-                <AgGridReact
-                  rowData={items}
-                  columnDefs={itemColumns}
-                  defaultColDef={{ sortable: true, resizable: true }}
-                  pinnedBottomRowData={itemsPinnedBottom}
-                  domLayout="autoHeight"
-                />
-              </Box>
+              <ReportGrid
+                rowData={items}
+                columnDefs={itemColumns}
+                defaultColDef={{ sortable: true, resizable: true }}
+                pinnedBottomRowData={itemsPinnedBottom}
+                domLayout="autoHeight"
+              />
             ) : (
               <Typography variant="body2" color="text.secondary">{t("reports.companyChargeback.noChargebackItems")}</Typography>
             )}
@@ -572,21 +567,21 @@ export default function CompanyChargebackReport() {
               {t("reports.companyChargeback.flowsDescription")}
             </Typography>
             {intercompanyRows.length > 0 ? (
-              <Box component={AgGridBox}>
-                <AgGridReact
-                  rowData={intercompanyRows}
-                  columnDefs={intercompanyColumns}
-                  defaultColDef={{ sortable: true, resizable: true }}
-                  pinnedBottomRowData={intercompanyPinnedBottom}
-                  onGridReady={(e) => { intercompanyGridRef.current = e.api; }}
-                  domLayout="autoHeight"
-                />
-              </Box>
+              <ReportGrid
+                rowData={intercompanyRows}
+                columnDefs={intercompanyColumns}
+                defaultColDef={{ sortable: true, resizable: true }}
+                pinnedBottomRowData={intercompanyPinnedBottom}
+                onGridReady={(e) => { intercompanyGridRef.current = e.api; }}
+                domLayout="autoHeight"
+              />
             ) : (
               <Typography variant="body2" color="text.secondary">No intercompany flows for the selected configuration.</Typography>
             )}
-            <Divider sx={{ my: 2 }} />
-            <Button variant="outlined" size="small" onClick={exportIntercompanyCsv}>{t("reports.companyChargeback.exportFlowsCsv")}</Button>
+            <Box className="report-print-hide">
+              <Divider sx={{ my: 2 }} />
+              <Button variant="outlined" size="small" onClick={exportIntercompanyCsv}>{t("reports.companyChargeback.exportFlowsCsv")}</Button>
+            </Box>
           </Paper>
         )}
 

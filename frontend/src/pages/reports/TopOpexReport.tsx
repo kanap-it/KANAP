@@ -1,9 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Autocomplete, Box, Checkbox, ListItemText, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
-import { AgGridReact } from 'ag-grid-react';
+import ReportGrid from '../../components/reports/ReportGrid';
 import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
-import AgGridBox from '../../components/AgGridBox';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, SummaryRow, pickYearSlot } from './useOpexSummary';
 import { metricLabels, MetricKey } from './reportMetrics';
@@ -369,15 +368,13 @@ export default function TopOpexReport() {
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>
-          <Box component={AgGridBox}>
-            <AgGridReact
-              rowData={processed}
-              columnDefs={columns}
-              defaultColDef={{ sortable: true, resizable: true }}
-              onGridReady={(e) => { gridApiRef.current = e.api; }}
-              domLayout="autoHeight"
-            />
-          </Box>
+          <ReportGrid
+            rowData={processed}
+            columnDefs={columns}
+            defaultColDef={{ sortable: true, resizable: true }}
+            onGridReady={(e) => { gridApiRef.current = e.api; }}
+            domLayout="autoHeight"
+          />
           <Box sx={{ mt: 2, display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' } }}>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Typography variant="body2" color="text.secondary">{`Top ${processed.length} total`}</Typography>
