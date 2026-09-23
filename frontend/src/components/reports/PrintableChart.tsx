@@ -1,26 +1,30 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Box } from '@mui/material';
 import { AgChartsReact } from 'ag-charts-react';
-import { REPORT_PRINT_SNAPSHOT_EVENT, useReportPrinting } from './reportPrint';
+import { PRINT_CONTENT_WIDTH, REPORT_PRINT_SNAPSHOT_EVENT, useReportPrinting } from './reportPrint';
 
 /**
  * An ag-charts chart that survives printing. A live canvas keeps its screen pixel size
  * on paper and overflows the page, so on paper the chart is a copy of its pixels in a
  * page-wide canvas. The copy is taken synchronously when print mode starts (so it exists
  * before the browser lays the pages out) and refreshed on the layout's snapshot event,
- * after the live chart has redrawn in the light theme. The live chart stays mounted and
- * laid out off-page meanwhile, so it can redraw and the instance survives the round trip.
+ * after the live chart has redrawn in the light theme at its paper width. The live chart
+ * stays mounted and laid out off-page meanwhile, so it can redraw and the instance
+ * survives the round trip.
  */
 export default function PrintableChart({
   options,
   height,
   chartRef,
   label,
+  printWidth = PRINT_CONTENT_WIDTH,
 }: {
   options: any;
   height: number | string;
   chartRef?: React.Ref<any>;
   label?: string;
+  /** Width the chart is redrawn at for paper: the page, or a share of it for tiles. */
+  printWidth?: number;
 }) {
   const printing = useReportPrinting();
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -75,7 +79,7 @@ export default function PrintableChart({
         ref={wrapperRef}
         sx={
           parked
-            ? { position: 'absolute', left: -10000, top: 0, width: copy.width, height, opacity: 0, pointerEvents: 'none' }
+            ? { position: 'absolute', left: -10000, top: 0, width: printWidth, height, opacity: 0, pointerEvents: 'none' }
             : { height }
         }
       >

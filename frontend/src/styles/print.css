@@ -74,6 +74,10 @@
   .report-print-frame .MuiAlert-root {
     break-inside: avoid;
   }
+  /* Chart tiles: two per row on paper */
+  .report-print-two-up {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
 
   /* Static rendering of a report grid */
   .report-print-table {

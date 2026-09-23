@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Box, Checkbox, ListItemText, MenuItem, Stack, TextField, Typography, useTheme } from '@mui/material';
 import PrintableChart from '../../components/reports/PrintableChart';
-import { useReportTheme } from '../../components/reports/reportPrint';
+import { PRINT_CONTENT_WIDTH, useReportTheme } from '../../components/reports/reportPrint';
 import ReportGrid from '../../components/reports/ReportGrid';
 import type { ColDef, ColGroupDef, ICellRendererParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -178,6 +178,9 @@ const TEXT_BUTTON_SX = {
  * lightness band, the chroma floor, the colour-vision separation and the 3:1 contrast against
  * the chart surface in both modes; the charter's blue/green pair does not in dark mode.
  */
+/** Two chart tiles per printed row: half the page minus the grid gap and the tile padding. */
+const FLOW_TILE_PRINT_WIDTH = Math.floor((PRINT_CONTENT_WIDTH - 12) / 2) - 24;
+
 const SERIES_COLORS = {
   light: { created: '#2a78d6', closed: '#eb6834' },
   dark: { created: '#3987e5', closed: '#d95926' },
@@ -1341,6 +1344,7 @@ export default function FlowReport() {
         </Stack>
 
         <Box
+          className="report-print-two-up"
           sx={{
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' },
@@ -1367,7 +1371,7 @@ export default function FlowReport() {
                     : t('reports.flow.charts.byWeek')}
                 </Box>
               </Typography>
-              <PrintableChart options={chart.options as any} height={260} label={t(`reports.flow.tiles.${chart.key}`)} />
+              <PrintableChart options={chart.options as any} height={260} label={t(`reports.flow.tiles.${chart.key}`)} printWidth={FLOW_TILE_PRINT_WIDTH} />
             </Box>
           ))}
         </Box>

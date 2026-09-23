@@ -43,3 +43,6 @@ export function useReportTheme(): Theme {
  * had time to redraw in the light theme: every `PrintableChart` refreshes its copy.
  */
 export const REPORT_PRINT_SNAPSHOT_EVENT = 'kanap:report-print-snapshot';
+
+/** Printable width of an A4 page with the print stylesheet's margins, in CSS pixels. */
+export const PRINT_CONTENT_WIDTH = 700;
