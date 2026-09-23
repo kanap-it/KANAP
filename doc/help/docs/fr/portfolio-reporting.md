@@ -43,11 +43,11 @@ L'en-tête affiche la période utilisée et permet de basculer entre les 7, 30 e
 Une ligne par entité se lit ainsi : **14 créés · 9 clôturés · 52 ouverts (+5)**.
 
 - **Créés** : éléments créés pendant la période et toujours présents aujourd'hui.
-- **Clôturés** : éléments passés d'un statut ouvert à un statut clos pendant la période. Clos signifie Terminé ou Annulé pour les tâches et les projets, Rejeté ou Converti pour les demandes.
+- **Clôturés** : éléments que le dernier changement de statut de la période a laissés clos. La création compte comme un changement de statut : un élément créé déjà terminé compte comme clôturé. Clos signifie Terminé ou Annulé pour les tâches et les projets, Rejeté ou Converti pour les demandes.
 - **Ouverts** : éléments ouverts en ce moment, quoi qu'il se soit passé pendant la période. Ce chiffre est un lien vers la liste correspondante.
 - **(+5)** : la variation nette, affichée seulement quand elle n'est pas nulle. C'est créés, plus rouverts, moins clôturés. Les éléments rouverts sont ceux passés d'un statut clos à un statut ouvert. Survolez le chiffre pour voir la formule.
 
-Créés et clôturés proviennent de l'historique des modifications. Ils couvrent donc toutes les façons d'écrire un élément : l'application, un import CSV et les agents. Aucun filtre de liste ne reproduit cet historique, ces deux chiffres ne sont donc pas des liens.
+Créés et clôturés proviennent de l'historique des modifications. Ils couvrent donc toutes les façons d'écrire un élément : l'application, un import CSV et les agents. Aucun filtre de liste ne reproduit cet historique : ces deux chiffres ouvrent donc le **Bilan de la période** sur les mêmes jours. Ses listes des créations et des clôtures montrent exactement les éléments comptés ici. Un zéro n'est pas un lien.
 
 ### Quelles tâches sont comptées
 

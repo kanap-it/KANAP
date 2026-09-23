@@ -2,7 +2,7 @@
 export type SteeringFlow = {
   /** Items created during the period and still present. */
   created: number;
-  /** Items that moved from an open status to a closed one during the period. */
+  /** Items whose last status event of the period (creation included) leaves them closed: the period review rule. */
   closed: number;
   /** Items that moved from a closed status back to an open one during the period. */
   reopened: number;

@@ -44,6 +44,13 @@ export type SteeringSummary = {
 export const STEERING_PERIODS = [7, 30, 90];
 export const STEERING_DAYS_STORAGE_KEY = 'kanap.portfolioReports.steeringDays';
 
+/** The period review's object key for each row of the strip. */
+const ENTITY_OF = { tasks: 'task', requests: 'request', projects: 'project' } as const;
+
+/** The period review on the strip's own days, narrowed to one object. */
+export const periodReviewPath = (startDate: string, endDate: string) => (entity: string) =>
+  `/portfolio/reports/weekly?${new URLSearchParams({ startDate, endDate, entities: entity }).toString()}`;
+
 /** The window after which a running project is reported as forgotten. Mirrors the backend. */
 const STALE_DAYS = 30;
 
@@ -224,9 +231,10 @@ function StaleProjectsDialog({
  * The daily steering view above the report cards: what moved over the chosen period, and what
  * is waiting for someone. Flow figures stay neutral; only what needs a decision is orange.
  *
- * A figure is a link only when the matching list can show exactly the same population. The
- * period counts come from the audit trail, which no list filter reproduces, so "created" and
- * "closed" stay plain text. The attention figures all open the task list.
+ * A figure is a link only when its target shows exactly the same population. "Open" opens the
+ * list; "created" and "closed" come from the audit trail, which no list filter reproduces, so
+ * they open the period review on the same days, whose lists count them with the same rules.
+ * The attention figures all open the task list. A zero opens nothing.
  */
 export default function SteeringStrip() {
   const { t } = useTranslation('portfolio');
@@ -252,11 +260,16 @@ export default function SteeringStrip() {
     storeDays(next);
   };
 
+  // Created and closed are audit events: they open the period review on the same days, whose
+  // created and closed lists follow the same rules as these counts.
+  const reviewPath = periodReviewPath(data.startDate, data.endDate);
+
   const flowFigures = (key: 'tasks' | 'requests' | 'projects', to: string): Figure[] => {
     const flow = data[key];
+    const review = reviewPath(ENTITY_OF[key]);
     return [
-      { key: 'created', label: t('reports.steering.flow.created', { count: flow.created }), to: null },
-      { key: 'closed', label: t('reports.steering.flow.closed', { count: flow.closed }), to: null },
+      { key: 'created', label: t('reports.steering.flow.created', { count: flow.created }), to: flow.created > 0 ? review : null },
+      { key: 'closed', label: t('reports.steering.flow.closed', { count: flow.closed }), to: flow.closed > 0 ? review : null },
       { key: 'open', label: t('reports.steering.flow.open', { count: flow.openNow }), to },
     ];
   };

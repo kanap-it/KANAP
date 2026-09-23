@@ -85,6 +85,33 @@ describe('SteeringStrip', () => {
     expect(screen.getByText('Last 30 days')).toBeTruthy();
   });
 
+  it('links created and closed to the period review on the same days and object', async () => {
+    get.mockResolvedValue({
+      data: summary({
+        tasks: flow({ created: 14, closed: 9, openNow: 52, netChange: 5 }),
+        requests: flow({ created: 2, closed: 0, openNow: 7, netChange: 2 }),
+        projects: flow({ created: 0, closed: 1, openNow: 4, netChange: -1 }),
+      }),
+    });
+    renderStrip();
+
+    const review = (label: string) => {
+      const href = screen.getByText(label).closest('a')?.getAttribute('href') ?? '';
+      const [path, search] = href.split('?');
+      const params = new URLSearchParams(search);
+      return { path, startDate: params.get('startDate'), endDate: params.get('endDate'), entities: params.get('entities') };
+    };
+    await screen.findByText('14 created');
+    const period = { path: '/portfolio/reports/weekly', startDate: '2026-08-23', endDate: '2026-09-21' };
+    expect(review('14 created')).toEqual({ ...period, entities: 'task' });
+    expect(review('9 closed')).toEqual({ ...period, entities: 'task' });
+    expect(review('2 created')).toEqual({ ...period, entities: 'request' });
+    expect(review('1 closed')).toEqual({ ...period, entities: 'project' });
+    // A zero opens nothing.
+    expect(screen.getByText('0 closed').closest('a')).toBeNull();
+    expect(screen.getByText('0 created').closest('a')).toBeNull();
+  });
+
   it('leaves out the attention line when nothing needs attention', async () => {
     get.mockResolvedValue({ data: summary() });
     renderStrip();
