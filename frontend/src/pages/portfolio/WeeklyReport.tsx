@@ -17,7 +17,7 @@ import {
   useTheme,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { AgGridReact } from 'ag-grid-react';
+import ReportGrid from '../../components/reports/ReportGrid';
 import type { ColDef, ICellRendererParams, ValueGetterParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
@@ -27,7 +27,6 @@ import ReportLayout, {
   reportFilterMenuProps,
   reportFilterSelectSx,
 } from '../../components/reports/ReportLayout';
-import AgGridBox from '../../components/AgGridBox';
 import DateEUField from '../../components/fields/DateEUField';
 import {
   idsFromParams,
@@ -397,17 +396,16 @@ function WeeklyReportSubSection<TRow extends { ref: string }>({
         {heading}
       </Typography>
       {rows.length > 0 && (
-        <Box component={AgGridBox} sx={AUTO_HEIGHT_GRID_SX}>
-          <AgGridReact<TRow>
-            rowData={rows}
-            columnDefs={columns}
-            defaultColDef={{ sortable: true, resizable: true, suppressMenu: true }}
-            animateRows
-            suppressCellFocus
-            domLayout="autoHeight"
-            getRowId={(params) => params.data.ref}
-          />
-        </Box>
+        <ReportGrid<TRow>
+          wrapperSx={AUTO_HEIGHT_GRID_SX}
+          rowData={rows}
+          columnDefs={columns}
+          defaultColDef={{ sortable: true, resizable: true, suppressMenu: true }}
+          animateRows
+          suppressCellFocus
+          domLayout="autoHeight"
+          getRowId={(params) => params.data.ref}
+        />
       )}
     </Box>
   );

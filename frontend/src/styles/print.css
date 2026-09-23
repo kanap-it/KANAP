@@ -67,7 +67,8 @@
   .report-print-frame .MuiPaper-root > .MuiTypography-body2 {
     break-after: avoid;
   }
-  .report-print-chart {
+  .report-print-chart,
+  .report-print-frame *:has(> canvas) {
     break-inside: avoid;
   }
   .report-print-frame .MuiAlert-root {
@@ -76,6 +77,7 @@
 
   /* Static rendering of a report grid */
   .report-print-table {
+    break-before: avoid;
     width: 100%;
     border-collapse: collapse;
     font-size: 11px;
@@ -90,6 +92,14 @@
   }
   .report-print-table tr {
     break-inside: avoid;
+  }
+  .report-print-table tr.group th {
+    text-align: center;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  .report-print-table tr.group th:empty {
+    border-bottom: none;
   }
   .report-print-table th {
     text-align: left;

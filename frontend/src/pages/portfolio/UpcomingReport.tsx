@@ -1,13 +1,12 @@
 import React, { useCallback, useId, useMemo, useState } from 'react';
 import { Alert, Box, Collapse, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { AgGridReact } from 'ag-grid-react';
+import ReportGrid from '../../components/reports/ReportGrid';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api';
-import AgGridBox from '../../components/AgGridBox';
 import ReportLayout, { reportGridHeight, useFillViewportHeight } from '../../components/reports/ReportLayout';
 import {
   idsFromParams,
@@ -575,15 +574,14 @@ export default function UpcomingReport() {
 
   const grid = <TRow extends { ref: string }>(rows: TRow[], columnDefs: ColDef<TRow>[]) => (
     // As tall as the rows need, never taller than the screen below the filter bar.
-    <Box component={AgGridBox} sx={{ ...GRID_SX, height: reportGridHeight(fillHeight, rows.length, 0) }}>
-      <AgGridReact<TRow>
-        rowData={rows}
-        columnDefs={columnDefs}
-        defaultColDef={{ sortable: true, resizable: true, suppressMenu: true }}
-        suppressCellFocus
-        getRowId={(params) => params.data.ref}
-      />
-    </Box>
+    <ReportGrid<TRow>
+      wrapperSx={{ ...GRID_SX, height: reportGridHeight(fillHeight, rows.length, 0) }}
+      rowData={rows}
+      columnDefs={columnDefs}
+      defaultColDef={{ sortable: true, resizable: true, suppressMenu: true }}
+      suppressCellFocus
+      getRowId={(params) => params.data.ref}
+    />
   );
 
   const within = (days: number) => t('reports.upcoming.within', { count: days });
