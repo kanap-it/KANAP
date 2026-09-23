@@ -39,7 +39,6 @@ export default function PrintableChart({
       target.width = live.width;
       target.height = live.height;
       const width = live.clientWidth || live.width;
-      target.style.maxWidth = `${width}px`;
       const ctx = target.getContext('2d');
       if (!ctx) return;
       ctx.drawImage(live, 0, 0);
@@ -72,6 +71,7 @@ export default function PrintableChart({
           ref={printCanvasRef}
           aria-label={label}
           style={{ display: copy ? 'block' : 'none', width: '100%', height: 'auto' }}
+          // Fills its box: the box is laid out at the width the chart was redrawn at.
         />
       )}
       {/* Same slot in both modes so the chart instance survives the switch to print and back. */}

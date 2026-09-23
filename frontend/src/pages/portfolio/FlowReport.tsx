@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Box, Checkbox, ListItemText, MenuItem, Stack, TextField, Typography, useTheme } from '@mui/material';
 import PrintableChart from '../../components/reports/PrintableChart';
-import { PRINT_CONTENT_WIDTH, useReportTheme } from '../../components/reports/reportPrint';
+import { PRINT_CONTENT_WIDTH, useReportPrinting, useReportTheme } from '../../components/reports/reportPrint';
 import ReportGrid from '../../components/reports/ReportGrid';
 import type { ColDef, ColGroupDef, ICellRendererParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -325,6 +325,7 @@ export default function FlowReport() {
   const { t } = useTranslation('portfolio');
   const locale = useLocale();
   const theme = useReportTheme();
+  const printing = useReportPrinting();
   const navigate = useNavigate();
   const dark = theme.palette.mode === 'dark';
 
@@ -1344,10 +1345,10 @@ export default function FlowReport() {
         </Stack>
 
         <Box
-          className="report-print-two-up"
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' },
+            // Two tiles per row on paper, each chart redrawn at half the page width.
+            gridTemplateColumns: printing ? 'repeat(2, minmax(0, 1fr))' : { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' },
             gap: 1.5,
           }}
         >
