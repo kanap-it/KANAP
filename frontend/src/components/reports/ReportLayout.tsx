@@ -10,7 +10,7 @@ import { FieldLabel } from '../design';
 import { compactSelectMenuProps } from '../../theme/formSx';
 import { lightIslandTheme } from '../../config/ThemeContext';
 import { useLocale } from '../../i18n/useLocale';
-import { REPORT_PRINT_SNAPSHOT_EVENT, setReportPrinting, useReportPrinting } from './reportPrint';
+import { prepareReportPrint, setReportPrinting, useReportPrinting } from './reportPrint';
 
 /**
  * Label-above wrapper for a filter control in a report filter bar. The charter bans
@@ -92,12 +92,10 @@ export function reportGridHeight(fillHeight: number, rowCount: number, minHeight
   return Math.max(minHeight, Math.min(fillHeight, contentHeight));
 }
 
-const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
-
 /**
  * Print mode of a report. The toolbar button, Ctrl+P and `?print=1` go through
- * `requestPrint`: switch to print mode, give the charts a moment to redraw in the light
- * theme, refresh their copies, then open the dialog. A print started elsewhere (browser
+ * `requestPrint`: switch to print mode, wait for every chart to be redrawn in the light
+ * theme at its paper width and copied, then open the dialog. A print started elsewhere (browser
  * menu) still gets the switch, flushed synchronously on `beforeprint` because the browser
  * lays the pages out right after the handlers return. `afterprint` puts the screen back.
  */
@@ -110,8 +108,7 @@ function useReportPrintMode() {
     requestingRef.current = true;
     try {
       flushSync(() => setReportPrinting(true));
-      await wait(600);
-      window.dispatchEvent(new Event(REPORT_PRINT_SNAPSHOT_EVENT));
+      await prepareReportPrint();
       window.print();
     } finally {
       requestingRef.current = false;

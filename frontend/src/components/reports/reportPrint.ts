@@ -39,10 +39,22 @@ export function useReportTheme(): Theme {
 }
 
 /**
- * Fired by `ReportLayout` right before it opens the print dialog, once the charts have
- * had time to redraw in the light theme: every `PrintableChart` refreshes its copy.
+ * Charts register a preparer while mounted. `ReportLayout` awaits them all after switching
+ * to print mode and before opening the dialog: each waits until its chart has actually
+ * been redrawn at its paper width, then takes the copy that goes on paper.
  */
-export const REPORT_PRINT_SNAPSHOT_EVENT = 'kanap:report-print-snapshot';
+const preparers = new Set<() => Promise<void>>();
+
+export function registerPrintPreparer(prepare: () => Promise<void>) {
+  preparers.add(prepare);
+  return () => {
+    preparers.delete(prepare);
+  };
+}
+
+export async function prepareReportPrint(): Promise<void> {
+  await Promise.all(Array.from(preparers).map((prepare) => prepare().catch(() => undefined)));
+}
 
 /** Printable width of an A4 page with the print stylesheet's margins, in CSS pixels. */
 export const PRINT_CONTENT_WIDTH = 700;

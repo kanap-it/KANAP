@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Box } from '@mui/material';
 import { AgChartsReact } from 'ag-charts-react';
-import { PRINT_CONTENT_WIDTH, REPORT_PRINT_SNAPSHOT_EVENT, useReportPrinting } from './reportPrint';
+import { PRINT_CONTENT_WIDTH, registerPrintPreparer, useReportPrinting } from './reportPrint';
 
 /**
  * An ag-charts chart that survives printing. A live canvas keeps its screen pixel size
  * on paper and overflows the page, so on paper the chart is a copy of its pixels in a
  * page-wide canvas. The copy is taken synchronously when print mode starts (so it exists
- * before the browser lays the pages out) and refreshed on the layout's snapshot event,
- * after the live chart has redrawn in the light theme at its paper width. The live chart
- * stays mounted and laid out off-page meanwhile, so it can redraw and the instance
- * survives the round trip.
+ * before the browser lays the pages out) and taken again by the print preparer once the
+ * live chart has actually been redrawn in the light theme at its paper width. The live
+ * chart stays mounted and laid out off-page meanwhile, so it can redraw and the instance
+ * survives the round trip. A copy is never scaled up: if the redraw did not happen in
+ * time, the chart prints at its screen size rather than blurred and oversized.
  */
+const nextFrame = () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 export default function PrintableChart({
   options,
   height,
@@ -39,6 +42,7 @@ export default function PrintableChart({
       target.width = live.width;
       target.height = live.height;
       const width = live.clientWidth || live.width;
+      target.style.maxWidth = `${width}px`;
       const ctx = target.getContext('2d');
       if (!ctx) return;
       ctx.drawImage(live, 0, 0);
@@ -56,11 +60,22 @@ export default function PrintableChart({
     snapshot();
   }, [printing, snapshot]);
 
-  useEffect(() => {
-    if (!printing) return;
-    window.addEventListener(REPORT_PRINT_SNAPSHOT_EVENT, snapshot);
-    return () => window.removeEventListener(REPORT_PRINT_SNAPSHOT_EVENT, snapshot);
-  }, [printing, snapshot]);
+  // Wait for the live chart to be laid out and drawn at the paper width, then copy it.
+  useEffect(() => registerPrintPreparer(async () => {
+    const deadline = Date.now() + 2500;
+    while (Date.now() < deadline) {
+      const live = wrapperRef.current?.querySelector('canvas');
+      const dpr = window.devicePixelRatio || 1;
+      if (live && Math.abs(live.clientWidth - printWidth) <= 2 && live.width >= Math.floor(live.clientWidth * dpr)) {
+        await nextFrame();
+        await nextFrame();
+        await wait(150);
+        break;
+      }
+      await wait(50);
+    }
+    snapshot();
+  }), [printWidth, snapshot]);
 
   const parked = printing && copy != null;
 
@@ -71,7 +86,6 @@ export default function PrintableChart({
           ref={printCanvasRef}
           aria-label={label}
           style={{ display: copy ? 'block' : 'none', width: '100%', height: 'auto' }}
-          // Fills its box: the box is laid out at the width the chart was redrawn at.
         />
       )}
       {/* Same slot in both modes so the chart instance survives the switch to print and back. */}
