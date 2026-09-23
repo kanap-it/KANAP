@@ -24,3 +24,11 @@ export function formatMetricList(metrics: readonly MetricKey[], separator = ', '
 export function formatMetricSelection(value: unknown, separator = ', '): string {
   return formatMetricList(toMetricArray(value), separator);
 }
+
+/**
+ * Height of a horizontal bar chart from its row count: one bar row per category plus
+ * the title, axis and footnote, so a single department does not become a wall of colour.
+ */
+export function horizontalBarChartHeight(rowCount: number, minHeight = 180, maxHeight = 520): number {
+  return Math.max(minHeight, Math.min(maxHeight, 120 + Math.max(rowCount, 1) * 44));
+}

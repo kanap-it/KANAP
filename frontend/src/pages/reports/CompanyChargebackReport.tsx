@@ -24,7 +24,7 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import CompanySelect from '../../components/fields/CompanySelect';
 import api from '../../api';
-import { metricLabels, MetricKey } from './reportMetrics';
+import { metricLabels, MetricKey, horizontalBarChartHeight } from './reportMetrics';
 import { useLocale } from '../../i18n/useLocale';
 import { useTranslation } from 'react-i18next';
 
@@ -312,9 +312,9 @@ export default function CompanyChargebackReport() {
       return null;
     }
     return {
-      title: { text: `Chargeback by department — ${data.company.name}` },
-      subtitle: { text: `${metricLabel} totals` },
-      footnote: { text: `Overall ${metricLabel}: ${formatCurrency(data.total)}` },
+      title: { text: t('reports.companyChargeback.chartTitle', { name: data.company.name }), fontSize: 14 },
+      subtitle: { text: t('reports.companyChargeback.chartSubtitle', { metric: metricLabel }), fontSize: 12 },
+      footnote: { text: t('reports.companyChargeback.chartFootnote', { metric: metricLabel, total: formatCurrency(data.total) }), fontSize: 11 },
       data: chartData,
       axes: [
         { type: 'category', position: 'left', label: { padding: 8 } },
@@ -356,7 +356,7 @@ export default function CompanyChargebackReport() {
       legend: { enabled: false },
       animation: { enabled: true, duration: 700 },
     };
-  }, [chartData, data?.company, data?.total, formatCurrency, formatNumber, metricLabel]);
+  }, [chartData, data?.company, data?.total, formatCurrency, formatNumber, metricLabel, t]);
 
   const exportDepartmentsCsv = () => {
     if (!companyId) return;
@@ -525,7 +525,7 @@ export default function CompanyChargebackReport() {
                 {t("reports.companyChargeback.departmentDistributionDescription")}
               </Typography>
               {chartOptions ? (
-                <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={480} />
+                <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={horizontalBarChartHeight(chartData.length)} />
               ) : (
                 <Typography variant="body2" color="text.secondary">{t("reports.shared.chartUnavailable")}</Typography>
               )}

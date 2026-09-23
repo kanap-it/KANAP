@@ -23,7 +23,7 @@ import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import api from '../../api';
-import { metricLabels, MetricKey } from './reportMetrics';
+import { metricLabels, MetricKey, horizontalBarChartHeight } from './reportMetrics';
 import { useLocale } from '../../i18n/useLocale';
 import { useTranslation } from 'react-i18next';
 
@@ -398,9 +398,9 @@ export default function GlobalChargebackReport() {
 
   const chartOptions = useMemo(() => {
     return {
-      title: { text: `Global chargeback by company — ${year}` },
-      subtitle: { text: `${metricLabel} totals` },
-      footnote: { text: `Overall ${metricLabel}: ${formatCurrency(totalAmount)}` },
+      title: { text: t('reports.globalChargeback.chartTitle', { year }), fontSize: 14 },
+      subtitle: { text: t('reports.globalChargeback.chartSubtitle', { metric: metricLabel }), fontSize: 12 },
+      footnote: { text: t('reports.globalChargeback.chartFootnote', { metric: metricLabel, total: formatCurrency(totalAmount) }), fontSize: 11 },
       data: chartData,
       axes: [
         { type: 'category', position: 'left', label: { padding: 8 } },
@@ -441,7 +441,7 @@ export default function GlobalChargebackReport() {
       legend: { enabled: false },
       animation: { enabled: true, duration: 700 },
     };
-  }, [chartData, formatCurrency, formatNumber, metricLabel, totalAmount, year]);
+  }, [chartData, formatCurrency, formatNumber, metricLabel, t, totalAmount, year]);
 
   const exportCsv = () => {
     detailedGridApiRef.current?.exportDataAsCsv?.({ fileName: `global-chargeback-detailed-${year}-${metric}.csv` });
@@ -599,7 +599,7 @@ export default function GlobalChargebackReport() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t("reports.globalChargeback.distributionDescription")}
               </Typography>
-              <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={480} />
+              <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={horizontalBarChartHeight(chartData.length)} />
             </Paper>
           </Stack>
         )}
