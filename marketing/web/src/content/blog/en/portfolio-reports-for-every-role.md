@@ -2,7 +2,7 @@
 title: A report for every question in the IT department
 description: "The CIO, the project manager, the team lead and the engineer each have their own questions. KANAP's portfolio reports answer them in one click."
 date: 2026-09-23
-topic: product
+topic: portfolio
 author: Friedrich
 authorRole: Founder, CIO
 draft: false
