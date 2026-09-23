@@ -13,7 +13,7 @@ import {
   ListItemText,
   Autocomplete,
 } from '@mui/material';
-import { AgGridReact } from 'ag-grid-react';
+import ReportGrid from '../../components/reports/ReportGrid';
 import type { ColDef, CellStyle } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import ReportLayout, {
@@ -23,7 +23,6 @@ import ReportLayout, {
   reportGridHeight,
   useFillViewportHeight,
 } from '../../components/reports/ReportLayout';
-import AgGridBox from '../../components/AgGridBox';
 import { drawerMenuItemSx, textTabSx, textTabsSx } from '../../theme/formSx';
 import api from '../../api';
 import ContributorDrilldownDialog from './components/ContributorDrilldownDialog';
@@ -533,20 +532,20 @@ export default function CapacityHeatmapReport() {
             <Box ref={heatmapExportRef} sx={{ width: '100%' }}>
               {/* The grid fills what is left of the viewport; the legend and footnotes below
                   are reserved by `useFillViewportHeight`'s bottom padding. */}
-              <Box component={AgGridBox} ref={gridRef} sx={{ height: reportGridHeight(fillHeight, rows.length) }}>
-                <AgGridReact
-                  rowData={rows}
-                  columnDefs={groupBy === 'team' ? teamColumns : contributorColumns}
-                  defaultColDef={{ sortable: true, resizable: true }}
-                  onGridReady={(e) => { heatmapGridRef.current = e.api; }}
-                  onRowClicked={(e) => {
-                    if (groupBy !== 'contributor') return;
-                    const id = e.data?.contributorId;
-                    if (!id) return;
-                    setDrilldownContributor({ id, name: e.data?.contributorName || t('reports.capacityHeatmap.values.contributorFallback') });
-                  }}
-                />
-              </Box>
+              <ReportGrid
+                wrapperRef={gridRef}
+                wrapperSx={{ height: reportGridHeight(fillHeight, rows.length) }}
+                rowData={rows}
+                columnDefs={groupBy === 'team' ? teamColumns : contributorColumns}
+                defaultColDef={{ sortable: true, resizable: true }}
+                onGridReady={(e) => { heatmapGridRef.current = e.api; }}
+                onRowClicked={(e) => {
+                  if (groupBy !== 'contributor') return;
+                  const id = e.data?.contributorId;
+                  if (!id) return;
+                  setDrilldownContributor({ id, name: e.data?.contributorName || t('reports.capacityHeatmap.values.contributorFallback') });
+                }}
+              />
             </Box>
             <Stack direction="row" flexWrap="wrap" sx={{ mt: 1, columnGap: 2, rowGap: 0.5 }}>
               {HEATMAP_LEGEND_BANDS.map((band) => (
@@ -589,14 +588,13 @@ export default function CapacityHeatmapReport() {
             </Stack>
             <Collapse in={unassignedOpen}>
               <Box sx={{ mt: 2 }}>
-                <Box component={AgGridBox} sx={{ height: 300 }}>
-                  <AgGridReact
-                    rowData={unassigned}
-                    columnDefs={unassignedColumns}
-                    defaultColDef={{ sortable: true, resizable: true }}
-                    onGridReady={(e) => { unassignedGridRef.current = e.api; }}
-                  />
-                </Box>
+                <ReportGrid
+                  wrapperSx={{ height: 300 }}
+                  rowData={unassigned}
+                  columnDefs={unassignedColumns}
+                  defaultColDef={{ sortable: true, resizable: true }}
+                  onGridReady={(e) => { unassignedGridRef.current = e.api; }}
+                />
                 {!isLoading && unassigned.length === 0 && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                     {t('reports.capacityHeatmap.states.noUnassignedWork')}

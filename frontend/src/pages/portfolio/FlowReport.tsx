@@ -1,13 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Box, Checkbox, ListItemText, MenuItem, Stack, TextField, Typography, useTheme } from '@mui/material';
-import { AgChartsReact } from 'ag-charts-react';
-import { AgGridReact } from 'ag-grid-react';
+import PrintableChart from '../../components/reports/PrintableChart';
+import { PRINT_CONTENT_WIDTH, useReportPrinting, useReportTheme } from '../../components/reports/reportPrint';
+import ReportGrid from '../../components/reports/ReportGrid';
 import type { ColDef, ColGroupDef, ICellRendererParams } from 'ag-grid-community';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../api';
-import AgGridBox from '../../components/AgGridBox';
 import ReportLayout, {
   ReportFilter,
   reportFilterMenuProps,
@@ -178,6 +178,9 @@ const TEXT_BUTTON_SX = {
  * lightness band, the chroma floor, the colour-vision separation and the 3:1 contrast against
  * the chart surface in both modes; the charter's blue/green pair does not in dark mode.
  */
+/** Two chart tiles per printed row: half the page minus the grid gap and the tile padding. */
+const FLOW_TILE_PRINT_WIDTH = Math.floor((PRINT_CONTENT_WIDTH - 12) / 2) - 24;
+
 const SERIES_COLORS = {
   light: { created: '#2a78d6', closed: '#eb6834' },
   dark: { created: '#3987e5', closed: '#d95926' },
@@ -321,7 +324,8 @@ type StuckPanel = { entity: EntityKey; status: string | null };
 export default function FlowReport() {
   const { t } = useTranslation('portfolio');
   const locale = useLocale();
-  const theme = useTheme();
+  const theme = useReportTheme();
+  const printing = useReportPrinting();
   const navigate = useNavigate();
   const dark = theme.palette.mode === 'dark';
 
@@ -1343,7 +1347,8 @@ export default function FlowReport() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' },
+            // Two tiles per row on paper, each chart redrawn at half the page width.
+            gridTemplateColumns: printing ? 'repeat(2, minmax(0, 1fr))' : { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' },
             gap: 1.5,
           }}
         >
@@ -1367,14 +1372,12 @@ export default function FlowReport() {
                     : t('reports.flow.charts.byWeek')}
                 </Box>
               </Typography>
-              <Box sx={{ height: 260 }}>
-                <AgChartsReact options={chart.options as any} />
-              </Box>
+              <PrintableChart options={chart.options as any} height={260} label={t(`reports.flow.tiles.${chart.key}`)} printWidth={FLOW_TILE_PRINT_WIDTH} />
             </Box>
           ))}
         </Box>
 
-        <Box sx={{ mt: 1.5 }}>
+        <Box sx={{ mt: 1.5 }} className="report-print-hide">
           <Typography
             component="button"
             type="button"
@@ -1390,31 +1393,27 @@ export default function FlowReport() {
           <Box ref={flowTableRef} sx={{ mt: 1, display: 'grid', gap: 2 }}>
             <Box>
               <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.tasksByWeek')}</Typography>
-              <Box
-                component={AgGridBox}
-                sx={{ width: '100%', height: reportGridHeight(Math.round(flowTableFill / 2), weekRows.length) }}
-              >
-                <AgGridReact<WeekTableRow>
-                  rowData={weekRows}
-                  columnDefs={weekColumns}
-                  defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
-                  suppressCellFocus
-                  getRowId={(params) => params.data.periodStart}
-                />
-              </Box>
+              <ReportGrid<WeekTableRow>
+                wrapperSx={{ width: '100%', height: reportGridHeight(Math.round(flowTableFill / 2), weekRows.length) }}
+                rowData={weekRows}
+                columnDefs={weekColumns}
+                defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                suppressCellFocus
+                getRowId={(params) => params.data.periodStart}
+              />
             </Box>
             <Box>
               <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.itemsByMonth')}</Typography>
-              <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
-                <AgGridReact<MonthTableRow>
-                  rowData={monthRows}
-                  columnDefs={monthColumns}
-                  defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
-                  suppressCellFocus
-                  domLayout="autoHeight"
-                  getRowId={(params) => params.data.periodStart}
-                />
-              </Box>
+              <ReportGrid<MonthTableRow>
+                wrapperClassName="kanap-dense-grid"
+                wrapperSx={{ width: '100%' }}
+                rowData={monthRows}
+                columnDefs={monthColumns}
+                defaultColDef={{ sortable: false, resizable: true, suppressMenu: true }}
+                suppressCellFocus
+                domLayout="autoHeight"
+                getRowId={(params) => params.data.periodStart}
+              />
             </Box>
           </Box>
         )}
@@ -1444,16 +1443,16 @@ export default function FlowReport() {
                 {t('reports.flow.empty.age')}
               </Typography>
             ) : (
-              <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
-                <AgGridReact<AgeTableRow>
-                  rowData={ageRows}
-                  columnDefs={ageColumns}
-                  defaultColDef={DENSE_COL_DEF}
-                  suppressCellFocus
-                  domLayout="autoHeight"
-                  getRowId={(params) => (params.data.isTotal ? 'total' : params.data.taskTypeId ?? 'none')}
-                />
-              </Box>
+              <ReportGrid<AgeTableRow>
+                wrapperClassName="kanap-dense-grid"
+                wrapperSx={{ width: '100%' }}
+                rowData={ageRows}
+                columnDefs={ageColumns}
+                defaultColDef={DENSE_COL_DEF}
+                suppressCellFocus
+                domLayout="autoHeight"
+                getRowId={(params) => (params.data.isTotal ? 'total' : params.data.taskTypeId ?? 'none')}
+              />
             )}
           </Box>
 
@@ -1467,16 +1466,16 @@ export default function FlowReport() {
                     {grid.empty}
                   </Typography>
                 ) : (
-                  <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
-                    <AgGridReact<CreatedAgeTableRow>
-                      rowData={rows}
-                      columnDefs={createdAgeColumns(grid.key)}
-                      defaultColDef={DENSE_COL_DEF}
-                      suppressCellFocus
-                      domLayout="autoHeight"
-                      getRowId={(params) => (params.data.isTotal ? 'total' : params.data.status)}
-                    />
-                  </Box>
+                  <ReportGrid<CreatedAgeTableRow>
+                    wrapperClassName="kanap-dense-grid"
+                    wrapperSx={{ width: '100%' }}
+                    rowData={rows}
+                    columnDefs={createdAgeColumns(grid.key)}
+                    defaultColDef={DENSE_COL_DEF}
+                    suppressCellFocus
+                    domLayout="autoHeight"
+                    getRowId={(params) => (params.data.isTotal ? 'total' : params.data.status)}
+                  />
                 )}
               </Box>
             );
@@ -1505,16 +1504,16 @@ export default function FlowReport() {
           {statusGrids.map((grid) => (
             <Box key={grid.key}>
               <Typography sx={SUB_TITLE_SX}>{grid.title}</Typography>
-              <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
-                <AgGridReact<ByStatusTableRow>
-                  rowData={byStatusRows(grid.key)}
-                  columnDefs={byStatusColumns(grid.key)}
-                  defaultColDef={DENSE_COL_DEF}
-                  suppressCellFocus
-                  domLayout="autoHeight"
-                  getRowId={(params) => (params.data.isTotal ? 'total' : params.data.status)}
-                />
-              </Box>
+              <ReportGrid<ByStatusTableRow>
+                wrapperClassName="kanap-dense-grid"
+                wrapperSx={{ width: '100%' }}
+                rowData={byStatusRows(grid.key)}
+                columnDefs={byStatusColumns(grid.key)}
+                defaultColDef={DENSE_COL_DEF}
+                suppressCellFocus
+                domLayout="autoHeight"
+                getRowId={(params) => (params.data.isTotal ? 'total' : params.data.status)}
+              />
             </Box>
           ))}
         </Box>
@@ -1644,45 +1643,45 @@ export default function FlowReport() {
                 {t('reports.flow.empty.leadTimeByType')}
               </Typography>
             ) : (
-              <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
-                <AgGridReact<LeadTimeByType>
-                  rowData={data?.leadTime.tasksByType ?? []}
-                  columnDefs={leadColumns}
-                  defaultColDef={DENSE_COL_DEF}
-                  suppressCellFocus
-                  domLayout="autoHeight"
-                  getRowId={(params) => params.data.taskTypeId ?? 'none'}
-                />
-              </Box>
+              <ReportGrid<LeadTimeByType>
+                wrapperClassName="kanap-dense-grid"
+                wrapperSx={{ width: '100%' }}
+                rowData={data?.leadTime.tasksByType ?? []}
+                columnDefs={leadColumns}
+                defaultColDef={DENSE_COL_DEF}
+                suppressCellFocus
+                domLayout="autoHeight"
+                getRowId={(params) => params.data.taskTypeId ?? 'none'}
+              />
             )}
           </Box>
 
           <Box>
             <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.requestOutcomes')}</Typography>
-            <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
-              <AgGridReact<OutcomeRow>
-                rowData={outcomeRows}
-                columnDefs={outcomeColumns}
-                defaultColDef={DENSE_COL_DEF}
-                suppressCellFocus
-                domLayout="autoHeight"
-                getRowId={(params) => params.data.outcome}
-              />
-            </Box>
+            <ReportGrid<OutcomeRow>
+              wrapperClassName="kanap-dense-grid"
+              wrapperSx={{ width: '100%' }}
+              rowData={outcomeRows}
+              columnDefs={outcomeColumns}
+              defaultColDef={DENSE_COL_DEF}
+              suppressCellFocus
+              domLayout="autoHeight"
+              getRowId={(params) => params.data.outcome}
+            />
           </Box>
 
           <Box>
             <Typography sx={SUB_TITLE_SX}>{t('reports.flow.subsections.projectCompletion')}</Typography>
-            <Box component={AgGridBox} className="kanap-dense-grid" sx={{ width: '100%' }}>
-              <AgGridReact<DoneRow>
-                rowData={doneRows}
-                columnDefs={doneColumns}
-                defaultColDef={DENSE_COL_DEF}
-                suppressCellFocus
-                domLayout="autoHeight"
-                getRowId={() => 'done'}
-              />
-            </Box>
+            <ReportGrid<DoneRow>
+              wrapperClassName="kanap-dense-grid"
+              wrapperSx={{ width: '100%' }}
+              rowData={doneRows}
+              columnDefs={doneColumns}
+              defaultColDef={DENSE_COL_DEF}
+              suppressCellFocus
+              domLayout="autoHeight"
+              getRowId={() => 'done'}
+            />
           </Box>
         </Box>
       </Box>

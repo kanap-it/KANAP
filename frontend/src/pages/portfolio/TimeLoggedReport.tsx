@@ -7,6 +7,7 @@ import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import api from '../../api';
 import { useAuth } from '../../auth/AuthContext';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
+import { useReportTheme } from '../../components/reports/reportPrint';
 import ReportLayout from '../../components/reports/ReportLayout';
 import {
   idsFromParams,
@@ -195,7 +196,7 @@ function StatTile({ label, value, caption }: { label: string; value: string; cap
 export default function TimeLoggedReport() {
   const { t } = useTranslation('portfolio');
   const locale = useLocale();
-  const theme = useTheme();
+  const theme = useReportTheme();
   const { hasLevel } = useAuth();
   const dark = theme.palette.mode === 'dark';
   const colors = dark ? SERIES_COLORS.dark : SERIES_COLORS.light;
