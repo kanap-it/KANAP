@@ -2,7 +2,7 @@
 title: Un rapport pour chaque question de la DSI
 description: "Le DSI, le chef de projet, le responsable d'équipe et l'ingénieur se posent chacun leurs questions. Les rapports du portefeuille de KANAP y répondent en un clic."
 date: 2026-09-23
-topic: product
+topic: portfolio
 author: Friedrich
 authorRole: Fondateur, DSI
 draft: false
