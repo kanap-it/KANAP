@@ -1287,6 +1287,15 @@
           "closed": "Clôturé le"
         }
       },
+      "changes": {
+        "labelSeparator": " : "
+      },
+      "changeValues": {
+        "empty": "vide",
+        "unknown": "inconnu",
+        "items_one": "{{count}} élément",
+        "items_other": "{{count}} éléments"
+      },
       "byPerson": {
         "note": "Ce rapport couvre les tâches. Les demandes et les projets sont dans le <link />.",
         "noTeam": "Sans équipe",

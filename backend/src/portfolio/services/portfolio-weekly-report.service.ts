@@ -56,14 +56,34 @@ const covers = (query: WeeklyReportQuery, entity: WeeklyEntity): boolean =>
 
 const emptyLists = <TRow>(): WeeklyLists<TRow> => ({ created: [], modified: [], closed: [] });
 
+/** How a changed value reads: the screen and the export format each kind their own way. */
+export type WeeklyChangeKind = 'text' | 'date' | 'number' | 'boolean' | 'list' | 'ref';
+
+/**
+ * One column that changed over the period: the value it held before its first change and the
+ * value it held after its last one. A column back to where it started is not listed.
+ *
+ * Values are strings, ready to format: a day as `YYYY-MM-DD`, a number as written, a boolean as
+ * `true` / `false`, a list as its item count, a text in plain words cut at 60 characters, and a
+ * reference as the name of what it points to (`''` when that record no longer exists). `null`
+ * is an empty value.
+ */
+export type WeeklyFieldChange = {
+  key: string;
+  before: string | null;
+  after: string | null;
+  kind: WeeklyChangeKind;
+};
+
 /** What changed on an item during the period, for the "modified" lists. */
 export type WeeklyChangeSummary = {
-  /** Status the item held before the first status move of the period. */
-  statusFrom: string | null;
-  /** Status the item held after the last status move of the period. */
-  statusTo: string | null;
-  /** Distinct column keys that actually changed, noise excluded. */
-  changedFields: string[];
+  /**
+   * Every status the item went through over the period, in order: the status before the first
+   * move, then the status each move left. Consecutive repeats merged; empty with no status move.
+   */
+  statusChain: string[];
+  /** Columns that actually changed, noise excluded, in key order. */
+  fields: WeeklyFieldChange[];
 };
 
 /** Where a project came from: the request it was converted from, when there is one. */
@@ -200,10 +220,67 @@ export const CLOSED_STATUSES = {
 
 /**
  * Keys ignored when listing what changed on an item. `updated_at` is rewritten on
- * every save, `status` gets its own from/to summary, and the remaining keys identify
- * the row rather than describe it.
+ * every save, `status` gets its own chain, and `id`, `tenant_id`, `item_number` and
+ * `created_at` identify the row rather than describe it. `related_object_type` moves with
+ * `related_object_id`, which carries the change under the same label. Keys starting with
+ * `__` (the `__csv_managed_*` import markers) are technical too and are dropped in SQL.
  */
-const CHANGE_NOISE_KEYS = ['updated_at', 'created_at', 'id', 'tenant_id', 'item_number', 'status'];
+const CHANGE_NOISE_KEYS = [
+  'updated_at',
+  'created_at',
+  'id',
+  'tenant_id',
+  'item_number',
+  'status',
+  'related_object_type',
+];
+
+/** Longest text a change shows before it is cut. */
+const CHANGE_TEXT_MAX = 60;
+
+/**
+ * Columns that hold a reference, and the table that names it. Each table is read once per
+ * report for every id met, never per row.
+ */
+const USER_REF_KEYS = [
+  'assignee_user_id',
+  'requestor_id',
+  'business_sponsor_id',
+  'business_lead_id',
+  'it_sponsor_id',
+  'it_lead_id',
+  'creator_id',
+  'created_by_id',
+];
+
+type RefTable = { table: string; nameSql: (alias: string) => string };
+
+/** Display name of a user, as the by-person view shows it: names only, never an email. */
+const userNameSql = (alias: string): string => `COALESCE(
+          NULLIF(TRIM(CONCAT(${alias}.first_name, ' ', ${alias}.last_name)), ''),
+          split_part(${alias}.email, '@', 1)
+        )`;
+
+const namedTable = (table: string, column = 'name'): RefTable => ({
+  table,
+  nameSql: (alias) => `${alias}.${column}`,
+});
+
+const USERS_REF: RefTable = { table: 'users', nameSql: userNameSql };
+
+const REF_TABLES: Record<string, RefTable> = {
+  ...Object.fromEntries(USER_REF_KEYS.map((key) => [key, USERS_REF])),
+  source_id: namedTable('portfolio_sources'),
+  category_id: namedTable('portfolio_categories'),
+  stream_id: namedTable('portfolio_streams'),
+  company_id: namedTable('companies'),
+  department_id: namedTable('departments'),
+  task_type_id: namedTable('portfolio_task_types'),
+  phase_id: namedTable('portfolio_project_phases'),
+  // The report lists only tasks with no parent or hanging off a project.
+  related_object_id: namedTable('portfolio_projects'),
+  origin_task_id: namedTable('tasks', 'title'),
+};
 
 /**
  * KANAP vocabulary for `portfolio_projects.origin`. The exports have no i18n, so they
@@ -238,8 +315,8 @@ const dateCells = (row: WeeklyRowCommon, shape: ExportShape): SheetCellValue[] =
 const changeHeaders = (shape: ExportShape): string[] =>
   shape === 'modified' || shape === 'all' ? ['Changes'] : [];
 
-const changeCells = (row: WeeklyRowCommon, shape: ExportShape): SheetCellValue[] =>
-  shape === 'modified' || shape === 'all' ? [formatChanges(row.changes)] : [];
+const changeCells = (row: WeeklyRowCommon, shape: ExportShape, entity: ExportChangeEntity): SheetCellValue[] =>
+  shape === 'modified' || shape === 'all' ? [formatChanges(row.changes, entity)] : [];
 
 /** The status reached over the period, as `status_reached` resolves it in `eventCtes`. */
 const STATUS_REACHED_EXPR = 'sr.status';
@@ -284,6 +361,76 @@ const toNumber = (value: number | string | null): number | null => {
   return Number.isFinite(next) ? next : null;
 };
 
+/**
+ * English labels of the changed columns, the words the screen uses (`WeeklyReportChangeLabels.ts`
+ * on the frontend, from the item history labels). The exports have no i18n, so the English
+ * wording is kept here; a column missing from both maps falls back to `humanizeKey`.
+ */
+const PORTFOLIO_CHANGE_LABELS: Record<string, string> = {
+  name: 'Name',
+  purpose: 'Purpose',
+  current_situation: 'Current situation',
+  expected_benefits: 'Expected benefits',
+  risks: 'Risks',
+  feasibility_review: 'Feasibility review',
+  source_id: 'Source',
+  category_id: 'Category',
+  stream_id: 'Stream',
+  requestor_id: 'Requestor',
+  target_delivery_date: 'Target delivery date',
+  origin_task_id: 'Origin task',
+  company_id: 'Company',
+  department_id: 'Department',
+  business_sponsor_id: 'Business sponsor',
+  business_lead_id: 'Business lead',
+  it_sponsor_id: 'IT sponsor',
+  it_lead_id: 'IT lead',
+  planned_start: 'Planned start',
+  planned_end: 'Planned end',
+  actual_start: 'Actual start',
+  actual_end: 'Actual end',
+  converted_date: 'Converted on',
+  estimated_effort_it: 'IT effort',
+  estimated_effort_business: 'Business effort',
+  actual_effort_it: 'Actual IT effort',
+  actual_effort_business: 'Actual business effort',
+  execution_progress: 'Effort',
+  priority_score: 'Priority score',
+  priority_override: 'Priority override',
+  override_value: 'Override value',
+  override_justification: 'Override justification',
+  criteria_values: 'Evaluation criteria',
+  scheduling_mode: 'Scheduling mode',
+  it_effort_allocation_mode: 'IT effort allocation mode',
+  business_effort_allocation_mode: 'Business effort allocation mode',
+};
+
+const TASK_CHANGE_LABELS: Record<string, string> = {
+  title: 'Title',
+  description: 'Description',
+  task_type_id: 'Task type',
+  priority_level: 'Priority',
+  creator_id: 'Requestor',
+  assignee_user_id: 'Assignee',
+  due_date: 'Due date',
+  start_date: 'Start date',
+  labels: 'Labels',
+  phase_id: 'Phase',
+  source_id: 'Source',
+  category_id: 'Category',
+  stream_id: 'Stream',
+  company_id: 'Company',
+  owner_ids: 'Owners',
+  viewer_ids: 'Viewers',
+  related_object_id: 'Related to',
+  related_object_type: 'Related to',
+};
+
+type ExportChangeEntity = 'request' | 'project' | 'task';
+
+const changeLabel = (entity: ExportChangeEntity, key: string): string =>
+  (entity === 'task' ? TASK_CHANGE_LABELS[key] : PORTFOLIO_CHANGE_LABELS[key]) ?? humanizeKey(key);
+
 const humanizeKey = (key: string): string =>
   key
     .replace(/_id$/, '')
@@ -293,15 +440,111 @@ const humanizeKey = (key: string): string =>
 const humanizeStatus = (status: string): string =>
   status.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 
-/** Human readable "Changes" cell for the exports. */
-const formatChanges = (changes: WeeklyChangeSummary | null): string => {
+/**
+ * One changed value in the export, the way the screen writes it but in English: the exports
+ * have no i18n. Days stay `YYYY-MM-DD`, like every other date column of the export.
+ */
+export const formatExportChangeValue = (kind: WeeklyChangeKind, value: string | null): string => {
+  if (value === null) return 'empty';
+  if (kind === 'ref' && value === '') return 'unknown';
+  if (kind === 'boolean') return value === 'true' ? 'Yes' : 'No';
+  if (kind === 'list') return Number(value) === 1 ? '1 item' : `${value} items`;
+  return value;
+};
+
+/**
+ * Human readable "Changes" cell for the exports: the status chain, then one
+ * "Label: before → after" per field, `;` between the parts.
+ */
+export const formatChanges = (changes: WeeklyChangeSummary | null, entity: ExportChangeEntity): string => {
   if (!changes) return '';
   const parts: string[] = [];
-  if (changes.statusFrom && changes.statusTo) {
-    parts.push(`${humanizeStatus(changes.statusFrom)} -> ${humanizeStatus(changes.statusTo)}`);
+  if (changes.statusChain.length > 1) {
+    parts.push(changes.statusChain.map(humanizeStatus).join(' → '));
   }
-  changes.changedFields.forEach((key) => parts.push(humanizeKey(key)));
-  return parts.join(', ');
+  changes.fields.forEach((field) => {
+    const before = formatExportChangeValue(field.kind, field.before);
+    const after = formatExportChangeValue(field.kind, field.after);
+    parts.push(`${changeLabel(entity, field.key)}: ${before} → ${after}`);
+  });
+  return parts.join('; ');
+};
+
+/** Statuses in order, empty values dropped and consecutive repeats merged. */
+const mergeStatusChain = (statuses: Array<string | null> | null): string[] => {
+  const chain: string[] = [];
+  (statuses ?? []).forEach((status) => {
+    if (!status) return;
+    if (chain[chain.length - 1] !== status) chain.push(status);
+  });
+  return chain;
+};
+
+/** One changed column as the SQL returns it: the raw jsonb values at the period's bounds. */
+type RawFieldChange = { key: string; before: unknown; after: unknown };
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T/;
+const NUMERIC = /^-?\d+(\.\d+)?$/;
+
+/** Plain words out of a rich text value, cut at the change text length. */
+const shortText = (value: string): string => {
+  const plain = value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return plain.length > CHANGE_TEXT_MAX ? `${plain.slice(0, CHANGE_TEXT_MAX).trimEnd()}…` : plain;
+};
+
+/** The day a timestamp falls on in the report's zone. */
+const dayInZone = (value: string, timeZone: string): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10);
+  // en-CA writes YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+};
+
+/** The kind one audit value reads as, or `null` for an empty value, which says nothing. */
+const valueKind = (key: string, value: unknown): WeeklyChangeKind | null => {
+  if (value === null || value === undefined) return null;
+  if (REF_TABLES[key]) return 'ref';
+  if (Array.isArray(value) || typeof value === 'object') return 'list';
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'number') return 'number';
+  const text = String(value);
+  if (ISO_DAY.test(text) || ISO_TIMESTAMP.test(text)) return 'date';
+  if (NUMERIC.test(text)) return 'number';
+  return 'text';
+};
+
+/** One audit value as the summary carries it, given the kind of its field. */
+const changeValue = (kind: WeeklyChangeKind, value: unknown, timeZone: string): string | null => {
+  if (value === null || value === undefined) return null;
+  if (kind === 'list') {
+    if (Array.isArray(value)) return String(value.length);
+    if (typeof value === 'object') return String(Object.keys(value as object).length);
+  }
+  if (kind === 'boolean') return value ? 'true' : 'false';
+  const text = String(value);
+  if (kind === 'date') return ISO_TIMESTAMP.test(text) ? dayInZone(text, timeZone) : text;
+  if (kind === 'text') return shortText(text);
+  return text;
+};
+
+/**
+ * The summary of one field from its first "before" and last "after" audit values. A reference
+ * still holds its id here: `resolveChangeRefs` swaps it for a name once every list is read.
+ */
+const buildFieldChange = (raw: RawFieldChange, timeZone: string): WeeklyFieldChange => {
+  const kind = valueKind(raw.key, raw.before) ?? valueKind(raw.key, raw.after) ?? 'text';
+  return {
+    key: raw.key,
+    before: changeValue(kind, raw.before, timeZone),
+    after: changeValue(kind, raw.after, timeZone),
+    kind,
+  };
 };
 
 /** Raw shape shared by the three queries, before the entity specific columns. */
@@ -322,9 +565,8 @@ type RawEventRow = {
   modified_day: string | null;
   closed_day: string | null;
   update_count: number | string;
-  status_from: string | null;
-  status_to: string | null;
-  changed_fields: string[] | null;
+  status_chain: Array<string | null> | null;
+  field_changes: RawFieldChange[] | null;
 };
 
 type RawProjectEventRow = RawEventRow & {
@@ -386,6 +628,12 @@ export class PortfolioWeeklyReportService {
     const { lists: tasks, entries } = covers(query, 'task')
       ? await this.fetchTaskLists(query, opts)
       : { lists: emptyLists<WeeklyTaskRow>(), entries: [] as TaskEntry[] };
+    // The by-person lists share these row objects: resolving here names them there too.
+    await this.resolveChangeRefs(
+      query.tenantId,
+      [...requests.modified, ...projects.modified, ...tasks.modified],
+      opts,
+    );
     if (query.groupBy !== 'person') return { requests, projects, tasks };
 
     const byPerson = await this.buildByPerson(query, entries, opts);
@@ -620,9 +868,9 @@ export class PortfolioWeeklyReportService {
       row.categoryName,
       row.streamName,
       row.company,
-      row.status,
+      humanizeStatus(row.status),
       ...dateCells(row, shape),
-      ...changeCells(row, shape),
+      ...changeCells(row, shape, 'request'),
     ];
   }
 
@@ -654,9 +902,9 @@ export class PortfolioWeeklyReportService {
       row.streamName,
       row.company,
       row.progress == null ? null : `${Math.round(row.progress)}%`,
-      row.status,
+      humanizeStatus(row.status),
       ...dateCells(row, shape),
-      ...changeCells(row, shape),
+      ...changeCells(row, shape, 'project'),
     ];
   }
 
@@ -727,9 +975,9 @@ export class PortfolioWeeklyReportService {
       row.categoryName,
       row.streamName,
       row.company,
-      row.status,
+      humanizeStatus(row.status),
       ...dateCells(row, shape),
-      ...changeCells(row, shape),
+      ...changeCells(row, shape, 'task'),
     ];
   }
 
@@ -800,18 +1048,25 @@ export class PortfolioWeeklyReportService {
           )
         ORDER BY pe.record_id, pe.created_at DESC, pe.id DESC
       ),
-      status_first AS (
-        SELECT DISTINCT ON (sm.record_id) sm.record_id, sm.before_status
+      -- Every status of the period in order: the one before the first move, then the one each
+      -- move left. Repeats are merged when the row is shaped.
+      status_chain AS (
+        SELECT
+          sm.record_id,
+          (array_agg(sm.before_status ORDER BY sm.created_at ASC, sm.id ASC))[1:1]
+            || array_agg(sm.after_status ORDER BY sm.created_at ASC, sm.id ASC) AS status_chain
         FROM status_moves sm
-        ORDER BY sm.record_id, sm.created_at ASC, sm.id ASC
+        GROUP BY sm.record_id
       ),
-      status_last AS (
-        SELECT DISTINCT ON (sm.record_id) sm.record_id, sm.after_status
-        FROM status_moves sm
-        ORDER BY sm.record_id, sm.created_at DESC, sm.id DESC
-      ),
-      changed_keys AS (
-        SELECT DISTINCT pe.record_id, keys.k
+      -- One line per event and changed key. A JSON null and a missing key both read as empty.
+      field_moves AS (
+        SELECT
+          pe.record_id,
+          keys.k,
+          pe.created_at,
+          pe.id,
+          NULLIF(pe.before_json -> keys.k, 'null'::jsonb) AS before_value,
+          NULLIF(pe.after_json -> keys.k, 'null'::jsonb) AS after_value
         FROM period_events pe
         CROSS JOIN LATERAL (
           SELECT jsonb_object_keys(COALESCE(pe.before_json, '{}'::jsonb)) AS k
@@ -821,11 +1076,29 @@ export class PortfolioWeeklyReportService {
         WHERE pe.action = 'update'
           AND (pe.before_json -> keys.k) IS DISTINCT FROM (pe.after_json -> keys.k)
           AND NOT (keys.k = ANY($6::text[]))
+          AND left(keys.k, 2) <> '__'
       ),
-      changed_keys_agg AS (
-        SELECT ck.record_id, array_agg(ck.k ORDER BY ck.k) AS changed_fields
-        FROM changed_keys ck
-        GROUP BY ck.record_id
+      -- Per key, the value before its first change and the value after its last one.
+      field_spans AS (
+        SELECT
+          fm.record_id,
+          fm.k,
+          (array_agg(fm.before_value ORDER BY fm.created_at ASC, fm.id ASC))[1] AS before_value,
+          (array_agg(fm.after_value ORDER BY fm.created_at DESC, fm.id DESC))[1] AS after_value
+        FROM field_moves fm
+        GROUP BY fm.record_id, fm.k
+      ),
+      -- A key back to its starting value did not change over the period.
+      field_changes AS (
+        SELECT
+          fs.record_id,
+          jsonb_agg(
+            jsonb_build_object('key', fs.k, 'before', fs.before_value, 'after', fs.after_value)
+            ORDER BY fs.k
+          ) AS field_changes
+        FROM field_spans fs
+        WHERE fs.before_value IS DISTINCT FROM fs.after_value
+        GROUP BY fs.record_id
       ),
       agg AS (
         SELECT
@@ -880,19 +1153,17 @@ export class PortfolioWeeklyReportService {
       (a.modified_at AT TIME ZONE $4)::date::text AS modified_day,
       (c.closed_at AT TIME ZONE $4)::date::text AS closed_day,
       a.update_count,
-      sf.before_status AS status_from,
-      sl.after_status AS status_to,
-      COALESCE(cka.changed_fields, ARRAY[]::text[]) AS changed_fields
+      COALESCE(sch.status_chain, ARRAY[]::text[]) AS status_chain,
+      COALESCE(fc.field_changes, '[]'::jsonb) AS field_changes
     `;
   }
 
   private eventJoins(): string {
     return `
       LEFT JOIN closing c ON c.record_id = a.record_id
-      LEFT JOIN status_first sf ON sf.record_id = a.record_id
-      LEFT JOIN status_last sl ON sl.record_id = a.record_id
+      LEFT JOIN status_chain sch ON sch.record_id = a.record_id
       LEFT JOIN status_reached sr ON sr.record_id = a.record_id
-      LEFT JOIN changed_keys_agg cka ON cka.record_id = a.record_id
+      LEFT JOIN field_changes fc ON fc.record_id = a.record_id
     `;
   }
 
@@ -915,6 +1186,7 @@ export class PortfolioWeeklyReportService {
     if (!mg) return { created: [], modified: [], closed: [] };
 
     const sqlParams = this.baseParams(query, CLOSED_STATUSES.requests);
+    const timeZone = normalizeReportTimeZone(query.timeZone);
     const whereSql = this.buildFilterSql(
       sqlParams,
       'r',
@@ -955,7 +1227,7 @@ export class PortfolioWeeklyReportService {
 
     return this.bucket(rows, (row, listKey) => ({
       requestId: row.record_id,
-      ...this.commonFields(row, listKey, 'REQ', '/portfolio/requests', 'summary'),
+      ...this.commonFields(row, listKey, 'REQ', '/portfolio/requests', 'summary', timeZone),
     }));
   }
 
@@ -967,6 +1239,7 @@ export class PortfolioWeeklyReportService {
     if (!mg) return { created: [], modified: [], closed: [] };
 
     const sqlParams = this.baseParams(query, CLOSED_STATUSES.projects);
+    const timeZone = normalizeReportTimeZone(query.timeZone);
     const whereSql = this.buildFilterSql(
       sqlParams,
       'p',
@@ -1020,7 +1293,7 @@ export class PortfolioWeeklyReportService {
 
     return this.bucket(rows, (row, listKey) => ({
       projectId: row.record_id,
-      ...this.commonFields(row, listKey, 'PRJ', '/portfolio/projects', 'summary'),
+      ...this.commonFields(row, listKey, 'PRJ', '/portfolio/projects', 'summary', timeZone),
       priority: toNumber(row.priority),
       progress: toNumber(row.progress),
       origin:
@@ -1044,6 +1317,7 @@ export class PortfolioWeeklyReportService {
 
     const byPerson = query.groupBy === 'person';
     const sqlParams = this.baseParams(query, CLOSED_STATUSES.tasks);
+    const timeZone = normalizeReportTimeZone(query.timeZone);
     const whereSql = this.buildFilterSql(
       sqlParams,
       't',
@@ -1127,7 +1401,7 @@ export class PortfolioWeeklyReportService {
     const lists = this.bucket(rows, (row, listKey) => {
       const built: WeeklyTaskRow = {
         taskId: row.record_id,
-        ...this.commonFields(row, listKey, 'T', '/portfolio/tasks', 'overview'),
+        ...this.commonFields(row, listKey, 'T', '/portfolio/tasks', 'overview', timeZone),
         taskTypeId: row.task_type_id ?? null,
         taskTypeName: row.task_type_name ?? null,
         priority: toNumber(row.priority),
@@ -1347,10 +1621,7 @@ export class PortfolioWeeklyReportService {
       `
       SELECT
         u.id::text AS user_id,
-        COALESCE(
-          NULLIF(TRIM(CONCAT(u.first_name, ' ', u.last_name)), ''),
-          split_part(u.email, '@', 1)
-        ) AS name,
+        ${userNameSql('u')} AS name,
         mc.item_number,
         mc.team_id::text AS team_id,
         pt.name AS team_name
@@ -1374,6 +1645,60 @@ export class PortfolioWeeklyReportService {
     return people;
   }
 
+  /**
+   * Swap the ids of the changed references for names. The ids are collected per table over
+   * every row, then each table is read once: one statement per table, never one per row. An id
+   * whose record is gone reads as `''`, which the screen and the export show as unknown.
+   */
+  private async resolveChangeRefs(
+    tenantId: string,
+    rows: WeeklyRowCommon[],
+    opts?: ServiceOpts,
+  ): Promise<void> {
+    const refs = rows
+      .flatMap((row) => row.changes?.fields ?? [])
+      .filter((field) => field.kind === 'ref' && REF_TABLES[field.key]);
+    if (refs.length === 0) return;
+
+    const idsByTable = new Map<RefTable, Set<string>>();
+    refs.forEach((field) => {
+      const table = REF_TABLES[field.key];
+      let ids = idsByTable.get(table);
+      if (!ids) {
+        ids = new Set<string>();
+        idsByTable.set(table, ids);
+      }
+      if (field.before) ids.add(field.before);
+      if (field.after) ids.add(field.after);
+    });
+
+    const mg = opts?.manager;
+    const names = new Map<RefTable, Map<string, string>>();
+    await Promise.all(
+      Array.from(idsByTable.entries()).map(async ([table, ids]) => {
+        const byId = new Map<string, string>();
+        names.set(table, byId);
+        if (!mg || ids.size === 0) return;
+        const found: Array<{ id: string; name: string | null }> = await mg.query(
+          `
+          SELECT r.id::text AS id, ${table.nameSql('r')} AS name
+          FROM ${table.table} r
+          WHERE r.tenant_id = $1
+            AND r.id::text = ANY($2::text[])
+          `,
+          [tenantId, Array.from(ids)],
+        );
+        found.forEach((row) => byId.set(row.id, row.name ?? ''));
+      }),
+    );
+
+    refs.forEach((field) => {
+      const byId = names.get(REF_TABLES[field.key]);
+      if (field.before) field.before = byId?.get(field.before) ?? '';
+      if (field.after) field.after = byId?.get(field.after) ?? '';
+    });
+  }
+
   /* ---------------------------------------------------------------- */
   /*  Row shaping                                                     */
   /* ---------------------------------------------------------------- */
@@ -1384,6 +1709,7 @@ export class PortfolioWeeklyReportService {
     prefix: string,
     routeBase: string,
     tab: string,
+    timeZone: string,
   ): WeeklyRowCommon {
     const ref = row.item_number == null ? '' : `${prefix}-${row.item_number}`;
     const eventAt =
@@ -1406,9 +1732,8 @@ export class PortfolioWeeklyReportService {
       changes:
         listKey === 'modified'
           ? {
-              statusFrom: row.status_from ?? null,
-              statusTo: row.status_to ?? null,
-              changedFields: row.changed_fields ?? [],
+              statusChain: mergeStatusChain(row.status_chain),
+              fields: (row.field_changes ?? []).map((raw) => buildFieldChange(raw, timeZone)),
             }
           : null,
     };

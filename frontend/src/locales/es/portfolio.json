@@ -1287,6 +1287,15 @@
           "closed": "Cerrado el"
         }
       },
+      "changes": {
+        "labelSeparator": ": "
+      },
+      "changeValues": {
+        "empty": "vacío",
+        "unknown": "desconocido",
+        "items_one": "{{count}} elemento",
+        "items_other": "{{count}} elementos"
+      },
       "byPerson": {
         "note": "Este informe cubre las tareas. Las solicitudes y los proyectos están en el <link />.",
         "noTeam": "Sin equipo",

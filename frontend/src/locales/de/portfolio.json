@@ -1287,6 +1287,15 @@
           "closed": "Geschlossen am"
         }
       },
+      "changes": {
+        "labelSeparator": ": "
+      },
+      "changeValues": {
+        "empty": "leer",
+        "unknown": "unbekannt",
+        "items_one": "{{count}} Element",
+        "items_other": "{{count}} Elemente"
+      },
       "byPerson": {
         "note": "Dieser Bericht umfasst Aufgaben. Anfragen und Projekte stehen im <link />.",
         "noTeam": "Ohne Team",
