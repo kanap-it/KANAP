@@ -316,8 +316,8 @@ function UpcomingSection({
 }
 
 /**
- * What comes next and what is waiting: tasks falling due, planned project ends and starts,
- * requests awaiting review for too long, and requested deliveries. Every figure opens the list
+ * What comes next and what is waiting: planned project ends and starts, requests awaiting review
+ * for too long, requested deliveries, then tasks falling due. Every figure opens the list
  * that shows exactly the rows it counts, with the same project and team filters.
  */
 export default function UpcomingReport() {
@@ -607,31 +607,6 @@ export default function UpcomingReport() {
         {data && links && (
           <>
             <UpcomingSection
-              section="tasks"
-              title={t('reports.upcoming.sections.tasks')}
-              count={data.tasks.rows.length}
-              countTo={links.tasks}
-              horizon={horizonProps('taskDays')}
-              details={(
-                <>
-                  <span>{within(data.tasks.horizonDays)}</span>
-                  <Dot />
-                  <Figure
-                    count={data.tasks.overdueCount}
-                    label={t('reports.upcoming.overdue', { count: data.tasks.overdueCount })}
-                    to={links.overdue}
-                    tone="attention"
-                  />
-                </>
-              )}
-              empty={t('reports.upcoming.empty.tasks')}
-              collapsed={collapsed.tasks}
-              onToggle={() => toggle('tasks')}
-            >
-              {grid(data.tasks.rows, columns.tasks)}
-            </UpcomingSection>
-
-            <UpcomingSection
               section="projectEnds"
               title={t('reports.upcoming.sections.projectEnds')}
               count={data.projectEnds.rows.length}
@@ -696,6 +671,31 @@ export default function UpcomingReport() {
               onToggle={() => toggle('requestDeliveries')}
             >
               {grid(data.requestDeliveries.rows, columns.requestDeliveries)}
+            </UpcomingSection>
+
+            <UpcomingSection
+              section="tasks"
+              title={t('reports.upcoming.sections.tasks')}
+              count={data.tasks.rows.length}
+              countTo={links.tasks}
+              horizon={horizonProps('taskDays')}
+              details={(
+                <>
+                  <span>{within(data.tasks.horizonDays)}</span>
+                  <Dot />
+                  <Figure
+                    count={data.tasks.overdueCount}
+                    label={t('reports.upcoming.overdue', { count: data.tasks.overdueCount })}
+                    to={links.overdue}
+                    tone="attention"
+                  />
+                </>
+              )}
+              empty={t('reports.upcoming.empty.tasks')}
+              collapsed={collapsed.tasks}
+              onToggle={() => toggle('tasks')}
+            >
+              {grid(data.tasks.rows, columns.tasks)}
             </UpcomingSection>
           </>
         )}

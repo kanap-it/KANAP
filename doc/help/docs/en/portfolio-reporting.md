@@ -104,11 +104,11 @@ Use this report to see what falls due soon and what has been waiting too long. I
 
 The page has five sections. Each one shows how many items it holds, a table sorted by date, and a horizon you can change on the right of its title.
 
-- **Tasks due**: open tasks (Open, In progress, Pending, In testing) due between today and the end of the horizon, both days included. Horizon: 7, 14 (default) or 30 days. Only standalone tasks and project tasks count, like in the other reports. A line below the title gives the number of tasks already overdue, with a link to them.
 - **Planned project ends**: open projects whose planned end falls between today and the end of the horizon. Horizon: 30 (default), 60 or 90 days. Projects already past their planned end stay in the flow report; a line gives their number and opens it.
 - **Planned project starts**: projects still in Waiting list or Planned whose planned start falls in the same horizon.
 - **Requests awaiting review**: requests still Pending review, created at least 14, 30 (default) or 60 days ago. Candidate, Approved and On hold requests already had a decision, so they are not listed here.
 - **Requested deliveries**: open requests (Pending review, Candidate, Approved, On hold) whose requested delivery date falls in the project horizon.
+- **Tasks due**: open tasks (Open, In progress, Pending, In testing) due between today and the end of the horizon, both days included. Horizon: 7, 14 (default) or 30 days. Only standalone tasks and project tasks count, like in the other reports. A line below the title gives the number of tasks already overdue, with a link to them.
 
 The project horizon is shared: changing it in one of the three sections that use it changes it in all three. The page remembers your horizons and the sections you folded.
 

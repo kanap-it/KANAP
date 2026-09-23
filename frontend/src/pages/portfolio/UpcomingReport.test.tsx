@@ -137,11 +137,11 @@ describe('UpcomingReport', () => {
     await screen.findByText('Tasks due');
     const titles = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
     expect(titles).toEqual([
-      'Tasks due',
       'Planned project ends',
       'Planned project starts',
       'Requests awaiting review',
       'Requested deliveries',
+      'Tasks due',
     ]);
     expect(within(screen.getByTestId('upcoming-tasks-count')).getByText('2')).toBeTruthy();
     expect(within(section('tasks')).getByText('Within the next 14 days')).toBeTruthy();
