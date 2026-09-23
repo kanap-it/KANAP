@@ -130,18 +130,19 @@ export default function ReportsPage() {
         {t('reports.subtitle')}
       </Typography>
       {/*
-        One header row: steering on two thirds, to classify on one third, stacked on a narrow
-        screen. The sizing targets the strips' own root boxes, so a strip with nothing to show
-        (it renders nothing) leaves the other one the whole row instead of an empty column.
+        One header row: steering and to classify side by side, each as wide as its own figures.
+        Both strips hold a few short rows, so sharing the page width would only stretch them
+        and push the second one to the far edge. When the two do not fit on one line, the
+        second wraps under the first; on a narrow screen they stack full width.
       */}
       <Box
         data-testid="reports-header-strips"
         sx={{
           display: 'flex',
           flexDirection: { xs: 'column', md: 'row' },
+          flexWrap: 'wrap',
           gap: 2,
-          '& > *': { minWidth: 0, flex: { md: '1 1 0' } },
-          '& > *:first-of-type': { flex: { md: '2 1 0' } },
+          '& > *': { minWidth: 0, flex: { md: '0 1 auto' } },
         }}
       >
         <SteeringStrip />
