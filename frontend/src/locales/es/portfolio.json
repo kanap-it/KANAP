@@ -1185,6 +1185,10 @@
         "title": "Actividad por persona",
         "description": "Las tareas que cada persona creó, modificó y cerró en un periodo, con los días registrados."
       },
+      "timeLogged": {
+        "title": "Tiempo registrado",
+        "description": "A dónde van los días registrados, mes a mes: proyectos u otro trabajo, equipo por equipo."
+      },
       "flow": {
         "title": "Flujo y antigüedad",
         "description": "Lo que entra y lo que se cierra semana tras semana, la antigüedad de las tareas abiertas y el tiempo que lleva cerrar."
@@ -1508,6 +1512,46 @@
         "requests": "Creadas hace",
         "projects": "Creados hace"
       }
+    },
+    "timeLogged": {
+      "title": "Tiempo registrado",
+      "subtitle": "Días registrados mes a mes, en proyectos o en otro trabajo, por equipo y por persona.",
+      "horizon": "Periodo",
+      "monthOption_one": "{{count}} mes",
+      "monthOption_other": "{{count}} meses",
+      "days": "{{value}} d",
+      "tiles": {
+        "projectDays": "Días de proyecto",
+        "otherDays": "Otros días",
+        "total": "Total",
+        "projectShare": "Parte de proyecto",
+        "withoutEntries_one": "Colaborador sin registros",
+        "withoutEntries_other": "Colaboradores sin registros",
+        "ofContributors_one": "de {{count}} colaborador",
+        "ofContributors_other": "de {{count}} colaboradores"
+      },
+      "chart": {
+        "title": "Días registrados por mes",
+        "project": "Días de proyecto",
+        "other": "Otros días"
+      },
+      "table": {
+        "title": "Por equipo y mes",
+        "hint": "Días registrados por mes. Bajo cada cifra: días de proyecto / otros días.",
+        "team": "Equipo"
+      },
+      "csv": {
+        "team": "Equipo",
+        "person": "Persona",
+        "month": "Mes",
+        "projectDays": "Días de proyecto",
+        "otherDays": "Otros días",
+        "totalDays": "Días totales"
+      },
+      "noTeam": "Sin equipo",
+      "unknownUser": "Usuario desconocido",
+      "empty": "Ningún colaborador y ningún tiempo registrado en el periodo.",
+      "loadFailed": "Error al cargar los datos del informe."
     }
   },
   "contributors": {

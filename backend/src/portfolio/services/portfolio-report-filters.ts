@@ -185,6 +185,34 @@ export const requestLinkedToProjectsSql = (alias: string, projectsExpr: string):
       AND rpf.project_id::text = ANY(${projectsExpr})
   )`;
 
+/**
+ * The project and team conditions of a logged-time query, which reads the union of the task
+ * entries (`tte`, joined to their task `t`) and the entries logged on a project directly
+ * (`pte`). Each half gets its own ` AND …` fragment; the ids are bound once and read by both.
+ * A project keeps the entries on its tasks and the ones logged on it; a team keeps its
+ * members' entries, so an entry with no person is left out.
+ */
+export const timeEntryProjectTeamFilters = (
+  sqlParams: any[],
+  filters: ProjectTeamFilters,
+  tenantExpr: string,
+): { taskFilter: string; projectFilter: string } => {
+  let taskFilter = '';
+  let projectFilter = '';
+  const projects = pushIds(sqlParams, filters.projectIds);
+  if (projects) {
+    taskFilter += ` AND t.related_object_type = 'project' AND t.related_object_id::text = ANY(${projects}::text[])`;
+    projectFilter += ` AND pte.project_id::text = ANY(${projects}::text[])`;
+  }
+  const teams = pushIds(sqlParams, filters.teamIds);
+  if (teams) {
+    const members = teamMembersSql(teams, tenantExpr);
+    taskFilter += ` AND tte.user_id IN ${members}`;
+    projectFilter += ` AND pte.user_id IN ${members}`;
+  }
+  return { taskFilter, projectFilter };
+};
+
 /** Predicates as a fragment to append to an existing `WHERE`: ` AND a AND b`, or nothing. */
 export const andPredicates = (predicates: string[]): string =>
   predicates.length === 0 ? '' : ` AND ${predicates.join(' AND ')}`;

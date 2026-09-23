@@ -54,10 +54,10 @@ describe('ReportsPage', () => {
 
     const cardsOf = (index: number) =>
       within(rows[index]).getAllByRole('button').map((button) => button.querySelector('p')?.textContent);
-    expect(cardsOf(0)).toEqual(['Period review', 'Activity by person']);
+    expect(cardsOf(0)).toEqual(['Period review', 'Activity by person', 'Time logged']);
     expect(cardsOf(1)).toEqual(['Flow and age', 'Attention by contributor']);
     expect(cardsOf(2)).toEqual(['Upcoming', 'Capacity heatmap']);
-    expect(screen.getAllByRole('button')).toHaveLength(6);
+    expect(screen.getAllByRole('button')).toHaveLength(7);
 
     expect(screen.queryByText(/status change/i)).toBeNull();
   });

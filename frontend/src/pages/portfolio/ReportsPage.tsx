@@ -69,6 +69,12 @@ const REPORT_SECTIONS: ReportSection[] = [
         titleKey: 'reports.cards.byPerson.title',
         descriptionKey: 'reports.cards.byPerson.description',
       },
+      {
+        key: 'timeLogged',
+        to: '/portfolio/reports/time-logged',
+        titleKey: 'reports.cards.timeLogged.title',
+        descriptionKey: 'reports.cards.timeLogged.description',
+      },
     ],
   },
   {

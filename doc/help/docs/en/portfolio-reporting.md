@@ -20,6 +20,7 @@ The Portfolio Reporting landing page lists available portfolio reports as cards,
 **What happened**
 - **Period review**: requests, projects and tasks created, modified and closed over a period.
 - **Activity by person**: the same page, opened on its by-person reading of the tasks.
+- **Time logged**: where the logged days go, month after month: projects or other work, team by team.
 
 **What is in progress**
 - **Flow and age**: what comes in and goes out week after week, how old the open work is, and how long a closing takes.
@@ -261,6 +262,37 @@ Modified lists add the **Changes** column at the end.
 - **XLSX**: three sheets, Requests, Projects and Tasks. Rows run created, then modified, then closed, with a leading **Event** column that says which list a row comes from. The name cell links back to the item.
 
 Both exports carry the reference, the company, the origin of a project, the changes of a modified row and the event date. The closed rows also carry the creation day.
+
+## Time logged
+
+Days logged month after month, on projects or on other work, team by team and person by person. It shows how the workload is spread, not who logs the most: teams keep their configured order and people are listed alphabetically.
+
+### Where the days come from
+
+The report reads every time entry: the time logged on tasks and the time logged directly on a project. A day is 8 hours, and figures carry one decimal. Each entry falls in the month of its date, in your own time zone.
+
+- **Project days**: time logged on a task that belongs to a project, or directly on a project.
+- **Other days**: all other time, such as standalone tasks.
+
+Choose **6 months** or **12 months**. The current month is always the last one. The page remembers your choice.
+
+### What it shows
+
+- **Tiles**: project days, other days, the total, the project share, and the number of contributors who logged nothing over the period. Work outside projects is often logged less than project work, and this last tile is a reminder of that.
+- **Chart**: project and other days stacked, month by month.
+- **Table**: one row per team, one column per month. Each cell shows the days logged, with project days / other days below. Expand a team to see its people. A contributor who logged nothing still appears, with empty cells. People without a team are grouped under **No team**. Time logged without a person appears there as **Unknown user**.
+
+The report shows days only. It never shows the notes of an entry.
+
+### Filters
+
+- **Team**: the people of the selected teams.
+- **Project**: only the time logged on the selected projects, on their tasks or directly. Other days are then zero.
+
+### Exports
+
+- **CSV**: one line per person and month, with the team, the person, the month, project days, other days and the total.
+- **PNG**: the chart.
 
 ## Tips
 - **Keep contributor profiles updated**: Capacity is based on contributor availability and historical time stats.

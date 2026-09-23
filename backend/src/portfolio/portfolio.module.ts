@@ -70,6 +70,7 @@ import { PortfolioAssigneeAttentionService } from './services/portfolio-assignee
 import { PortfolioUpcomingReportService } from './services/portfolio-upcoming-report.service';
 import { PortfolioWeeklyReportService } from './services/portfolio-weekly-report.service';
 import { PortfolioReportFilterValuesService } from './services/portfolio-report-filter-values.service';
+import { PortfolioTimeLoggedReportService } from './services/portfolio-time-logged-report.service';
 
 // Decomposed portfolio projects services
 import {
@@ -107,6 +108,7 @@ import { PortfolioUpcomingReportController } from './portfolio-upcoming-report.c
 import { PortfolioRoadmapController } from './portfolio-roadmap.controller';
 import { PortfolioWeeklyReportController } from './portfolio-weekly-report.controller';
 import { PortfolioReportFilterValuesController } from './portfolio-report-filter-values.controller';
+import { PortfolioTimeLoggedReportController } from './portfolio-time-logged-report.controller';
 
 // CSV Services
 import { PortfolioRequestsCsvService } from './portfolio-requests-csv.service';
@@ -195,6 +197,7 @@ const entities = [
     PortfolioUpcomingReportService,
     PortfolioWeeklyReportService,
     PortfolioReportFilterValuesService,
+    PortfolioTimeLoggedReportService,
     // CSV services
     PortfolioRequestsCsvService,
     PortfolioProjectsCsvService,
@@ -232,6 +235,7 @@ const entities = [
     PortfolioUpcomingReportController,
     PortfolioWeeklyReportController,
     PortfolioReportFilterValuesController,
+    PortfolioTimeLoggedReportController,
     PortfolioRoadmapController,
   ],
   exports: [

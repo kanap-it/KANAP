@@ -1185,6 +1185,10 @@
         "title": "Activité par personne",
         "description": "Les tâches que chaque personne a créées, modifiées et clôturées sur une période, avec les jours saisis."
       },
+      "timeLogged": {
+        "title": "Temps saisi",
+        "description": "Où partent les jours saisis, mois après mois : projets ou autre travail, équipe par équipe."
+      },
       "flow": {
         "title": "Flux et ancienneté",
         "description": "Ce qui entre et ce qui sort semaine après semaine, l'âge des tâches ouvertes et le temps qu'il faut pour clôturer."
@@ -1508,6 +1512,46 @@
         "requests": "Créées il y a",
         "projects": "Créés il y a"
       }
+    },
+    "timeLogged": {
+      "title": "Temps saisi",
+      "subtitle": "Les jours saisis mois après mois, sur des projets ou sur un autre travail, par équipe et par personne.",
+      "horizon": "Période",
+      "monthOption_one": "{{count}} mois",
+      "monthOption_other": "{{count}} mois",
+      "days": "{{value}} j",
+      "tiles": {
+        "projectDays": "Jours projet",
+        "otherDays": "Jours autre",
+        "total": "Total",
+        "projectShare": "Part projet",
+        "withoutEntries_one": "Contributeur sans saisie",
+        "withoutEntries_other": "Contributeurs sans saisie",
+        "ofContributors_one": "sur {{count}} contributeur",
+        "ofContributors_other": "sur {{count}} contributeurs"
+      },
+      "chart": {
+        "title": "Jours saisis par mois",
+        "project": "Jours projet",
+        "other": "Jours autre"
+      },
+      "table": {
+        "title": "Par équipe et par mois",
+        "hint": "Jours saisis par mois. Sous chaque chiffre : jours projet / jours autre.",
+        "team": "Équipe"
+      },
+      "csv": {
+        "team": "Équipe",
+        "person": "Personne",
+        "month": "Mois",
+        "projectDays": "Jours projet",
+        "otherDays": "Jours autre",
+        "totalDays": "Jours total"
+      },
+      "noTeam": "Sans équipe",
+      "unknownUser": "Utilisateur inconnu",
+      "empty": "Aucun contributeur et aucun temps saisi sur la période.",
+      "loadFailed": "Échec du chargement des données du rapport."
     }
   },
   "contributors": {
