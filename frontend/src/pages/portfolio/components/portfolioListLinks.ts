@@ -36,6 +36,14 @@ export const createdBetween = (from: string | null, to: string | null): DateFilt
   return { filterType: 'date', type: 'lessThan', dateFrom: String(to) };
 };
 
+/** A date filter from one plain day to another, both included (the lists read it as `BETWEEN`). */
+export const dateInRange = (from: string, to: string): DateFilter => ({
+  filterType: 'date',
+  type: 'inRange',
+  dateFrom: from,
+  dateTo: to,
+});
+
 const listPath = (base: string, scopeParam: string, filters: FilterModel): string => {
   const params = new URLSearchParams({ [scopeParam]: 'all', filters: JSON.stringify(filters) });
   return `${base}?${params.toString()}`;

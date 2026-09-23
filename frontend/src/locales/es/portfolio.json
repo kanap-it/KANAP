@@ -1118,7 +1118,61 @@
       "empty": "Ninguna tarea abierta",
       "loadFailed": "No se ha podido cargar el informe."
     },
+    "upcoming": {
+      "title": "Próximamente",
+      "subtitle": "Lo que vence pronto y lo que lleva demasiado tiempo esperando; cada cifra abre la lista correspondiente.",
+      "sections": {
+        "tasks": "Tareas que vencen",
+        "projectEnds": "Finales de proyecto previstos",
+        "projectStarts": "Inicios de proyecto previstos",
+        "pendingRequests": "Solicitudes pendientes de revisión",
+        "requestDeliveries": "Entregas solicitadas"
+      },
+      "within_one": "En el próximo día",
+      "within_other": "En los próximos {{count}} días",
+      "olderThan_one": "Desde hace más de {{count}} día",
+      "olderThan_other": "Desde hace más de {{count}} días",
+      "overdue_one": "{{count}} tarea ya vencida",
+      "overdue_other": "{{count}} tareas ya vencidas",
+      "passed_one": "{{count}} final previsto ya superado",
+      "passed_other": "{{count}} finales previstos ya superados",
+      "days_one": "{{count}} día",
+      "days_other": "{{count}} días",
+      "horizonLabel": "Horizonte de {{title}}",
+      "empty": {
+        "tasks": "Ninguna tarea vence",
+        "projectEnds": "Ningún final previsto",
+        "projectStarts": "Ningún inicio previsto",
+        "pendingRequests": "Ninguna solicitud espera tanto tiempo",
+        "requestDeliveries": "Ninguna entrega solicitada"
+      },
+      "columns": {
+        "reference": "Ref.",
+        "task": "Tarea",
+        "project": "Proyecto",
+        "request": "Solicitud",
+        "type": "Tipo",
+        "priority": "Prioridad",
+        "assignee": "Responsable",
+        "dueDate": "Vencimiento",
+        "status": "Estado",
+        "plannedEnd": "Fin previsto",
+        "plannedStart": "Inicio previsto",
+        "progress": "Avance",
+        "itLead": "Responsable de TI",
+        "businessLead": "Responsable de negocio",
+        "source": "Origen",
+        "createdOn": "Creada el",
+        "targetDelivery": "Entrega solicitada",
+        "requestor": "Solicitante"
+      },
+      "loadFailed": "No se pudieron cargar los datos del informe."
+    },
     "cards": {
+      "upcoming": {
+        "title": "Próximamente",
+        "description": "Finales e inicios de proyecto previstos, solicitudes en espera y entregas solicitadas, tareas que vencen."
+      },
       "capacityHeatmap": {
         "title": "Mapa de calor de capacidad",
         "description": "Visualice el esfuerzo esperado frente a la capacidad de los colaboradores y equipos."

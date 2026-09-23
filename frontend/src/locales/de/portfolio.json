@@ -1118,7 +1118,61 @@
       "empty": "Keine offene Aufgabe",
       "loadFailed": "Der Bericht konnte nicht geladen werden."
     },
+    "upcoming": {
+      "title": "Demnächst",
+      "subtitle": "Was bald fällig ist und was zu lange wartet; jede Zahl öffnet die passende Liste.",
+      "sections": {
+        "tasks": "Fällige Aufgaben",
+        "projectEnds": "Geplante Projektenden",
+        "projectStarts": "Geplante Projektstarts",
+        "pendingRequests": "Anträge in Prüfung",
+        "requestDeliveries": "Gewünschte Liefertermine"
+      },
+      "within_one": "Am nächsten Tag",
+      "within_other": "In den nächsten {{count}} Tagen",
+      "olderThan_one": "Seit mehr als {{count}} Tag",
+      "olderThan_other": "Seit mehr als {{count}} Tagen",
+      "overdue_one": "{{count}} Aufgabe bereits überfällig",
+      "overdue_other": "{{count}} Aufgaben bereits überfällig",
+      "passed_one": "{{count}} geplantes Ende bereits überschritten",
+      "passed_other": "{{count}} geplante Enden bereits überschritten",
+      "days_one": "{{count}} Tag",
+      "days_other": "{{count}} Tage",
+      "horizonLabel": "Zeitraum für {{title}}",
+      "empty": {
+        "tasks": "Keine fällige Aufgabe",
+        "projectEnds": "Kein geplantes Ende",
+        "projectStarts": "Kein geplanter Start",
+        "pendingRequests": "Kein Antrag wartet so lange",
+        "requestDeliveries": "Kein gewünschter Liefertermin"
+      },
+      "columns": {
+        "reference": "Ref.",
+        "task": "Aufgabe",
+        "project": "Projekt",
+        "request": "Antrag",
+        "type": "Typ",
+        "priority": "Priorität",
+        "assignee": "Zuständig",
+        "dueDate": "Fällig am",
+        "status": "Status",
+        "plannedEnd": "Geplantes Ende",
+        "plannedStart": "Geplanter Start",
+        "progress": "Fortschritt",
+        "itLead": "IT-Verantwortlicher",
+        "businessLead": "Fachverantwortlicher",
+        "source": "Quelle",
+        "createdOn": "Erstellt am",
+        "targetDelivery": "Gewünschte Lieferung",
+        "requestor": "Antragsteller"
+      },
+      "loadFailed": "Berichtsdaten konnten nicht geladen werden."
+    },
     "cards": {
+      "upcoming": {
+        "title": "Demnächst",
+        "description": "Geplante Projektenden und -starts, wartende Anträge und gewünschte Liefertermine, fällige Aufgaben."
+      },
       "capacityHeatmap": {
         "title": "Kapazitäts-Heatmap",
         "description": "Visualisieren Sie den erwarteten Aufwand im Vergleich zur Kapazität von Mitwirkenden und Teams."
