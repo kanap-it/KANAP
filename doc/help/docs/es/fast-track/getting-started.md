@@ -97,7 +97,7 @@ Puede ajustar las notificaciones por espacio de trabajo:
 |-------------------|-------------------|
 | **Portafolio** | Cambios de estado, adiciones al equipo, cambios de equipo en elementos que lidera, comentarios |
 | **Tareas** | Notificaciones de asignación (como asignado, solicitante u observador), cambios de estado, comentarios |
-| **Presupuesto** | Avisos de expiración, cambios de estado, comentarios |
+| **Presupuesto** | Alertas de vencimiento, cambios de estado, comentarios |
 
 ### El correo de revisión semanal
 

@@ -270,7 +270,7 @@ Gardez la liste courte. Les catégories sont ce qui vous servira à regrouper un
 
 ## Demander à l'assistant
 
-Plaid peut interroger le registre dans le chat, avec les mêmes droits que dans le reste de l'application. Demandez-lui un décompte (« Combien d'incidents critiques ce trimestre ? »), une liste filtrée (« Liste des incidents ouverts sur PAR-ESX-01 ») ou une fiche complète (« Résumé de INC-2 »). Cette dernière inclut le journal et la revue d'incident : une question peut donc trouver sa réponse dans la cause racine ou le retour d'expérience. Un incident restreint reste hors des réponses, des décomptes et des sources, revue comprise. Les références d'incident telles que `INC-12` dans la réponse sont des liens vers l'espace de travail.
+Plaid peut interroger le registre dans le chat, avec les mêmes droits que dans le reste de l'application. Demandez-lui un décompte (« Combien d'incidents critiques ce trimestre ? »), une liste filtrée (« Liste des incidents ouverts sur PAR-ESX-01 ») ou une fiche complète (« Résumé de INC-2 »). Cette dernière inclut le journal et la revue d'incident : une question peut donc trouver sa réponse dans la cause racine ou le retour d'expérience. Un incident restreint reste hors des réponses, des décomptes et des sources, revue comprise.
 
 ---
 

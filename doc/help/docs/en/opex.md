@@ -41,12 +41,12 @@ The OPEX list (at **Budget Management > OPEX**) is your main view for browsing, 
   - **Account**: The GL account number and name
   - **Allocation**: The allocation method label for the current year (links to the Allocations tab)
   - **Y Budget**: Current-year budget amount (links to the Budget tab for this year)
-  - **Y Landing**: Current-year landing amount (links to the Budget tab for this year)
+  - **Y expected landing**: Current-year expected landing amount (links to the Budget tab for this year)
   - **Task**: The latest task title (links to the Tasks tab)
 
 **Additional columns** (hidden by default, toggle via the column chooser):
-  - **Y-1 Budget / Y-1 Landing**: Prior-year figures
-  - **Y Revision / Y Follow-up**: Current-year revision and follow-up amounts
+  - **Y-1 Budget / Y-1 expected landing**: Prior-year figures
+  - **Y Revision / Y actuals**: Current-year revision and actuals amounts
   - **Y+1 Budget / Y+1 Revision**: Next-year figures
   - **Y+2 Budget**: Two-years-out budget
   - **Enabled**: Item status (enabled or disabled)
@@ -77,7 +77,7 @@ The OPEX list (at **Budget Management > OPEX**) is your main view for browsing, 
 **Deep linking**:
   - Clicking any cell opens the workspace on the most relevant tab:
     - **Product Name**, **Supplier**, **Paying Company**, **Account**, and other general columns: Opens the **Overview** tab
-    - **Budget columns** (Y Budget, Y Landing, Y-1 Budget, etc.): Opens the **Budget** tab pre-set to that year
+    - **Budget columns** (Y Budget, Y expected landing, Y-1 Budget, etc.): Opens the **Budget** tab pre-set to that year
     - **Allocation**: Opens the **Allocations** tab for the current year
     - **Task**: Opens the **Tasks** tab
     - **Contract**: Opens the linked Contract workspace directly (not the OPEX workspace)
@@ -133,39 +133,43 @@ This tab shows all the general information about the spend item.
 
 ### Budget
 
-The Budget tab is where you enter financial data per year. It supports multiple budget columns and two input modes: **Flat** (annual totals) and **Manual** (monthly breakdown).
+The Budget tab is where you enter financial data per year. It supports multiple budget columns and two input modes, shown as tabs: **Flat** (annual totals) and **Monthly** (monthly breakdown).
 
 **Year selection**:
   - Use the year tabs at the top to switch between Y-2, Y-1, Y (current year), Y+1, and Y+2
   - Each year has its own version, mode, and amounts
-  - Switching years with unsaved changes prompts a save/discard dialog
+  - Switching years saves your pending edits first
 
 **Budget columns**:
-  - **Budget (planned)**: Initial annual budget approved at the start of the year
-  - **Revision (committed)**: Mid-year budget update (e.g., after a reforecast)
-  - **Follow-up (actual)**: Expected actual spend (your best estimate as the year progresses)
-  - **Landing (expected landing)**: Final actual spend after year-end close
+  - **Budget**: Initial annual budget approved at the start of the year
+  - **Revision**: Mid-year budget update (e.g., after a reforecast)
+  - **Actuals**: Expected actual spend (your best estimate as the year progresses)
+  - **Expected landing**: Final actual spend after year-end close
 
-**Flat vs Manual mode**:
+**Flat vs Monthly**:
   - **Flat**: Enter one total per column; amounts are spread evenly across 12 months for allocation purposes. Only the total you edit is saved. The other columns keep their monthly amounts.
-  - **Manual**: Enter amounts per month (Jan-Dec) for each column, plus a **Forecast** column for additional planning. Only the months you change are saved.
-  - Toggle between modes using the radio buttons at the top of the tab
+  - **Monthly**: Enter amounts per month (Jan-Dec) for each column, plus a **Forecast** column for additional planning. Quarter subtotals and a yearly total are shown. Only the months you change are saved.
+  - Switch between modes with the **Flat** and **Monthly** tabs. Switching does not change your amounts.
 
 **Freeze behavior**:
-  - If a year's budget columns are frozen (via Budget Administration), the corresponding inputs become read-only
+  - If a year's budget columns are frozen (via Budget Administration), the corresponding inputs become read-only and show a lock icon
   - You can still view frozen data; admins can unfreeze via **Budget Management > Budget Administration > Freeze/Unfreeze**
   - Each column can be frozen independently (Budget, Revision, Forecast, Actuals, Expected landing)
 
-**Notes field**:
-  - Each year's budget version has a **Notes** field for year-specific comments (e.g., "Includes 10% price increase in Q3")
+**Monthly tools**:
+  - **Spread an annual amount**: choose a column, type a yearly amount and a profile (**Flat** or **4-4-5**), then click **Apply** to fill the 12 months
+  - **Clear column**: the icon next to a column header sets every month of that column to zero, for example before entering the whole amount in a single month
+
+**Multi-year trend**:
+  - A chart below the grid shows the item's budget columns across years and updates as you type
 
 **How to use it**:
   1. Select the year you are planning for
-  2. Choose Flat or Manual mode
-  3. Fill in the relevant columns (Budget for initial planning, Follow-up for tracking, Landing for actuals)
-  4. Click **Save** to persist your changes
+  2. Choose the **Flat** or **Monthly** tab
+  3. Fill in the relevant columns (Budget for initial planning, Actuals for tracking, Expected landing for the year-end figure)
+  4. Your changes save automatically; a **Saving...** / **Saved** hint shows next to the year tabs
 
-**Tip**: For most items, Flat mode is faster. Use Manual mode when the spend varies significantly by month (e.g., seasonal licensing, one-time setup fees).
+**Tip**: For most items, Flat mode is faster. Use Monthly mode when the spend varies significantly by month (e.g., seasonal licensing, one-time setup fees).
 
 ---
 
@@ -327,7 +331,7 @@ You can bulk-load OPEX items via CSV to speed up initial setup or sync with exte
   - **Insert-only**: The importer only creates new items; it will not update existing ones. Use the UI to edit existing items
   - **References**: `supplier_name` must match a Supplier by name (case-insensitive). `account_number` must match an Account. `owner_it_email` and `owner_business_email` must match enabled users by email
   - **Analytics Category**: If the category does not exist, it is created automatically during import
-  - **Budgets**: Budget columns populate Y-1, Y, and Y+1 versions. Amounts are spread evenly across 12 months (flat mode)
+  - **Budgets**: Budget columns populate Y-1, Y, and Y+1 versions. Amounts are spread evenly across 12 months (Flat mode)
 
 **Common errors**:
   - **"Supplier not found"**: Create the supplier in **Master Data > Suppliers** first, then re-import

@@ -285,7 +285,7 @@ These connections stay on the server — loopback or Docker bridge network only.
 ## Background Jobs
 
 The backend runs scheduled background jobs for email notifications:
-- **Expiration warnings**: daily at 08:00 UTC — alerts users about contracts and OPEX items expiring within 30 days.
+- **Expiration warnings**: daily at 08:00 UTC. Emails the owners of contracts and OPEX items 30, 14, 7 and 1 day(s) before a contract's cancellation deadline, a contract's end date or an OPEX item's end of validity. Only users who switched on budget notifications and expiration warnings in their notification settings receive them.
 - **Weekly review digest**: hourly check — sends timezone-aware weekly summaries to users who have opted in.
 
 One more scheduled job runs when Entra SSO is configured:

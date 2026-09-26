@@ -92,15 +92,9 @@ Aprobar una de estas acciones —por sí sola o como parte de un **Aprobar todo*
 
 ## Leer las respuestas redactadas: la nota de respaldo
 
-Cuando un agente redacta una **Respuesta al solicitante** o una **Nota interna**, normalmente fundamenta ese borrador en sus bibliotecas de [Base de conocimiento](knowledge.md) y cita las fuentes que utilizó. Ocasionalmente verá una pequeña leyenda **Síntesis de respaldo** en una propuesta de este tipo. Significa que el agente no pudo respaldar ese borrador concreto con fuentes citadas; por tanto, trátelo como una simple sugerencia y léalo con atención antes de aprobarlo, en lugar de confiar en él como verificado con fuentes.
+Cuando un agente redacta una **Respuesta al solicitante** o una **Nota interna**, normalmente fundamenta ese borrador en sus bibliotecas de [Base de conocimiento](knowledge.md) y cita las fuentes que utilizó. Ocasionalmente verá la nota **Esta respuesta no está respaldada por su base de conocimiento.** en una propuesta de este tipo. Significa que el agente no pudo respaldar ese borrador concreto con fuentes citadas; por tanto, trátelo como una simple sugerencia y léalo con atención antes de aprobarlo, en lugar de confiar en él como verificado con fuentes.
 
-La leyenda indica el motivo en términos sencillos, por ejemplo:
-
-- **Error de síntesis** — algo salió mal al componer la respuesta fundamentada.
-- **Síntesis desactivada** — la redacción fundamentada está desactivada en esta instancia.
-- **Proyección por encima del límite del run** — componer la respuesta fundamentada habría superado el presupuesto de esa comprobación.
-- **Fuga de contexto operativo bloqueada** — el borrador se retuvo porque corría el riesgo de exponer guía interna al solicitante.
-- **Síntesis inválida o sin base** — el borrador no se pudo verificar frente a sus fuentes.
+**Detalles** abre el motivo técnico (para soporte), por ejemplo un error de síntesis o una filtración bloqueada de guía interna. No necesita esos códigos para decidir.
 
 Lo importante que hay que saber es que **la ausencia de esta nota es el caso normal y saludable.** La mayoría de los borradores están fundamentados y no llevan ninguna leyenda. Y una respuesta puede, legítimamente, no tener fuentes citadas —un acuse de recibo administrativo o un escalado puramente interno no está pensado para redactarse a partir de su base de conocimiento— sin que ello active esta advertencia. Por eso, no interprete la ausencia de una nota de respaldo como un problema; significa que el borrador está debidamente fundamentado o que nunca debía estarlo. La nota solo aparece cuando el agente intentó fundamentar una respuesta y no pudo.
 
@@ -133,7 +127,7 @@ Cada grupo de ticket y cada fila de atención lleva un botón **Traza**. Abre el
 - Nada de lo que hay aquí ha llegado al solicitante hasta que usted lo apruebe. Leer un borrador, rastrearlo o dejarlo en la cola no cambia nada en el ticket.
 - Rechace en lugar de ignorar. Una propuesta rechazada permanece en el registro de auditoría con su nota opcional, lo cual resulta mucho más útil después que una propuesta que simplemente caducó sin atender.
 - Descarte, en lugar de rechazar, una propuesta que simplemente no va a enviar. Si un borrador es correcto pero no debe salir —un ticket sensible, un compañero que ya respondió—, **Descartar** lo aparta sin penalizar al agente. Reserve **Rechazar** para las propuestas que de verdad estaban mal.
-- La ausencia de una nota **Síntesis de respaldo** es una buena noticia, no información que falte. Dedique su lectura más atenta a los borradores que *sí* la llevan.
+- La ausencia de la nota de respaldo es una buena noticia, no información que falte. Dedique su lectura más atenta a los borradores que *sí* la llevan.
 - Si un cambio aprobado acaba en **Requiere atención**, la leyenda en rojo y el botón **Traza** le indican si fue el agente, una comprobación de seguridad o el sistema de tickets conectado lo que lo detuvo; corrija la causa subyacente y luego use **Repetir el análisis**, en lugar de volver a aprobar a ciegas.
 - No dé algo por visto solo para que una cifra desaparezca. **Dar por visto** deja constancia de que una persona miró el fallo; una cola que despeja sin leer vale menos que una que deja intacta.
 - La cola combinada en `/agents/approvals` es más rápida cuando ejecuta varios agentes; cambie a la pestaña **Aprobaciones** propia de un agente cuando quiera centrarse solo en ese.

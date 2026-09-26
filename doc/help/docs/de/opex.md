@@ -41,12 +41,12 @@ Die OPEX-Liste (unter **Budgetverwaltung > OPEX**) ist Ihre Hauptansicht zum Dur
   - **Konto**: Die Sachkonto-Nummer und -Bezeichnung
   - **Zuordnung**: Die Zuordnungsmethoden-Bezeichnung für das aktuelle Jahr (verlinkt zum Zuordnungen-Tab)
   - **J Budget**: Budget des aktuellen Jahres (verlinkt zum Budget-Tab für dieses Jahr)
-  - **J Endwert**: Endwert des aktuellen Jahres (verlinkt zum Budget-Tab für dieses Jahr)
+  - **J Erwarteter Endwert**: Erwarteter Endwert des aktuellen Jahres (verlinkt zum Budget-Tab für dieses Jahr)
   - **Aufgabe**: Der neueste Aufgabentitel (verlinkt zum Aufgaben-Tab)
 
 **Zusätzliche Spalten** (standardmäßig ausgeblendet, über Spaltenauswahl umschaltbar):
-  - **J-1 Budget / J-1 Endwert**: Vorjahreswerte
-  - **J Revision / J Prognose**: Revision und Prognose des aktuellen Jahres
+  - **J-1 Budget / J-1 Erwarteter Endwert**: Vorjahreswerte
+  - **J Revision / J Ist-Werte**: Revision und Ist-Werte des aktuellen Jahres
   - **J+1 Budget / J+1 Revision**: Werte des nächsten Jahres
   - **J+2 Budget**: Budget in zwei Jahren
   - **Aktiviert**: Positionsstatus (aktiviert oder deaktiviert)
@@ -77,7 +77,7 @@ Die OPEX-Liste (unter **Budgetverwaltung > OPEX**) ist Ihre Hauptansicht zum Dur
 **Deep Linking**:
   - Das Anklicken einer beliebigen Zelle öffnet den Arbeitsbereich auf dem relevantesten Tab:
     - **Produktname**, **Lieferant**, **Zahlendes Unternehmen**, **Konto** und andere allgemeine Spalten: Öffnet den **Übersichts**-Tab
-    - **Budgetspalten** (J Budget, J Endwert, J-1 Budget usw.): Öffnet den **Budget**-Tab voreingestellt auf dieses Jahr
+    - **Budgetspalten** (J Budget, J Erwarteter Endwert, J-1 Budget usw.): Öffnet den **Budget**-Tab voreingestellt auf dieses Jahr
     - **Zuordnung**: Öffnet den **Zuordnungen**-Tab für das aktuelle Jahr
     - **Aufgabe**: Öffnet den **Aufgaben**-Tab
     - **Vertrag**: Öffnet den verknüpften Vertrags-Arbeitsbereich direkt (nicht den OPEX-Arbeitsbereich)
@@ -133,39 +133,43 @@ Dieser Tab zeigt alle allgemeinen Informationen zur Ausgabenposition.
 
 ### Budget
 
-Der Budget-Tab ist der Ort, an dem Sie Finanzdaten pro Jahr eingeben. Er unterstützt mehrere Budgetspalten und zwei Eingabemodi: **Pauschal** (Jahressummen) und **Manuell** (monatliche Aufschlüsselung).
+Im Budget-Tab geben Sie Finanzdaten pro Jahr ein. Er unterstützt mehrere Budgetspalten und zwei Eingabemodi, die als Tabs erscheinen: **Jährlich** (Jahressummen) und **Monatlich** (monatliche Aufschlüsselung).
 
-**Jahrauswahl**:
-  - Verwenden Sie die Jahrreiter oben, um zwischen J-2, J-1, J (aktuelles Jahr), J+1 und J+2 zu wechseln
-  - Jedes Jahr hat seine eigene Version, seinen Modus und seine Beträge
-  - Jahreswechsel mit nicht gespeicherten Änderungen löst einen Speichern/Verwerfen-Dialog aus
+**Jahresauswahl**:
+  - Verwenden Sie die Jahres-Tabs oben, um zwischen J-2, J-1, J (aktuelles Jahr), J+1 und J+2 zu wechseln
+  - Jedes Jahr hat seine eigene Version, seinen eigenen Modus und eigene Beträge
+  - Beim Wechsel des Jahres werden Ihre ausstehenden Änderungen zuerst gespeichert
 
 **Budgetspalten**:
-  - **Budget (geplant)**: Genehmigtes Jahresbudget zu Jahresbeginn
-  - **Revision (festgelegt)**: Halbjahres-Budgetaktualisierung (z. B. nach einer Neuprognose)
-  - **Prognose (tatsächlich)**: Erwartete tatsächliche Ausgaben (Ihre beste Schätzung im Jahresverlauf)
-  - **Endwert (erwarteter Endwert)**: Tatsächliche Ausgaben nach dem Jahresabschluss
+  - **Budget**: Ursprüngliches Jahresbudget, das zu Jahresbeginn genehmigt wurde
+  - **Revision**: Budgetaktualisierung im Jahresverlauf (z. B. nach einer Neuprognose)
+  - **Ist-Werte**: Erwartete tatsächliche Ausgaben (Ihre beste Schätzung im Jahresverlauf)
+  - **Erwarteter Endwert**: Tatsächliche Ausgaben nach dem Jahresabschluss
 
-**Pauschal vs. Manueller Modus**:
-  - **Pauschal**: Geben Sie eine Summe pro Spalte ein; Beträge werden gleichmäßig auf 12 Monate verteilt. Nur die Summe, die Sie ändern, wird gespeichert. Die anderen Spalten behalten ihre Monatsbeträge.
-  - **Manuell**: Geben Sie Beträge pro Monat (Jan-Dez) für jede Spalte ein, plus eine **Prognose**-Spalte für zusätzliche Planung. Nur die Monate, die Sie ändern, werden gespeichert.
-  - Wechseln Sie zwischen den Modi mit den Optionsfeldern oben im Tab
+**Jährlich oder Monatlich**:
+  - **Jährlich**: Geben Sie eine Summe pro Spalte ein; die Beträge werden für Zuordnungszwecke gleichmäßig auf 12 Monate verteilt. Nur die Summe, die Sie bearbeiten, wird gespeichert. Die anderen Spalten behalten ihre Monatsbeträge.
+  - **Monatlich**: Geben Sie Beträge pro Monat (Jan-Dez) für jede Spalte ein, plus eine Spalte **Prognose** für zusätzliche Planung. Quartalszwischensummen und eine Jahressumme werden angezeigt. Nur die Monate, die Sie ändern, werden gespeichert.
+  - Wechseln Sie mit den Tabs **Jährlich** und **Monatlich** zwischen den Modi. Der Wechsel ändert Ihre Beträge nicht.
 
 **Einfrierverhalten**:
-  - Wenn Budgetspalten eines Jahres eingefroren sind (über Budget-Administration), werden die entsprechenden Eingaben schreibgeschützt
-  - Sie können eingefrorene Daten weiterhin einsehen; Administratoren können über **Budgetverwaltung > Administration > Einfrieren/Freigeben** entsperren
+  - Wenn die Budgetspalten eines Jahres eingefroren sind (über die Budgetadministration), werden die entsprechenden Felder schreibgeschützt und zeigen ein Schloss-Symbol
+  - Sie können eingefrorene Daten weiterhin ansehen; Administratoren können sie über **Budgetverwaltung > Administration > Einfrieren/Freigeben** wieder freigeben
   - Jede Spalte kann unabhängig eingefroren werden (Budget, Revision, Prognose, Ist-Werte, Erwarteter Endwert)
 
-**Notizfeld**:
-  - Jede Jahresbudget-Version hat ein **Notizen**-Feld für jahresspezifische Kommentare (z. B. „Enthält 10 % Preiserhöhung in Q3")
+**Werkzeuge im Monatsmodus**:
+  - **Jahresbetrag verteilen**: Wählen Sie eine Spalte, geben Sie einen Jahresbetrag und ein Profil ein (**Gleichmäßig** oder **4-4-5**) und klicken Sie auf **Anwenden**, um die 12 Monate zu füllen
+  - **Spalte leeren**: Das Symbol neben einer Spaltenüberschrift setzt alle Monate dieser Spalte auf null, zum Beispiel bevor Sie den gesamten Betrag in einem einzigen Monat erfassen
 
-**Vorgehensweise**:
+**Mehrjahrestrend**:
+  - Ein Diagramm unter dem Raster zeigt die Budgetspalten der Position über mehrere Jahre und aktualisiert sich während der Eingabe
+
+**So verwenden Sie ihn**:
   1. Wählen Sie das Jahr, für das Sie planen
-  2. Wählen Sie den Pauschalen oder Manuellen Modus
-  3. Füllen Sie die relevanten Spalten aus (Budget für die Erstplanung, Prognose für die Nachverfolgung, Endwert für Ist-Werte)
-  4. Klicken Sie auf **Speichern**, um Ihre Änderungen zu sichern
+  2. Wählen Sie den Tab **Jährlich** oder **Monatlich**
+  3. Füllen Sie die relevanten Spalten aus (Budget für die Erstplanung, Ist-Werte für die Nachverfolgung, Erwarteter Endwert für die Zahl zum Jahresende)
+  4. Ihre Änderungen werden automatisch gespeichert; neben den Jahres-Tabs erscheint der Hinweis **Wird gespeichert...** / **Gespeichert**
 
-**Tipp**: Für die meisten Positionen ist der Pauschalmodus schneller. Verwenden Sie den Manuellen Modus, wenn die Ausgaben monatlich stark variieren (z. B. saisonale Lizenzierung, einmalige Einrichtungsgebühren).
+**Tipp**: Für die meisten Positionen ist der Modus Jährlich schneller. Verwenden Sie den Modus Monatlich, wenn die Ausgaben von Monat zu Monat stark schwanken (z. B. saisonale Lizenzen, einmalige Einrichtungsgebühren).
 
 ---
 
@@ -327,7 +331,7 @@ Sie können OPEX-Positionen per CSV massenimportieren, um die Ersteinrichtung zu
   - **Nur Neuanlage**: Der Importer erstellt nur neue Positionen; er aktualisiert keine bestehenden. Verwenden Sie die Benutzeroberfläche zum Bearbeiten bestehender Positionen
   - **Referenzen**: `supplier_name` muss einem Lieferanten namentlich entsprechen (Groß-/Kleinschreibung wird ignoriert). `account_number` muss einem Konto entsprechen. `owner_it_email` und `owner_business_email` müssen aktivierten Benutzern per E-Mail entsprechen
   - **Analysekategorie**: Existiert die Kategorie nicht, wird sie beim Import automatisch erstellt
-  - **Budgets**: Budgetspalten füllen J-1, J und J+1 Versionen. Beträge werden gleichmäßig auf 12 Monate verteilt (Pauschalmodus)
+  - **Budgets**: Budgetspalten füllen J-1, J und J+1 Versionen. Beträge werden gleichmäßig auf 12 Monate verteilt (Modus Jährlich)
 
 **Häufige Fehler**:
   - **„Lieferant nicht gefunden"**: Erstellen Sie den Lieferanten zuerst unter **Stammdaten > Lieferanten**, dann importieren Sie erneut

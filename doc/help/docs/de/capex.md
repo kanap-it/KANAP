@@ -70,7 +70,7 @@ Die CAPEX-Liste (unter **Budgetverwaltung > CAPEX**) ist Ihre Hauptansicht zum D
 | **Priorität** | Geschäftliche Prioritätsstufe |
 | **J Zuordnung** | Zuordnungsmethoden-Bezeichnung des aktuellen Jahres |
 | **J Budget** | Geplantes Investitionsbudget des aktuellen Jahres (Berichtswährung) |
-| **J Endwert** | Tatsächliche Investitionsausgaben des aktuellen Jahres (Berichtswährung) |
+| **J Erwarteter Endwert** | Tatsächliche Investitionsausgaben des aktuellen Jahres (Berichtswährung) |
 | **J+1 Budget** | Geplantes Investitionsbudget des nächsten Jahres (Berichtswährung) |
 
 ### Zusätzliche Spalten
@@ -80,7 +80,7 @@ Diese Spalten sind standardmäßig ausgeblendet. Zeigen Sie sie über die Spalte
 | Spalte | Was sie zeigt |
 |--------|---------------|
 | **J+1 Zuordnung** | Zuordnungsmethoden-Bezeichnung des nächsten Jahres |
-| **J-1 Endwert** | Tatsächliche Investitionsausgaben des Vorjahres |
+| **J-1 Erwarteter Endwert** | Tatsächliche Investitionsausgaben des Vorjahres |
 | **Währung** | Währungscode der Position |
 | **Start** | Gültig-ab-Datum |
 | **Ende der Gültigkeit** | Datum, an dem die Position endet (leer bedeutet kein Ende) |
@@ -109,8 +109,8 @@ Die angeheftete Zeile unten zeigt Summen für alle Budgetspalten. Summen berück
 Klicken Sie auf eine beliebige Zelle in einer Zeile, um den Arbeitsbereich auf dem für diese Spalte relevantesten Tab zu öffnen:
 
 - **Beschreibung**, **Unternehmen**, **Anlagentyp**, **Investitionsart**, **Priorität**: Öffnet die **Übersicht**
-- **J Budget**, **J Endwert**: Öffnet den **Budget**-Tab für das aktuelle Jahr
-- **J-1 Endwert**: Öffnet den **Budget**-Tab für das Vorjahr
+- **J Budget**, **J Erwarteter Endwert**: Öffnet den **Budget**-Tab für das aktuelle Jahr
+- **J-1 Erwarteter Endwert**: Öffnet den **Budget**-Tab für das Vorjahr
 - **J+1 Budget**: Öffnet den **Budget**-Tab für das nächste Jahr
 - **J Zuordnung**: Öffnet den **Zuordnungen**-Tab für das aktuelle Jahr
 - **J+1 Zuordnung**: Öffnet den **Zuordnungen**-Tab für das nächste Jahr
@@ -171,52 +171,52 @@ Dieser Tab zeigt alle allgemeinen Informationen zur CAPEX-Position.
 
 ### Budget
 
-Der Budget-Tab ist der Ort, an dem Sie Finanzdaten pro Jahr eingeben. Er unterstützt mehrere Budgetspalten und zwei Eingabemodi: **Pauschal** (Jahressumme) und **Manuell pro Monat** (12-Monats-Aufschlüsselung).
+Im Budget-Tab geben Sie Finanzdaten pro Jahr ein. Er unterstützt mehrere Budgetspalten und zwei Eingabemodi, die als Tabs erscheinen: **Jährlich** (Jahressumme) und **Monatlich** (12-Monats-Aufschlüsselung).
 
-**Jahrauswahl**:
+**Jahresauswahl**:
 
-- Verwenden Sie die Jahrreiter oben, um zwischen J-2, J-1, J (aktuelles Jahr), J+1 und J+2 zu wechseln
+- Verwenden Sie die Jahres-Tabs oben, um zwischen J-2, J-1, J (aktuelles Jahr), J+1 und J+2 zu wechseln
 - Jedes Jahr hat seine eigene Version, Zuordnungsmethode und Beträge
-- Jahreswechsel mit nicht gespeicherten Änderungen löst einen Speichern/Verwerfen-Dialog aus
+- Beim Wechsel des Jahres werden Ihre ausstehenden Änderungen zuerst gespeichert
 
 **Budgetspalten** (alle Jahre):
 
-- **Budget**: Geplantes Investitionsbudget
-- **Revision**: Halbjahres-Budgetaktualisierung (z. B. nach Umfangsänderungen oder Neuprognosen)
-- **Prognose**: Erwartete tatsächliche Ausgaben (Ihre beste Schätzung im Jahresverlauf)
-- **Endwert**: Tatsächliche Investitionsausgaben nach dem Jahresabschluss
+- **Budget**: Ursprünglich geplantes Investitionsbudget
+- **Revision**: Budgetaktualisierung im Jahresverlauf (z. B. nach Umfangsänderungen oder Neuprognosen)
+- **Ist-Werte**: Erwartete tatsächliche Ausgaben (Ihre beste Schätzung im Jahresverlauf)
+- **Erwarteter Endwert**: Tatsächliche Investitionsausgaben nach dem Jahresabschluss
 
-**Pauschal vs. Manuell pro Monat**:
+**Jährlich oder Monatlich**:
 
-- **Pauschal**: Geben Sie eine Summe pro Spalte ein; Beträge werden gleichmäßig auf 12 Monate verteilt. Nur die Summe, die Sie ändern, wird gespeichert. Die anderen Spalten behalten ihre Monatsbeträge.
-- **Manuell pro Monat**: Geben Sie Beträge pro Monat (Jan bis Dez) für granulare Projektverfolgung ein. Nur die Monate, die Sie ändern, werden gespeichert.
-- Wechseln Sie zwischen den Modi mit den Optionsfeldern oben im Tab
-- Ein Moduswechsel speichert nichts, er ändert nur die Ansicht. Pauschal zeigt die Jahressumme der gespeicherten Monate, Manuell pro Monat zeigt die gespeicherten Monate.
+- **Jährlich**: Geben Sie eine Summe pro Spalte ein; die Beträge werden für Zuordnungszwecke gleichmäßig auf 12 Monate verteilt. Nur die Summe, die Sie bearbeiten, wird gespeichert. Die anderen Spalten behalten ihre Monatsbeträge.
+- **Monatlich**: Geben Sie Beträge pro Monat (Januar bis Dezember) für eine genaue Verfolgung der Projektausgaben ein, plus eine Spalte **Prognose**. Quartalszwischensummen und eine Jahressumme werden angezeigt. Nur die Monate, die Sie ändern, werden gespeichert.
+- Wechseln Sie mit den Tabs **Jährlich** und **Monatlich** zwischen den Modi
+- Der Moduswechsel ändert Ihre Beträge nicht, nur die Ansicht. Jährlich zeigt die Jahressumme der gespeicherten Monate, Monatlich zeigt die gespeicherten Monate.
 
 **Einfrierverhalten**:
 
-- Wenn das Budget eines Jahres eingefroren ist (über Budget-Administration), sind die Eingaben deaktiviert und zeigen ein „Eingefroren"-Label
-- Sie können eingefrorene Daten weiterhin einsehen; Administratoren können über **Budgetverwaltung > Administration > Einfrieren/Freigeben** entsperren
+- Wenn das Budget eines Jahres eingefroren ist (über die Budgetadministration), sind die Felder schreibgeschützt und zeigen ein Schloss-Symbol
 - Jede Spalte kann unabhängig eingefroren werden (Budget, Revision, Prognose, Ist-Werte, Erwarteter Endwert)
+- Sie können eingefrorene Daten weiterhin ansehen; Administratoren können sie über **Budgetverwaltung > Administration > Einfrieren/Freigeben** wieder freigeben
 
-**Löschen und umverteilen** (nur im Modus Manuell pro Monat):
+**Werkzeuge im Monatsmodus** (nur Modus Monatlich):
 
-- Klicken Sie auf das Löschsymbol neben einem Monat, um diesen auf Null zu setzen und seinen Wert auf andere nicht gesperrte Monate umzuverteilen
-- Nützlich zum Entfernen von Platzhaltermonaten oder zum Anpassen von Projektzeitplänen
-- Gesperrte Monate (in dieser Sitzung zuvor gelöscht) sind von der Umverteilung ausgeschlossen
+- **Jahresbetrag verteilen**: Wählen Sie eine Spalte, geben Sie einen Jahresbetrag und ein Profil ein (**Gleichmäßig** oder **4-4-5**) und klicken Sie auf **Anwenden**, um die 12 Monate zu füllen
+- **Spalte leeren**: Das Symbol neben einer Spaltenüberschrift setzt alle Monate dieser Spalte auf null
+- Nützlich, um einen Auszahlungsplan von Hand zu erfassen, zum Beispiel den gesamten Betrag in einem einzigen Monat
 
-**Notizfeld**:
+**Mehrjahrestrend**:
 
-- Jede Jahresbudget-Version hat ein **Notizen**-Feld für jahresspezifische Kommentare (z. B. „Auf Q2 verschoben wegen Lieferantenverzögerungen")
+- Ein Diagramm unter der Tabelle zeigt die Budgetspalten der Position über mehrere Jahre und aktualisiert sich während der Eingabe
 
-**Vorgehensweise**:
+**So verwenden Sie ihn**:
 
 1. Wählen Sie das Jahr, für das Sie planen
-2. Wählen Sie den Modus Pauschal oder Manuell pro Monat
-3. Füllen Sie die relevanten Spalten aus (Budget für die Erstplanung, Prognose für die Nachverfolgung, Endwert für Ist-Werte)
-4. Klicken Sie auf **Speichern**, um Ihre Änderungen zu sichern
+2. Wählen Sie den Tab **Jährlich** oder **Monatlich**
+3. Füllen Sie die relevanten Spalten aus (Budget für die Erstplanung, Ist-Werte für die Nachverfolgung, Erwarteter Endwert für die Zahl zum Jahresende)
+4. Ihre Änderungen werden automatisch gespeichert; neben den Jahres-Tabs erscheint der Hinweis **Wird gespeichert...** / **Gespeichert**
 
-**Tipp**: Für die meisten Positionen ist der Pauschalmodus schneller. Verwenden Sie den Modus Manuell pro Monat, wenn Sie die zeitliche Verteilung der Projektausgaben oder phasenweise Einführungen verfolgen müssen.
+**Tipp**: Für die meisten Positionen ist der Modus Jährlich schneller. Verwenden Sie den Modus Monatlich, wenn Sie die zeitliche Verteilung von Projektausgaben oder phasenweise Einführungen verfolgen müssen.
 
 ---
 
@@ -404,7 +404,7 @@ Sie können CAPEX-Positionen per CSV massenimportieren, um die Ersteinrichtung z
 - **Anlagentyp**: Muss `hardware` oder `software` sein (Groß-/Kleinschreibung wird ignoriert).
 - **Investitionsart**: Muss eine von: `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth`, `other` sein (Groß-/Kleinschreibung wird ignoriert).
 - **Priorität**: Muss `mandatory`, `high`, `medium` oder `low` sein (Groß-/Kleinschreibung wird ignoriert).
-- **Budgets**: Budgetspalten füllen J-1, J und J+1 Versionen. Beträge werden gleichmäßig auf 12 Monate verteilt (Pauschalmodus).
+- **Budgets**: Budgetspalten füllen J-1, J und J+1 Versionen. Beträge werden gleichmäßig auf 12 Monate verteilt (Modus Jährlich).
 
 **Häufige Fehler**:
 
@@ -482,5 +482,5 @@ Wenn Sie eine Aktion nicht ausführen können (z. B. die Schaltfläche **CSV imp
 - **Deaktivieren statt löschen**: Bewahren Sie die Historie, indem Sie Positionen deaktivieren, wenn Vermögenswerte veräußert oder Projekte abgeschlossen werden.
 - **Summenzeile überprüfen**: Bevor Sie Investitionsbudgets finalisieren, prüfen Sie die angeheftete Summenzeile, um sicherzustellen, dass Ihre Investitionsausgaben wie erwartet aufgehen.
 - **Deep Linking nutzen**: Klicken Sie direkt auf eine Budget- oder Zuordnungsspalte in der Liste, um direkt zum entsprechenden Tab und Jahr zu springen.
-- **Ausgaben zeitlich verfolgen**: Für große Projekte mit phasenweisen Ausgaben verwenden Sie den Modus Manuell pro Monat, um Ausgaben gegen Projektmeilensteine zu verfolgen.
+- **Ausgaben zeitlich verfolgen**: Für große Projekte mit phasenweisen Ausgaben verwenden Sie den Modus Monatlich, um Ausgaben gegen Projektmeilensteine zu verfolgen.
 - **Nach Jahresende einfrieren**: Verwenden Sie die Budget-Administration, um Vorjahresbudgets einzufrieren, sobald die Ist-Werte finalisiert sind, um versehentliche Bearbeitungen zu verhindern.

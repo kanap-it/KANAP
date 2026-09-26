@@ -11,7 +11,7 @@ Navegue a **Gestión presupuestaria > CAPEX** para ver su lista. Haga clic en **
 **Campos obligatorios**:
 
 - **Descripción**: En qué está invirtiendo (p. ej., "Nueva infraestructura de servidores", "Licencia de software ERP")
-- **Tipo PP&E**: Clasificación de Propiedad, Planta y Equipamiento -- Hardware o Software
+- **Tipo de activo fijo**: Clasificación de Propiedad, Planta y Equipamiento -- Hardware o Software
 - **Tipo de inversión**: Propósito de la inversión (ver opciones a continuación)
 - **Prioridad**: Nivel de prioridad de negocio (ver opciones a continuación)
 - **Moneda**: Código ISO (p. ej., USD, EUR). Se establece por defecto a la moneda CAPEX de su espacio de trabajo; puede sobrescribirla por partida
@@ -65,13 +65,13 @@ La lista CAPEX (en **Gestión presupuestaria > CAPEX**) es su vista principal pa
 |---------|-------------|
 | **Descripción** | Nombre de la inversión |
 | **Empresa** | Empresa pagadora |
-| **Tipo PP&E** | Hardware o Software |
+| **Tipo de activo fijo** | Hardware o Software |
 | **Tipo de inversión** | Propósito de la inversión |
 | **Prioridad** | Nivel de prioridad de negocio |
-| **Asignación Y** | Etiqueta del método de asignación del año actual |
-| **Presupuesto Y** | Presupuesto de capital planificado del año actual (moneda de reporte) |
-| **Aterrizaje Y** | Gasto de capital real final del año actual (moneda de reporte) |
-| **Presupuesto Y+1** | Presupuesto de capital planificado del año siguiente (moneda de reporte) |
+| **Asignación A** | Etiqueta del método de asignación del año actual |
+| **Presupuesto A** | Presupuesto de capital planificado del año actual (moneda de reporte) |
+| **Aterrizaje previsto A** | Gasto de capital real final del año actual (moneda de reporte) |
+| **Presupuesto A+1** | Presupuesto de capital planificado del año siguiente (moneda de reporte) |
 
 ### Columnas adicionales
 
@@ -79,8 +79,8 @@ Estas columnas están ocultas por defecto. Muéstrelas desde el selector de colu
 
 | Columna | Qué muestra |
 |---------|-------------|
-| **Asignación Y+1** | Etiqueta del método de asignación del año siguiente |
-| **Aterrizaje Y-1** | Gasto de capital real final del año anterior |
+| **Asignación A+1** | Etiqueta del método de asignación del año siguiente |
+| **Aterrizaje previsto A-1** | Gasto de capital real final del año anterior |
 | **Moneda** | Código de moneda de la partida |
 | **Inicio** | Fecha de inicio efectivo |
 | **Fin de validez** | Fecha en que la partida termina (en blanco significa sin fin) |
@@ -90,11 +90,11 @@ Estas columnas están ocultas por defecto. Muéstrelas desde el selector de colu
 
 ### Búsqueda rápida
 
-El cuadro de búsqueda en la parte superior busca en descripción, notas, tipo PP&E, tipo de inversión, prioridad, moneda y estado. Los resultados se actualizan en tiempo real mientras escribe.
+El cuadro de búsqueda en la parte superior busca en descripción, notas, tipo de activo fijo, tipo de inversión, prioridad, moneda y estado. Los resultados se actualizan en tiempo real mientras escribe.
 
 ### Filtros de columna
 
-Cada encabezado de columna filtrable tiene un icono de filtro. **Empresa**, **Tipo PP&E**, **Tipo de inversión**, **Prioridad** y **Moneda** usan filtros de conjunto de casillas con **Todos**, **Ninguno** y un botón de limpiar. Múltiples filtros se combinan con lógica AND.
+Cada encabezado de columna filtrable tiene un icono de filtro. **Empresa**, **Tipo de activo fijo**, **Tipo de inversión**, **Prioridad** y **Moneda** usan filtros de conjunto de casillas con **Todos**, **Ninguno** y un botón de limpiar. Múltiples filtros se combinan con lógica AND.
 
 ### Ordenación
 
@@ -108,12 +108,12 @@ La fila fijada en la parte inferior muestra totales para todas las columnas pres
 
 Haga clic en cualquier celda de una fila para abrir el espacio de trabajo en la pestaña más relevante para esa columna:
 
-- **Descripción**, **Empresa**, **Tipo PP&E**, **Tipo de inversión**, **Prioridad**: Abre **Visión general**
-- **Presupuesto Y**, **Aterrizaje Y**: Abre la pestaña **Presupuesto** para el año actual
-- **Aterrizaje Y-1**: Abre la pestaña **Presupuesto** para el año anterior
-- **Presupuesto Y+1**: Abre la pestaña **Presupuesto** para el año siguiente
-- **Asignación Y**: Abre la pestaña **Asignaciones** para el año actual
-- **Asignación Y+1**: Abre la pestaña **Asignaciones** para el año siguiente
+- **Descripción**, **Empresa**, **Tipo de activo fijo**, **Tipo de inversión**, **Prioridad**: Abre **Visión general**
+- **Presupuesto A**, **Aterrizaje previsto A**: Abre la pestaña **Presupuesto** para el año actual
+- **Aterrizaje previsto A-1**: Abre la pestaña **Presupuesto** para el año anterior
+- **Presupuesto A+1**: Abre la pestaña **Presupuesto** para el año siguiente
+- **Asignación A**: Abre la pestaña **Asignaciones** para el año actual
+- **Asignación A+1**: Abre la pestaña **Asignaciones** para el año siguiente
 - **Tarea**: Abre la pestaña **Tareas**
 
 ### Filtro de estado
@@ -146,7 +146,7 @@ Esta pestaña muestra toda la información general de la partida CAPEX.
 - **Empresa pagadora**: Autocompletado desde sus Empresas
 - **Cuenta**: Filtrada por el plan de cuentas de la empresa pagadora
 - **Proveedor**: Autocompletado desde sus proveedores de datos maestros
-- **Tipo PP&E**: Hardware o Software
+- **Tipo de activo fijo**: Hardware o Software
 - **Tipo de inversión**: Reemplazo, Capacidad, Productividad, Seguridad, Conformidad, Crecimiento de negocio u Otro
 - **Prioridad**: Obligatorio, Alto, Medio o Bajo
 - **Moneda**: Se establece por defecto a la moneda CAPEX del espacio de trabajo; muestra solo monedas permitidas
@@ -171,52 +171,52 @@ Esta pestaña muestra toda la información general de la partida CAPEX.
 
 ### Presupuesto
 
-La pestaña Presupuesto es donde introduce datos financieros por año. Soporta múltiples columnas presupuestarias y dos modos de entrada: **Totales planos** (total anual) y **Manual por mes** (desglose de 12 meses).
+La pestaña Presupuesto es donde introduce datos financieros por año. Admite varias columnas presupuestarias y dos modos de entrada, mostrados como pestañas: **Anual** (total anual) y **Mensual** (desglose de 12 meses).
 
 **Selección de año**:
 
-- Utilice las pestañas de año en la parte superior para alternar entre Y-2, Y-1, Y (año actual), Y+1 e Y+2
+- Utilice las pestañas de año en la parte superior para alternar entre A-2, A-1, A (año actual), A+1 y A+2
 - Cada año tiene su propia versión, método de asignación e importes
-- Cambiar de año con cambios sin guardar muestra un diálogo de guardar/descartar
+- Al cambiar de año se guardan primero sus cambios pendientes
 
 **Columnas presupuestarias** (todos los años):
 
 - **Presupuesto**: Presupuesto de capital planificado inicial
 - **Revisión**: Actualización presupuestaria a mitad de año (p. ej., después de cambios de alcance o reprevisiones)
-- **Seguimiento**: Gasto real esperado (su mejor estimación a medida que avanza el año)
+- **Realizado**: Gasto real esperado (su mejor estimación a medida que avanza el año)
 - **Aterrizaje previsto**: Gasto de capital real final después del cierre de fin de año
 
-**Modo Plano vs Manual por mes**:
+**Anual o Mensual**:
 
-- **Totales planos**: Introduzca un total por columna; los importes se distribuyen uniformemente en 12 meses para fines de asignación. Solo se guarda el total que usted modifica. Las demás columnas conservan sus importes mensuales.
-- **Manual por mes**: Introduzca importes por mes (Ene a Dic) para un seguimiento granular del gasto del proyecto. Solo se guardan los meses que usted modifica.
-- Alterne entre modos usando los botones de radio en la parte superior de la pestaña
-- Cambiar de modo no guarda nada, solo cambia la vista. Los totales planos muestran el total anual de los meses guardados y el modo manual por mes muestra los meses guardados.
+- **Anual**: Introduzca un total por columna; los importes se distribuyen uniformemente en 12 meses para fines de asignación. Solo se guarda el total que usted modifica. Las demás columnas conservan sus importes mensuales.
+- **Mensual**: Introduzca importes por mes (enero a diciembre) para un seguimiento detallado del gasto del proyecto, más una columna **Previsión**. Se muestran subtotales trimestrales y un total anual. Solo se guardan los meses que usted modifica.
+- Cambie de modo con las pestañas **Anual** y **Mensual**
+- Cambiar de modo no modifica sus importes, solo la vista. Anual muestra el total anual de los meses guardados y Mensual muestra los meses guardados.
 
 **Comportamiento de congelación**:
 
-- Si el presupuesto de un año está congelado (vía Administración presupuestaria), las entradas están deshabilitadas y muestran una etiqueta "congelado"
-- Puede ver datos congelados; los administradores pueden descongelar vía **Gestión presupuestaria > Administración > Congelar/Descongelar**
+- Si el presupuesto de un año está congelado (vía Administración presupuestaria), los campos pasan a solo lectura y muestran un candado
 - Cada columna puede congelarse independientemente (Presupuesto, Revisión, Previsión, Realizado, Aterrizaje previsto)
+- Puede ver los datos congelados; los administradores pueden descongelar vía **Gestión presupuestaria > Administración > Congelar/Descongelar**
 
-**Eliminar y redistribuir** (solo modo manual por mes):
+**Herramientas del modo mensual** (solo modo Mensual):
 
-- Haga clic en el icono de eliminar junto a un mes para poner ese mes a cero y redistribuir su valor entre los otros meses desbloqueados
-- Útil para eliminar meses de marcador de posición o ajustar cronogramas de proyecto
-- Los meses bloqueados (previamente eliminados en esta sesión) se excluyen de la redistribución
+- **Distribuir un importe anual**: elija una columna, introduzca un importe anual y un perfil (**Uniforme** o **4-4-5**) y haga clic en **Aplicar** para rellenar los 12 meses
+- **Borrar columna**: el icono junto al encabezado de una columna pone a cero todos los meses de esa columna
+- Útil para introducir a mano un plan de desembolsos, por ejemplo todo el importe en un solo mes
 
-**Campo de Notas**:
+**Tendencia plurianual**:
 
-- Cada versión presupuestaria anual tiene un campo de **Notas** para comentarios específicos del año (p. ej., "Aplazado a T2 debido a retrasos del proveedor")
+- Un gráfico bajo la tabla muestra las columnas presupuestarias de la partida a lo largo de los años y se actualiza mientras escribe
 
 **Cómo usarlo**:
 
 1. Seleccione el año que está planificando
-2. Elija modo Totales planos o Manual por mes
-3. Complete las columnas relevantes (Presupuesto para planificación inicial, Seguimiento para monitorización, Aterrizaje previsto para realizado)
-4. Haga clic en **Guardar** para persistir sus cambios
+2. Elija la pestaña **Anual** o **Mensual**
+3. Complete las columnas relevantes (Presupuesto para la planificación inicial, Realizado para el seguimiento, Aterrizaje previsto para la cifra de cierre de año)
+4. Sus cambios se guardan automáticamente; junto a las pestañas de año aparece la indicación **Guardando...** / **Guardado**
 
-**Consejo**: Para la mayoría de partidas, el modo plano es más rápido. Utilice el modo manual por mes cuando necesite hacer seguimiento del ritmo del gasto de proyectos o despliegues por fases.
+**Consejo**: Para la mayoría de partidas, el modo Anual es más rápido. Utilice el modo Mensual cuando necesite hacer seguimiento del ritmo del gasto de proyectos o despliegues por fases.
 
 ---
 
@@ -401,15 +401,15 @@ Puede cargar masivamente partidas CAPEX vía CSV para acelerar la configuración
 - **Clave única**: Las partidas CAPEX se identifican por `description`. Si una descripción ya existe, se **omite** (sin actualizaciones).
 - **Solo inserción**: El importador solo crea nuevas partidas; no actualizará las existentes. Utilice la interfaz para editar partidas existentes.
 - **Referencias**: `company_name` debe coincidir con una empresa por nombre (sin distinguir mayúsculas).
-- **Tipo PP&E**: Debe ser `hardware` o `software` (sin distinguir mayúsculas).
+- **Tipo de activo fijo**: Debe ser `hardware` o `software` (sin distinguir mayúsculas).
 - **Tipo de inversión**: Debe ser uno de: `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth`, `other` (sin distinguir mayúsculas).
 - **Prioridad**: Debe ser `mandatory`, `high`, `medium` o `low` (sin distinguir mayúsculas).
-- **Presupuestos**: Las columnas presupuestarias rellenan las versiones Y-1, Y e Y+1. Los importes se distribuyen uniformemente en 12 meses (modo plano).
+- **Presupuestos**: Las columnas presupuestarias rellenan las versiones Y-1, Y e Y+1. Los importes se distribuyen uniformemente en 12 meses (modo Anual).
 
 **Errores comunes**:
 
 - **"Empresa no encontrada"**: Cree la empresa en **Datos maestros > Empresas** primero, luego reimporte.
-- **"Tipo PP&E inválido"**: Utilice `hardware` o `software` exactamente.
+- **"Tipo de activo fijo inválido"**: Utilice `hardware` o `software` exactamente.
 - **"Tipo de inversión inválido"**: Utilice uno de los 7 tipos válidos (ver lista arriba).
 - **"Prioridad inválida"**: Utilice `mandatory`, `high`, `medium` o `low`.
 - **"Moneda inválida"**: Utilice códigos ISO de 3 letras (USD, EUR, GBP) que estén permitidos en la configuración de monedas de su espacio de trabajo.
@@ -472,7 +472,7 @@ Si no puede realizar una acción (p. ej., falta el botón **Importar CSV**), con
 
 ## Consejos
 
-- **Empiece simple**: Cree partidas con solo lo esencial (descripción, tipo PP&E, tipo de inversión, empresa), luego añada presupuestos y asignaciones a medida que planifica.
+- **Empiece simple**: Cree partidas con solo lo esencial (descripción, tipo de activo fijo, tipo de inversión, empresa), luego añada presupuestos y asignaciones a medida que planifica.
 - **Use asignación por Plantilla**: Para la mayoría de inversiones de capital, Plantilla es suficiente. Reserve asignaciones manuales para inversiones que benefician solo a empresas o departamentos específicos.
 - **Vincule contratos**: Si gestiona compras de capital mediante contratos, vincúlelos en la pestaña Relaciones para el seguimiento de adquisiciones.
 - **Suba documentación**: Utilice la funcionalidad de adjuntos para almacenar presupuestos de proveedores, memorandos de aprobación y especificaciones técnicas junto a la partida.
@@ -482,5 +482,5 @@ Si no puede realizar una acción (p. ej., falta el botón **Importar CSV**), con
 - **Desactive, no elimine**: Preserve el historial desactivando partidas cuando los activos se eliminen o los proyectos se completen.
 - **Revise la fila de totales**: Antes de finalizar presupuestos de capital, verifique la fila de totales fijada para asegurar que su gasto de capital suma como se espera.
 - **Use enlace directo**: Haga clic directamente en una columna de presupuesto o asignación en la lista para ir directamente a esa pestaña y año.
-- **Haga seguimiento del ritmo de gasto**: Para proyectos grandes con gasto por fases, utilice el modo manual por mes para hacer seguimiento del gasto contra los hitos del proyecto.
+- **Haga seguimiento del ritmo de gasto**: Para proyectos grandes con gasto por fases, utilice el modo Mensual para hacer seguimiento del gasto contra los hitos del proyecto.
 - **Congele después del cierre de año**: Utilice Administración presupuestaria para congelar los presupuestos del año anterior una vez que el realizado esté finalizado, previniendo ediciones accidentales.

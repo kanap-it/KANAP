@@ -68,9 +68,9 @@ Copie datos presupuestarios de un año y columna a otro, con un ajuste porcentua
 | Campo | Descripción |
 |-------|-------------|
 | **Año de origen** | Año del que copiar (rango: año actual menos uno hasta año actual más cinco) |
-| **Columna de origen** | Presupuesto, Revisión, Seguimiento o Aterrizaje previsto |
+| **Columna de origen** | Presupuesto, Revisión, Realizado o Aterrizaje previsto |
 | **Año de destino** | Año al que copiar (mismo rango) |
-| **Columna de destino** | Presupuesto, Revisión, Seguimiento o Aterrizaje previsto |
+| **Columna de destino** | Presupuesto, Revisión, Realizado o Aterrizaje previsto |
 | **Porcentaje de aumento** | Ajuste aplicado a los valores copiados (p. ej., `3` = +3%). Predeterminado: 0. Acepta decimales. |
 | **Sobrescribir datos existentes** | Conmutador. Cuando está desactivado, los elementos que ya tienen un valor en el destino se omiten. Cuando está activado, todos los valores de destino se reemplazan. |
 
@@ -166,7 +166,7 @@ Borre todos los datos de una columna presupuestaria específica para un año det
 | Campo | Descripción |
 |-------|-------------|
 | **Año** | El ejercicio fiscal a borrar (rango: año actual menos uno hasta año actual más cinco) |
-| **Columna presupuestaria** | Presupuesto, Revisión, Seguimiento o Aterrizaje previsto |
+| **Columna presupuestaria** | Presupuesto, Revisión, Realizado o Aterrizaje previsto |
 
 ### Vista previa
 

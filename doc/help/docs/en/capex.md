@@ -70,7 +70,7 @@ The CAPEX list (at **Budget Management > CAPEX**) is your main view for browsing
 | **Priority** | Business priority level |
 | **Y Allocation** | Current-year allocation method label |
 | **Y Budget** | Current-year planned capital budget (reporting currency) |
-| **Y Landing** | Current-year final actual capital expenditure (reporting currency) |
+| **Y expected landing** | Current-year final actual capital expenditure (reporting currency) |
 | **Y+1 Budget** | Next-year planned capital budget (reporting currency) |
 
 ### Additional columns
@@ -80,7 +80,7 @@ These columns are hidden by default. Show them from the column chooser (hamburge
 | Column | What it shows |
 |---|---|
 | **Y+1 Allocation** | Next-year allocation method label |
-| **Y-1 Landing** | Prior-year final actual capital expenditure |
+| **Y-1 expected landing** | Prior-year final actual capital expenditure |
 | **Currency** | Item-level currency code |
 | **Start** | Effective start date |
 | **End of validity** | Date the item stops (blank means no end) |
@@ -109,8 +109,8 @@ The pinned row at the bottom shows totals for all budget columns. Totals respect
 Click any cell in a row to open the workspace on the tab most relevant to that column:
 
 - **Description**, **Company**, **PP&E Type**, **Investment Type**, **Priority**: Opens **Overview**
-- **Y Budget**, **Y Landing**: Opens **Budget** tab for the current year
-- **Y-1 Landing**: Opens **Budget** tab for the prior year
+- **Y Budget**, **Y expected landing**: Opens **Budget** tab for the current year
+- **Y-1 expected landing**: Opens **Budget** tab for the prior year
 - **Y+1 Budget**: Opens **Budget** tab for next year
 - **Y Allocation**: Opens **Allocations** tab for the current year
 - **Y+1 Allocation**: Opens **Allocations** tab for next year
@@ -171,52 +171,52 @@ This tab shows all the general information about the CAPEX item.
 
 ### Budget
 
-The Budget tab is where you enter financial data per year. It supports multiple budget columns and two input modes: **Flat totals** (annual total) and **Manual by month** (12-month breakdown).
+The Budget tab is where you enter financial data per year. It supports multiple budget columns and two input modes, shown as tabs: **Flat** (annual total) and **Monthly** (12-month breakdown).
 
 **Year selection**:
 
 - Use the year tabs at the top to switch between Y-2, Y-1, Y (current year), Y+1, and Y+2
 - Each year has its own version, allocation method, and amounts
-- Switching years with unsaved changes prompts a save/discard dialog
+- Switching years saves your pending edits first
 
 **Budget columns** (all years):
 
 - **Budget**: Initial planned capital budget
 - **Revision**: Mid-year budget update (e.g., after scope changes or reforecasts)
-- **Follow-up**: Expected actual spending (your best estimate as the year progresses)
-- **Landing**: Final actual capital expenditure after year-end close
+- **Actuals**: Expected actual spending (your best estimate as the year progresses)
+- **Expected landing**: Final actual capital expenditure after year-end close
 
-**Flat vs Manual by month mode**:
+**Flat vs Monthly**:
 
-- **Flat totals**: Enter one total per column; amounts are spread evenly across 12 months for allocation purposes. Only the total you edit is saved. The other columns keep their monthly amounts.
-- **Manual by month**: Enter amounts per month (Jan through Dec) for granular project spend tracking. Only the months you change are saved.
-- Toggle between modes using the radio buttons at the top of the tab
-- Switching modes saves nothing: it only changes the view. Flat totals show the yearly total of the stored months, and Manual by month shows the stored months.
+- **Flat**: Enter one total per column; amounts are spread evenly across 12 months for allocation purposes. Only the total you edit is saved. The other columns keep their monthly amounts.
+- **Monthly**: Enter amounts per month (Jan through Dec) for granular project spend tracking, plus a **Forecast** column. Quarter subtotals and a yearly total are shown. Only the months you change are saved.
+- Switch between modes with the **Flat** and **Monthly** tabs
+- Switching modes does not change your amounts: it only changes the view. Flat shows the yearly total of the stored months, and Monthly shows the stored months.
 
 **Freeze behavior**:
 
-- If a year's budget is frozen (via Budget Administration), inputs are disabled and show a "frozen" label
+- If a year's budget is frozen (via Budget Administration), inputs are read-only and show a lock icon
 - Each column can be frozen independently (Budget, Revision, Forecast, Actuals, Expected landing)
 - You can still view frozen data; admins can unfreeze via **Budget Management > Budget Administration > Freeze/Unfreeze**
 
-**Delete and redistribute** (manual by month mode only):
+**Monthly tools** (Monthly mode only):
 
-- Click the delete icon next to a month to zero out that month and redistribute its value across other unlocked months
-- Useful for removing placeholder months or adjusting project timelines
-- Locked months (previously deleted in this session) are excluded from redistribution
+- **Spread an annual amount**: choose a column, type a yearly amount and a profile (**Flat** or **4-4-5**), then click **Apply** to fill the 12 months
+- **Clear column**: the icon next to a column header sets every month of that column to zero
+- Useful for entering a cash-out plan by hand, for example the whole amount in a single month
 
-**Notes field**:
+**Multi-year trend**:
 
-- Each year's budget version has a **Notes** field for year-specific comments (e.g., "Deferred to Q2 due to vendor delays")
+- A chart below the table shows the item's budget columns across years and updates as you type
 
 **How to use it**:
 
 1. Select the year you are planning for
-2. Choose Flat totals or Manual by month mode
-3. Fill in the relevant columns (Budget for initial planning, Follow-up for tracking, Landing for actuals)
-4. Click **Save** to persist your changes
+2. Choose the **Flat** or **Monthly** tab
+3. Fill in the relevant columns (Budget for initial planning, Actuals for tracking, Expected landing for the year-end figure)
+4. Your changes save automatically; a **Saving...** / **Saved** hint shows next to the year tabs
 
-**Tip**: For most items, flat mode is faster. Use manual by month mode when you need to track project spend timing or phased rollouts.
+**Tip**: For most items, Flat mode is faster. Use Monthly mode when you need to track project spend timing or phased rollouts.
 
 ---
 
@@ -404,7 +404,7 @@ You can bulk-load CAPEX items via CSV to speed up initial setup or sync with ext
 - **PP&E Type**: Must be `hardware` or `software` (case-insensitive).
 - **Investment Type**: Must be one of: `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth`, `other` (case-insensitive).
 - **Priority**: Must be `mandatory`, `high`, `medium`, or `low` (case-insensitive).
-- **Budgets**: Budget columns populate Y-1, Y, and Y+1 versions. Amounts are spread evenly across 12 months (flat mode).
+- **Budgets**: Budget columns populate Y-1, Y, and Y+1 versions. Amounts are spread evenly across 12 months (Flat mode).
 
 **Common errors**:
 
@@ -482,5 +482,5 @@ If you cannot perform an action (e.g., the **Import CSV** button is missing), ch
 - **Disable, do not delete**: Preserve history by disabling items when assets are disposed of or projects complete.
 - **Review the totals row**: Before finalizing capital budgets, check the pinned totals row to ensure your capital spend adds up as expected.
 - **Use deep linking**: Click directly on a budget or allocation column in the list to jump straight to that tab and year.
-- **Track spend timing**: For large projects with phased spending, use manual by month mode to track spend against project milestones.
+- **Track spend timing**: For large projects with phased spending, use Monthly mode to track spend against project milestones.
 - **Freeze after year-end**: Use Budget Administration to freeze prior year budgets once actuals are finalized, preventing accidental edits.

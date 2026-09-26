@@ -285,7 +285,7 @@ Diese Verbindungen bleiben auf dem Server -- Loopback oder Docker-Bridge-Netzwer
 ## Hintergrundjobs
 
 Das Backend führt geplante Hintergrundjobs für E-Mail-Benachrichtigungen aus:
-- **Ablaufwarnungen**: täglich um 08:00 UTC -- warnt Benutzer vor Verträgen und OPEX-Positionen, die innerhalb von 30 Tagen ablaufen.
+- **Ablaufwarnungen**: täglich um 08:00 UTC. Sendet den Verantwortlichen von Verträgen und OPEX-Positionen 30, 14, 7 und 1 Tag(e) vor der Kündigungsfrist eines Vertrags, dem Enddatum eines Vertrags oder dem Ende der Gültigkeit einer OPEX-Position eine E-Mail. Nur Benutzer, die in ihren Benachrichtigungseinstellungen die Budget-Benachrichtigungen und die Ablaufwarnungen eingeschaltet haben, erhalten sie.
 - **Wöchentlicher Zusammenfassungs-Digest**: stündliche Prüfung -- sendet zeitzonenbewusste wöchentliche Zusammenfassungen an Benutzer, die sich dafür entschieden haben.
 
 Ein weiterer geplanter Job läuft, wenn Entra SSO konfiguriert ist:

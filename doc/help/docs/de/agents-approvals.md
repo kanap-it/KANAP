@@ -22,8 +22,8 @@ Jeder Vorschlag ist eine konkrete Aktion, die ein Agent an einem Ticket ausführ
 | **Interne Notiz** | Eine Notiz, die der Agent für Ihr Team hinzufügen möchte, für den Anfragenden nicht sichtbar. |
 | **Klassifizierung** | Ändert Kategorie, Typ, Priorität oder Dringlichkeit des Tickets gemäß den Anweisungen. Ein Vorschlag kann mehrere Felder enthalten und zeigt die aktuellen sowie die vorgeschlagenen Werte mit den Kategorienamen. |
 | **Status** | Ein Wechsel zu einem anderen Ticketstatus (zum Beispiel von **Neu** zu **Ausstehend**). |
-| **Ticket schließen** | Schließt das Ticket — siehe [Tickets schließen und lösen](#tickets-schliessen-und-losen). |
-| **Ticket lösen** | Markiert das Ticket als gelöst — siehe [Tickets schließen und lösen](#tickets-schliessen-und-losen). |
+| **Ticket schließen** | Schließt das Ticket — siehe [Tickets schließen und lösen](#tickets-schlieen-und-losen). |
+| **Ticket lösen** | Markiert das Ticket als gelöst — siehe [Tickets schließen und lösen](#tickets-schlieen-und-losen). |
 | **Zuweisung** | Fügt dem Ticket eine Technikergruppe **oder** einen namentlich genannten Techniker hinzu, gemäß der in den Anweisungen des Agenten hinterlegten Weiterleitungsregel. Niemand, der bereits auf dem Ticket steht, wird entfernt. Der Vorschlag zeigt, wer hinzugefügt wird und wer aktuell zugewiesen ist. |
 | **Beteiligte** | Eine Änderung an den Beobachtern oder Anfragenden des Tickets. |
 
@@ -92,15 +92,9 @@ Das Freigeben einer dieser Aktionen — einzeln oder als Teil von **Alle freigeb
 
 ## Entworfene Antworten lesen: der Fallback-Hinweis
 
-Wenn ein Agent eine **Antwort an Anfragende** oder eine **Interne Notiz** entwirft, stützt er diesen Entwurf normalerweise auf die Bibliotheken Ihrer [Wissensdatenbank](knowledge.md) und nennt die Quellen, die er herangezogen hat. Gelegentlich sehen Sie bei einem solchen Vorschlag eine kleine Bildunterschrift **Synthesis-Fallback**. Sie bedeutet, dass der Agent diesen bestimmten Entwurf nicht mit zitierten Quellen belegen konnte — behandeln Sie ihn daher als bloße Empfehlung und lesen Sie ihn vor dem Freigeben genau, statt ihm als quellengeprüft zu vertrauen.
+Wenn ein Agent eine **Antwort an Anfragende** oder eine **Interne Notiz** entwirft, stützt er diesen Entwurf normalerweise auf die Bibliotheken Ihrer [Wissensdatenbank](knowledge.md) und nennt die Quellen, die er herangezogen hat. Gelegentlich sehen Sie bei einem solchen Vorschlag den Hinweis **Diese Antwort ist nicht durch Ihre Wissensdatenbank belegt.**. Sie bedeutet, dass der Agent diesen bestimmten Entwurf nicht mit zitierten Quellen belegen konnte — behandeln Sie ihn daher als bloße Empfehlung und lesen Sie ihn vor dem Freigeben genau, statt ihm als quellengeprüft zu vertrauen.
 
-Die Bildunterschrift benennt den Grund in einfachen Worten, zum Beispiel:
-
-- **Synthesis-Fehler** — beim Verfassen der belegten Antwort ist etwas schiefgelaufen.
-- **Synthesis deaktiviert** — das belegte Entwerfen ist für diese Instanz ausgeschaltet.
-- **Projektion über dem Lauf-Limit** — das Verfassen der belegten Antwort hätte das Budget für diese Prüfung überschritten.
-- **Betriebskontext-Leak blockiert** — der Entwurf wurde zurückgehalten, weil er interne Hinweise gegenüber dem Anfragenden preiszugeben drohte.
-- **Ungültige oder nicht belegte Synthesis** — der Entwurf konnte nicht anhand Ihrer Quellen verifiziert werden.
+**Details** öffnet den technischen Grund (für den Support), zum Beispiel einen Synthesefehler oder ein blockiertes Offenlegen interner Hinweise. Für Ihre Entscheidung brauchen Sie diese Codes nicht.
 
 Wichtig zu wissen ist: **Das Fehlen dieses Hinweises ist der normale, gesunde Fall.** Die meisten Entwürfe sind belegt und tragen überhaupt keine Bildunterschrift. Und eine Antwort kann berechtigterweise keine zitierten Quellen haben — eine administrative Bestätigung oder eine rein interne Eskalation soll nicht aus Ihrer Wissensdatenbank entworfen werden —, ohne diese Warnung auszulösen. Lesen Sie einen fehlenden Fallback-Hinweis daher nicht als Problem; er bedeutet, dass der Entwurf entweder ordnungsgemäß belegt ist oder nie belegt sein sollte. Der Hinweis erscheint nur, wenn der Agent versucht hat, eine Antwort zu belegen, und dies nicht konnte.
 
@@ -133,7 +127,7 @@ Jede Ticketgruppe und jede Zeile unter „Aufmerksamkeit erforderlich" trägt ei
 - Nichts hier hat den Anfragenden erreicht, bevor Sie es freigeben. Einen Entwurf zu lesen, ihn zurückzuverfolgen oder ihn in der Warteschlange zu belassen, ändert nichts am Ticket.
 - Lehnen Sie ab, statt zu ignorieren. Ein abgelehnter Vorschlag bleibt mit Ihrer optionalen Notiz im Audit-Trail, was später weit nützlicher ist als ein Vorschlag, der einfach unbeachtet abgelaufen ist.
 - Verwerfen Sie einen Vorschlag, den Sie schlicht nicht senden werden, statt ihn abzulehnen. Ist ein Entwurf zutreffend, soll aber nicht hinausgehen — ein sensibles Ticket, ein Kollege hat bereits geantwortet —, legt **Verwerfen** ihn beiseite, ohne den Agenten zu belasten. **Ablehnen** bleibt Vorschlägen vorbehalten, die wirklich falsch waren.
-- Ein fehlender **Synthesis-Fallback**-Hinweis ist eine gute Nachricht, keine fehlende Information. Widmen Sie Ihre gründlichste Lektüre den Entwürfen, die ihn *tatsächlich* tragen.
+- Ein fehlender Fallback-Hinweis ist eine gute Nachricht, keine fehlende Information. Widmen Sie Ihre gründlichste Lektüre den Entwürfen, die ihn *tatsächlich* tragen.
 - Wenn eine freigegebene Änderung in **Aufmerksamkeit erforderlich** landet, verraten Ihnen die rote Bildunterschrift und die Schaltfläche **Trace**, ob der Agent, eine Sicherheitsprüfung oder das verbundene Ticketsystem sie gestoppt hat — beheben Sie die zugrunde liegende Ursache und starten Sie dann die **Analyse erneut**, statt blind erneut freizugeben.
 - Nehmen Sie nichts zur Kenntnis, nur damit eine Zahl verschwindet. **Zur Kenntnis nehmen** ist der Nachweis, dass sich eine Person den Fehler angesehen hat; eine Warteschlange, die Sie ungelesen leeren, ist weniger wert als eine, die Sie stehen lassen.
 - Die kombinierte Warteschlange unter `/agents/approvals` ist am schnellsten, wenn Sie mehrere Agenten betreiben; wechseln Sie zum eigenen Tab **Freigaben** eines Agenten, wenn Sie sich nur auf diesen konzentrieren möchten.

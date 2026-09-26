@@ -270,7 +270,7 @@ Halten Sie die Liste kurz. Kategorien sind das, wonach Sie ein Jahr an Vorfälle
 
 ## Den Assistenten fragen
 
-Plaid kann das Register im Chat abfragen, mit denselben Berechtigungen wie im Rest der Anwendung. Bitten Sie um eine Zählung („Wie viele kritische Vorfälle in diesem Quartal?“), eine gefilterte Liste („Offene Vorfälle auf PAR-ESX-01“) oder einen vollständigen Datensatz („Zusammenfassung von INC-2“). Letzteres enthält das Journal und die Vorfallanalyse, eine Frage lässt sich also aus der Ursache oder den Erkenntnissen beantworten. Ein eingeschränkter Vorfall bleibt aus den Antworten, den Zählungen und den Quellen heraus, samt seiner Analyse. Vorfallsreferenzen wie `INC-12` in der Antwort sind Links zum Arbeitsbereich.
+Plaid kann das Register im Chat abfragen, mit denselben Berechtigungen wie im Rest der Anwendung. Bitten Sie um eine Zählung („Wie viele kritische Vorfälle in diesem Quartal?“), eine gefilterte Liste („Offene Vorfälle auf PAR-ESX-01“) oder einen vollständigen Datensatz („Zusammenfassung von INC-2“). Letzteres enthält das Journal und die Vorfallanalyse, eine Frage lässt sich also aus der Ursache oder den Erkenntnissen beantworten. Ein eingeschränkter Vorfall bleibt aus den Antworten, den Zählungen und den Quellen heraus, samt seiner Analyse.
 
 ---
 

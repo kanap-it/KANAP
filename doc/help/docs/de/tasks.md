@@ -156,7 +156,7 @@ Unter der Symbolleiste zeigt der Titelblock:
 Die Leiste ist einklappbar (klicken Sie auf die vertikale Registerkarte **Eigenschaften** am rechten Rand zum Öffnen oder Schließen; drücken Sie **P** als Tastenkürzel). Ihre Breite und der Öffnungszustand werden lokal gespeichert. Die Leiste enthält vier Gruppen, getrennt durch Trennlinien:
 
 **Kontext**:
-  - **Verknüpft mit**: Eigenständig, Projekt, OPEX, Vertrag oder CAPEX. Sie können den Typ ändern und ein neues Element auswählen; beim Speichern wendet KANAP alle damit verbundenen Nebeneffekte an (siehe [Aufgaben-Kontext ändern](#aufgaben-kontext-ändern))
+  - **Verknüpft mit**: Eigenständig, Projekt, OPEX, Vertrag oder CAPEX. Sie können den Typ ändern und ein neues Element auswählen; beim Speichern wendet KANAP alle damit verbundenen Nebeneffekte an (siehe [Aufgaben-Kontext ändern](#aufgaben-kontext-andern))
   - **Phase** (nur Projektaufgaben): Standardmäßig **Projektebene**, es sei denn, Sie wählen eine Projektphase
   - **Aufgabentyp**: Aufgabe, Bug, Problem, Vorfall oder ein beliebiger benutzerdefinierter Typ, der von Ihrem Administrator konfiguriert wurde
 

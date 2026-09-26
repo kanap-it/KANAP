@@ -68,9 +68,9 @@ Kopieren Sie Budgetdaten von einem Jahr und einer Spalte in eine andere, mit ein
 | Feld | Beschreibung |
 |------|--------------|
 | **Quelljahr** | Jahr, aus dem kopiert wird (Bereich: aktuelles Jahr minus eins bis aktuelles Jahr plus fünf) |
-| **Quellspalte** | Budget, Revision, Prognose oder Endwert |
+| **Quellspalte** | Budget, Revision, Ist-Werte oder Erwarteter Endwert |
 | **Zieljahr** | Jahr, in das kopiert wird (gleicher Bereich) |
-| **Zielspalte** | Budget, Revision, Prognose oder Endwert |
+| **Zielspalte** | Budget, Revision, Ist-Werte oder Erwarteter Endwert |
 | **Prozentuale Erhöhung** | Anpassung der kopierten Werte (z. B. `3` = +3 %). Standard ist 0. Dezimalwerte möglich. |
 | **Vorhandene Daten überschreiben** | Umschalter. Wenn aus, werden Elemente die bereits einen Wert im Ziel haben, übersprungen. Wenn ein, werden alle Zielwerte ersetzt. |
 
@@ -166,7 +166,7 @@ Löschen Sie alle Daten einer bestimmten Budgetspalte für ein gegebenes Jahr. D
 | Feld | Beschreibung |
 |------|--------------|
 | **Jahr** | Das zu löschende Geschäftsjahr (Bereich: aktuelles Jahr minus eins bis aktuelles Jahr plus fünf) |
-| **Budgetspalte** | Budget, Revision, Prognose oder Endwert |
+| **Budgetspalte** | Budget, Revision, Ist-Werte oder Erwarteter Endwert |
 
 ### Vorschau
 

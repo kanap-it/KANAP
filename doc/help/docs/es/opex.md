@@ -40,15 +40,15 @@ La lista OPEX (en **Gestión presupuestaria > OPEX**) es su vista principal para
   - **Contrato**: El nombre del último contrato vinculado (enlaza al espacio de trabajo del Contrato)
   - **Cuenta**: El número y nombre de cuenta contable
   - **Asignación**: La etiqueta del método de asignación del año actual (enlaza a la pestaña Asignaciones)
-  - **Presupuesto Y**: Importe del presupuesto del año actual (enlaza a la pestaña Presupuesto de este año)
-  - **Aterrizaje Y**: Importe del aterrizaje previsto del año actual (enlaza a la pestaña Presupuesto de este año)
+  - **Presupuesto A**: Importe del presupuesto del año actual (enlaza a la pestaña Presupuesto de este año)
+  - **Aterrizaje previsto A**: Importe del aterrizaje previsto del año actual (enlaza a la pestaña Presupuesto de este año)
   - **Tarea**: El título de la última tarea (enlaza a la pestaña Tareas)
 
 **Columnas adicionales** (ocultas por defecto, habilítelas mediante el selector de columnas):
-  - **Presupuesto Y-1 / Aterrizaje Y-1**: Cifras del año anterior
-  - **Revisión Y / Seguimiento Y**: Importes de revisión y seguimiento del año actual
-  - **Presupuesto Y+1 / Revisión Y+1**: Cifras del año siguiente
-  - **Presupuesto Y+2**: Presupuesto a dos años
+  - **Presupuesto A-1 / Aterrizaje previsto A-1**: Cifras del año anterior
+  - **Revisión A / Realizado A**: Importes de revisión y realizado del año actual
+  - **Presupuesto A+1 / Revisión A+1**: Cifras del año siguiente
+  - **Presupuesto A+2**: Presupuesto a dos años
   - **Habilitado**: Estado de la partida (habilitado o deshabilitado)
   - **Descripción**: Descripción de la partida
   - **Moneda**: Código de moneda ISO
@@ -67,7 +67,7 @@ La lista OPEX (en **Gestión presupuestaria > OPEX**) es su vista principal para
 
 **Ordenación**:
   - Haga clic en un encabezado de columna para ordenar ascendente/descendente
-  - La ordenación predeterminada es por **Presupuesto Y** descendente
+  - La ordenación predeterminada es por **Presupuesto A** descendente
   - La lista recuerda su última ordenación, búsqueda y filtros cuando regresa
 
 **Fila de totales**:
@@ -77,7 +77,7 @@ La lista OPEX (en **Gestión presupuestaria > OPEX**) es su vista principal para
 **Enlace directo**:
   - Hacer clic en cualquier celda abre el espacio de trabajo en la pestaña más relevante:
     - **Nombre del producto**, **Proveedor**, **Empresa pagadora**, **Cuenta** y otras columnas generales: Abre la pestaña **Visión general**
-    - **Columnas presupuestarias** (Presupuesto Y, Aterrizaje Y, Presupuesto Y-1, etc.): Abre la pestaña **Presupuesto** preconfigurada en ese año
+    - **Columnas presupuestarias** (Presupuesto A, Aterrizaje previsto A, Presupuesto A-1, etc.): Abre la pestaña **Presupuesto** preconfigurada en ese año
     - **Asignación**: Abre la pestaña **Asignaciones** para el año actual
     - **Tarea**: Abre la pestaña **Tareas**
     - **Contrato**: Abre directamente el espacio de trabajo del Contrato vinculado (no el espacio de trabajo OPEX)
@@ -133,39 +133,43 @@ Esta pestaña muestra toda la información general de la partida de gasto.
 
 ### Presupuesto
 
-La pestaña Presupuesto es donde introduce datos financieros por año. Soporta múltiples columnas presupuestarias y dos modos de entrada: **Plano** (totales anuales) y **Manual** (desglose mensual).
+La pestaña Presupuesto es donde introduce datos financieros por año. Admite varias columnas presupuestarias y dos modos de entrada, mostrados como pestañas: **Anual** (totales anuales) y **Mensual** (desglose mensual).
 
 **Selección de año**:
-  - Utilice las pestañas de año en la parte superior para alternar entre Y-2, Y-1, Y (año actual), Y+1 e Y+2
+  - Utilice las pestañas de año en la parte superior para alternar entre A-2, A-1, A (año actual), A+1 y A+2
   - Cada año tiene su propia versión, modo e importes
-  - Cambiar de año con cambios sin guardar muestra un diálogo de guardar/descartar
+  - Al cambiar de año se guardan primero sus cambios pendientes
 
 **Columnas presupuestarias**:
-  - **Presupuesto (planificado)**: Presupuesto anual inicial aprobado a principios de año
-  - **Revisión (comprometido)**: Actualización presupuestaria a mitad de año (p. ej., después de una reprevisión)
-  - **Seguimiento (real)**: Gasto real esperado (su mejor estimación a medida que avanza el año)
+  - **Presupuesto**: Presupuesto anual inicial aprobado a principios de año
+  - **Revisión**: Actualización presupuestaria a mitad de año (p. ej., tras una reprevisión)
+  - **Realizado**: Gasto real esperado (su mejor estimación a medida que avanza el año)
   - **Aterrizaje previsto**: Gasto real final después del cierre de fin de año
 
-**Modo Plano vs Manual**:
-  - **Plano**: Introduzca un total por columna; los importes se distribuyen uniformemente en 12 meses para fines de asignación. Solo se guarda el total que usted modifica. Las demás columnas conservan sus importes mensuales.
-  - **Manual**: Introduzca importes por mes (Ene-Dic) para cada columna, más una columna de **Previsión** para planificación adicional. Solo se guardan los meses que usted modifica.
-  - Alterne entre modos usando los botones de radio en la parte superior de la pestaña
+**Anual o Mensual**:
+  - **Anual**: Introduzca un total por columna; los importes se distribuyen uniformemente en 12 meses para fines de asignación. Solo se guarda el total que usted modifica. Las demás columnas conservan sus importes mensuales.
+  - **Mensual**: Introduzca importes por mes (Ene-Dic) para cada columna, más una columna **Previsión** para planificación adicional. Se muestran subtotales trimestrales y un total anual. Solo se guardan los meses que usted modifica.
+  - Cambie de modo con las pestañas **Anual** y **Mensual**. Cambiar de modo no modifica sus importes.
 
 **Comportamiento de congelación**:
-  - Si las columnas presupuestarias de un año están congeladas (vía Administración presupuestaria), las entradas correspondientes se vuelven de solo lectura
-  - Puede ver datos congelados; los administradores pueden descongelar vía **Gestión presupuestaria > Administración > Congelar/Descongelar**
+  - Si las columnas presupuestarias de un año están congeladas (vía Administración presupuestaria), los campos correspondientes pasan a solo lectura y muestran un candado
+  - Puede ver los datos congelados; los administradores pueden descongelar vía **Gestión presupuestaria > Administración > Congelar/Descongelar**
   - Cada columna puede congelarse independientemente (Presupuesto, Revisión, Previsión, Realizado, Aterrizaje previsto)
 
-**Campo de Notas**:
-  - Cada versión presupuestaria anual tiene un campo de **Notas** para comentarios específicos del año (p. ej., "Incluye aumento de precio del 10% en T3")
+**Herramientas del modo mensual**:
+  - **Distribuir un importe anual**: elija una columna, introduzca un importe anual y un perfil (**Uniforme** o **4-4-5**) y haga clic en **Aplicar** para rellenar los 12 meses
+  - **Borrar columna**: el icono junto al encabezado de una columna pone a cero todos los meses de esa columna, por ejemplo antes de introducir todo el importe en un solo mes
+
+**Tendencia plurianual**:
+  - Un gráfico bajo la cuadrícula muestra las columnas presupuestarias de la partida a lo largo de los años y se actualiza mientras escribe
 
 **Cómo usarlo**:
   1. Seleccione el año que está planificando
-  2. Elija modo Plano o Manual
-  3. Complete las columnas relevantes (Presupuesto para planificación inicial, Seguimiento para monitorización, Aterrizaje previsto para realizado)
-  4. Haga clic en **Guardar** para persistir sus cambios
+  2. Elija la pestaña **Anual** o **Mensual**
+  3. Complete las columnas relevantes (Presupuesto para la planificación inicial, Realizado para el seguimiento, Aterrizaje previsto para la cifra de cierre de año)
+  4. Sus cambios se guardan automáticamente; junto a las pestañas de año aparece la indicación **Guardando...** / **Guardado**
 
-**Consejo**: Para la mayoría de partidas, el modo Plano es más rápido. Utilice el modo Manual cuando el gasto varíe significativamente por mes (p. ej., licencias estacionales, cuotas de configuración únicas).
+**Consejo**: Para la mayoría de partidas, el modo Anual es más rápido. Utilice el modo Mensual cuando el gasto varíe significativamente por mes (p. ej., licencias estacionales, cuotas de configuración únicas).
 
 ---
 
@@ -327,7 +331,7 @@ Puede cargar masivamente partidas OPEX vía CSV para acelerar la configuración 
   - **Solo inserción**: El importador solo crea nuevas partidas; no actualizará las existentes. Utilice la interfaz para editar partidas existentes
   - **Referencias**: `supplier_name` debe coincidir con un Proveedor por nombre (sin distinguir mayúsculas). `account_number` debe coincidir con una Cuenta. `owner_it_email` y `owner_business_email` deben coincidir con usuarios habilitados por correo electrónico
   - **Categoría analítica**: Si la categoría no existe, se crea automáticamente durante la importación
-  - **Presupuestos**: Las columnas presupuestarias rellenan las versiones Y-1, Y e Y+1. Los importes se distribuyen uniformemente en 12 meses (modo plano)
+  - **Presupuestos**: Las columnas presupuestarias rellenan las versiones Y-1, Y e Y+1. Los importes se distribuyen uniformemente en 12 meses (modo Anual)
 
 **Errores comunes**:
   - **"Proveedor no encontrado"**: Cree el proveedor en **Datos maestros > Proveedores** primero, luego reimporte

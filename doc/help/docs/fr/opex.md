@@ -41,12 +41,12 @@ La liste OPEX (dans **Gestion budgétaire > OPEX**) est votre vue principale pou
   - **Compte** : Le numéro et nom du compte comptable
   - **Ventilation** : Le libellé de la méthode de ventilation pour l'année en cours (ouvre l'onglet Ventilations)
   - **Budget A** : Montant du budget de l'année en cours (ouvre l'onglet Budget pour cette année)
-  - **Atterrissage A** : Montant de l'atterrissage de l'année en cours (ouvre l'onglet Budget pour cette année)
+  - **Atterrissage prévu A** : Montant de l'atterrissage prévu de l'année en cours (ouvre l'onglet Budget pour cette année)
   - **Tâche** : Le titre de la dernière tâche (ouvre l'onglet Tâches)
 
 **Colonnes supplémentaires** (masquées par défaut, activez via le sélecteur de colonnes) :
-  - **Budget A-1 / Atterrissage A-1** : Chiffres de l'année précédente
-  - **Révision A / Suivi A** : Montants de révision et suivi de l'année en cours
+  - **Budget A-1 / Atterrissage prévu A-1** : Chiffres de l'année précédente
+  - **Révision A / Réalisé A** : Montants de révision et de réalisé de l'année en cours
   - **Budget A+1 / Révision A+1** : Chiffres de l'année suivante
   - **Budget A+2** : Budget à deux ans
   - **Activé** : Statut du poste (activé ou désactivé)
@@ -77,7 +77,7 @@ La liste OPEX (dans **Gestion budgétaire > OPEX**) est votre vue principale pou
 **Liens profonds** :
   - Cliquer sur n'importe quelle cellule ouvre l'espace de travail sur l'onglet le plus pertinent :
     - **Nom du produit**, **Fournisseur**, **Société payeuse**, **Compte** et autres colonnes générales : Ouvre l'onglet **Vue d'ensemble**
-    - **Colonnes budgétaires** (Budget A, Atterrissage A, Budget A-1, etc.) : Ouvre l'onglet **Budget** pré-positionné sur cette année
+    - **Colonnes budgétaires** (Budget A, Atterrissage prévu A, Budget A-1, etc.) : Ouvre l'onglet **Budget** pré-positionné sur cette année
     - **Ventilation** : Ouvre l'onglet **Ventilations** pour l'année en cours
     - **Tâche** : Ouvre l'onglet **Tâches**
     - **Contrat** : Ouvre directement l'espace de travail du Contrat lié (pas l'espace de travail OPEX)
@@ -133,39 +133,43 @@ Cet onglet affiche toutes les informations générales sur le poste de dépense.
 
 ### Budget
 
-L'onglet Budget est l'endroit où vous saisissez les données financières par année. Il supporte plusieurs colonnes budgétaires et deux modes de saisie : **Forfaitaire** (totaux annuels) et **Manuel** (ventilation mensuelle).
+L'onglet Budget est l'endroit où vous saisissez les données financières par année. Il prend en charge plusieurs colonnes budgétaires et deux modes de saisie, présentés sous forme d'onglets : **Annuel** (totaux annuels) et **Mensuel** (ventilation mensuelle).
 
 **Sélection d'année** :
   - Utilisez les onglets d'année en haut pour basculer entre A-2, A-1, A (année en cours), A+1 et A+2
   - Chaque année a sa propre version, son mode et ses montants
-  - Changer d'année avec des modifications non enregistrées ouvre une boîte de dialogue enregistrer/annuler
+  - Changer d'année enregistre d'abord vos modifications en attente
 
 **Colonnes budgétaires** :
-  - **Budget (planifié)** : Budget annuel initial approuvé en début d'année
-  - **Révision (engagé)** : Mise à jour budgétaire en cours d'année (ex. : après une re-prévision)
-  - **Suivi (réalisé)** : Dépense réelle attendue (votre meilleure estimation au fil de l'année)
-  - **Atterrissage (atterrissage prévu)** : Dépense réelle finale après la clôture de fin d'année
+  - **Budget** : Budget annuel initial approuvé en début d'année
+  - **Révision** : Mise à jour budgétaire en cours d'année (ex. : après une re-prévision)
+  - **Réalisé** : Dépense réelle attendue (votre meilleure estimation au fil de l'année)
+  - **Atterrissage prévu** : Dépense réelle finale après la clôture de fin d'année
 
-**Mode Forfaitaire vs Manuel** :
-  - **Forfaitaire** : Saisissez un total par colonne ; les montants sont répartis uniformément sur 12 mois pour les besoins de ventilation. Seul le total que vous modifiez est enregistré. Les autres colonnes gardent leurs montants mensuels.
-  - **Manuel** : Saisissez les montants par mois (Jan-Déc) pour chaque colonne, plus une colonne **Prévision** pour la planification complémentaire. Seuls les mois que vous modifiez sont enregistrés.
-  - Basculez entre les modes avec les boutons radio en haut de l'onglet
+**Annuel ou Mensuel** :
+  - **Annuel** : Saisissez un total par colonne ; les montants sont répartis uniformément sur 12 mois pour les besoins de ventilation. Seul le total que vous modifiez est enregistré. Les autres colonnes gardent leurs montants mensuels.
+  - **Mensuel** : Saisissez les montants par mois (Jan-Déc) pour chaque colonne, plus une colonne **Prévision** pour la planification complémentaire. Des sous-totaux par trimestre et un total annuel sont affichés. Seuls les mois que vous modifiez sont enregistrés.
+  - Passez d'un mode à l'autre avec les onglets **Annuel** et **Mensuel**. Changer de mode ne modifie pas vos montants.
 
 **Comportement du gel** :
-  - Si les colonnes budgétaires d'une année sont gelées (via l'Administration budgétaire), les champs correspondants passent en lecture seule
+  - Si les colonnes budgétaires d'une année sont gelées (via l'Administration budgétaire), les champs correspondants passent en lecture seule et affichent un cadenas
   - Vous pouvez toujours consulter les données gelées ; les administrateurs peuvent dégeler via **Gestion budgétaire > Administration > Geler/Dégeler**
   - Chaque colonne peut être gelée indépendamment (Budget, Révision, Prévision, Réalisé, Atterrissage prévu)
 
-**Champ Notes** :
-  - Chaque version budgétaire annuelle a un champ **Notes** pour les commentaires spécifiques à l'année (ex. : « Inclut une hausse de prix de 10 % au T3 »)
+**Outils du mode mensuel** :
+  - **Répartir un montant annuel** : choisissez une colonne, saisissez un montant annuel et un profil (**Linéaire** ou **4-4-5**), puis cliquez sur **Appliquer** pour remplir les 12 mois
+  - **Effacer la colonne** : l'icône à côté d'un en-tête de colonne remet à zéro tous les mois de cette colonne, par exemple avant de saisir tout le montant sur un seul mois
+
+**Tendance pluriannuelle** :
+  - Un graphique sous la grille montre les colonnes budgétaires du poste sur plusieurs années et se met à jour pendant la saisie
 
 **Comment l'utiliser** :
   1. Sélectionnez l'année pour laquelle vous planifiez
-  2. Choisissez le mode Forfaitaire ou Manuel
-  3. Remplissez les colonnes pertinentes (Budget pour la planification initiale, Suivi pour le tracking, Atterrissage pour le réalisé)
-  4. Cliquez sur **Enregistrer** pour persister vos modifications
+  2. Choisissez l'onglet **Annuel** ou **Mensuel**
+  3. Remplissez les colonnes pertinentes (Budget pour la planification initiale, Réalisé pour le suivi, Atterrissage prévu pour le chiffre de fin d'année)
+  4. Vos modifications s'enregistrent automatiquement ; l'indication **Enregistrement...** / **Enregistré** apparaît à côté des onglets d'année
 
-**Conseil** : Pour la plupart des postes, le mode Forfaitaire est plus rapide. Utilisez le mode Manuel lorsque la dépense varie significativement par mois (ex. : licences saisonnières, frais de mise en place ponctuels).
+**Conseil** : Pour la plupart des postes, le mode Annuel est plus rapide. Utilisez le mode Mensuel lorsque la dépense varie significativement par mois (ex. : licences saisonnières, frais de mise en place ponctuels).
 
 ---
 
@@ -327,7 +331,7 @@ Vous pouvez charger en masse les postes OPEX via CSV pour accélérer la configu
   - **Insertion uniquement** : L'importateur ne crée que de nouveaux postes ; il ne met pas à jour les existants. Utilisez l'interface pour modifier les postes existants
   - **Références** : `supplier_name` doit correspondre à un Fournisseur par nom (insensible à la casse). `account_number` doit correspondre à un Compte. `owner_it_email` et `owner_business_email` doivent correspondre à des utilisateurs actifs par e-mail
   - **Catégorie analytique** : Si la catégorie n'existe pas, elle est créée automatiquement pendant l'import
-  - **Budgets** : Les colonnes budgétaires alimentent les versions A-1, A et A+1. Les montants sont répartis uniformément sur 12 mois (mode forfaitaire)
+  - **Budgets** : Les colonnes budgétaires alimentent les versions A-1, A et A+1. Les montants sont répartis uniformément sur 12 mois (mode Annuel)
 
 **Erreurs courantes** :
   - **« Fournisseur introuvable »** : Créez d'abord le fournisseur dans **Données de référence > Fournisseurs**, puis relancez l'import

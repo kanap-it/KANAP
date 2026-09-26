@@ -285,7 +285,7 @@ Estas conexiones permanecen en el servidor — solo loopback o red bridge Docker
 ## Trabajos en segundo plano
 
 El backend ejecuta trabajos programados en segundo plano para notificaciones por correo:
-- **Avisos de expiración**: diariamente a las 08:00 UTC — avisa a los usuarios sobre contratos y partidas OPEX que expiran en los próximos 30 días.
+- **Alertas de vencimiento**: diariamente a las 08:00 UTC. Envía un correo a los responsables de contratos y partidas OPEX 30, 14, 7 y 1 día(s) antes de el plazo de cancelación de un contrato, la fecha de fin de un contrato o el fin de validez de una partida OPEX. Solo los reciben los usuarios que activaron las notificaciones de presupuesto y las alertas de vencimiento en su configuración de notificaciones.
 - **Resumen semanal**: verificación cada hora — envía resúmenes semanales conscientes de la zona horaria a los usuarios que han optado por recibirlos.
 
 Hay un trabajo programado más que se ejecuta cuando el SSO Entra está configurado:
