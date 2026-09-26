@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Stack, TextField, IconButton, InputAdornment } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
+import { useTranslation } from 'react-i18next';
 import StatusSwitch from './StatusSwitch';
 import { FieldLabel } from '../design';
 import { STATUS_ENABLED, STATUS_DISABLED, StatusValue, deriveStatusFromDisabledAt } from '../../constants/status';
@@ -15,6 +16,7 @@ type StatusLifecycleFieldProps = {
   disabled?: boolean;
   hideDisabledAt?: boolean;
   statusLabel?: string;
+  statusOffLabel?: string;
   statusName?: string;
   statusError?: boolean;
   statusHelperText?: string;
@@ -31,15 +33,20 @@ const StatusLifecycleField: React.FC<StatusLifecycleFieldProps> = ({
   onDisabledAtChange,
   disabled = false,
   hideDisabledAt = false,
-  statusLabel = 'Enabled',
+  statusLabel,
+  statusOffLabel,
   statusName,
   statusError,
   statusHelperText,
-  disabledAtLabel = 'Disabled At',
+  disabledAtLabel,
   disabledAtName,
   disabledAtError,
   disabledAtHelperText,
 }) => {
+  const { t } = useTranslation('common');
+  const onLabel = statusLabel ?? t('statuses.enabled');
+  const offLabel = statusOffLabel ?? t('statuses.disabled');
+
   const buildEndOfDayIsoFromToday = React.useCallback(() => {
     // Use today's local end-of-day ISO
     const t = new Date();
@@ -125,7 +132,8 @@ const StatusLifecycleField: React.FC<StatusLifecycleFieldProps> = ({
   return (
     <Stack spacing={1.5} alignItems="flex-start">
       <StatusSwitch
-        label={statusLabel}
+        label={onLabel}
+        offLabel={offLabel}
         value={status === STATUS_ENABLED}
         onChange={handleStatusToggle}
         disabled={disabled}
@@ -143,24 +151,21 @@ const StatusLifecycleField: React.FC<StatusLifecycleFieldProps> = ({
             onChange={onNativeChange}
           />
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <FieldLabel>{disabledAtLabel}</FieldLabel>
+            <FieldLabel>{disabledAtLabel ?? t('lifecycleField.endOfValidity')}</FieldLabel>
             <TextField
-            placeholder="dd/mm/yyyy"
+            placeholder={t('labels.datePlaceholder')}
             value={inputText}
             onChange={handleDisabledAtTextChange}
             onBlur={handleDisabledAtBlur}
             disabled={disabled}
             name={disabledAtName}
             error={disabledAtError}
-            helperText={
-              disabledAtHelperText
-                ?? 'You can type dd/mm/yyyy or use the calendar. Blank keeps it active indefinitely.'
-            }
+            helperText={disabledAtHelperText ?? t('lifecycleField.endOfValidityHint')}
             inputProps={{ inputMode: 'numeric' }}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton size="small" onClick={openNativePicker} aria-label="Open calendar" tabIndex={-1}>
+                  <IconButton size="small" onClick={openNativePicker} aria-label={t('labels.openCalendar')} tabIndex={-1}>
                     <EventIcon fontSize="small" />
                   </IconButton>
                 </InputAdornment>

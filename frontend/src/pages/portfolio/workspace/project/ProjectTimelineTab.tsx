@@ -276,6 +276,7 @@ function CompactPhaseDateField({
   onChangeYmd: (next: string) => void;
   valueYmd?: string | null;
 }) {
+  const { t } = useTranslation(['common']);
   const nativeRef = React.useRef<HTMLInputElement | null>(null);
   const [focused, setFocused] = React.useState(false);
   const normalizedYmd = getDatePart(valueYmd);
@@ -336,7 +337,7 @@ function CompactPhaseDateField({
                   event.stopPropagation();
                   openPicker();
                 }}
-                aria-label="Open calendar"
+                aria-label={t('common:labels.openCalendar')}
                 tabIndex={-1}
                 disabled={disabled}
                 sx={{

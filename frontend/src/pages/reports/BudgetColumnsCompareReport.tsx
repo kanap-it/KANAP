@@ -8,7 +8,7 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, pickYearSlot as pickOpexYearSlot } from './useOpexSummary';
 import { useCapexSummaryAll, pickYearSlot as pickCapexYearSlot } from './useCapexSummary';
-import { MetricKey, metricLabels } from './reportMetrics';
+import { MetricKey, getMetricLabels } from './reportMetrics';
 import { useTranslation } from 'react-i18next';
 
 function formatNumber(v: any) {
@@ -27,6 +27,7 @@ type Selection = {
 
 export default function BudgetColumnsCompareReport() {
   const { t } = useTranslation(["ops"]);
+  const metricLabels = useMemo(() => getMetricLabels(t), [t]);
   const now = new Date();
   const Y = now.getFullYear();
   const allowedYears = [Y - 2, Y - 1, Y, Y + 1, Y + 2];
@@ -66,7 +67,7 @@ export default function BudgetColumnsCompareReport() {
       const label = `${sel.year} ${metricLabels[sel.metric]}`;
       return { key: `${sel.year}-${sel.metric}-${idx}`, selection: label, year: sel.year, column: metricLabels[sel.metric], total };
     });
-  }, [rows, sortedSelections, pickYearSlot]);
+  }, [rows, sortedSelections, pickYearSlot, metricLabels]);
 
   const columns = useMemo<ColDef[]>(() => ([
     { field: 'selection', headerName: t('reports.columns.selection'), flex: 1, minWidth: 200 },
@@ -139,8 +140,8 @@ export default function BudgetColumnsCompareReport() {
   const chartOptions = useMemo(() => {
     if (groupingEligible) {
       return {
-        title: { text: 'Budget Column Comparison' },
-        subtitle: { text: `${itemType.toUpperCase()} — Year grouping` },
+        title: { text: t('reports.budgetColumnsCompare.title') },
+        subtitle: { text: t('reports.budgetColumnsCompare.yearGroupingSubtitle', { type: itemType.toUpperCase() }) },
         data: groupedChartData,
         axes: [
           { type: 'number', position: 'bottom' },
@@ -151,8 +152,8 @@ export default function BudgetColumnsCompareReport() {
       } as any;
     }
     return {
-      title: { text: 'Budget Column Comparison' },
-      subtitle: { text: `${itemType.toUpperCase()} — ${selections.length} selection(s)` },
+      title: { text: t('reports.budgetColumnsCompare.title') },
+      subtitle: { text: t('reports.budgetColumnsCompare.selectionsSubtitle', { type: itemType.toUpperCase(), count: selections.length }) },
       data: chartData,
       axes: [
         { type: 'category', position: 'bottom' },
@@ -160,10 +161,10 @@ export default function BudgetColumnsCompareReport() {
       ],
       legend: { enabled: false },
       series: [
-        { type: 'line', xKey: 'selection', yKey: 'total', yName: 'Total' },
+        { type: 'line', xKey: 'selection', yKey: 'total', yName: t('reports.columns.total') },
       ],
     } as any;
-  }, [groupingEligible, itemType, groupedChartData, metricsInUse, metricLabels, selections.length, chartData]);
+  }, [groupingEligible, itemType, groupedChartData, metricsInUse, metricLabels, selections.length, chartData, t]);
 
   // Grouped table (reflects year grouping) or flat table (per selection)
   const groupedTableRows = useMemo(() => {
@@ -187,7 +188,7 @@ export default function BudgetColumnsCompareReport() {
       cols.push({ field: m, headerName: metricLabels[m], width: 160, type: 'rightAligned', valueFormatter: (p) => formatNumber(p.value) });
     }
     return cols;
-  }, [groupingEligible, metricsInUse]);
+  }, [groupingEligible, metricsInUse, metricLabels]);
 
   const MAX_SELECTIONS = 10;
   const canAdd = selections.length < MAX_SELECTIONS;
@@ -241,7 +242,7 @@ export default function BudgetColumnsCompareReport() {
                     <MenuItem key={m} value={m}>{metricLabels[m]}</MenuItem>
                   ))}
                 </TextField>
-                <IconButton size="small" aria-label="Remove" disabled={selections.length <= 1} onClick={() => {
+                <IconButton size="small" aria-label={t("common:buttons.remove")} disabled={selections.length <= 1} onClick={() => {
                   setSelections((prev) => prev.filter((_, i) => i !== idx));
                 }}>
                   <DeleteIcon fontSize="small" />
@@ -265,7 +266,7 @@ export default function BudgetColumnsCompareReport() {
           />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+          <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>

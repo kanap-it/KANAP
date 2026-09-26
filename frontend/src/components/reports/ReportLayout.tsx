@@ -227,21 +227,21 @@ export default function ReportLayout({
             <Stack direction="row" spacing={1} alignItems="center">
               {actions}
               {onExportTableCsv && (
-                <Tooltip title="Export table as CSV">
-                  <IconButton size="small" onClick={onExportTableCsv} aria-label="Export table as CSV" sx={{ color: 'kanap.text.secondary' }}>
+                <Tooltip title={t('reports.shared.exportTableCsv')}>
+                  <IconButton size="small" onClick={onExportTableCsv} aria-label={t('reports.shared.exportTableCsv')} sx={{ color: 'kanap.text.secondary' }}>
                     <DownloadIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
               )}
               {onExportChartPng && (
-                <Tooltip title="Export chart as PNG">
-                  <IconButton size="small" onClick={onExportChartPng} aria-label="Export chart as PNG" sx={{ color: 'kanap.text.secondary' }}>
+                <Tooltip title={t('reports.shared.exportChartPng')}>
+                  <IconButton size="small" onClick={onExportChartPng} aria-label={t('reports.shared.exportChartPng')} sx={{ color: 'kanap.text.secondary' }}>
                     <ImageIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
               )}
-              <Tooltip title="Print / Save as PDF">
-                <IconButton size="small" onClick={() => void requestPrint()} aria-label="Print report" sx={{ color: 'kanap.text.secondary' }}>
+              <Tooltip title={t('reports.shared.printPdf')}>
+                <IconButton size="small" onClick={() => void requestPrint()} aria-label={t('reports.shared.printReport')} sx={{ color: 'kanap.text.secondary' }}>
                   <PrintIcon fontSize="small" />
                 </IconButton>
               </Tooltip>

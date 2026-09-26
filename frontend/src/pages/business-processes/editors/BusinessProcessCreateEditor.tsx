@@ -114,18 +114,18 @@ export default forwardRef<BusinessProcessCreateEditorHandle, Props>(function Bus
     <Stack spacing={2}>
       {!!serverError && <Alert severity="error">{serverError}</Alert>}
 
-      <Typography variant="subtitle2">Basic info</Typography>
+      <Typography variant="subtitle2">{t('businessProcesses.sections.basicInfo')}</Typography>
       <Controller
         name="name"
         control={control}
-        rules={{ required: 'Name is required' }}
+        rules={{ required: t('businessProcesses.fields.nameRequired') }}
         render={({ field, fieldState }) => (
           <TextField
             {...field}
-            label="Name"
+            label={t('shared.fields.name')}
             required
             error={!!fieldState.error}
-            helperText={fieldState.error?.message || 'Use a clear name including the code, e.g. Order-to-Cash (O2C)'}
+            helperText={fieldState.error?.message || t('businessProcesses.fields.nameHelper')}
             disabled={disabled}
             InputLabelProps={{ shrink: true }}
           />
@@ -137,10 +137,10 @@ export default forwardRef<BusinessProcessCreateEditorHandle, Props>(function Bus
         render={({ field }) => (
           <TextField
             {...field}
-            label="Description"
+            label={t('shared.fields.description')}
             multiline
             minRows={2}
-            placeholder="Short description of the process"
+            placeholder={t('businessProcesses.fields.descriptionPlaceholder')}
             disabled={disabled}
             InputLabelProps={{ shrink: true }}
           />
@@ -151,16 +151,17 @@ export default forwardRef<BusinessProcessCreateEditorHandle, Props>(function Bus
         control={control}
         render={({ field }) => (
           <StatusSwitch
-            label="Enabled"
+            label={t('common:statuses.enabled')}
+            offLabel={t('common:statuses.disabled')}
             value={normalizeStatus(statusValue ?? STATUS_ENABLED) === STATUS_ENABLED}
             onChange={(checked) => field.onChange(checked ? STATUS_ENABLED : STATUS_DISABLED)}
             disabled={disabled}
-            helperText="Toggle off to disable this process"
+            helperText={t('businessProcesses.fields.statusHelper')}
           />
         )}
       />
 
-      <Typography variant="subtitle2">Classification</Typography>
+      <Typography variant="subtitle2">{t('businessProcesses.sections.classification')}</Typography>
       <Controller
         name="category_ids"
         control={control}
@@ -168,8 +169,8 @@ export default forwardRef<BusinessProcessCreateEditorHandle, Props>(function Bus
           <BusinessProcessCategoryMultiSelect
             value={field.value || []}
             onChange={(ids) => field.onChange(ids)}
-            label="Categories"
-            helperText="Assign one or more categories"
+            label={t('businessProcesses.fields.categories')}
+            helperText={t('businessProcesses.fields.categoriesHelper')}
             disabled={disabled}
             onManageCategoriesClick={onManageCategoriesClick}
           />
@@ -180,11 +181,11 @@ export default forwardRef<BusinessProcessCreateEditorHandle, Props>(function Bus
         control={control}
         render={({ field }) => (
           <UserSelect
-            label="Process Owner"
+            label={t('businessProcesses.fields.processOwner')}
             value={field.value}
             onChange={(v) => field.onChange(v)}
             disabled={disabled}
-            helperText="User ultimately responsible for the process"
+            helperText={t('businessProcesses.fields.processOwnerHelper')}
           />
         )}
       />
@@ -193,26 +194,26 @@ export default forwardRef<BusinessProcessCreateEditorHandle, Props>(function Bus
         control={control}
         render={({ field }) => (
           <UserSelect
-            label="IT Owner"
+            label={t('businessProcesses.fields.itOwner')}
             value={field.value}
             onChange={(v) => field.onChange(v)}
             disabled={disabled}
-            helperText="IT contact responsible for tools / systems supporting this process"
+            helperText={t('businessProcesses.fields.itOwnerHelper')}
           />
         )}
       />
 
-      <Typography variant="subtitle2">Details</Typography>
+      <Typography variant="subtitle2">{t('businessProcesses.sections.details')}</Typography>
       <Controller
         name="notes"
         control={control}
         render={({ field }) => (
           <TextField
             {...field}
-            label="Notes"
+            label={t('shared.fields.notes')}
             multiline
             minRows={3}
-            placeholder="Internal notes, links to SOPs or process maps"
+            placeholder={t('businessProcesses.fields.notesPlaceholder')}
             disabled={disabled}
             InputLabelProps={{ shrink: true }}
           />

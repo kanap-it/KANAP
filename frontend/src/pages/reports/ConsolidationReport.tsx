@@ -7,7 +7,7 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import api from '../../api';
 import { useOpexSummaryAll, pickYearSlot, SummaryRow } from './useOpexSummary';
-import { metricKeys, metricLabels, MetricKey } from './reportMetrics';
+import { metricKeys, getMetricLabels, MetricKey } from './reportMetrics';
 import { useTranslation } from 'react-i18next';
 
 type Account = {
@@ -29,6 +29,7 @@ function formatNumber(v: any) {
 
 export default function ConsolidationReport() {
   const { t } = useTranslation(["ops"]);
+  const metricLabels = useMemo(() => getMetricLabels(t), [t]);
   const now = new Date();
   const Y = now.getFullYear();
   const allowedYears = [Y - 1, Y, Y + 1];
@@ -61,12 +62,12 @@ export default function ConsolidationReport() {
       const labelParts: Array<string> = [];
       if (account.account_number != null) labelParts.push(`[${account.account_number}]`);
       if (account.account_name) labelParts.push(account.account_name.trim());
-      const label = labelParts.join(' ').trim() || 'Unnamed account';
+      const label = labelParts.join(' ').trim() || t('reports.shared.unnamedAccount');
       items.push({ id: account.id, label });
     }
     items.sort((a, b) => a.label.localeCompare(b.label));
     return items;
-  }, [accounts]);
+  }, [accounts, t]);
 
   const selectedAccountOptions = useMemo<AccountOption[]>(() => {
     if (excludedAccounts.length === 0) return [];
@@ -89,7 +90,7 @@ export default function ConsolidationReport() {
     const makeKey = (a?: Account | null): { key: string; label: string } => {
       const num = a?.consolidation_account_number ?? null;
       const name = (a?.consolidation_account_name ?? '').trim() || null;
-      if (num == null && !name) return { key: 'unassigned', label: 'Unassigned' };
+      if (num == null && !name) return { key: 'unassigned', label: t('reports.consolidation.unassigned') };
       const label = name && num != null ? `[${num}] ${name}` : (name ?? `[${num}]`);
       // safe key for object props/series yKeys
       const key = `c_${num != null ? num : name!.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
@@ -114,7 +115,7 @@ export default function ConsolidationReport() {
       const pYear = years[0];
       return (b.values[pYear] || 0) - (a.values[pYear] || 0);
     });
-  }, [rows, accountById, years, metric, excludedAccounts]);
+  }, [rows, accountById, years, metric, excludedAccounts, t]);
 
   // Table rows
   const tableRows = useMemo(() => {
@@ -138,12 +139,12 @@ export default function ConsolidationReport() {
   const metricLabel = metricLabels[metric];
 
   const totalsRow = useMemo(() => {
-    const row: any = { group: `Total ${metricLabel}` };
+    const row: any = { group: t('reports.consolidation.totalMetric', { metric: metricLabel }) };
     for (const yr of years) {
       row[yr] = groups.reduce((acc, g) => acc + (Number(g.values[yr]) || 0), 0);
     }
     return row;
-  }, [groups, years, metricLabel]);
+  }, [groups, years, metricLabel, t]);
 
   const gridApiRef = useRef<any>(null);
   const chartRef = useRef<ChartCardHandle>(null);
@@ -157,9 +158,9 @@ export default function ConsolidationReport() {
       const chartData = groups.map((g) => ({ label: g.label, value: g.values[year] || 0 }));
       const total = chartData.reduce((acc, d) => acc + (Number(d.value) || 0), 0);
       const base = {
-        title: { text: `Budget by Consolidation — ${year}` },
-        subtitle: { text: metricsCaption || 'Share of selected totals' },
-        footnote: { text: `Total (${metricsCaption || 'Selected'}): ${formatNumber(total)}` },
+        title: { text: t('reports.consolidation.chartTitleSingle', { year }) },
+        subtitle: { text: metricsCaption || t('reports.consolidation.shareSubtitle') },
+        footnote: { text: t('reports.consolidation.totalLabel', { metric: metricsCaption, value: formatNumber(total) }) },
         data: chartData,
         legend: { enabled: false },
         animation: { enabled: true, duration: 800 },
@@ -196,7 +197,7 @@ export default function ConsolidationReport() {
                     title: datum.label,
                     data: [
                       { label: metricLabel, value: formatNumber(value) },
-                      { label: 'Share', value: `${pct.toFixed(1)}%` },
+                      { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                     ],
                   };
                 },
@@ -236,8 +237,8 @@ export default function ConsolidationReport() {
     });
     const series = groups.map((g) => ({ type: 'line', xKey: 'year', yKey: g.key, yName: g.label }));
     return {
-      title: { text: `Budget by Consolidation — ${years[0]} to ${years[years.length - 1]}` },
-      subtitle: { text: metricsCaption || 'Annual totals per consolidation account' },
+      title: { text: t('reports.consolidation.chartTitleRange', { start: years[0], end: years[years.length - 1] }) },
+      subtitle: { text: metricsCaption || t('reports.consolidation.annualSubtitle') },
       data: chartData,
       series,
       axes: [
@@ -246,7 +247,7 @@ export default function ConsolidationReport() {
       ],
       legend: { enabled: true },
     };
-  }, [groups, singleYear, years, metricsCaption, chartType, metricLabel]);
+  }, [groups, singleYear, years, metricsCaption, chartType, metricLabel, t]);
 
   return (
     <ReportLayout
@@ -347,7 +348,7 @@ export default function ConsolidationReport() {
     >
       <Stack direction="column" spacing={2} alignItems="stretch">
         <Box sx={{ minWidth: 0 }}>
-          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+          <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.summaryTable")}</Typography>

@@ -6,6 +6,7 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useCapexSummaryAll, pickYearSlot } from './useCapexSummary';
 import { useTranslation } from 'react-i18next';
+import { getMetricLabels } from './reportMetrics';
 
 function formatNumber(v: any) {
   const n = Number(v ?? 0);
@@ -26,7 +27,7 @@ export default function CapexBudgetTrendReport() {
   const [metrics, setMetrics] = useState<Array<'budget' | 'follow_up' | 'landing' | 'revision'>>(['budget', 'landing']);
 
   const years = useMemo(() => allowedYears.filter((yr) => yr >= startYear && yr <= endYear), [allowedYears, startYear, endYear]);
-  const metricLabels: Record<string, string> = { budget: 'Budget', follow_up: 'Actuals', landing: 'Expected Landing', revision: 'Revision' };
+  const metricLabels: Record<string, string> = useMemo(() => getMetricLabels(t), [t]);
 
   const totalsByMetricAndYear = useMemo(() => {
     const acc: Record<string, Record<number, number>> = {};
@@ -72,12 +73,12 @@ export default function CapexBudgetTrendReport() {
     });
   }, [years, metrics, totalsByMetricAndYear]);
 
-  const chartSeries = useMemo(() => metrics.map((m) => ({ type: 'line', xKey: 'year', yKey: m, yName: metricLabels[m] })), [metrics]);
+  const chartSeries = useMemo(() => metrics.map((m) => ({ type: 'line', xKey: 'year', yKey: m, yName: metricLabels[m] })), [metrics, metricLabels]);
   const chartRef = useRef<ChartCardHandle>(null);
   const gridApiRef = useRef<any>(null);
 
   const chartOptions = useMemo(() => ({
-    title: { text: 'Budget Trend (CAPEX)' },
+    title: { text: t('reports.budgetTrendCapex.title') },
     subtitle: { text: metrics.map((m) => metricLabels[m]).join(' • ') },
     data: chartData,
     series: chartSeries,
@@ -86,7 +87,7 @@ export default function CapexBudgetTrendReport() {
       { type: 'number', position: 'left' },
     ],
     legend: { enabled: true },
-  }), [chartData, chartSeries, metrics]);
+  }), [chartData, chartSeries, metrics, metricLabels, t]);
 
   return (
     <ReportLayout
@@ -132,7 +133,7 @@ export default function CapexBudgetTrendReport() {
     >
       <Stack direction="column" spacing={2} alignItems="stretch">
         <Box sx={{ minWidth: 0 }}>
-          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+          <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>

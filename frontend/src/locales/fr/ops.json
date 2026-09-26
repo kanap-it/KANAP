@@ -761,7 +761,14 @@
       "summaryTable": "Tableau récapitulatif",
       "chart": "Graphique",
       "chartUnavailable": "Graphique non disponible.",
-      "printedOn": "Imprimé le {{date}}"
+      "printedOn": "Imprimé le {{date}}",
+      "share": "Part",
+      "unknownCompany": "Société inconnue",
+      "unnamedAccount": "Compte sans nom",
+      "exportTableCsv": "Exporter le tableau en CSV",
+      "exportChartPng": "Exporter le graphique en PNG",
+      "printPdf": "Imprimer / Enregistrer en PDF",
+      "printReport": "Imprimer le rapport"
     },
     "filters": {
       "year": "Année",
@@ -889,7 +896,9 @@
       "subtitle": "Plus gros postes OPEX par année sélectionnée ({{metric}})",
       "topTotal": "Total top {{count}}",
       "totalMetric": "Total {{metric}}",
-      "ofFilteredMetric": "{{pct}} % du {{metric}} filtré"
+      "ofFilteredMetric": "{{pct}} % du {{metric}} filtré",
+      "shareSubtitle": "Part du total annuel ({{metric}})",
+      "chartTitle": "Top {{count}} des OPEX · {{metric}} {{year}}"
     },
     "opexDelta": {
       "title": "Top hausse / baisse OPEX",
@@ -917,7 +926,16 @@
       "source": "Source",
       "destination": "Destination",
       "shareOfChangeMagnitude": "Part de l'amplitude totale des variations",
-      "pieAvailableHint": "Camembert disponible lorsqu'une seule direction est sélectionnée"
+      "pieAvailableHint": "Camembert disponible lorsqu'une seule direction est sélectionnée",
+      "chartTitleIncreases": "Top {{n}} des hausses OPEX · {{source}} → {{destination}}",
+      "chartTitleDecreases": "Top {{n}} des baisses OPEX · {{source}} → {{destination}}",
+      "chartTitleChanges": "Top {{n}} des variations OPEX · {{source}} → {{destination}}",
+      "incValue": "Hausse : {{value}}",
+      "decValue": "Baisse : {{value}}",
+      "topTotalIncrease": "Hausse totale du top {{count}}",
+      "topTotalDecrease": "Baisse totale du top {{count}}",
+      "sourceDestinationTotals": "Source : {{source}} · Destination : {{destination}}",
+      "directionToggle": "Hausse ou baisse"
     },
     "budgetTrendOpex": {
       "title": "Tendance budgétaire (OPEX)",

@@ -48,6 +48,7 @@ import DeploymentsEditor from './components/DeploymentsEditor';
 import ApplicationRelationsPanel from './editors/ApplicationRelationsPanel';
 import ApplicationCreateEditor, { type ApplicationCreateEditorHandle } from './editors/ApplicationCreateEditor';
 import CreateVersionDialog from './components/CreateVersionDialog';
+import ApplicationDeleteButton from './components/ApplicationDeleteButton';
 import { formatShortDate } from '../../lib/dateFormat';
 import { fetchApplicationIncidentsCount } from '../../utils/workspaceTabCounts';
 import { useLocale } from '../../i18n/useLocale';
@@ -186,9 +187,9 @@ function slugify(value: string) {
     .slice(0, 60);
 }
 
-function humanize(value: string | null | undefined) {
+function humanize(value: string | null | undefined, emptyLabel: string) {
   const text = String(value || '').trim();
-  if (!text) return 'Not set';
+  if (!text) return emptyLabel;
   return text.replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
@@ -219,12 +220,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function addUniqueApp(target: Map<string, { id: string; name: string }>, id: string | null | undefined, name: string | null | undefined) {
-  if (!id || target.has(id)) return;
-  target.set(id, { id, name: name || 'Untitled application' });
-}
-
-function computeConnections(app: ApplicationDetail, interfaces: InterfaceMiniRow[]): ConnectionsResult {
+function computeConnections(app: ApplicationDetail, interfaces: InterfaceMiniRow[], untitledLabel: string): ConnectionsResult {
+  const addUniqueApp = (target: Map<string, { id: string; name: string }>, id: string | null | undefined, name: string | null | undefined) => {
+    if (!id || target.has(id)) return;
+    target.set(id, { id, name: name || untitledLabel });
+  };
   const isMiddleware = app.etl_enabled === true;
   if (isMiddleware) {
     const connected = new Map<string, { id: string; name: string }>();
@@ -281,6 +281,7 @@ function ApplicationProperties({
   onPatch: (patch: Partial<ApplicationDetail>) => void;
   onLocalUpdate: (updater: (prev: ApplicationDetail) => ApplicationDetail) => void;
 }) {
+  const { t } = useTranslation(['it', 'common']);
   const { byField } = useItOpsEnumOptions();
   const categoryOptions = byField.applicationCategory || [];
   const categorySelectOptions = React.useMemo(() => {
@@ -288,10 +289,10 @@ function ApplicationProperties({
       return categoryOptions;
     }
     return [
-      { code: app.category, label: `${app.category} (legacy)`, deprecated: true },
+      { code: app.category, label: t('common.legacyOption', { label: app.category }), deprecated: true },
       ...categoryOptions,
     ];
-  }, [app.category, categoryOptions]);
+  }, [app.category, categoryOptions, t]);
   const [savingOwners, setSavingOwners] = React.useState(false);
   const [savingAudience, setSavingAudience] = React.useState(false);
   const [audienceRows, setAudienceRows] = React.useState<Array<{ key: string; company_id: string | null; department_ids: string[] }>>([]);
@@ -386,7 +387,7 @@ function ApplicationProperties({
   return (
     <>
       <PropertyGroup>
-        <PropertyRow label="Category">
+        <PropertyRow label={t('workspace.application.overview.category')}>
           <Select
             value={app.category || ''}
             onChange={(event) => onPatch({ category: event.target.value })}
@@ -406,7 +407,7 @@ function ApplicationProperties({
             ))}
           </Select>
         </PropertyRow>
-        <PropertyRow label="Supplier">
+        <PropertyRow label={t('workspace.application.overview.supplier')}>
           <SupplierSelect
             value={app.supplier_id || null}
             onChange={(value) => onPatch({ supplier_id: value })}
@@ -415,7 +416,7 @@ function ApplicationProperties({
             textFieldSx={drawerFieldValueSx}
           />
         </PropertyRow>
-        <PropertyRow label="Publisher">
+        <PropertyRow label={t('workspace.application.overview.publisher')}>
           <TextField
             value={app.editor || ''}
             onChange={(event) => onPatch({ editor: event.target.value })}
@@ -429,7 +430,7 @@ function ApplicationProperties({
       </PropertyGroup>
 
       <PropertyGroup>
-        <PropertyRow label="Version">
+        <PropertyRow label={t('workspace.application.overview.version')}>
           <TextField
             value={app.version || ''}
             onChange={(event) => onPatch({ version: event.target.value || null })}
@@ -440,21 +441,21 @@ function ApplicationProperties({
             sx={drawerFieldValueSx}
           />
         </PropertyRow>
-        <PropertyRow label="Go live">
+        <PropertyRow label={t('workspace.application.overview.goLiveDate')}>
           <DateEUField label="" valueYmd={app.go_live_date || ''} onChangeYmd={(value) => onPatch({ go_live_date: value || null })} disabled={!canManage} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
         </PropertyRow>
-        <PropertyRow label="End of support">
+        <PropertyRow label={t('workspace.application.overview.endOfSupport')}>
           <DateEUField label="" valueYmd={app.end_of_support_date || ''} onChangeYmd={(value) => onPatch({ end_of_support_date: value || null })} disabled={!canManage} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
         </PropertyRow>
-        <PropertyRow label="Retired date">
+        <PropertyRow label={t('workspace.application.overview.retiredDate')}>
           <DateEUField label="" valueYmd={app.retired_date || ''} onChangeYmd={(value) => onPatch({ retired_date: value || null })} disabled={!canManage} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
         </PropertyRow>
       </PropertyGroup>
 
       <PropertyGroup>
-        <PropertyRow label="Business owners">
+        <PropertyRow label={t('workspace.application.ownership.businessOwners')}>
           <TeamMemberMultiSelect
-            label="Business owners"
+            label={t('workspace.application.ownership.businessOwners')}
             value={(app.owners || []).filter((owner) => owner.owner_type === 'business').map((owner) => ({
               user_id: owner.user_id,
               user_display_name: owner.full_name || [owner.first_name, owner.last_name].filter(Boolean).join(' ') || owner.email || owner.user_id,
@@ -466,9 +467,9 @@ function ApplicationProperties({
             textFieldSx={drawerFieldValueSx}
           />
         </PropertyRow>
-        <PropertyRow label="IT owners">
+        <PropertyRow label={t('workspace.application.ownership.itOwners')}>
           <TeamMemberMultiSelect
-            label="IT owners"
+            label={t('workspace.application.ownership.itOwners')}
             value={(app.owners || []).filter((owner) => owner.owner_type === 'it').map((owner) => ({
               user_id: owner.user_id,
               user_display_name: owner.full_name || [owner.first_name, owner.last_name].filter(Boolean).join(' ') || owner.email || owner.user_id,
@@ -486,7 +487,7 @@ function ApplicationProperties({
         <Stack spacing={0.75}>
           {audienceRows.length === 0 && (
             <Typography sx={(theme) => ({ fontSize: 12, color: theme.palette.kanap.text.tertiary })}>
-              No audience defined.
+              {t('workspace.application.ownership.noAudience')}
             </Typography>
           )}
           {audienceRows.map((row, index) => (
@@ -512,7 +513,7 @@ function ApplicationProperties({
                 }}
                 disabled={!canManage || savingAudience}
                 size="small"
-                label="Company"
+                label={t('workspace.application.ownership.company')}
                 hideLabel
                 textFieldSx={drawerFieldValueSx}
               />
@@ -529,14 +530,14 @@ function ApplicationProperties({
                   }}
                   disabled={!canManage || savingAudience || !row.company_id}
                   size="small"
-                  label="Departments"
+                  label={t('workspace.application.ownership.departments')}
                   hideLabel
                   textFieldSx={drawerFieldValueSx}
                 />
               </Box>
               {canManage && (
                 <IconButton
-                  aria-label="Remove audience row"
+                  aria-label={t('workspace.application.ownership.removeAudienceRow')}
                   size="small"
                   disabled={savingAudience}
                   onClick={() => {
@@ -567,14 +568,14 @@ function ApplicationProperties({
                 cursor: savingAudience ? 'default' : 'pointer',
               })}
             >
-              + Add audience
+              {t('workspace.application.ownership.addAudience')}
             </Box>
           )}
         </Stack>
         <Box sx={(theme) => ({ mt: 1, fontSize: 12, color: theme.palette.kanap.text.secondary, lineHeight: 1.5 })}>
-          Users: {app.users_mode === 'manual' ? Number(app.users_override || 0).toLocaleString() : Number(app.derived_total_users || 0).toLocaleString()}
+          {t('workspace.application.ownership.usersValue', { value: app.users_mode === 'manual' ? Number(app.users_override || 0).toLocaleString() : Number(app.derived_total_users || 0).toLocaleString() })}
         </Box>
-        <PropertyRow label="Calculation method">
+        <PropertyRow label={t('workspace.application.ownership.calculationMethod')}>
           <Select
             value={app.users_mode === 'manual' ? 'manual' : 'it_users'}
             onChange={(event) => onPatch({ users_mode: event.target.value })}
@@ -582,12 +583,12 @@ function ApplicationProperties({
             disabled={!canManage}
             sx={drawerSelectSx}
           >
-            <MenuItem value="it_users" sx={drawerMenuItemSx}>Derived</MenuItem>
-            <MenuItem value="manual" sx={drawerMenuItemSx}>Manual</MenuItem>
+            <MenuItem value="it_users" sx={drawerMenuItemSx}>{t('workspace.application.ownership.derived')}</MenuItem>
+            <MenuItem value="manual" sx={drawerMenuItemSx}>{t('workspace.application.ownership.manualMethod')}</MenuItem>
           </Select>
         </PropertyRow>
         {app.users_mode === 'manual' && (
-          <PropertyRow label="Manual users">
+          <PropertyRow label={t('workspace.application.ownership.manualUsers')}>
             <TextField
               value={app.users_override ?? ''}
               onChange={(event) => onPatch({ users_override: event.target.value === '' ? null : Number(event.target.value) })}
@@ -1252,8 +1253,8 @@ export default function ApplicationWorkspacePage() {
   });
 
   const connections = React.useMemo(
-    () => app ? computeConnections(app, interfacesQuery.data || []) : { type: 'none' } as ConnectionsResult,
-    [app, interfacesQuery.data],
+    () => app ? computeConnections(app, interfacesQuery.data || [], t('workspace.application.untitled')) : { type: 'none' } as ConnectionsResult,
+    [app, interfacesQuery.data, t],
   );
 
   React.useEffect(() => {
@@ -1314,7 +1315,7 @@ export default function ApplicationWorkspacePage() {
         await queryClient.invalidateQueries({ predicate: (query) => ['applications', 'app-filter-values', 'applications-filter-values', 'application-recovery-dependencies'].some((key) => String(query.queryKey[0]).startsWith(key)) });
       } catch (err: any) {
         classificationSaveFailed.current = true;
-        setError(err?.response?.data?.message || err?.message || 'Classification could not be saved');
+        setError(err?.response?.data?.message || err?.message || t('messages.saveClassificationFailed'));
         throw err;
       } finally { setClassificationSaving(false); }
     });
@@ -1322,7 +1323,7 @@ export default function ApplicationWorkspacePage() {
     // Keep failed saves visible and block review; a subsequent edit can retry.
     void work.catch(() => { saveQueue.current = Promise.resolve(); });
     return work;
-  }, [queryClient, updateApplicationCache]);
+  }, [queryClient, updateApplicationCache, t]);
 
   const handleCreate = React.useCallback(async () => {
     setSavingCreate(true);
@@ -1333,11 +1334,11 @@ export default function ApplicationWorkspacePage() {
         navigate(`/it/applications/${newId}/overview${searchParams.toString() ? `?${searchParams.toString()}` : ''}`);
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to create application');
+      setError(err?.response?.data?.message || err?.message || t('messages.createApplicationFailed'));
     } finally {
       setSavingCreate(false);
     }
-  }, [navigate, searchParams]);
+  }, [navigate, searchParams, t]);
 
   const lifecycleOptions = React.useMemo(() => {
     const list = byField.lifecycleStatus || [];
@@ -1352,7 +1353,7 @@ export default function ApplicationWorkspacePage() {
     return (
       <Box sx={{ p: 2 }}>
         <LinearProgress sx={{ mb: 2 }} />
-        <Typography variant="body2" color="text.secondary">Loading application...</Typography>
+        <Typography variant="body2" color="text.secondary">{t('workspace.application.loading')}</Typography>
       </Box>
     );
   }
@@ -1360,7 +1361,7 @@ export default function ApplicationWorkspacePage() {
   if (!isCreate && (appQuery.error || !app)) {
     return (
       <Box sx={{ p: 2 }}>
-        <Alert severity="error">Application not found.</Alert>
+        <Alert severity="error">{t('workspace.application.notFound')}</Alert>
       </Box>
     );
   }
@@ -1383,19 +1384,19 @@ export default function ApplicationWorkspacePage() {
   return (
     <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {!!error && <Alert severity="error" sx={{ mx: 2, mt: 1 }}>{error}</Alert>}
-      {!!appQuery.error && <Alert severity="error" sx={{ mx: 2, mt: 1 }}>Failed to load application.</Alert>}
+      {!!appQuery.error && <Alert severity="error" sx={{ mx: 2, mt: 1 }}>{t('messages.loadApplicationFailed')}</Alert>}
 
       <PortfolioDetailWorkspaceShell
         activeTab={routeTab}
         tabs={tabs}
         onTabChange={handleTabChange}
         drawerStorageKey="kanap.applications.drawerOpen"
-        backLabel="Applications"
+        backLabel={t('pages.applications.title')}
         onBack={closeWorkspace}
         itemReference={appReference}
         onCopyReference={appReference ? () => { void navigator.clipboard?.writeText(appReference); } : undefined}
         title={isCreate ? '' : app?.name || ''}
-        titleFallback={isCreate ? 'New application' : 'Untitled application'}
+        titleFallback={isCreate ? t('workspace.application.newTitle') : t('workspace.application.untitled')}
         canEditTitle={isCreate || canManage}
         onTitleSave={(value) => { void patchApplication({ name: value }); }}
         nav={!isCreate && nav.total > 0 ? {
@@ -1405,15 +1406,15 @@ export default function ApplicationWorkspacePage() {
           hasNext: nav.hasNext,
           onPrev: () => { if (nav.prevId) navigate(canonicalPathFor(nav.prevId)); },
           onNext: () => { if (nav.nextId) navigate(canonicalPathFor(nav.nextId)); },
-          previousLabel: 'Previous application',
-          nextLabel: 'Next application',
+          previousLabel: t('workspace.application.previous'),
+          nextLabel: t('workspace.application.next'),
         } : undefined}
         onSaveShortcut={() => { void overviewEditorRef.current?.save(); }}
         metadata={!isCreate && app ? (
           <>
             <PortfolioStatusMetadata
               value={app.lifecycle || 'active'}
-              label={humanize(app.lifecycle)}
+              label={lifecycleOptions.find((option) => option.value === app.lifecycle)?.label || humanize(app.lifecycle, t('common:selects.notSet'))}
               color={getDotColor(LIFECYCLE_COLORS[app.lifecycle] || 'default', theme.palette.mode)}
               options={lifecycleOptions}
               onChange={(value) => { void patchApplication({ lifecycle: value }); }}
@@ -1425,8 +1426,8 @@ export default function ApplicationWorkspacePage() {
                 v{app.version}
               </PortfolioMetadataItem>
             )}
-            <PortfolioMetadataItem label="Go live">
-              {formatShortDate(app.go_live_date, locale, { empty: 'Not set' })}
+            <PortfolioMetadataItem label={t('workspace.application.meta.goLive')}>
+              {formatShortDate(app.go_live_date, locale, { empty: t('common:selects.notSet') })}
             </PortfolioMetadataItem>
           </>
         ) : undefined}
@@ -1437,25 +1438,28 @@ export default function ApplicationWorkspacePage() {
                 itemType="application"
                 itemId={app.id}
                 itemRef={appReference}
-                itemName={app.name || 'Untitled application'}
+                itemName={app.name || t('workspace.application.untitled')}
               />
             )}
             {!isCreate && (
               <Button variant="action" onClick={() => setVersionDialogOpen(true)} size="small">
-                Create new version
+                {t('workspace.application.createNewVersion')}
               </Button>
             )}
             {isCreate && (
               <Button variant="contained" onClick={() => void handleCreate()} disabled={!createDirty || savingCreate} size="small">
-                Create
+                {t('common:buttons.create')}
               </Button>
             )}
-            {!isCreate && canDelete && (
-              <Button variant="action-danger" startIcon={<DeleteIcon sx={{ fontSize: '14px !important' }} />} size="small">
-                Delete
-              </Button>
+            {!isCreate && canDelete && app && (
+              <ApplicationDeleteButton
+                applicationId={app.id}
+                applicationName={app.name || t('workspace.application.untitled')}
+                onDeleted={closeWorkspace}
+                onError={setError}
+              />
             )}
-            <IconButton aria-label="Close" title="Close" onClick={closeWorkspace} size="small">
+            <IconButton aria-label={t('common:buttons.close')} title={t('common:buttons.close')} onClick={closeWorkspace} size="small">
               <CloseIcon />
             </IconButton>
           </>
@@ -1530,7 +1534,7 @@ export default function ApplicationWorkspacePage() {
                 await api.post(`/applications/${currentApp.current.id}/classification-review`, { expected_revision: currentApp.current.classification_revision });
                 await appQuery.refetch();
                 await queryClient.invalidateQueries({ predicate: (query) => ['applications', 'applications-classification-summary'].some((key) => String(query.queryKey[0]).startsWith(key)) });
-              } catch (err: any) { setError(err?.response?.data?.message || err?.message || 'Review failed'); }
+              } catch (err: any) { setError(err?.response?.data?.message || err?.message || t('messages.reviewFailed')); }
               finally { setClassificationSaving(false); }
             }}
             onPatch={patchApplication}

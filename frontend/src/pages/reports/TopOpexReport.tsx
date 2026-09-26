@@ -5,7 +5,7 @@ import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, SummaryRow, pickYearSlot } from './useOpexSummary';
-import { metricLabels, MetricKey } from './reportMetrics';
+import { getMetricLabels, MetricKey } from './reportMetrics';
 import { useTranslation } from 'react-i18next';
 
 const METRIC_SELECTION_ORDER: MetricKey[] = ['budget', 'revision', 'follow_up', 'landing'];
@@ -19,6 +19,7 @@ function formatNumber(v: any) {
 
 export default function TopOpexReport() {
   const { t } = useTranslation(["ops"]);
+  const metricLabels = useMemo(() => getMetricLabels(t), [t]);
   const now = new Date();
   const Y = now.getFullYear();
   const [year, setYear] = useState<number>(Y);
@@ -119,9 +120,9 @@ export default function TopOpexReport() {
   const chartData = useMemo(() => processed.map((r) => ({ product_name: r.product_name, value: r.value })), [processed]);
   const chartOptions = useMemo(() => {
     const base = {
-      title: { text: `Top ${chartData.length} OPEX — ${metricLabel} ${year}` },
-      subtitle: { text: `Share of total annual ${metricLabel}` },
-      footnote: { text: `Total ${metricLabel}: ${formatNumber(totalMetric)}` },
+      title: { text: t('reports.topOpex.chartTitle', { count: chartData.length, metric: metricLabel, year }) },
+      subtitle: { text: t('reports.topOpex.shareSubtitle', { metric: metricLabel }) },
+      footnote: { text: `${t('reports.topOpex.totalMetric', { metric: metricLabel })}: ${formatNumber(totalMetric)}` },
       data: chartData,
       legend: { enabled: false },
       animation: { enabled: true, duration: 800 },
@@ -156,7 +157,7 @@ export default function TopOpexReport() {
                   title: datum.product_name,
                   data: [
                     { label: metricLabel, value: formatNumber(value) },
-                    { label: 'Share', value: `${pct.toFixed(1)}%` },
+                    { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                   ],
                 };
               },
@@ -196,7 +197,7 @@ export default function TopOpexReport() {
                 title: datum.product_name,
                 data: [
                   { label: metricLabel, value: formatNumber(value) },
-                  { label: 'Share', value: `${pct.toFixed(1)}%` },
+                  { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                 ],
               };
             },
@@ -204,7 +205,7 @@ export default function TopOpexReport() {
         },
       ],
     };
-  }, [chartData, totalMetric, year, chartType, metricLabel]);
+  }, [chartData, totalMetric, year, chartType, metricLabel, t]);
 
   const selectionSharePct = useMemo(() => (
     totalMetric > 0 ? Math.round((topSelectionTotal / totalMetric) * 100) : null
@@ -213,7 +214,7 @@ export default function TopOpexReport() {
   return (
     <ReportLayout
       title={t("reports.topOpex.title")}
-      subtitle={`Largest OPEX items by selected year (${metricLabel})`}
+      subtitle={t('reports.topOpex.subtitle', { metric: metricLabel })}
       filters={(
         <Box sx={{
           display: 'flex',
@@ -364,7 +365,7 @@ export default function TopOpexReport() {
     >
       <Stack direction="column" spacing={2} alignItems="stretch">
         <Box sx={{ minWidth: 0 }}>
-          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+          <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>
@@ -377,14 +378,14 @@ export default function TopOpexReport() {
           />
           <Box sx={{ mt: 2, display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' } }}>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="body2" color="text.secondary">{`Top ${processed.length} total`}</Typography>
+              <Typography variant="body2" color="text.secondary">{t('reports.topOpex.topTotal', { count: processed.length })}</Typography>
               <Typography variant="subtitle2">{formatNumber(topSelectionTotal)}</Typography>
               <Typography variant="caption" color="text.secondary">
-                {selectionSharePct == null ? '—' : `${selectionSharePct}% of filtered ${metricLabel.toLowerCase()}`}
+                {selectionSharePct == null ? '—' : t('reports.topOpex.ofFilteredMetric', { pct: selectionSharePct, metric: metricLabel.toLowerCase() })}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="body2" color="text.secondary">{`Total ${metricLabel.toLowerCase()}`}</Typography>
+              <Typography variant="body2" color="text.secondary">{t('reports.topOpex.totalMetric', { metric: metricLabel.toLowerCase() })}</Typography>
               <Typography variant="subtitle2">{formatNumber(totalMetric)}</Typography>
             </Box>
           </Box>

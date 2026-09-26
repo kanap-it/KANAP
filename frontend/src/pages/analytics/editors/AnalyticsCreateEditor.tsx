@@ -123,7 +123,6 @@ export default forwardRef<AnalyticsCreateEditorHandle, Props>(function Analytics
               shouldDirty: true,
               shouldValidate: true,
             })}
-            statusLabel="Enabled"
             statusHelperText="Toggle off to disable this category"
             disabledAtName="disabled_at"
           />

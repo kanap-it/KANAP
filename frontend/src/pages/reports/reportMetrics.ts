@@ -1,28 +1,28 @@
+import type { TFunction } from 'i18next';
+
 export const metricKeys = ['budget', 'follow_up', 'landing', 'revision'] as const;
 export type MetricKey = (typeof metricKeys)[number];
 
-export const metricLabels: Record<MetricKey, string> = {
-  budget: 'Budget',
-  follow_up: 'Actuals',
-  landing: 'Expected Landing',
-  revision: 'Revision',
+/** Same wording as the budget tab of OPEX and CAPEX items (ops namespace). */
+export const metricLabelKeys: Record<MetricKey, string> = {
+  budget: 'ops:operations.budgetColumns.budget',
+  follow_up: 'ops:operations.budgetColumns.followUp',
+  landing: 'ops:operations.budgetColumns.landing',
+  revision: 'ops:operations.budgetColumns.revision',
 };
 
-export function toMetricArray(value: unknown): MetricKey[] {
-  const arr = Array.isArray(value) ? value : [value];
-  const next: MetricKey[] = [];
-  for (const item of arr) {
-    if (metricKeys.includes(item as MetricKey)) next.push(item as MetricKey);
-  }
-  return next;
+export function isMetricKey(value: unknown): value is MetricKey {
+  return metricKeys.includes(value as MetricKey);
 }
 
-export function formatMetricList(metrics: readonly MetricKey[], separator = ', '): string {
-  return metrics.map((key) => metricLabels[key]).join(separator);
-}
-
-export function formatMetricSelection(value: unknown, separator = ', '): string {
-  return formatMetricList(toMetricArray(value), separator);
+/** Translated label of a budget column, keyed by report metric. */
+export function getMetricLabels(t: TFunction): Record<MetricKey, string> {
+  return {
+    budget: t(metricLabelKeys.budget),
+    follow_up: t(metricLabelKeys.follow_up),
+    landing: t(metricLabelKeys.landing),
+    revision: t(metricLabelKeys.revision),
+  };
 }
 
 /**

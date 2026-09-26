@@ -7,7 +7,7 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import api from '../../api';
 import { useOpexSummaryAll, pickYearSlot, SummaryRow } from './useOpexSummary';
-import { metricKeys, metricLabels, MetricKey } from './reportMetrics';
+import { metricKeys, getMetricLabels, MetricKey } from './reportMetrics';
 import { useTranslation } from 'react-i18next';
 
 type AnalyticsCategory = {
@@ -27,6 +27,7 @@ function formatNumber(v: any) {
 
 export default function AnalyticsCategoryReport() {
   const { t } = useTranslation(["ops"]);
+  const metricLabels = useMemo(() => getMetricLabels(t), [t]);
   const now = new Date();
   const Y = now.getFullYear();
   const allowedYears = [Y - 1, Y, Y + 1];
@@ -135,12 +136,12 @@ export default function AnalyticsCategoryReport() {
   const metricLabel = metricLabels[metric];
 
   const totalsRow = useMemo(() => {
-    const row: any = { group: `Total ${metricLabel}` };
+    const row: any = { group: t('reports.analyticsCategory.totalMetric', { metric: metricLabel }) };
     for (const yr of years) {
       row[yr] = groups.reduce((acc, group) => acc + (Number(group.values[yr]) || 0), 0);
     }
     return row;
-  }, [groups, years, metricLabel]);
+  }, [groups, years, metricLabel, t]);
 
   const gridApiRef = useRef<any>(null);
   const chartRef = useRef<ChartCardHandle>(null);
@@ -155,7 +156,7 @@ export default function AnalyticsCategoryReport() {
       const base = {
         title: { text: t('reports.analyticsCategory.chartTitleSingle', { year }) },
         subtitle: { text: metricsCaption || t('reports.analyticsCategory.shareSubtitle') },
-        footnote: { text: `Total (${metricsCaption || 'Selected'}): ${formatNumber(total)}` },
+        footnote: { text: t('reports.analyticsCategory.totalLabel', { metric: metricsCaption, value: formatNumber(total) }) },
         data: chartData,
         legend: { enabled: false },
         animation: { enabled: true, duration: 800 },
@@ -192,7 +193,7 @@ export default function AnalyticsCategoryReport() {
                     title: datum.label,
                     data: [
                       { label: metricLabel, value: formatNumber(value) },
-                      { label: 'Share', value: `${pct.toFixed(1)}%` },
+                      { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                     ],
                   };
                 },
@@ -342,7 +343,7 @@ export default function AnalyticsCategoryReport() {
     >
       <Stack direction="column" spacing={2} alignItems="stretch">
         <Box sx={{ minWidth: 0 }}>
-          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+          <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.summaryTable")}</Typography>

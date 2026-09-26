@@ -279,6 +279,13 @@ export default function DashboardPage() {
   const opexSnapshot = buildSnapshot(opexTotals);
   const capexSnapshot = buildSnapshot(capexTotals);
   const colOrder = ['budget', 'revision', 'follow_up', 'landing'] as const;
+  // Same labels as the budget tab of OPEX and CAPEX items.
+  const snapshotColumnLabelKeys: Record<(typeof colOrder)[number], string> = {
+    budget: 'ops:operations.budgetColumns.budget',
+    revision: 'ops:operations.budgetColumns.revision',
+    follow_up: 'ops:operations.budgetColumns.followUp',
+    landing: 'ops:operations.budgetColumns.landing',
+  };
   const unionCols = colOrder.filter((c) => opexSnapshot.columns.includes(c) || capexSnapshot.columns.includes(c));
 
   const SnapshotTable = ({ rows, columns }: { rows: Array<{ label: string; values: Record<string, number> }>; columns: ReadonlyArray<'budget' | 'revision' | 'follow_up' | 'landing'> }) => (
@@ -289,7 +296,7 @@ export default function DashboardPage() {
               <TableCell sx={{ width: 120, fontWeight: 600 }} align="left">{t('labels.year')}</TableCell>
               {columns.map((c) => (
                 <TableCell key={`h-${c}`} align="center" sx={{ fontWeight: 600, minWidth: 76 }}>
-                  {c.replace('_', ' ').replace(/\b\w/g, (m) => m.toUpperCase())}
+                  {t(snapshotColumnLabelKeys[c])}
                 </TableCell>
               ))}
             </TableRow>

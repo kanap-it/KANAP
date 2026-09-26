@@ -164,7 +164,6 @@ export default forwardRef<AnalyticsOverviewEditorHandle, Props>(function Analyti
               shouldDirty: true,
               shouldValidate: true,
             })}
-            statusLabel="Enabled"
             statusHelperText="Toggle off to disable this category"
             disabledAtName="disabled_at"
             disabled={disabled}

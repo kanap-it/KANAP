@@ -164,65 +164,34 @@ const enumListIds: EnumListId[] = [
   'interfaceAuthModes', 'ipAddressTypes', 'accessMethods', 'incidentCategories',
 ];
 
-const listGroups: { id: GroupId; title: string; subtitle: string }[] = [
-  { id: 'locations', title: 'Locations', subtitle: 'Lists used when creating or editing Locations.' },
-  { id: 'serversConnections', title: 'Servers & Connections', subtitle: 'Lists used for Servers, Connections, and related risk/endpoint data.' },
-  { id: 'appsInterfaces', title: 'Apps, Services & Interfaces', subtitle: 'Lists used across applications, app instances, interfaces, and bindings.' },
-  { id: 'incidents', title: 'Incidents', subtitle: 'Lists used by the incident register.' },
-];
+const listGroupIds: GroupId[] = ['locations', 'serversConnections', 'appsInterfaces', 'incidents'];
 
-const listUsage: Record<ListId, string> = {
-  hostingTypes: 'Locations / Create & Edit',
-  serverProviders: 'Locations / Create & Edit',
-  serverKinds: 'Servers / Overview & Create',
-  serverRoles: 'Servers / App Link',
-  operatingSystems: 'Servers / Technical tab',
-  subnets: 'Assets / Network information',
-  domains: 'Assets / Identity section',
-  connectionTypes: 'Connections / Protocol selector',
-  networkSegments: 'Subnets / Network zone selector',
-  entities: 'Connections / Endpoints',
-  applicationCategories: 'Applications / Category selector',
-  dataClasses: 'Connections / Risk defaults',
-  lifecycleStates: 'Apps, Interfaces & Servers / Status',
-  interfaceProtocols: 'Interface Bindings / Transport',
-  interfaceDataCategories: 'Interfaces / Data profile',
-  interfaceTriggerTypes: 'Interface Legs / Trigger',
-  interfacePatterns: 'Interface Legs / Pattern',
-  interfaceFormats: 'Interface Legs / Payload format',
-  interfaceAuthModes: 'Interface Bindings / Auth',
-  ipAddressTypes: 'Assets / IP Addresses',
-  accessMethods: 'Applications / Access method selector',
-  incidentCategories: 'Incidents / Category selector',
-};
-
+// Titles, descriptions and usage hints live in it:pages.settings.lists.<id>.
 type EnumSectionConfig = {
   id: EnumListId;
-  title: string;
-  description: string;
   group: GroupId;
   lockedCodes?: string[];
   kind?: 'enum' | 'hosting' | 'serverKind' | 'serverRole' | 'entity';
 };
 
 const enumSections: EnumSectionConfig[] = [
-  { id: 'accessMethods', title: 'Access Methods', description: 'Methods by which users access applications (e.g., Web, Mobile, VDI).', group: 'appsInterfaces' },
-  { id: 'applicationCategories', title: 'Application Categories', description: 'Categories that describe the primary purpose of each application or service.', group: 'appsInterfaces' },
-  { id: 'networkSegments', title: 'Network Zones', description: 'Network zones used to categorize subnets and describe connectivity.', group: 'serversConnections' },
-  { id: 'entities', title: 'Entities', description: 'Source/target entities for flows or access.', group: 'serversConnections', kind: 'entity' },
-  { id: 'ipAddressTypes', title: 'IP Address Types', description: 'Types of IP addresses for assets.', group: 'serversConnections' },
-  { id: 'serverKinds', title: 'Asset Types', description: 'Logical types for servers and infrastructure assets.', group: 'serversConnections', kind: 'serverKind' },
-  { id: 'serverRoles', title: 'Server Roles', description: 'Roles you can assign to servers when linking them to application instances.', group: 'serversConnections', kind: 'serverRole' },
-  { id: 'hostingTypes', title: 'Hosting Types', description: 'Location hosting models available when creating Locations.', group: 'locations', kind: 'hosting' },
-  { id: 'serverProviders', title: 'Cloud Providers', description: 'Cloud providers used by Servers and Locations.', group: 'locations' },
-  { id: 'lifecycleStates', title: 'Lifecycle statuses', description: 'Shared lifecycle options for applications, app instances, interfaces, interface bindings, and servers.', group: 'appsInterfaces', lockedCodes: ['proposed', 'active', 'deprecated', 'retired'] },
-  { id: 'interfaceProtocols', title: 'Interface Protocols', description: 'Supported protocols for interface bindings between applications.', group: 'appsInterfaces' },
-  { id: 'interfaceDataCategories', title: 'Interface Data Categories', description: 'Business data categories for Interfaces.', group: 'appsInterfaces' },
-  { id: 'interfaceTriggerTypes', title: 'Interface Trigger Types', description: 'Trigger types for Interface legs.', group: 'appsInterfaces' },
-  { id: 'interfacePatterns', title: 'Integration Patterns', description: 'Integration patterns used by Interface legs.', group: 'appsInterfaces' },
-  { id: 'interfaceFormats', title: 'Interface Data Formats', description: 'Data formats for Interface legs.', group: 'appsInterfaces' },
-  { id: 'interfaceAuthModes', title: 'Interface Authentication Modes', description: 'Authentication modes for Interface legs/bindings.', group: 'appsInterfaces' },
-  { id: 'incidentCategories', title: 'Incident categories', description: 'Categories used to classify entries in the incident register.', group: 'incidents' },
+  { id: 'accessMethods', group: 'appsInterfaces' },
+  { id: 'applicationCategories', group: 'appsInterfaces' },
+  { id: 'networkSegments', group: 'serversConnections' },
+  { id: 'entities', group: 'serversConnections', kind: 'entity' },
+  { id: 'ipAddressTypes', group: 'serversConnections' },
+  { id: 'serverKinds', group: 'serversConnections', kind: 'serverKind' },
+  { id: 'serverRoles', group: 'serversConnections', kind: 'serverRole' },
+  { id: 'hostingTypes', group: 'locations', kind: 'hosting' },
+  { id: 'serverProviders', group: 'locations' },
+  { id: 'lifecycleStates', group: 'appsInterfaces', lockedCodes: ['proposed', 'active', 'deprecated', 'retired'] },
+  { id: 'interfaceProtocols', group: 'appsInterfaces' },
+  { id: 'interfaceDataCategories', group: 'appsInterfaces' },
+  { id: 'interfaceTriggerTypes', group: 'appsInterfaces' },
+  { id: 'interfacePatterns', group: 'appsInterfaces' },
+  { id: 'interfaceFormats', group: 'appsInterfaces' },
+  { id: 'interfaceAuthModes', group: 'appsInterfaces' },
+  { id: 'incidentCategories', group: 'incidents' },
 ];
 
 // ============================================================================
@@ -234,6 +203,10 @@ interface OperatingSystemsEditorProps {
   onChange: (items: OperatingSystemOption[]) => void;
   hideAddButton?: boolean;
 }
+
+const listTitleKey = (id: ListId) => `pages.settings.lists.${id}.title`;
+const listDescriptionKey = (id: ListId) => `pages.settings.lists.${id}.description`;
+const listUsageKey = (id: ListId) => `pages.settings.lists.${id}.usage`;
 
 function TranslateButton({ label, onClick }: { label: string; onClick: () => void }) {
   const { t } = useTranslation('common');
@@ -288,6 +261,7 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
       return next;
     });
   };
+  const { t } = useTranslation(['it', 'common']);
   const removal = useCatalogRemoval('operatingSystems');
   const translations = useCatalogTranslations();
   const issues = React.useMemo(() => catalogListIssues(localItems), [localItems]);
@@ -295,20 +269,20 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={0.5} sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Operating Systems</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{t(listTitleKey('operatingSystems'))}</Typography>
         <Typography variant="body2" color="text.secondary">
-          Catalog of operating systems available for Servers, with standard and extended support end dates.
+          {t(listDescriptionKey('operatingSystems'))}
         </Typography>
       </Stack>
       <TableContainer ref={containerRef as any} onScroll={onScroll} sx={{ maxHeight }}>
         <Table size="small" stickyHeader={useVirtual}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: '30%' }}>Name</TableCell>
-              <TableCell sx={{ width: '20%' }}>Standard support</TableCell>
-              <TableCell sx={{ width: '20%' }}>Extended support</TableCell>
-              <TableCell sx={{ width: '15%' }}>No longer offered</TableCell>
-              <TableCell align="right" sx={{ width: '15%' }}>Actions</TableCell>
+              <TableCell sx={{ width: '30%' }}>{t('common:enumEditor.name')}</TableCell>
+              <TableCell sx={{ width: '20%' }}>{t('pages.settings.columns.standardSupport')}</TableCell>
+              <TableCell sx={{ width: '20%' }}>{t('pages.settings.columns.extendedSupport')}</TableCell>
+              <TableCell sx={{ width: '15%' }}>{t('common:enumEditor.noLongerOffered')}</TableCell>
+              <TableCell align="right" sx={{ width: '15%' }}>{t('common:labels.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -318,28 +292,28 @@ const OperatingSystemsEditor = React.memo(function OperatingSystemsEditor({
             {localItems.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6}>
-                  <Typography variant="body2" color="text.secondary">No operating systems configured yet.</Typography>
+                  <Typography variant="body2" color="text.secondary">{t('pages.settings.empty.operatingSystems')}</Typography>
                 </TableCell>
               </TableRow>
             )}
             {visibleItems.map((item: any) => (
               <TableRow key={item.localId}>
                 <TableCell sx={{ verticalAlign: 'top' }}>
-                  <TextField value={item.label} onChange={(e) => handleUpdate(item.localId, { label: e.target.value })} size="small" fullWidth placeholder="e.g., Windows Server 2025" inputProps={{ 'aria-label': 'Name' }} />
+                  <TextField value={item.label} onChange={(e) => handleUpdate(item.localId, { label: e.target.value })} size="small" fullWidth placeholder={t('pages.settings.placeholders.osName')} inputProps={{ 'aria-label': t('common:enumEditor.name') }} />
                   <IssueText issue={issues.get(localItems.indexOf(item))} />
                 </TableCell>
                 <TableCell>
-                  <DateEUField label="Standard Support" valueYmd={item.standardSupportEnd || ''} onChangeYmd={(next) => handleUpdate(item.localId, { standardSupportEnd: next })} />
+                  <DateEUField label={t('pages.settings.columns.standardSupport')} valueYmd={item.standardSupportEnd || ''} onChangeYmd={(next) => handleUpdate(item.localId, { standardSupportEnd: next })} />
                 </TableCell>
                 <TableCell>
-                  <DateEUField label="Extended Support" valueYmd={item.extendedSupportEnd || ''} onChangeYmd={(next) => handleUpdate(item.localId, { extendedSupportEnd: next })} />
+                  <DateEUField label={t('pages.settings.columns.extendedSupport')} valueYmd={item.extendedSupportEnd || ''} onChangeYmd={(next) => handleUpdate(item.localId, { extendedSupportEnd: next })} />
                 </TableCell>
                 <TableCell>
-                  <Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `No longer offered ${item.label}` }} />
+                  <Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `${t('common:enumEditor.noLongerOffered')} ${item.label}` }} />
                 </TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                   {item.code && <TranslateButton label={item.label} onClick={() => translations.openTranslations({ item, onSave: (next) => handleUpdate(item.localId, { translations: next } as any) })} />}
-                  <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button>
+                  <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>{t('common:enumEditor.remove')}</Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -409,6 +383,7 @@ const ConnectionTypesEditor = React.memo(function ConnectionTypesEditor({
     [commitToParent]
   );
 
+  const { t } = useTranslation(['it', 'common']);
   const removal = useCatalogRemoval('connectionTypes');
   const translations = useCatalogTranslations();
   const issues = React.useMemo(() => catalogListIssues(localItems), [localItems]);
@@ -416,20 +391,20 @@ const ConnectionTypesEditor = React.memo(function ConnectionTypesEditor({
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={0.5} sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Connection Types</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{t(listTitleKey('connectionTypes'))}</Typography>
         <Typography variant="body2" color="text.secondary">
-          Two-level catalog (category + entry) with typical ports.
+          {t(listDescriptionKey('connectionTypes'))}
         </Typography>
       </Stack>
       <TableContainer ref={containerRef as any} onScroll={onScroll} sx={{ maxHeight }}>
         <Table size="small" stickyHeader={useVirtual}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: '22%' }}>Category</TableCell>
-              <TableCell sx={{ width: '28%' }}>Name</TableCell>
-              <TableCell sx={{ width: '25%' }}>Typical ports</TableCell>
-              <TableCell sx={{ width: '12%' }}>No longer offered</TableCell>
-              <TableCell align="right" sx={{ width: '13%' }}>Actions</TableCell>
+              <TableCell sx={{ width: '22%' }}>{t('common:enumEditor.category')}</TableCell>
+              <TableCell sx={{ width: '28%' }}>{t('common:enumEditor.name')}</TableCell>
+              <TableCell sx={{ width: '25%' }}>{t('pages.settings.columns.typicalPorts')}</TableCell>
+              <TableCell sx={{ width: '12%' }}>{t('common:enumEditor.noLongerOffered')}</TableCell>
+              <TableCell align="right" sx={{ width: '13%' }}>{t('common:labels.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -439,19 +414,19 @@ const ConnectionTypesEditor = React.memo(function ConnectionTypesEditor({
             {localItems.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6}>
-                  <Typography variant="body2" color="text.secondary">No connection types defined.</Typography>
+                  <Typography variant="body2" color="text.secondary">{t('pages.settings.empty.connectionTypes')}</Typography>
                 </TableCell>
               </TableRow>
             )}
             {visibleItems.map((item: any) => (
               <TableRow key={item.localId}>
-                <TableCell><TextField value={item.category || ''} onChange={(e) => handleUpdate(item.localId, { category: e.target.value })} size="small" fullWidth placeholder="Category" /></TableCell>
-                <TableCell sx={{ verticalAlign: 'top' }}><TextField value={item.label} onChange={(e) => handleUpdate(item.localId, { label: e.target.value })} size="small" fullWidth placeholder="e.g., HTTPS" inputProps={{ 'aria-label': 'Name' }} /><IssueText issue={issues.get(localItems.indexOf(item))} /></TableCell>
-                <TableCell><TextField value={item.typicalPorts || ''} onChange={(e) => handleUpdate(item.localId, { typicalPorts: e.target.value })} size="small" fullWidth placeholder="e.g., 80, 443" /></TableCell>
-                <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `No longer offered ${item.label}` }} /></TableCell>
+                <TableCell><TextField value={item.category || ''} onChange={(e) => handleUpdate(item.localId, { category: e.target.value })} size="small" fullWidth placeholder={t('common:enumEditor.category')} /></TableCell>
+                <TableCell sx={{ verticalAlign: 'top' }}><TextField value={item.label} onChange={(e) => handleUpdate(item.localId, { label: e.target.value })} size="small" fullWidth placeholder={t('pages.settings.placeholders.connectionName')} inputProps={{ 'aria-label': t('common:enumEditor.name') }} /><IssueText issue={issues.get(localItems.indexOf(item))} /></TableCell>
+                <TableCell><TextField value={item.typicalPorts || ''} onChange={(e) => handleUpdate(item.localId, { typicalPorts: e.target.value })} size="small" fullWidth placeholder={t('pages.settings.placeholders.typicalPorts')} /></TableCell>
+                <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `${t('common:enumEditor.noLongerOffered')} ${item.label}` }} /></TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                   {item.code && <TranslateButton label={item.label} onClick={() => translations.openTranslations({ item, onSave: (next) => handleUpdate(item.localId, { translations: next } as any) })} />}
-                  <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button>
+                  <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>{t('common:enumEditor.remove')}</Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -525,27 +500,28 @@ const SubnetsEditor = React.memo(function SubnetsEditor({
     [commitToParent]
   );
 
+  const { t } = useTranslation(['it', 'common']);
   const removal = useCatalogRemoval('subnets');
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={0.5} sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Subnets</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{t(listTitleKey('subnets'))}</Typography>
         <Typography variant="body2" color="text.secondary">
-          Define network subnets with VLAN assignments. Each subnet belongs to a network zone.
+          {t(listDescriptionKey('subnets'))}
         </Typography>
       </Stack>
       <TableContainer ref={containerRef as any} onScroll={onScroll} sx={{ maxHeight }}>
         <Table size="small" stickyHeader={useVirtual}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: '18%' }}>Location</TableCell>
-              <TableCell sx={{ width: '18%' }}>CIDR</TableCell>
-              <TableCell sx={{ width: '10%' }}>VLAN</TableCell>
-              <TableCell sx={{ width: '16%' }}>Network Zone</TableCell>
-              <TableCell sx={{ width: '20%' }}>Description</TableCell>
-              <TableCell sx={{ width: '8%' }}>No longer offered</TableCell>
-              <TableCell align="right" sx={{ width: '10%' }}>Actions</TableCell>
+              <TableCell sx={{ width: '18%' }}>{t('pages.settings.columns.location')}</TableCell>
+              <TableCell sx={{ width: '18%' }}>{t('pages.settings.columns.cidr')}</TableCell>
+              <TableCell sx={{ width: '10%' }}>{t('pages.settings.columns.vlan')}</TableCell>
+              <TableCell sx={{ width: '16%' }}>{t('pages.settings.columns.networkZone')}</TableCell>
+              <TableCell sx={{ width: '20%' }}>{t('pages.settings.columns.description')}</TableCell>
+              <TableCell sx={{ width: '8%' }}>{t('common:enumEditor.noLongerOffered')}</TableCell>
+              <TableCell align="right" sx={{ width: '10%' }}>{t('common:labels.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -555,7 +531,7 @@ const SubnetsEditor = React.memo(function SubnetsEditor({
             {localItems.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7}>
-                  <Typography variant="body2" color="text.secondary">No subnets defined.</Typography>
+                  <Typography variant="body2" color="text.secondary">{t('pages.settings.empty.subnets')}</Typography>
                 </TableCell>
               </TableRow>
             )}
@@ -563,7 +539,7 @@ const SubnetsEditor = React.memo(function SubnetsEditor({
               <TableRow key={item.localId}>
                 <TableCell>
                   <TextField select value={item.location_id || ''} onChange={(e) => handleUpdate(item.localId, { location_id: e.target.value })} size="small" fullWidth SelectProps={{ native: true }}>
-                    <option value="">Select...</option>
+                    <option value="">{t('pages.settings.placeholders.select')}</option>
                     {locations.map((loc) => (
                       <option key={loc.id} value={loc.id}>
                         {loc.location_reference}{loc.name ? ` · ${loc.name}` : ''}
@@ -571,19 +547,19 @@ const SubnetsEditor = React.memo(function SubnetsEditor({
                     ))}
                   </TextField>
                 </TableCell>
-                <TableCell><TextField value={item.cidr || ''} onChange={(e) => handleUpdate(item.localId, { cidr: e.target.value })} size="small" fullWidth placeholder="e.g., 192.168.1.0/24" /></TableCell>
+                <TableCell><TextField value={item.cidr || ''} onChange={(e) => handleUpdate(item.localId, { cidr: e.target.value })} size="small" fullWidth placeholder={t('pages.settings.placeholders.cidr')} /></TableCell>
                 <TableCell>
                   <TextField value={item.vlan_number ?? ''} onChange={(e) => handleUpdate(item.localId, { vlan_number: e.target.value.trim() === '' ? undefined : parseInt(e.target.value, 10) || undefined })} size="small" fullWidth placeholder="1-4094" type="number" inputProps={{ min: 1, max: 4094 }} sx={{ '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button': { WebkitAppearance: 'none', margin: 0 }, '& input[type=number]': { MozAppearance: 'textfield' } }} />
                 </TableCell>
                 <TableCell>
                   <TextField select value={item.network_zone || ''} onChange={(e) => handleUpdate(item.localId, { network_zone: e.target.value })} size="small" fullWidth SelectProps={{ native: true }}>
-                    <option value="">Select...</option>
+                    <option value="">{t('pages.settings.placeholders.select')}</option>
                     {networkZones.filter((zone) => !zone.deprecated || zone.code === item.network_zone).map((zone) => <option key={zone.code} value={zone.code}>{zone.label}</option>)}
                   </TextField>
                 </TableCell>
-                <TableCell><TextField value={item.description || ''} onChange={(e) => handleUpdate(item.localId, { description: e.target.value })} size="small" fullWidth placeholder="Description" /></TableCell>
-                <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `No longer offered ${item.cidr}` }} /></TableCell>
-                <TableCell align="right"><Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.cidr || '', key: item.location_id && item.cidr ? { location_id: item.location_id, cidr: item.cidr } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button></TableCell>
+                <TableCell><TextField value={item.description || ''} onChange={(e) => handleUpdate(item.localId, { description: e.target.value })} size="small" fullWidth placeholder={t('pages.settings.columns.description')} /></TableCell>
+                <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} inputProps={{ 'aria-label': `${t('common:enumEditor.noLongerOffered')} ${item.cidr}` }} /></TableCell>
+                <TableCell align="right"><Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.cidr || '', key: item.location_id && item.cidr ? { location_id: item.location_id, cidr: item.cidr } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>{t('common:enumEditor.remove')}</Button></TableCell>
               </TableRow>
             ))}
             {useVirtual && paddingBottom > 0 && (
@@ -659,6 +635,7 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
     },
     [handleUpdate]
   );
+  const { t } = useTranslation(['it', 'common']);
   const removal = useCatalogRemoval('domains');
   const translations = useCatalogTranslations();
   const issues = React.useMemo(() => catalogListIssues(localItems, { skipCodes: new Set(localItems.filter((row: any) => row.system).map((row: any) => String(row.code).toLowerCase())) }), [localItems]);
@@ -666,19 +643,19 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={0.5} sx={{ mb: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>Domains</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>{t(listTitleKey('domains'))}</Typography>
         <Typography variant="body2" color="text.secondary">
-          Define Active Directory or DNS domains for assets. System entries cannot be modified.
+          {t(listDescriptionKey('domains'))}
         </Typography>
       </Stack>
       <TableContainer ref={containerRef as any} onScroll={onScroll} sx={{ maxHeight }}>
         <Table size="small" stickyHeader={useVirtual}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: '32%' }}>Name</TableCell>
-              <TableCell sx={{ width: '33%' }}>DNS suffix</TableCell>
-              <TableCell sx={{ width: '15%' }}>No longer offered</TableCell>
-              <TableCell align="right" sx={{ width: '20%' }}>Actions</TableCell>
+              <TableCell sx={{ width: '32%' }}>{t('common:enumEditor.name')}</TableCell>
+              <TableCell sx={{ width: '33%' }}>{t('pages.settings.columns.dnsSuffix')}</TableCell>
+              <TableCell sx={{ width: '15%' }}>{t('common:enumEditor.noLongerOffered')}</TableCell>
+              <TableCell align="right" sx={{ width: '20%' }}>{t('common:labels.actions')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -688,7 +665,7 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
             {localItems.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5}>
-                  <Typography variant="body2" color="text.secondary">No domains defined.</Typography>
+                  <Typography variant="body2" color="text.secondary">{t('pages.settings.empty.domains')}</Typography>
                 </TableCell>
               </TableRow>
             )}
@@ -696,15 +673,15 @@ const DomainsEditor = React.memo(function DomainsEditor({ items, onChange }: Dom
               const isSystem = !!item.system;
               return (
                 <TableRow key={item.localId}>
-                  <TableCell sx={{ verticalAlign: 'top' }}><TextField value={item.label || ''} onChange={(e) => handleLabelChange(item.localId, e.target.value, item.dns_suffix || '', item.label || '')} size="small" fullWidth placeholder="e.g., Corporate AD" disabled={isSystem} InputProps={{ readOnly: isSystem }} inputProps={{ 'aria-label': 'Name' }} /><IssueText issue={issues.get(localItems.indexOf(item))} /></TableCell>
-                  <TableCell><TextField value={item.dns_suffix || ''} onChange={(e) => handleUpdate(item.localId, { dns_suffix: e.target.value.toLowerCase() })} size="small" fullWidth placeholder="e.g., corp.example.com" disabled={isSystem} InputProps={{ readOnly: isSystem }} /></TableCell>
-                  <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} disabled={isSystem} inputProps={{ 'aria-label': `No longer offered ${item.label}` }} /></TableCell>
+                  <TableCell sx={{ verticalAlign: 'top' }}><TextField value={item.label || ''} onChange={(e) => handleLabelChange(item.localId, e.target.value, item.dns_suffix || '', item.label || '')} size="small" fullWidth placeholder={t('pages.settings.placeholders.domainName')} disabled={isSystem} InputProps={{ readOnly: isSystem }} inputProps={{ 'aria-label': t('common:enumEditor.name') }} /><IssueText issue={issues.get(localItems.indexOf(item))} /></TableCell>
+                  <TableCell><TextField value={item.dns_suffix || ''} onChange={(e) => handleUpdate(item.localId, { dns_suffix: e.target.value.toLowerCase() })} size="small" fullWidth placeholder={t('pages.settings.placeholders.dnsSuffix')} disabled={isSystem} InputProps={{ readOnly: isSystem }} /></TableCell>
+                  <TableCell><Checkbox size="small" checked={!!item.deprecated} onChange={(e) => handleUpdate(item.localId, { deprecated: e.target.checked })} disabled={isSystem} inputProps={{ 'aria-label': `${t('common:enumEditor.noLongerOffered')} ${item.label}` }} /></TableCell>
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                     {isSystem ? (
-                      <Typography variant="caption" color="text.secondary">Built-in</Typography>
+                      <Typography variant="caption" color="text.secondary">{t('common:enumEditor.locked')}</Typography>
                     ) : (<>
                       {item.code && <TranslateButton label={item.label} onClick={() => translations.openTranslations({ item, onSave: (next) => handleUpdate(item.localId, { translations: next } as any) })} />}
-                      <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>Remove</Button>
+                      <Button size="small" color="error" onClick={() => void removal.requestRemoval({ name: item.label || item.code, key: item.code ? { code: item.code } : null, onRemove: () => handleRemove(item.localId), onRetire: () => handleUpdate(item.localId, { deprecated: true }) })}>{t('common:enumEditor.remove')}</Button>
                     </>)}
                   </TableCell>
                 </TableRow>
@@ -894,10 +871,10 @@ export default function ItOperationsSettingsPage() {
     onSuccess: (next: ItOpsSettings, variables) => {
       queryClient.setQueryData(['it-ops-settings'], next);
       dispatch({ type: 'saved', id: variables.id, sent: variables.rows, saved: next });
-      dispatch({ type: 'setSuccess', message: 'IT Landscape settings updated successfully' });
+      dispatch({ type: 'setSuccess', message: t('pages.settings.updateSuccess') });
     },
     onError: (error) => {
-      dispatch({ type: 'setError', message: getApiErrorMessage(error, t, 'Failed to update settings') });
+      dispatch({ type: 'setError', message: getApiErrorMessage(error, t, t('pages.settings.updateFailed')) });
     },
     onSettled: () => dispatch({ type: 'setPending', id: null }),
   });
@@ -991,34 +968,29 @@ export default function ItOperationsSettingsPage() {
         <PageHeader title={t('pages.settings.title')} />
       </Box>
       <Typography variant="body1" color="text.secondary">
-        Configure reusable lists for data classification, server catalog, and interface protocols used across the IT Landscape workspace.
+        {t('pages.settings.description')}
       </Typography>
-      {isError && <Alert severity="error">Failed to load IT Landscape settings.</Alert>}
+      {isError && <Alert severity="error">{t('pages.settings.loadFailed')}</Alert>}
       {state.successMessage && <Alert severity="success">{state.successMessage}</Alert>}
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
       {data && <ClassificationCatalogSettings settings={data} />}
       <Stack spacing={3}>
-        {listGroups.map((group, groupIndex) => {
-          const groupEnumSections = enumSections.filter((section) => section.group === group.id);
-          const extraSections = group.id === 'serversConnections'
-            ? [
-              { id: 'connectionTypes' as const, title: 'Connection Types' },
-              { id: 'domains' as const, title: 'Domains' },
-              { id: 'operatingSystems' as const, title: 'Operating Systems' },
-              { id: 'subnets' as const, title: 'Subnets' },
-            ]
+        {listGroupIds.map((groupId, groupIndex) => {
+          const groupEnumSections = enumSections.filter((section) => section.group === groupId);
+          const extraSections = groupId === 'serversConnections'
+            ? [{ id: 'connectionTypes' as const }, { id: 'domains' as const }, { id: 'operatingSystems' as const }, { id: 'subnets' as const }]
             : [];
 
-          const groupSections = [...groupEnumSections, ...extraSections].sort((a, b) =>
-            a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
-          );
+          const groupSections = [...groupEnumSections, ...extraSections]
+            .map((section) => ({ ...section, title: t(listTitleKey(section.id)) }))
+            .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
 
           return (
-            <SettingsGroup key={group.id} title={group.title} subtitle={group.subtitle} showDivider={groupIndex > 0}>
+            <SettingsGroup key={groupId} title={t(`pages.settings.groups.${groupId}.title`)} subtitle={t(`pages.settings.groups.${groupId}.subtitle`)} showDivider={groupIndex > 0}>
               {groupSections.map((section) => {
                 if (section.id === 'operatingSystems') {
                   return (
-                    <SettingsSection key={section.id} title="Operating Systems" description={listUsage.operatingSystems}>
+                    <SettingsSection key={section.id} title={section.title} description={t(listUsageKey('operatingSystems'))}>
                       <SettingsControls
                         onAdd={() => dispatch({ type: 'setOperatingSystems', items: [{ code: '', label: '', standardSupportEnd: '', extendedSupportEnd: '', deprecated: false, localId: makeLocalId('os') }, ...state.operatingSystems] })}
                         saving={state.pending === 'operatingSystems' && submitting}
@@ -1030,7 +1002,7 @@ export default function ItOperationsSettingsPage() {
                 }
                 if (section.id === 'connectionTypes') {
                   return (
-                    <SettingsSection key={section.id} title="Connection Types" description={listUsage.connectionTypes}>
+                    <SettingsSection key={section.id} title={section.title} description={t(listUsageKey('connectionTypes'))}>
                       <SettingsControls
                         onAdd={() => dispatch({ type: 'setConnectionTypes', items: [{ category: '', label: '', code: '', typicalPorts: '', deprecated: false, localId: makeLocalId('ct') }, ...state.connectionTypes] })}
                         saving={state.pending === 'connectionTypes' && submitting}
@@ -1043,7 +1015,7 @@ export default function ItOperationsSettingsPage() {
                 if (section.id === 'subnets') {
                   const defaultLocationId = locations?.[0]?.id || '';
                   return (
-                    <SettingsSection key={section.id} title="Subnets" description={listUsage.subnets}>
+                    <SettingsSection key={section.id} title={section.title} description={t(listUsageKey('subnets'))}>
                       <SettingsControls
                         onAdd={() => dispatch({ type: 'setSubnets', items: [{ location_id: defaultLocationId, cidr: '', vlan_number: undefined, network_zone: 'lan', description: '', deprecated: false, localId: makeLocalId('subnet') }, ...state.subnets] })}
                         saving={state.pending === 'subnets' && submitting}
@@ -1055,7 +1027,7 @@ export default function ItOperationsSettingsPage() {
                 }
                 if (section.id === 'domains') {
                   return (
-                    <SettingsSection key={section.id} title="Domains" description={listUsage.domains}>
+                    <SettingsSection key={section.id} title={section.title} description={t(listUsageKey('domains'))}>
                       <SettingsControls
                         onAdd={() => dispatch({ type: 'setDomains', items: [{ code: '', label: '', dns_suffix: '', deprecated: false, system: false, localId: makeLocalId('domain') }, ...state.domains] })}
                         saving={state.pending === 'domains' && submitting}
@@ -1066,13 +1038,13 @@ export default function ItOperationsSettingsPage() {
                   );
                 }
 
-                const enumSection = section as EnumSectionConfig;
+                const enumSection = section as EnumSectionConfig & { title: string };
                 const items = state.enums[enumSection.id] || [];
                 const dirty = !!state.dirty[enumSection.id];
                 const saving = state.pending === enumSection.id && submitting;
 
                 return (
-                  <SettingsSection key={enumSection.id} title={enumSection.title} description={listUsage[enumSection.id]}>
+                  <SettingsSection key={enumSection.id} title={enumSection.title} description={t(listUsageKey(enumSection.id))}>
                     <SettingsControls
                       onAdd={() => dispatch({ type: 'setEnum', id: enumSection.id, items: [{ ...makeEmptyEnumRow(enumSection.id), localId: makeLocalId(enumSection.id) }, ...items] })}
                       saving={saving}
@@ -1087,7 +1059,7 @@ export default function ItOperationsSettingsPage() {
                     ) : enumSection.kind === 'entity' ? (
                       <EntityEditor items={items as EntityItem[]} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton {...editorGuards(enumSection.id)} />
                     ) : (
-                      <EnumEditor title={enumSection.title} description={enumSection.description} items={items} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton forbidComma={enumSection.id === 'accessMethods'} {...editorGuards(enumSection.id)} />
+                      <EnumEditor title={enumSection.title} description={t(listDescriptionKey(enumSection.id))} items={items} onChange={(next) => dispatch({ type: 'setEnum', id: enumSection.id, items: withLocalIds(next, enumSection.id) })} hideAddButton forbidComma={enumSection.id === 'accessMethods'} {...editorGuards(enumSection.id)} />
                     )}
                   </SettingsSection>
                 );

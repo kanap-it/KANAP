@@ -222,7 +222,6 @@ export default forwardRef<DepartmentOverviewEditorHandle, Props>(function Depart
               shouldDirty: true,
               shouldValidate: true,
             })}
-            statusLabel="Enabled"
             statusName={field.name}
             statusError={!!err.status}
             statusHelperText={err.status?.message as string}

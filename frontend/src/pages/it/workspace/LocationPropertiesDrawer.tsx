@@ -1,5 +1,6 @@
 import React from 'react';
 import { Autocomplete, MenuItem, TextField } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { PropertyGroup, PropertyRow } from '../../../components/design/PropertyRow';
 import { drawerSelectSx, drawerMenuItemSx, drawerFieldValueSx } from '../../../theme/formSx';
 import CompanySelect from '../../../components/fields/CompanySelect';
@@ -38,6 +39,7 @@ export default function LocationPropertiesDrawer({
   onCountryChange,
   onCityChange,
 }: Props) {
+  const { t } = useTranslation('it');
   const { byField } = useItOpsEnumOptions();
   const hostingOptions = byField.hostingType || [];
   const providerOptions = byField.serverProvider || [];
@@ -45,13 +47,13 @@ export default function LocationPropertiesDrawer({
   const countryValue: CountryOption | null =
     COUNTRY_OPTIONS.find((opt) => opt.code === (data.country_iso || '').toUpperCase()) ??
     (data.country_iso
-      ? { code: data.country_iso.toUpperCase(), name: `Unknown (${data.country_iso.toUpperCase()})` }
+      ? { code: data.country_iso.toUpperCase(), name: t('workspace.location.fields.unknownCountry', { code: data.country_iso.toUpperCase() }) }
       : null);
 
   return (
     <>
       <PropertyGroup>
-        <PropertyRow label="Hosting type" required>
+        <PropertyRow label={t('pages.locations.columns.hostingType')} required>
           <TextField
             select
             value={data.hosting_type || ''}
@@ -62,13 +64,13 @@ export default function LocationPropertiesDrawer({
           >
             {hostingOptions.map((opt) => (
               <MenuItem key={opt.code} value={opt.code} sx={drawerMenuItemSx}>
-                {opt.deprecated ? `${opt.label} (deprecated)` : opt.label}
+                {opt.deprecated ? t('common.deprecatedOption', { label: opt.label }) : opt.label}
               </MenuItem>
             ))}
           </TextField>
         </PropertyRow>
         {category === 'on_prem' && (
-          <PropertyRow label="Operating company">
+          <PropertyRow label={t('workspace.asset.overview.operatingCompany')}>
             <CompanySelect
               value={data.operating_company_id}
               onChange={onOperatingCompanyChange}
@@ -80,7 +82,7 @@ export default function LocationPropertiesDrawer({
         )}
         {category === 'cloud' && (
           <>
-            <PropertyRow label="Cloud provider">
+            <PropertyRow label={t('workspace.asset.overview.cloudProvider')}>
               <TextField
                 select
                 value={data.provider || ''}
@@ -92,19 +94,19 @@ export default function LocationPropertiesDrawer({
                 <MenuItem value="" sx={drawerMenuItemSx}>—</MenuItem>
                 {providerOptions.map((opt) => (
                   <MenuItem key={opt.code} value={opt.code} sx={drawerMenuItemSx}>
-                    {opt.deprecated ? `${opt.label} (deprecated)` : opt.label}
+                    {opt.deprecated ? t('common.deprecatedOption', { label: opt.label }) : opt.label}
                   </MenuItem>
                 ))}
               </TextField>
             </PropertyRow>
-            <PropertyRow label="Region">
+            <PropertyRow label={t('workspace.location.fields.region')}>
               <TextField
                 value={data.region || ''}
                 onChange={(e) => onRegionChange(e.target.value)}
                 onBlur={(e) => onRegionChange(e.target.value)}
                 variant="standard"
                 sx={drawerFieldValueSx}
-                placeholder="e.g., eu-west-1"
+                placeholder={t('workspace.location.fields.regionPlaceholder')}
                 disabled={disabled}
               />
             </PropertyRow>
@@ -113,7 +115,7 @@ export default function LocationPropertiesDrawer({
       </PropertyGroup>
 
       <PropertyGroup>
-        <PropertyRow label="Country">
+        <PropertyRow label={t('pages.locations.columns.country')}>
           <Autocomplete
             value={countryValue}
             options={COUNTRY_OPTIONS}
@@ -126,19 +128,19 @@ export default function LocationPropertiesDrawer({
                 {...params}
                 variant="standard"
                 sx={drawerFieldValueSx}
-                placeholder="Search countries"
+                placeholder={t('workspace.location.fields.searchCountries')}
               />
             )}
           />
         </PropertyRow>
-        <PropertyRow label="City">
+        <PropertyRow label={t('pages.locations.columns.city')}>
           <TextField
             value={data.city || ''}
             onChange={(e) => onCityChange(e.target.value)}
             onBlur={(e) => onCityChange(e.target.value)}
             variant="standard"
             sx={drawerFieldValueSx}
-            placeholder="e.g., Paris"
+            placeholder={t('workspace.location.fields.cityPlaceholder')}
             disabled={disabled}
           />
         </PropertyRow>

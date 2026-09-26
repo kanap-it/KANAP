@@ -187,7 +187,6 @@ export default forwardRef<SupplierOverviewEditorHandle, Props>(function Supplier
               shouldDirty: true,
               shouldValidate: true,
             })}
-            statusLabel="Enabled"
             statusName={field.name}
             statusError={!!err.status}
             statusHelperText={err.status?.message as string}

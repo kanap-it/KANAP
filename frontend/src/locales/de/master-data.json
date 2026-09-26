@@ -114,7 +114,7 @@
       "chartOfAccounts": "Kontenplan",
       "searchCoA": "Kontenplan suchen",
       "itUsers": "IT-Benutzer",
-      "turnover": "Umsatz (Mio. \u20ac)"
+      "turnover": "Umsatz (Mio. €)"
     }
   },
   "departments": {
@@ -205,7 +205,7 @@
   "coa": {
     "title": "Kontenpläne",
     "loadError": "Fehler beim Laden der Kontenpläne.",
-    "loadingCoA": "Kontenpläne werden geladen\u2026",
+    "loadingCoA": "Kontenpläne werden geladen…",
     "accounts": "Konten",
     "newAccount": "Neues Konto",
     "exportAccounts": "Konten exportieren",
@@ -237,7 +237,7 @@
       "scopeCountry": "Land",
       "scopeGlobal": "Global",
       "setDefaultForCountry": "Als Standard für dieses Land festlegen",
-      "preflightOk": "Vorabprüfung OK \u2014 gesamt {{total}}, Einfügungen {{inserted}}, Aktualisierungen {{updated}}.",
+      "preflightOk": "Vorabprüfung OK — gesamt {{total}}, Einfügungen {{inserted}}, Aktualisierungen {{updated}}.",
       "codeAndNameRequired": "Code und Name sind erforderlich",
       "countryRequired": "Land ist erforderlich",
       "selectTemplate": "Bitte wählen Sie eine Vorlage",
@@ -249,7 +249,7 @@
       "title": "Kontenpläne verwalten",
       "setCountryDefault": "Als Landesstandard festlegen",
       "setGlobalDefault": "Als globalen Standard festlegen",
-      "loadingCoAs": "Kontenpläne werden geladen\u2026",
+      "loadingCoAs": "Kontenpläne werden geladen…",
       "loadError": "Fehler beim Laden der Kontenpläne.",
       "noCoAs": "Keine Kontenpläne gefunden.",
       "selectToView": "Wählen Sie einen Kontenplan, um Details anzuzeigen.",
@@ -322,13 +322,14 @@
       "processOwnerHelper": "Benutzer, der letztendlich für den Prozess verantwortlich ist",
       "itOwner": "IT-Verantwortlicher",
       "itOwnerHelper": "IT-Kontakt, verantwortlich für Tools / Systeme, die diesen Prozess unterstützen",
-      "notesPlaceholder": "Interne Notizen, Links zu SOPs oder Prozesslandkarten"
+      "notesPlaceholder": "Interne Notizen, Links zu SOPs oder Prozesslandkarten",
+      "nameRequired": "Name ist erforderlich"
     },
     "categoryManager": {
       "title": "Geschäftsprozess-Kategorien verwalten",
       "description": "Umbenennen, Aktivieren/Deaktivieren oder Löschen von Kategorien. Verwendete Kategorien können nicht gelöscht werden. Änderungen werden erst beim Klick auf Speichern übernommen.",
       "newCategory": "Neue Kategorie",
-      "loadingCategories": "Kategorien werden geladen\u2026",
+      "loadingCategories": "Kategorien werden geladen…",
       "noCategories": "Keine Kategorien gefunden.",
       "nameEmpty": "Der Name darf nicht leer sein",
       "deleteConfirm": "Diese Kategorie löschen? Dies kann nicht rückgängig gemacht werden.",
@@ -388,10 +389,10 @@
         "errors": "Fehler"
       },
       "dryRunHint": "Führen Sie einen Testlauf durch, um eine Vorschau der zu kopierenden Daten zu erhalten.",
-      "processing": "Verarbeitung\u2026",
+      "processing": "Verarbeitung…",
       "dryRunBtn": "Testlauf",
       "copyDataBtn": "Daten kopieren",
-      "copyingBtn": "Wird kopiert\u2026"
+      "copyingBtn": "Wird kopiert…"
     },
     "freeze": {
       "title": "Daten einfrieren / freigeben",
@@ -403,9 +404,9 @@
       "unableToUnfreeze": "Daten konnten nicht freigegeben werden.",
       "freezeBtn": "Daten einfrieren",
       "unfreezeBtn": "Daten freigeben",
-      "freezingBtn": "Wird eingefroren\u2026",
-      "unfreezingBtn": "Wird freigegeben\u2026",
-      "updatingStatus": "Einfrierstatus wird aktualisiert\u2026",
+      "freezingBtn": "Wird eingefroren…",
+      "unfreezingBtn": "Wird freigegeben…",
+      "updatingStatus": "Einfrierstatus wird aktualisiert…",
       "scopeCompanies": "Unternehmen",
       "scopeDepartments": "Abteilungen",
       "companiesMetrics": "Unternehmenskennzahlen",

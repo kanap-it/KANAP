@@ -398,7 +398,6 @@ export default forwardRef<CompanyOverviewEditorHandle, Props>(function CompanyOv
               shouldValidate: true,
             })}
             disabled={disabled}
-            statusLabel="Enabled"
             statusName={field.name}
             statusError={!!err.status}
             statusHelperText={err.status?.message as string}

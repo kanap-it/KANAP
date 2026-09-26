@@ -761,7 +761,14 @@
       "summaryTable": "Tabla resumen",
       "chart": "Gráfico",
       "chartUnavailable": "Gráfico no disponible.",
-      "printedOn": "Impreso el {{date}}"
+      "printedOn": "Impreso el {{date}}",
+      "share": "Participación",
+      "unknownCompany": "Empresa desconocida",
+      "unnamedAccount": "Cuenta sin nombre",
+      "exportTableCsv": "Exportar la tabla en CSV",
+      "exportChartPng": "Exportar el gráfico en PNG",
+      "printPdf": "Imprimir / Guardar como PDF",
+      "printReport": "Imprimir el informe"
     },
     "filters": {
       "year": "Año",
@@ -889,7 +896,9 @@
       "subtitle": "Mayores partidas OPEX por año seleccionado ({{metric}})",
       "topTotal": "Total top {{count}}",
       "totalMetric": "Total {{metric}}",
-      "ofFilteredMetric": "{{pct}} % del {{metric}} filtrado"
+      "ofFilteredMetric": "{{pct}} % del {{metric}} filtrado",
+      "shareSubtitle": "Participación en el total anual ({{metric}})",
+      "chartTitle": "Top {{count}} OPEX · {{metric}} {{year}}"
     },
     "opexDelta": {
       "title": "Top aumento / disminución OPEX",
@@ -917,7 +926,16 @@
       "source": "Origen",
       "destination": "Destino",
       "shareOfChangeMagnitude": "Participación de la magnitud total del cambio",
-      "pieAvailableHint": "Gráfico circular disponible cuando se selecciona una sola dirección"
+      "pieAvailableHint": "Gráfico circular disponible cuando se selecciona una sola dirección",
+      "chartTitleIncreases": "Top {{n}} aumentos OPEX · {{source}} → {{destination}}",
+      "chartTitleDecreases": "Top {{n}} disminuciones OPEX · {{source}} → {{destination}}",
+      "chartTitleChanges": "Top {{n}} variaciones OPEX · {{source}} → {{destination}}",
+      "incValue": "Aum.: {{value}}",
+      "decValue": "Dis.: {{value}}",
+      "topTotalIncrease": "Aumento total del top {{count}}",
+      "topTotalDecrease": "Disminución total del top {{count}}",
+      "sourceDestinationTotals": "Origen: {{source}} · Destino: {{destination}}",
+      "directionToggle": "Aumento o disminución"
     },
     "budgetTrendOpex": {
       "title": "Tendencia presupuestaria (OPEX)",
