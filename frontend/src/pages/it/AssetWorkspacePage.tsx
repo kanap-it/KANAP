@@ -160,23 +160,19 @@ type TabKey = 'overview' | 'technical' | 'hardware' | 'support' | 'relations';
 const VALID_ASSET_TABS = new Set<TabKey>(['overview', 'technical', 'hardware', 'support', 'relations']);
 const OVERVIEW_LEGACY_TABS = new Set(['knowledge', 'assignments', 'connections']);
 
-const ENV_OPTIONS = [
-  { value: 'prod', label: 'Prod' },
-  { value: 'pre_prod', label: 'Pre-prod' },
-  { value: 'qa', label: 'QA' },
-  { value: 'test', label: 'Test' },
-  { value: 'dev', label: 'Dev' },
-  { value: 'sandbox', label: 'Sandbox' },
+const ENV_OPTION_KEYS = [
+  { value: 'prod', labelKey: 'enums.environment.prod' },
+  { value: 'pre_prod', labelKey: 'enums.environment.preProd' },
+  { value: 'qa', labelKey: 'enums.environment.qa' },
+  { value: 'test', labelKey: 'enums.environment.test' },
+  { value: 'dev', labelKey: 'enums.environment.dev' },
+  { value: 'sandbox', labelKey: 'enums.environment.sandbox' },
 ] as const;
 
-function humanize(value: string | null | undefined) {
+function humanize(value: string | null | undefined, emptyLabel: string) {
   const text = String(value || '').trim();
-  if (!text) return 'Not set';
+  if (!text) return emptyLabel;
   return text.replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase());
-}
-
-function environmentLabel(value: string | null | undefined) {
-  return ENV_OPTIONS.find((option) => option.value === value)?.label || value || 'Not set';
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -242,6 +238,10 @@ const denseTableSx = {
 
 export default function AssetWorkspacePage() {
   const { t } = useTranslation(['it', 'common']);
+  const notSetLabel = t('common:selects.notSet');
+  const ENV_OPTIONS = ENV_OPTION_KEYS.map((option) => ({ value: option.value, label: t(option.labelKey) }));
+  const environmentLabel = (value: string | null | undefined) =>
+    ENV_OPTIONS.find((option) => option.value === value)?.label || value || notSetLabel;
   const locale = useLocale();
   const dialogs = useKanapDialogs();
   const { hasLevel } = useAuth();
@@ -752,7 +752,7 @@ export default function AssetWorkspacePage() {
             setLocationInfoError(
               companyError?.response?.data?.message ||
                 companyError?.message ||
-                'Failed to load operating company details',
+                t('messages.loadCompanyFailed'),
             );
           }
         } else {
@@ -931,16 +931,16 @@ export default function AssetWorkspacePage() {
   const handleAssignSave = async () => {
     if (!id) return;
     if (!selectedAppId) {
-      setAssignError('Application is required');
+      setAssignError(t('workspace.asset.assignments.applicationRequired'));
       return;
     }
     const instances = appInstances[selectedAppId] || [];
     if (!instanceId || !instances.some((i) => i.id === instanceId)) {
-      setAssignError('Environment (instance) is required');
+      setAssignError(t('workspace.asset.assignments.environmentRequired'));
       return;
     }
     if (!assignRole) {
-      setAssignError('Role is required');
+      setAssignError(t('workspace.asset.assignments.roleRequired'));
       return;
     }
     setAssigning(true);
@@ -952,7 +952,7 @@ export default function AssetWorkspacePage() {
         since_date: assignSince || null,
         notes: assignNotes || null,
       });
-      setAssignMessage('Assignment added');
+      setAssignMessage(t('workspace.asset.assignments.assignmentAdded'));
       setAssignDialogOpen(false);
       await refreshAssignments();
     } catch (e: any) {
@@ -1015,10 +1015,10 @@ export default function AssetWorkspacePage() {
     ? labelFor('hostingType', locationDetails.hosting_type) || locationDetails.hosting_type
     : loadingPlaceholder;
   const providerOrCompanyLabel = locationCategory === 'cloud'
-    ? 'Cloud provider'
+    ? t('workspace.asset.overview.cloudProvider')
     : locationCategory === 'on_prem'
-      ? 'Operating company'
-      : 'Operating company / Cloud provider';
+      ? t('workspace.asset.overview.operatingCompany')
+      : t('workspace.asset.overview.operatingCompanyCloudProvider');
   const providerOrCompanyDisplay = locationDetails
     ? locationCategory === 'cloud'
       ? locationDetails.provider
@@ -1156,13 +1156,13 @@ export default function AssetWorkspacePage() {
   const showPhysicalTabs = isPhysicalAsset || (!settings && physicalOnlyTabs.includes(tab));
 
   const workspaceTabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'technical', label: 'Technical' },
+    { key: 'overview', label: t('workspace.asset.tabs.overview') },
+    { key: 'technical', label: t('workspace.asset.tabs.technical') },
     ...(showPhysicalTabs ? [
-      { key: 'hardware', label: 'Hardware', disabled: isCreate },
-      { key: 'support', label: 'Support', disabled: isCreate },
+      { key: 'hardware', label: t('workspace.asset.tabs.hardware'), disabled: isCreate },
+      { key: 'support', label: t('workspace.asset.tabs.support'), disabled: isCreate },
     ] : []),
-    { key: 'relations', label: 'Relations', badge: assetRelationsCountQuery.data ?? 0, disabled: isCreate },
+    { key: 'relations', label: t('workspace.asset.tabs.relations'), badge: assetRelationsCountQuery.data ?? 0, disabled: isCreate },
   ];
 
   const canonicalPathFor = (targetId: string, nextTab: TabKey = validTab) => {
@@ -1229,10 +1229,10 @@ export default function AssetWorkspacePage() {
     color: getEnvDotColor(option.value, theme.palette.mode),
   }));
 
-  const assetTypeLabel = labelFor('serverKind', kind) || kind || 'Not set';
+  const assetTypeLabel = labelFor('serverKind', kind) || kind || notSetLabel;
   const locationLabel = locationDetails
     ? `${locationDetails.location_reference} · ${locationDetails.name}`
-    : (locationId ? 'Loading...' : 'Not set');
+    : (locationId ? t('common.loading') : notSetLabel);
 
   const actions = (
     <>
@@ -1249,7 +1249,7 @@ export default function AssetWorkspacePage() {
           onClick={async () => {
             if (!id) return;
             if (!(await dialogs.confirm({
-              message: `Delete asset "${data?.name || name}"?`,
+              message: t('workspace.asset.deleteConfirm', { name: data?.name || name }),
               confirmLabel: t('common:buttons.delete'),
               intent: 'danger',
             }))) return;
@@ -1265,7 +1265,7 @@ export default function AssetWorkspacePage() {
           itemType="asset"
           itemId={id}
           itemRef={data.asset_reference || null}
-          itemName={data.name || name || 'Untitled asset'}
+          itemName={data.name || name || t('workspace.asset.untitled')}
         />
       )}
       <IconButton onClick={() => { void handleClose(); }} title={t('common.close')} aria-label={t('common.close')} size="small">
@@ -1277,7 +1277,7 @@ export default function AssetWorkspacePage() {
   const properties = (
     <>
       <PropertyGroup>
-        <PropertyRow label="Asset type" required>
+        <PropertyRow label={t('workspace.asset.overview.assetType')} required>
           <Autocomplete
             options={kindOptions.filter((opt) => !opt.deprecated || opt.value === kind)}
             value={kind ? kindOptions.find((opt) => opt.value === kind) || { value: kind, label: kind, deprecated: false } : null}
@@ -1289,7 +1289,7 @@ export default function AssetWorkspacePage() {
               <TextField
                 {...params}
                 variant="standard"
-                placeholder="Search asset types"
+                placeholder={t('workspace.asset.overview.searchAssetTypes')}
                 sx={drawerFieldValueSx}
               />
             )}
@@ -1297,12 +1297,12 @@ export default function AssetWorkspacePage() {
             fullWidth
           />
         </PropertyRow>
-        <PropertyRow label="Location" required>
+        <PropertyRow label={t('workspace.asset.overview.location')} required>
           <Box sx={drawerFieldValueSx}>
             <LocationSelect
               value={locationId}
               onChange={updateLocation}
-              label="Location"
+              label={t('workspace.asset.overview.location')}
               required
               size="small"
               hideLabel
@@ -1312,7 +1312,7 @@ export default function AssetWorkspacePage() {
           </Box>
         </PropertyRow>
         {subLocationOptions.length > 0 && (
-          <PropertyRow label="Sub-location">
+          <PropertyRow label={t('workspace.asset.overview.subLocation')}>
             <Autocomplete
               options={subLocationOptions}
               getOptionLabel={(option) => option.name}
@@ -1329,7 +1329,7 @@ export default function AssetWorkspacePage() {
                 <TextField
                   {...params}
                   variant="standard"
-                  placeholder="Search sub-locations"
+                  placeholder={t('workspace.asset.overview.searchSubLocations')}
                   sx={drawerFieldValueSx}
                 />
               )}
@@ -1352,22 +1352,22 @@ export default function AssetWorkspacePage() {
         {(locationId || !isCreate) && (
           <>
             {locationInfoError && (
-              <PropertyRow label="Location context">
+              <PropertyRow label={t('workspace.asset.overview.locationContext')}>
                 <Typography sx={(muiTheme) => ({ fontSize: 13, color: muiTheme.palette.kanap.text.secondary })}>
                   {locationInfoError}
                 </Typography>
               </PropertyRow>
             )}
-            <PropertyRow label="Hosting type">{hostingTypeDisplay}</PropertyRow>
+            <PropertyRow label={t('workspace.asset.overview.hostingType')}>{hostingTypeDisplay}</PropertyRow>
             <PropertyRow label={providerOrCompanyLabel}>{providerOrCompanyDisplay}</PropertyRow>
-            <PropertyRow label="Country">{countryDisplay}</PropertyRow>
-            <PropertyRow label="City">{cityDisplay}</PropertyRow>
+            <PropertyRow label={t('workspace.asset.overview.country')}>{countryDisplay}</PropertyRow>
+            <PropertyRow label={t('workspace.asset.overview.city')}>{cityDisplay}</PropertyRow>
           </>
         )}
       </PropertyGroup>
 
       <PropertyGroup>
-        <PropertyRow label="Environment">
+        <PropertyRow label={t('workspace.asset.technical.environment')}>
           <Select
             value={environment}
             onChange={(e) => {
@@ -1382,7 +1382,7 @@ export default function AssetWorkspacePage() {
             {ENV_OPTIONS.map((opt) => <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>)}
           </Select>
         </PropertyRow>
-        <PropertyRow label="Lifecycle">
+        <PropertyRow label={t('workspace.asset.overview.lifecycle')}>
           <Select
             value={status}
             onChange={(e) => {
@@ -1397,10 +1397,10 @@ export default function AssetWorkspacePage() {
             {lifecycleOptions.map((opt) => <MenuItem key={opt.value} value={opt.value} sx={drawerMenuItemSx}>{opt.label}</MenuItem>)}
           </Select>
         </PropertyRow>
-        <PropertyRow label="Go live">
+        <PropertyRow label={t('workspace.asset.overview.goLiveDate')}>
           <DateEUField label="" valueYmd={goLiveDate} onChangeYmd={(val) => { setGoLiveDate(val); updateScalar('go_live_date', (val || null) as AssetRecord['go_live_date']); }} disabled={!canManage || saving} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
         </PropertyRow>
-        <PropertyRow label="End of life">
+        <PropertyRow label={t('workspace.asset.overview.endOfLifeDate')}>
           <DateEUField label="" valueYmd={endOfLifeDate} onChangeYmd={(val) => { setEndOfLifeDate(val); updateScalar('end_of_life_date', (val || null) as AssetRecord['end_of_life_date']); }} disabled={!canManage || saving} size="small" hideLabel textFieldSx={drawerFieldValueSx} />
         </PropertyRow>
       </PropertyGroup>
@@ -1415,12 +1415,12 @@ export default function AssetWorkspacePage() {
         tabs={workspaceTabs}
         onTabChange={handleTabChange}
         drawerStorageKey="kanap.assets.drawerOpen"
-        backLabel="Assets"
+        backLabel={t('pages.assets.title')}
         onBack={handleClose}
         itemReference={!isCreate ? data?.asset_reference || data?.id?.slice(0, 8) || null : null}
         onCopyReference={!isCreate && (data?.asset_reference || data?.id) ? () => { void navigator.clipboard?.writeText(data?.asset_reference || data?.id || ''); } : undefined}
         title={isCreate ? name : data?.name || name || ''}
-        titleFallback={isCreate ? 'New asset' : 'Untitled asset'}
+        titleFallback={isCreate ? t('workspace.asset.newAsset') : t('workspace.asset.untitled')}
         canEditTitle={canEditNetboxField('name')}
         onTitleSave={(value) => {
           const next = value.trim();
@@ -1437,15 +1437,15 @@ export default function AssetWorkspacePage() {
           hasNext,
           onPrev: () => { void confirmAndNavigate(prevId); },
           onNext: () => { void confirmAndNavigate(nextId); },
-          previousLabel: 'Previous asset',
-          nextLabel: 'Next asset',
+          previousLabel: t('workspace.asset.previous'),
+          nextLabel: t('workspace.asset.next'),
         } : undefined}
         onSaveShortcut={isCreate ? () => { void handleSave(); } : undefined}
         metadata={!isCreate ? (
           <>
             <PortfolioStatusMetadata
               value={status || 'active'}
-              label={humanize(labelFor('lifecycleStatus', status) || status)}
+              label={humanize(labelFor('lifecycleStatus', status) || status, notSetLabel)}
               color={getDotColor(LIFECYCLE_COLORS[status] || 'default', theme.palette.mode)}
               options={lifecycleMetadataOptions}
               onChange={(value) => {
@@ -1468,7 +1468,7 @@ export default function AssetWorkspacePage() {
             <PortfolioMetadataItem
               onClick={(event) => setAssetTypeAnchorEl(event.currentTarget)}
               disabled={!canEditNetboxField('kind') || saving}
-              title="Edit asset type"
+              title={t('workspace.asset.meta.editAssetType')}
             >
               {assetTypeLabel}
             </PortfolioMetadataItem>
@@ -1491,12 +1491,12 @@ export default function AssetWorkspacePage() {
                 </MenuItem>
               ))}
             </Menu>
-            {isCluster && <PortfolioMetadataItem>Cluster</PortfolioMetadataItem>}
+            {isCluster && <PortfolioMetadataItem>{t('workspace.asset.meta.cluster')}</PortfolioMetadataItem>}
             <PortfolioMetadataItem
-              label="Location"
+              label={t('workspace.asset.overview.location')}
               onClick={(event) => setLocationAnchorEl(event.currentTarget)}
               disabled={!canEditNetboxField('location_id') || saving}
-              title="Edit location"
+              title={t('workspace.asset.meta.editLocation')}
             >
               {locationLabel}
             </PortfolioMetadataItem>
@@ -1524,7 +1524,7 @@ export default function AssetWorkspacePage() {
             </Menu>
             {computedFqdn && <PortfolioMetadataItem mono>{computedFqdn}</PortfolioMetadataItem>}
             <PortfolioMetadataItem
-              label="Go live"
+              label={t('workspace.asset.meta.goLive')}
               onClick={(event) => {
                 const picker = goLiveNativeRef.current;
                 if (!picker) return;
@@ -1541,9 +1541,9 @@ export default function AssetWorkspacePage() {
                 if (!picker.showPicker) picker.click();
               }}
               disabled={!canManage || saving}
-              title="Edit go live"
+              title={t('workspace.asset.meta.editGoLive')}
             >
-              {formatShortDate(goLiveDate, locale, { empty: 'Not set' })}
+              {formatShortDate(goLiveDate, locale, { empty: notSetLabel })}
             </PortfolioMetadataItem>
             <Box
               component="input"
@@ -2290,7 +2290,7 @@ export default function AssetWorkspacePage() {
       </PortfolioDetailWorkspaceShell>
       <KanapDialog
         open={memberDialogOpen}
-        title="Edit members"
+        title={t('workspace.asset.editMembersDialog.title')}
         onClose={() => setMemberDialogOpen(false)}
         onSave={handleSaveMembers}
         saveLabel={t('common:buttons.save')}
@@ -2309,14 +2309,14 @@ export default function AssetWorkspacePage() {
               onChange={(_, vals) => setMemberSelection(vals as ServerOption[])}
               filterSelectedOptions
               isOptionEqualToValue={(opt, val) => opt.id === val.id}
-              getOptionLabel={(opt) => (opt.is_cluster ? `Cluster: ${opt.name}` : opt.name)}
+              getOptionLabel={(opt) => (opt.is_cluster ? t('workspace.asset.editMembersDialog.clusterOption', { name: opt.name }) : opt.name)}
               renderOption={(props, option) => (
                 <li {...props} key={option.id}>
                   <div>
                     <div style={{ fontWeight: 500 }}>{option.name}</div>
                     <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
                       {environmentLabel(option.environment)} / {option.kind}
-                      {option.is_cluster ? ' / cluster' : ''}
+                      {option.is_cluster ? ` / ${t('workspace.asset.editMembersDialog.clusterTag')}` : ''}
                       {' / '}
                       {option.provider}
                     </div>
@@ -2324,11 +2324,11 @@ export default function AssetWorkspacePage() {
                 </li>
               )}
               renderInput={(params) => (
-                <PropertyRow label="Member servers" valueSx={{ width: '100%' }}>
+                <PropertyRow label={t('workspace.asset.editMembersDialog.memberServers')} valueSx={{ width: '100%' }}>
                   <TextField
                     {...params}
-                    placeholder="Search member servers"
-                    helperText="Members must be non-cluster servers."
+                    placeholder={t('workspace.asset.editMembersDialog.searchServers')}
+                    helperText={t('workspace.asset.editMembersDialog.membersHint')}
                     variant="standard"
                     sx={drawerFieldValueSx}
                     InputProps={{
@@ -2350,18 +2350,18 @@ export default function AssetWorkspacePage() {
 
       <KanapDialog
         open={assignDialogOpen}
-        title="Add assignment"
+        title={t('workspace.asset.assignments.addAssignmentDialog')}
         onClose={() => setAssignDialogOpen(false)}
         onSave={handleAssignSave}
-        saveLabel="Assign"
+        saveLabel={t('workspace.asset.assignments.assign')}
         saveDisabled={assigning || serverRoleOptions.length === 0}
         saveLoading={assigning}
         sx={{ maxWidth: 560 }}
       >
           <Stack spacing={1.5}>
-            <PropertyRow label="Application" required>
+            <PropertyRow label={t('workspace.asset.assignments.application')} required>
               <ApplicationSelect
-                label="Application"
+                label={t('workspace.asset.assignments.application')}
                 value={selectedAppId}
                 onChange={(appId) => { void onSelectApplication(appId); }}
                 required
@@ -2369,14 +2369,14 @@ export default function AssetWorkspacePage() {
                 textFieldSx={drawerFieldValueSx}
               />
             </PropertyRow>
-            <PropertyRow label="Environment" required>
+            <PropertyRow label={t('workspace.asset.assignments.environment')} required>
               <TextField
                 select
                 value={instanceId || ''}
                 onChange={(e) => setInstanceId(e.target.value)}
                 disabled={!selectedAppId}
                 required
-                helperText={!selectedAppId ? 'Select an application to choose an environment.' : undefined}
+                helperText={!selectedAppId ? t('workspace.asset.assignments.selectAppForEnv') : undefined}
                 variant="standard"
                 sx={drawerFieldValueSx}
               >
@@ -2384,17 +2384,17 @@ export default function AssetWorkspacePage() {
                   <MenuItem key={inst.id} value={inst.id} sx={drawerMenuItemSx}>{environmentLabel(inst.environment)}</MenuItem>
                 ))}
                 {selectedAppId && (appInstances[selectedAppId] || []).length === 0 && (
-                  <MenuItem value="" disabled sx={drawerMenuItemSx}>No instances for this application</MenuItem>
+                  <MenuItem value="" disabled sx={drawerMenuItemSx}>{t('workspace.asset.assignments.noInstances')}</MenuItem>
                 )}
               </TextField>
             </PropertyRow>
-            <PropertyRow label="Role" required>
+            <PropertyRow label={t('workspace.asset.assignments.role')} required>
               <TextField
                 select
                 value={assignRole}
                 onChange={(e) => setAssignRole(e.target.value)}
                 required
-                helperText={serverRoleOptions.length === 0 ? 'No server roles configured; update IT ops settings.' : undefined}
+                helperText={serverRoleOptions.length === 0 ? t('workspace.asset.assignments.noServerRoles') : undefined}
                 variant="standard"
                 sx={drawerFieldValueSx}
               >
@@ -2403,7 +2403,7 @@ export default function AssetWorkspacePage() {
                 ))}
               </TextField>
             </PropertyRow>
-            <PropertyRow label="Since date">
+            <PropertyRow label={t('workspace.asset.assignments.since')}>
               <DateEUField
                 label=""
                 hideLabel
@@ -2412,7 +2412,7 @@ export default function AssetWorkspacePage() {
                 textFieldSx={drawerFieldValueSx}
               />
             </PropertyRow>
-            <PropertyRow label="Notes">
+            <PropertyRow label={t('workspace.asset.assignments.notes')}>
               <TextField
                 multiline
                 minRows={3}

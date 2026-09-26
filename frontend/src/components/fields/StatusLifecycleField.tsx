@@ -153,7 +153,7 @@ const StatusLifecycleField: React.FC<StatusLifecycleFieldProps> = ({
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <FieldLabel>{disabledAtLabel ?? t('lifecycleField.endOfValidity')}</FieldLabel>
             <TextField
-            placeholder="dd/mm/yyyy"
+            placeholder={t('labels.datePlaceholder')}
             value={inputText}
             onChange={handleDisabledAtTextChange}
             onBlur={handleDisabledAtBlur}

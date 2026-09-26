@@ -3,6 +3,7 @@ import { TextField, InputAdornment, IconButton, SxProps, Theme, Box } from '@mui
 import EventIcon from '@mui/icons-material/Event';
 import { euToYmd, ymdToEu, formatEuPartial } from '../../lib/date-eu';
 import { formatShortDate } from '../../lib/dateFormat';
+import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../i18n/useLocale';
 import { FieldLabel } from '../design';
 
@@ -36,6 +37,7 @@ export default function DateEUField({ label, valueYmd = '', onChangeYmd, disable
   const [focused, setFocused] = React.useState(false);
   const nativeRef = React.useRef<HTMLInputElement | null>(null);
   const locale = useLocale();
+  const { t } = useTranslation('common');
 
   // Normalize the input value to YYYY-MM-DD format
   const normalizedYmd = toYmdOnly(valueYmd);
@@ -104,7 +106,7 @@ export default function DateEUField({ label, valueYmd = '', onChangeYmd, disable
         onChange={onNativeChange}
       />
       <TextField
-        placeholder="dd/mm/yyyy"
+        placeholder={t('labels.datePlaceholder')}
         value={focused ? text : restText}
         onChange={onTextChange}
         onFocus={onFocus}
@@ -122,7 +124,7 @@ export default function DateEUField({ label, valueYmd = '', onChangeYmd, disable
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">
-              <IconButton size="small" onClick={openPicker} aria-label="Open calendar" tabIndex={-1}>
+              <IconButton size="small" onClick={openPicker} aria-label={t('labels.openCalendar')} tabIndex={-1}>
                 <EventIcon fontSize="small" />
               </IconButton>
             </InputAdornment>

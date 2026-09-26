@@ -62,6 +62,7 @@ function useBreadcrumbs(): Crumb[] {
       'tasks': 'tasks',
       'operations': 'operations',
       'netbox': 'netbox',
+      'settings': 'settings',
     };
     const key = keyMap[seg];
     if (key) return t(`breadcrumbs.${key}`);

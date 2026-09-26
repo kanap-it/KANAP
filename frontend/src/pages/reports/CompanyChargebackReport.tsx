@@ -207,7 +207,7 @@ export default function CompanyChargebackReport() {
     const map = new Map<string, Row>();
     for (const r of receivables) {
       const id = r.consumerId;
-      const name = r.consumerName || 'Unknown company';
+      const name = r.consumerName || t('reports.shared.unknownCompany');
       const row = map.get(id) ?? { partnerId: id, partnerName: name, receivables: 0, payables: 0, net: 0 };
       row.partnerName = name;
       row.receivables += Number(r.amount || 0);
@@ -215,7 +215,7 @@ export default function CompanyChargebackReport() {
     }
     for (const p of payables) {
       const id = p.payerId;
-      const name = p.payerName || 'Unknown company';
+      const name = p.payerName || t('reports.shared.unknownCompany');
       const row = map.get(id) ?? { partnerId: id, partnerName: name, receivables: 0, payables: 0, net: 0 };
       row.partnerName = name;
       row.payables += Number(p.amount || 0);
@@ -224,7 +224,7 @@ export default function CompanyChargebackReport() {
     const rows = Array.from(map.values()).map((r) => ({ ...r, net: Number((r.receivables - r.payables) || 0) }));
     rows.sort((a, b) => (b.net !== a.net ? b.net - a.net : a.partnerName.localeCompare(b.partnerName)));
     return rows;
-  }, [data?.intercompany]);
+  }, [data?.intercompany, t]);
 
   const intercompanyPinnedBottom = useMemo(() => {
     if (!intercompanyRows.length) return [];
@@ -347,7 +347,7 @@ export default function CompanyChargebackReport() {
                 title: datum.label,
                 data: [
                   { label: metricLabel, value: formatNumber(value) },
-                  { label: 'Share', value: `${pct.toFixed(2)}%` },
+                  { label: t('reports.shared.share'), value: `${pct.toFixed(2)}%` },
                 ],
               };
             },
@@ -526,7 +526,7 @@ export default function CompanyChargebackReport() {
                 {t("reports.companyChargeback.departmentDistributionDescription")}
               </Typography>
               {chartOptions ? (
-                <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={horizontalBarChartHeight(chartData.length)} />
+                <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={horizontalBarChartHeight(chartData.length)} />
               ) : (
                 <Typography variant="body2" color="text.secondary">{t("reports.shared.chartUnavailable")}</Typography>
               )}
@@ -536,7 +536,7 @@ export default function CompanyChargebackReport() {
 
         {isReady && showDepartments && departments.length === 0 && (
           <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Department totals</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{t('reports.companyChargeback.departmentTotals')}</Typography>
             <Typography variant="body2" color="text.secondary">{t("reports.companyChargeback.noDepartmentAllocations")}</Typography>
           </Paper>
         )}

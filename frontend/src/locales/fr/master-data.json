@@ -114,7 +114,7 @@
       "chartOfAccounts": "Plan comptable",
       "searchCoA": "Rechercher un plan comptable",
       "itUsers": "Utilisateurs IT",
-      "turnover": "Chiffre d'affaires (M\u20ac)"
+      "turnover": "Chiffre d'affaires (M€)"
     }
   },
   "departments": {
@@ -205,7 +205,7 @@
   "coa": {
     "title": "Plans comptables",
     "loadError": "Échec du chargement des plans comptables.",
-    "loadingCoA": "Chargement des plans comptables\u2026",
+    "loadingCoA": "Chargement des plans comptables…",
     "accounts": "comptes",
     "newAccount": "Nouveau compte",
     "exportAccounts": "Exporter les comptes",
@@ -237,7 +237,7 @@
       "scopeCountry": "Pays",
       "scopeGlobal": "Global",
       "setDefaultForCountry": "Définir comme défaut pour ce pays",
-      "preflightOk": "Vérification OK \u2014 total {{total}}, insertions {{inserted}}, mises à jour {{updated}}.",
+      "preflightOk": "Vérification OK — total {{total}}, insertions {{inserted}}, mises à jour {{updated}}.",
       "codeAndNameRequired": "Le code et le nom sont requis",
       "countryRequired": "Le pays est requis",
       "selectTemplate": "Veuillez sélectionner un modèle",
@@ -249,7 +249,7 @@
       "title": "Gérer les plans comptables",
       "setCountryDefault": "Définir comme défaut pays",
       "setGlobalDefault": "Définir comme défaut global",
-      "loadingCoAs": "Chargement des plans comptables\u2026",
+      "loadingCoAs": "Chargement des plans comptables…",
       "loadError": "Échec du chargement des plans comptables.",
       "noCoAs": "Aucun plan comptable trouvé.",
       "selectToView": "Sélectionnez un plan comptable pour afficher les détails.",
@@ -322,13 +322,14 @@
       "processOwnerHelper": "Utilisateur responsable en dernier ressort du processus",
       "itOwner": "Responsable IT",
       "itOwnerHelper": "Contact IT responsable des outils / systèmes supportant ce processus",
-      "notesPlaceholder": "Notes internes, liens vers les procédures ou les cartographies de processus"
+      "notesPlaceholder": "Notes internes, liens vers les procédures ou les cartographies de processus",
+      "nameRequired": "Le nom est requis"
     },
     "categoryManager": {
       "title": "Gérer les catégories de processus métier",
       "description": "Renommez, activez/désactivez ou supprimez des catégories. Les catégories en cours d'utilisation ne peuvent pas être supprimées. Les modifications ne sont enregistrées que lorsque vous cliquez sur Enregistrer.",
       "newCategory": "Nouvelle catégorie",
-      "loadingCategories": "Chargement des catégories\u2026",
+      "loadingCategories": "Chargement des catégories…",
       "noCategories": "Aucune catégorie trouvée.",
       "nameEmpty": "Le nom ne peut pas être vide",
       "deleteConfirm": "Supprimer cette catégorie ? Cette action est irréversible.",
@@ -388,10 +389,10 @@
         "errors": "Erreurs"
       },
       "dryRunHint": "Lancez une simulation pour prévisualiser les données qui seront copiées.",
-      "processing": "Traitement en cours\u2026",
+      "processing": "Traitement en cours…",
       "dryRunBtn": "Simulation",
       "copyDataBtn": "Copier les données",
-      "copyingBtn": "Copie en cours\u2026"
+      "copyingBtn": "Copie en cours…"
     },
     "freeze": {
       "title": "Geler / Dégeler les données",
@@ -403,9 +404,9 @@
       "unableToUnfreeze": "Impossible de dégeler les données.",
       "freezeBtn": "Geler les données",
       "unfreezeBtn": "Dégeler les données",
-      "freezingBtn": "Gel en cours\u2026",
-      "unfreezingBtn": "Dégel en cours\u2026",
-      "updatingStatus": "Mise à jour du statut de gel\u2026",
+      "freezingBtn": "Gel en cours…",
+      "unfreezingBtn": "Dégel en cours…",
+      "updatingStatus": "Mise à jour du statut de gel…",
       "scopeCompanies": "Sociétés",
       "scopeDepartments": "Départements",
       "companiesMetrics": "Indicateurs des sociétés",

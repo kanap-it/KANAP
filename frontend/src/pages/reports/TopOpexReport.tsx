@@ -120,7 +120,7 @@ export default function TopOpexReport() {
   const chartData = useMemo(() => processed.map((r) => ({ product_name: r.product_name, value: r.value })), [processed]);
   const chartOptions = useMemo(() => {
     const base = {
-      title: { text: `Top ${chartData.length} OPEX — ${metricLabel} ${year}` },
+      title: { text: t('reports.topOpex.chartTitle', { count: chartData.length, metric: metricLabel, year }) },
       subtitle: { text: t('reports.topOpex.shareSubtitle', { metric: metricLabel }) },
       footnote: { text: `${t('reports.topOpex.totalMetric', { metric: metricLabel })}: ${formatNumber(totalMetric)}` },
       data: chartData,
@@ -157,7 +157,7 @@ export default function TopOpexReport() {
                   title: datum.product_name,
                   data: [
                     { label: metricLabel, value: formatNumber(value) },
-                    { label: 'Share', value: `${pct.toFixed(1)}%` },
+                    { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                   ],
                 };
               },
@@ -197,7 +197,7 @@ export default function TopOpexReport() {
                 title: datum.product_name,
                 data: [
                   { label: metricLabel, value: formatNumber(value) },
-                  { label: 'Share', value: `${pct.toFixed(1)}%` },
+                  { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                 ],
               };
             },
@@ -365,7 +365,7 @@ export default function TopOpexReport() {
     >
       <Stack direction="column" spacing={2} alignItems="stretch">
         <Box sx={{ minWidth: 0 }}>
-          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+          <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>

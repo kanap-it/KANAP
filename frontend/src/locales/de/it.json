@@ -811,7 +811,13 @@
         "derivedUsers": "Abgeleitete Benutzer:",
         "basedOnAudience": "(basierend auf Zielgruppe)",
         "headcount": "(Mitarbeiterzahl)",
-        "itUsers": "(IT-Benutzer)"
+        "itUsers": "(IT-Benutzer)",
+        "company": "Unternehmen",
+        "departments": "Abteilungen",
+        "noAudience": "Keine Zielgruppe festgelegt.",
+        "addAudience": "+ Zielgruppe hinzufügen",
+        "removeAudienceRow": "Zielgruppenzeile entfernen",
+        "usersValue": "Benutzer: {{value}}"
       },
       "technical": {
         "title": "Technische Informationen",
@@ -845,6 +851,16 @@
         "containsPii": "Enthält PII",
         "dataResidency": "Datenresidenz (Länder)",
         "addCountries": "Länder hinzufügen"
+      },
+      "untitled": "Unbenannte Anwendung",
+      "previous": "Vorherige Anwendung",
+      "next": "Nächste Anwendung",
+      "loading": "Anwendung wird geladen…",
+      "notFound": "Anwendung nicht gefunden.",
+      "deleteTitle": "Anwendung löschen?",
+      "deleteMessage": "{{name}} wird endgültig gelöscht. Dies kann nicht rückgängig gemacht werden.",
+      "meta": {
+        "goLive": "Inbetriebnahme"
       }
     },
     "asset": {
@@ -878,7 +894,10 @@
         "lifecycle": "Lebenszyklus",
         "goLiveDate": "Inbetriebnahmedatum",
         "endOfLifeDate": "Datum Lebensende",
-        "notes": "Notizen"
+        "notes": "Notizen",
+        "searchAssetTypes": "Asset-Typen suchen",
+        "searchSubLocations": "Unterstandorte suchen",
+        "locationContext": "Standortkontext"
       },
       "technical": {
         "environment": "Umgebung",
@@ -957,7 +976,21 @@
         "title": "Mitglieder bearbeiten",
         "memberServers": "Mitgliedsserver",
         "searchServers": "Server suchen",
-        "membersHint": "Mitglieder müssen Nicht-Cluster-Server sein."
+        "membersHint": "Mitglieder müssen Nicht-Cluster-Server sein.",
+        "clusterOption": "Cluster: {{name}}",
+        "clusterTag": "Cluster"
+      },
+      "newAsset": "Neues Asset",
+      "untitled": "Unbenanntes Asset",
+      "previous": "Vorheriges Asset",
+      "next": "Nächstes Asset",
+      "deleteConfirm": "Asset „{{name}}“ löschen?",
+      "meta": {
+        "editAssetType": "Asset-Typ bearbeiten",
+        "cluster": "Cluster",
+        "editLocation": "Standort bearbeiten",
+        "goLive": "Inbetriebnahme",
+        "editGoLive": "Inbetriebnahme bearbeiten"
       }
     },
     "connection": {
@@ -1066,7 +1099,38 @@
       "deleteUnsavedWarning": "Sie haben auch nicht gespeicherte Änderungen in diesem Bereich. Diese Änderungen gehen verloren.",
       "subLocationsAfterCreate": "Unterstandorte sind verfügbar, nachdem Sie den Standort erstellt haben.",
       "contactsAfterCreate": "Kontakte sind verfügbar, nachdem Sie den Standort erstellt haben.",
-      "relationsAfterCreate": "Beziehungen sind verfügbar, nachdem Sie den Standort erstellt haben."
+      "relationsAfterCreate": "Beziehungen sind verfügbar, nachdem Sie den Standort erstellt haben.",
+      "untitled": "Unbenannter Standort",
+      "previous": "Vorheriger Standort",
+      "next": "Nächster Standort",
+      "namePlaceholder": "z. B. Betriebszentrum Paris",
+      "changeHostingTitle": "Hosting-Kategorie ändern?",
+      "switchToOnPrem": "Beim Wechsel zu einem On-Premises-Hostingtyp werden Cloud-Anbieter und Region gelöscht.",
+      "switchToCloud": "Beim Wechsel zu einem Cloud-Hostingtyp wird das Betreiberunternehmen gelöscht.",
+      "savesOnConfirm": "Die Änderung wird nach der Bestätigung automatisch gespeichert.",
+      "fields": {
+        "region": "Region",
+        "regionPlaceholder": "z. B. eu-west-1",
+        "cityPlaceholder": "z. B. Paris",
+        "searchCountries": "Länder suchen",
+        "unknownCountry": "Unbekannt ({{code}})"
+      },
+      "meta": {
+        "setHostingType": "Hostingtyp festlegen",
+        "locationMissing": "Ort fehlt",
+        "operatingCompanyMissing": "Betreiberunternehmen fehlt",
+        "cloudProviderMissing": "Cloud-Anbieter fehlt",
+        "editHostingType": "Hostingtyp bearbeiten",
+        "editCountryCity": "Land / Stadt bearbeiten",
+        "company": "Unternehmen",
+        "editOperatingCompany": "Betreiberunternehmen bearbeiten",
+        "noCompanies": "Keine Unternehmen verfügbar",
+        "cloud": "Cloud",
+        "editProviderRegion": "Anbieter und Region bearbeiten",
+        "jumpToSubLocations": "Zu den Unterstandorten",
+        "subLocationCount_one": "{{count}} Unterstandort",
+        "subLocationCount_other": "{{count}} Unterstandorte"
+      }
     }
   },
   "components": {
@@ -1300,7 +1364,10 @@
     "loadSubLocationsFailed": "Fehler beim Laden der Unterstandorte",
     "saveSubLocationsFailed": "Fehler beim Speichern der Unterstandorte",
     "loadSupportInfoFailed": "Fehler beim Laden der Support-Informationen",
-    "saveSupportInfoFailed": "Fehler beim Speichern der Support-Informationen"
+    "saveSupportInfoFailed": "Fehler beim Speichern der Support-Informationen",
+    "saveClassificationFailed": "Die Klassifizierung konnte nicht gespeichert werden",
+    "reviewFailed": "Überprüfung fehlgeschlagen",
+    "deleteApplicationFailed": "Fehler beim Löschen der Anwendung"
   },
   "validation": {
     "missingFormData": "Fehlende Formulardaten",
@@ -1344,7 +1411,9 @@
     "environment": "Umgebung",
     "notes": "Notizen",
     "role": "Rolle",
-    "system": "System"
+    "system": "System",
+    "deprecatedOption": "{{label}} (veraltet)",
+    "legacyOption": "{{label}} (Altwert)"
   },
   "classification": {
     "not_set": "Nicht festgelegt",

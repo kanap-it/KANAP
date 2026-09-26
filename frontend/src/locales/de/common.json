@@ -94,7 +94,8 @@
     "readOnly": "Nur Lesen",
     "managedDoc": "Verwaltetes Dokument",
     "recommended": "Empfohlen",
-    "openCalendar": "Kalender öffnen"
+    "openCalendar": "Kalender öffnen",
+    "datePlaceholder": "tt/mm/jjjj"
   },
   "delete": {
     "confirmTitle": "Löschen bestätigen",

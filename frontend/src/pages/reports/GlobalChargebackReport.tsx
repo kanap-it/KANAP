@@ -269,7 +269,7 @@ export default function GlobalChargebackReport() {
       companyRowsForId.sort((a, b) => b.amount - a.amount);
       const companyInfo = companyTotalsById.get(companyId);
       const kpi = kpiByCompanyId.get(companyId);
-      const companyName = companyRowsForId[0]?.companyName ?? companyInfo?.companyName ?? 'Unknown company';
+      const companyName = companyRowsForId[0]?.companyName ?? companyInfo?.companyName ?? t('reports.shared.unknownCompany');
       const companyAmountRaw = companyRowsForId.reduce((sum, row) => sum + row.amountRaw, 0);
       result.push({
         ...companyRowsForId[0],
@@ -293,7 +293,7 @@ export default function GlobalChargebackReport() {
     }
 
     return result;
-  }, [companyRows, detailedRows, companyTotalsById, kpiByCompanyId, totalAmount]);
+  }, [companyRows, detailedRows, companyTotalsById, kpiByCompanyId, totalAmount, t]);
 
   const companyColumns = useMemo<ColDef[]>(() => [
     { field: 'companyName', headerName: t('reports.columns.company'), flex: 1, minWidth: 220 },
@@ -360,17 +360,17 @@ export default function GlobalChargebackReport() {
       if (net > 0) {
         result.push({
           payerId: aId,
-          payerName: companyNameById.get(aId) || 'Unknown company',
+          payerName: companyNameById.get(aId) || t('reports.shared.unknownCompany'),
           consumerId: bId,
-          consumerName: companyNameById.get(bId) || 'Unknown company',
+          consumerName: companyNameById.get(bId) || t('reports.shared.unknownCompany'),
           amount: net,
         });
       } else {
         result.push({
           payerId: bId,
-          payerName: companyNameById.get(bId) || 'Unknown company',
+          payerName: companyNameById.get(bId) || t('reports.shared.unknownCompany'),
           consumerId: aId,
-          consumerName: companyNameById.get(aId) || 'Unknown company',
+          consumerName: companyNameById.get(aId) || t('reports.shared.unknownCompany'),
           amount: -net,
         });
       }
@@ -378,7 +378,7 @@ export default function GlobalChargebackReport() {
     // Sort by amount desc then payer name
     result.sort((x, y) => (y.amount !== x.amount ? y.amount - x.amount : (x.payerName || '').localeCompare(y.payerName || '')));
     return result;
-  }, [flows, companyNameById]);
+  }, [flows, companyNameById, t]);
 
   const flowsColumns = useMemo<ColDef[]>(() => [
     { field: 'payerName', headerName: t('reports.columns.payer'), flex: 1, minWidth: 200 },
@@ -432,7 +432,7 @@ export default function GlobalChargebackReport() {
                 title: datum.label,
                 data: [
                   { label: metricLabel, value: formatNumber(value) },
-                  { label: 'Share', value: `${pct.toFixed(1)}%` },
+                  { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                 ],
               };
             },
@@ -600,7 +600,7 @@ export default function GlobalChargebackReport() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t("reports.globalChargeback.distributionDescription")}
               </Typography>
-              <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={horizontalBarChartHeight(chartData.length)} />
+              <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={horizontalBarChartHeight(chartData.length)} />
             </Paper>
           </Stack>
         )}

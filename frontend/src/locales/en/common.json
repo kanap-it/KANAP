@@ -94,7 +94,8 @@
     "readOnly": "Read only",
     "managedDoc": "Managed doc",
     "recommended": "Recommended",
-    "openCalendar": "Open calendar"
+    "openCalendar": "Open calendar",
+    "datePlaceholder": "dd/mm/yyyy"
   },
   "delete": {
     "confirmTitle": "Confirm deletion",

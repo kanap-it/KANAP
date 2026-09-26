@@ -761,7 +761,14 @@
       "summaryTable": "Zusammenfassungstabelle",
       "chart": "Diagramm",
       "chartUnavailable": "Diagramm nicht verfügbar.",
-      "printedOn": "Gedruckt am {{date}}"
+      "printedOn": "Gedruckt am {{date}}",
+      "share": "Anteil",
+      "unknownCompany": "Unbekanntes Unternehmen",
+      "unnamedAccount": "Unbenanntes Konto",
+      "exportTableCsv": "Tabelle als CSV exportieren",
+      "exportChartPng": "Diagramm als PNG exportieren",
+      "printPdf": "Drucken / Als PDF speichern",
+      "printReport": "Bericht drucken"
     },
     "filters": {
       "year": "Jahr",
@@ -890,7 +897,8 @@
       "topTotal": "Top {{count}} gesamt",
       "totalMetric": "Gesamt {{metric}}",
       "ofFilteredMetric": "{{pct}} % des gefilterten {{metric}}",
-      "shareSubtitle": "Anteil an der Jahressumme ({{metric}})"
+      "shareSubtitle": "Anteil an der Jahressumme ({{metric}})",
+      "chartTitle": "Top {{count}} OPEX · {{metric}} {{year}}"
     },
     "opexDelta": {
       "title": "Top OPEX Anstieg / Rückgang",
@@ -918,7 +926,16 @@
       "source": "Quelle",
       "destination": "Ziel",
       "shareOfChangeMagnitude": "Anteil an der gesamten Veränderungsgröße",
-      "pieAvailableHint": "Kreisdiagramm verfügbar, wenn nur eine Richtung ausgewählt ist"
+      "pieAvailableHint": "Kreisdiagramm verfügbar, wenn nur eine Richtung ausgewählt ist",
+      "chartTitleIncreases": "Top {{n}} OPEX-Anstiege · {{source}} → {{destination}}",
+      "chartTitleDecreases": "Top {{n}} OPEX-Rückgänge · {{source}} → {{destination}}",
+      "chartTitleChanges": "Top {{n}} OPEX-Veränderungen · {{source}} → {{destination}}",
+      "incValue": "Anst.: {{value}}",
+      "decValue": "Rückg.: {{value}}",
+      "topTotalIncrease": "Gesamtanstieg der Top {{count}}",
+      "topTotalDecrease": "Gesamtrückgang der Top {{count}}",
+      "sourceDestinationTotals": "Quelle: {{source}} · Ziel: {{destination}}",
+      "directionToggle": "Anstieg oder Rückgang"
     },
     "budgetTrendOpex": {
       "title": "Budgettrend (OPEX)",

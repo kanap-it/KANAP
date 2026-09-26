@@ -53,7 +53,8 @@ describe('SpendPropertiesDrawer end of validity', () => {
     expect(screen.queryByText('opex.fields.effectiveEnd')).toBeNull();
 
     // Two date fields in the dates group: effective start, then end of validity.
-    const inputs = screen.getAllByPlaceholderText('dd/mm/yyyy');
+    // The date placeholder is translated; the mocked `t` returns its key.
+    const inputs = screen.getAllByPlaceholderText('labels.datePlaceholder');
     expect(inputs).toHaveLength(2);
     fireEvent.focus(inputs[1]);
     fireEvent.change(inputs[1], { target: { value: '31/12/2027' } });

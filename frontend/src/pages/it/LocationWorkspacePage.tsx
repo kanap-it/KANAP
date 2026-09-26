@@ -302,11 +302,11 @@ export default function LocationWorkspacePage() {
     if (!canManage) return;
     const name = createName.trim();
     if (!name) {
-      setCreateError('Name is required.');
+      setCreateError(t('messages.nameRequired'));
       return;
     }
     if (!createHostingType) {
-      setCreateError('Hosting type is required.');
+      setCreateError(t('messages.hostingTypeRequired'));
       return;
     }
     setCreateSubmitting(true);
@@ -373,9 +373,9 @@ export default function LocationWorkspacePage() {
   };
 
   const workspaceTabs: PortfolioDetailWorkspaceTab[] = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'contacts', label: 'Contacts', disabled: isCreate },
-    { key: 'relations', label: 'Relations', disabled: isCreate },
+    { key: 'overview', label: t('workspace.location.tabs.overview') },
+    { key: 'contacts', label: t('workspace.location.tabs.contacts'), disabled: isCreate },
+    { key: 'relations', label: t('workspace.location.tabs.relations'), disabled: isCreate },
   ];
 
   const title = isCreate
@@ -446,7 +446,7 @@ export default function LocationWorkspacePage() {
           itemType="location"
           itemId={data.id}
           itemRef={data.location_reference || null}
-          itemName={data.name || 'Untitled location'}
+          itemName={data.name || t('workspace.location.untitled')}
         />
       )}
       {!isCreate && canDelete && (
@@ -471,7 +471,7 @@ export default function LocationWorkspacePage() {
         tabs={workspaceTabs}
         onTabChange={handleTabChange}
         drawerStorageKey="kanap.locations.drawerOpen"
-        backLabel="Locations"
+        backLabel={t('pages.locations.title')}
         onBack={handleClose}
         itemReference={!isCreate ? data?.location_reference || null : null}
         onCopyReference={
@@ -480,7 +480,7 @@ export default function LocationWorkspacePage() {
             : undefined
         }
         title={title}
-        titleFallback={isCreate ? 'New location' : 'Untitled location'}
+        titleFallback={isCreate ? t('workspace.location.newTitle') : t('workspace.location.untitled')}
         canEditTitle={canManage && !isCreate}
         onTitleSave={handleTitleSave}
         isCreate={isCreate}
@@ -491,8 +491,8 @@ export default function LocationWorkspacePage() {
           hasNext,
           onPrev: () => goToLocation(prevId),
           onNext: () => goToLocation(nextId),
-          previousLabel: 'Previous location',
-          nextLabel: 'Next location',
+          previousLabel: t('workspace.location.previous'),
+          nextLabel: t('workspace.location.next'),
         } : undefined}
         metadata={metadata}
         actions={actions}
@@ -500,18 +500,18 @@ export default function LocationWorkspacePage() {
       >
         {isCreate ? (
           <Stack spacing={1.5} sx={{ maxWidth: 560 }}>
-            <PropertyRow label="Name" required valueSx={{ maxWidth: 520 }}>
+            <PropertyRow label={t('common.name')} required valueSx={{ maxWidth: 520 }}>
               <TextField
                 value={createName}
                 onChange={(e) => setCreateName(e.target.value)}
-                placeholder="e.g., Operations Center Paris"
+                placeholder={t('workspace.location.namePlaceholder')}
                 required
                 size="small"
                 variant="standard"
                 sx={drawerFieldValueSx}
               />
             </PropertyRow>
-            <PropertyRow label="Hosting type" required valueSx={{ maxWidth: 520 }}>
+            <PropertyRow label={t('pages.locations.columns.hostingType')} required valueSx={{ maxWidth: 520 }}>
               <TextField
                 select
                 value={createHostingType}
@@ -522,7 +522,7 @@ export default function LocationWorkspacePage() {
               >
                 {hostingOptions.map((opt) => (
                   <MenuItem key={opt.code} value={opt.code} sx={drawerMenuItemSx}>
-                    {opt.deprecated ? `${opt.label} (deprecated)` : opt.label}
+                    {opt.deprecated ? t('common.deprecatedOption', { label: opt.label }) : opt.label}
                   </MenuItem>
                 ))}
               </TextField>
@@ -552,7 +552,7 @@ export default function LocationWorkspacePage() {
 
       <KanapDialog
         open={deleteDialogOpen}
-        title="Delete location?"
+        title={t('workspace.location.deleteTitle')}
         onClose={() => !deleting && setDeleteDialogOpen(false)}
         onSave={handleDelete}
         saveLabel={t('common:buttons.delete')}
@@ -561,28 +561,28 @@ export default function LocationWorkspacePage() {
       >
         <Stack spacing={1}>
           <Box sx={{ fontSize: 13, color: 'kanap.text.primary' }}>
-            This will permanently delete this location and automatically unassign all linked assets.
+            {t('workspace.location.deleteMessage')}
           </Box>
         </Stack>
       </KanapDialog>
 
       <KanapDialog
         open={!!pendingHostingType}
-        title="Change hosting category?"
+        title={t('workspace.location.changeHostingTitle')}
         onClose={() => setPendingHostingType(null)}
         onSave={handleConfirmHostingBascule}
-        saveLabel="Continue"
+        saveLabel={t('common:buttons.continue')}
         saveDisabled={saving}
         saveLoading={saving}
       >
         <Stack spacing={1}>
           <Typography sx={{ fontSize: 13, color: 'kanap.text.primary' }}>
             {pendingHostingType && data && getHostingCategory(pendingHostingType) === 'on_prem'
-              ? 'Switching to an on-prem hosting type will clear the cloud provider and region.'
-              : 'Switching to a cloud hosting type will clear the operating company.'}
+              ? t('workspace.location.switchToOnPrem')
+              : t('workspace.location.switchToCloud')}
           </Typography>
           <Typography sx={{ fontSize: 12, color: 'kanap.text.tertiary' }}>
-            This change saves automatically once confirmed.
+            {t('workspace.location.savesOnConfirm')}
           </Typography>
         </Stack>
       </KanapDialog>

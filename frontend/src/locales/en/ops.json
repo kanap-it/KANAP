@@ -761,7 +761,14 @@
       "summaryTable": "Summary table",
       "chart": "Chart",
       "chartUnavailable": "Chart unavailable.",
-      "printedOn": "Printed on {{date}}"
+      "printedOn": "Printed on {{date}}",
+      "share": "Share",
+      "unknownCompany": "Unknown company",
+      "unnamedAccount": "Unnamed account",
+      "exportTableCsv": "Export table as CSV",
+      "exportChartPng": "Export chart as PNG",
+      "printPdf": "Print / Save as PDF",
+      "printReport": "Print report"
     },
     "filters": {
       "year": "Year",
@@ -890,7 +897,8 @@
       "topTotal": "Top {{count}} total",
       "totalMetric": "Total {{metric}}",
       "ofFilteredMetric": "{{pct}}% of filtered {{metric}}",
-      "shareSubtitle": "Share of annual total ({{metric}})"
+      "shareSubtitle": "Share of annual total ({{metric}})",
+      "chartTitle": "Top {{count}} OPEX · {{metric}} {{year}}"
     },
     "opexDelta": {
       "title": "Top OPEX increase / decrease",
@@ -910,7 +918,7 @@
       "coverageNa": "Coverage — n/a",
       "coveragePct": "Coverage — {{pct}}% covered",
       "coverageSplit": "Coverage — {{detail}}",
-      "selectionTotals": "Selection totals — inc: {{inc}} · Dec: {{dec}}",
+      "selectionTotals": "Selection totals — Inc: {{inc}} · Dec: {{dec}}",
       "totalIncrease": "Total increase: {{value}}",
       "totalDecrease": "Total decrease: {{value}}",
       "topSelectionTotals": "Top {{inc}}/{{dec}} selection totals",
@@ -918,7 +926,16 @@
       "source": "Source",
       "destination": "Destination",
       "shareOfChangeMagnitude": "Share of total change magnitude",
-      "pieAvailableHint": "Pie chart available when a single direction is selected"
+      "pieAvailableHint": "Pie chart available when a single direction is selected",
+      "chartTitleIncreases": "Top {{n}} OPEX increases · {{source}} → {{destination}}",
+      "chartTitleDecreases": "Top {{n}} OPEX decreases · {{source}} → {{destination}}",
+      "chartTitleChanges": "Top {{n}} OPEX changes · {{source}} → {{destination}}",
+      "incValue": "Inc: {{value}}",
+      "decValue": "Dec: {{value}}",
+      "topTotalIncrease": "Top {{count}} total increase",
+      "topTotalDecrease": "Top {{count}} total decrease",
+      "sourceDestinationTotals": "Source: {{source}} · Destination: {{destination}}",
+      "directionToggle": "Increase or decrease"
     },
     "budgetTrendOpex": {
       "title": "Budget trend (OPEX)",

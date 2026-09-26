@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, MenuItem, Menu, Popover, TextField } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../api';
 import { COUNTRY_OPTIONS } from '../../../constants/isoOptions';
@@ -63,6 +64,7 @@ export default function LocationMetadataBar({
   onCityChange,
   onSubLocationsClick,
 }: Props) {
+  const { t } = useTranslation(['it', 'common']);
   const { byField, labelFor } = useItOpsEnumOptions();
   const hostingOptions = byField.hostingType || [];
   const providerOptions = byField.serverProvider || [];
@@ -72,7 +74,7 @@ export default function LocationMetadataBar({
   const [companyAnchor, setCompanyAnchor] = React.useState<HTMLElement | null>(null);
   const [providerAnchor, setProviderAnchor] = React.useState<HTMLElement | null>(null);
 
-  const hostingLabel = labelFor('hostingType', hostingType) || hostingType || 'Set hosting type';
+  const hostingLabel = labelFor('hostingType', hostingType) || hostingType || t('workspace.location.meta.setHostingType');
 
   const geoLabel = (() => {
     const flag = countryFlag(countryIso);
@@ -81,14 +83,14 @@ export default function LocationMetadataBar({
     if (flag) parts.push(flag);
     if (cc) parts.push(cc);
     if (city) parts.push(`· ${city}`);
-    return parts.length > 0 ? parts.join(' ') : 'Location missing';
+    return parts.length > 0 ? parts.join(' ') : t('workspace.location.meta.locationMissing');
   })();
 
-  const companyLabel = operatingCompanyName || 'Operating company missing';
+  const companyLabel = operatingCompanyName || t('workspace.location.meta.operatingCompanyMissing');
   const providerLabel = (() => {
     const provDisplay = provider ? labelFor('serverProvider', provider) || provider : null;
     if (provDisplay && region) return `${provDisplay} · ${region}`;
-    return provDisplay || region || 'Cloud provider missing';
+    return provDisplay || region || t('workspace.location.meta.cloudProviderMissing');
   })();
 
   const { data: companies = [] } = useQuery({
@@ -111,7 +113,7 @@ export default function LocationMetadataBar({
       <PortfolioMetadataItem
         onClick={(event) => setHostingAnchor(event.currentTarget)}
         disabled={disabled}
-        title="Edit hosting type"
+        title={t('workspace.location.meta.editHostingType')}
       >
         {hostingLabel}
       </PortfolioMetadataItem>
@@ -140,7 +142,7 @@ export default function LocationMetadataBar({
       <PortfolioMetadataItem
         onClick={(event) => setGeoAnchor(event.currentTarget)}
         disabled={disabled}
-        title="Edit country / city"
+        title={t('workspace.location.meta.editCountryCity')}
       >
         {geoLabel}
       </PortfolioMetadataItem>
@@ -155,7 +157,7 @@ export default function LocationMetadataBar({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <TextField
             select
-            label="Country"
+            label={t('pages.locations.columns.country')}
             value={(countryIso || '').toUpperCase()}
             onChange={(e) => onCountryChange(e.target.value)}
             size="small"
@@ -173,13 +175,13 @@ export default function LocationMetadataBar({
             ))}
           </TextField>
           <TextField
-            label="City"
+            label={t('pages.locations.columns.city')}
             value={city || ''}
             onChange={(e) => onCityChange(e.target.value)}
             onBlur={(e) => onCityChange(e.target.value)}
             size="small"
             variant="standard"
-            placeholder="e.g., Paris"
+            placeholder={t('workspace.location.fields.cityPlaceholder')}
             sx={drawerFieldValueSx}
           />
         </Box>
@@ -188,10 +190,10 @@ export default function LocationMetadataBar({
       {category === 'on_prem' && (
         <>
           <PortfolioMetadataItem
-            label="Company"
+            label={t('workspace.location.meta.company')}
             onClick={(event) => setCompanyAnchor(event.currentTarget)}
             disabled={disabled}
-            title="Edit operating company"
+            title={t('workspace.location.meta.editOperatingCompany')}
           >
             {companyLabel}
           </PortfolioMetadataItem>
@@ -203,7 +205,7 @@ export default function LocationMetadataBar({
           >
             {sortedCompanies.length === 0 && (
               <MenuItem disabled sx={drawerMenuItemSx}>
-                No companies available
+                {t('workspace.location.meta.noCompanies')}
               </MenuItem>
             )}
             {operatingCompanyId && (
@@ -214,7 +216,7 @@ export default function LocationMetadataBar({
                 }}
                 sx={drawerMenuItemSx}
               >
-                — Clear —
+                — {t('common:buttons.clear')} —
               </MenuItem>
             )}
             {sortedCompanies.map((option) => (
@@ -237,10 +239,10 @@ export default function LocationMetadataBar({
       {category === 'cloud' && (
         <>
           <PortfolioMetadataItem
-            label="Cloud"
+            label={t('workspace.location.meta.cloud')}
             onClick={(event) => setProviderAnchor(event.currentTarget)}
             disabled={disabled}
-            title="Edit provider and region"
+            title={t('workspace.location.meta.editProviderRegion')}
           >
             {providerLabel}
           </PortfolioMetadataItem>
@@ -255,7 +257,7 @@ export default function LocationMetadataBar({
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <TextField
                 select
-                label="Cloud provider"
+                label={t('workspace.asset.overview.cloudProvider')}
                 value={provider || ''}
                 onChange={(e) => onProviderChange(e.target.value)}
                 size="small"
@@ -265,18 +267,18 @@ export default function LocationMetadataBar({
                 <MenuItem value="" sx={drawerMenuItemSx}>—</MenuItem>
                 {providerOptions.map((opt) => (
                   <MenuItem key={opt.code} value={opt.code} sx={drawerMenuItemSx}>
-                    {opt.deprecated ? `${opt.label} (deprecated)` : opt.label}
+                    {opt.deprecated ? t('common.deprecatedOption', { label: opt.label }) : opt.label}
                   </MenuItem>
                 ))}
               </TextField>
               <TextField
-                label="Region"
+                label={t('workspace.location.fields.region')}
                 value={region || ''}
                 onChange={(e) => onRegionChange(e.target.value)}
                 onBlur={(e) => onRegionChange(e.target.value)}
                 size="small"
                 variant="standard"
-                placeholder="e.g., eu-west-1"
+                placeholder={t('workspace.location.fields.regionPlaceholder')}
                 sx={drawerFieldValueSx}
               />
             </Box>
@@ -287,9 +289,9 @@ export default function LocationMetadataBar({
       {subLocationsCount > 0 && (
         <PortfolioMetadataItem
           onClick={onSubLocationsClick}
-          title="Jump to sub-locations"
+          title={t('workspace.location.meta.jumpToSubLocations')}
         >
-          {subLocationsCount} sub-location{subLocationsCount === 1 ? '' : 's'}
+          {t('workspace.location.meta.subLocationCount', { count: subLocationsCount })}
         </PortfolioMetadataItem>
       )}
     </>

@@ -114,7 +114,7 @@
       "chartOfAccounts": "Plan de cuentas",
       "searchCoA": "Buscar plan de cuentas",
       "itUsers": "Usuarios IT",
-      "turnover": "Facturación (M\u20ac)"
+      "turnover": "Facturación (M€)"
     }
   },
   "departments": {
@@ -205,7 +205,7 @@
   "coa": {
     "title": "Planes de cuentas",
     "loadError": "Error al cargar los planes de cuentas.",
-    "loadingCoA": "Cargando planes de cuentas\u2026",
+    "loadingCoA": "Cargando planes de cuentas…",
     "accounts": "cuentas",
     "newAccount": "Nueva cuenta",
     "exportAccounts": "Exportar cuentas",
@@ -237,7 +237,7 @@
       "scopeCountry": "País",
       "scopeGlobal": "Global",
       "setDefaultForCountry": "Establecer como predeterminado para este país",
-      "preflightOk": "Verificación OK \u2014 total {{total}}, inserciones {{inserted}}, actualizaciones {{updated}}.",
+      "preflightOk": "Verificación OK — total {{total}}, inserciones {{inserted}}, actualizaciones {{updated}}.",
       "codeAndNameRequired": "El código y el nombre son obligatorios",
       "countryRequired": "El país es obligatorio",
       "selectTemplate": "Seleccione una plantilla",
@@ -249,7 +249,7 @@
       "title": "Gestionar planes de cuentas",
       "setCountryDefault": "Establecer como predeterminado del país",
       "setGlobalDefault": "Establecer como predeterminado global",
-      "loadingCoAs": "Cargando planes de cuentas\u2026",
+      "loadingCoAs": "Cargando planes de cuentas…",
       "loadError": "Error al cargar los planes de cuentas.",
       "noCoAs": "No se encontraron planes de cuentas.",
       "selectToView": "Seleccione un plan de cuentas para ver los detalles.",
@@ -322,13 +322,14 @@
       "processOwnerHelper": "Usuario responsable final del proceso",
       "itOwner": "Responsable IT",
       "itOwnerHelper": "Contacto IT responsable de las herramientas / sistemas que soportan este proceso",
-      "notesPlaceholder": "Notas internas, enlaces a SOPs o mapas de procesos"
+      "notesPlaceholder": "Notas internas, enlaces a SOPs o mapas de procesos",
+      "nameRequired": "El nombre es obligatorio"
     },
     "categoryManager": {
       "title": "Gestionar categorías de procesos de negocio",
       "description": "Renombre, active/desactive o elimine categorías. Las categorías en uso no pueden eliminarse. Los cambios solo se guardan al hacer clic en Guardar.",
       "newCategory": "Nueva categoría",
-      "loadingCategories": "Cargando categorías\u2026",
+      "loadingCategories": "Cargando categorías…",
       "noCategories": "No se encontraron categorías.",
       "nameEmpty": "El nombre no puede estar vacío",
       "deleteConfirm": "¿Eliminar esta categoría? Esta acción no se puede deshacer.",
@@ -388,10 +389,10 @@
         "errors": "Errores"
       },
       "dryRunHint": "Ejecute una simulación para previsualizar los datos que se copiarán.",
-      "processing": "Procesando\u2026",
+      "processing": "Procesando…",
       "dryRunBtn": "Simulación",
       "copyDataBtn": "Copiar datos",
-      "copyingBtn": "Copiando\u2026"
+      "copyingBtn": "Copiando…"
     },
     "freeze": {
       "title": "Congelar / Descongelar datos",
@@ -403,9 +404,9 @@
       "unableToUnfreeze": "No se pudieron descongelar los datos.",
       "freezeBtn": "Congelar datos",
       "unfreezeBtn": "Descongelar datos",
-      "freezingBtn": "Congelando\u2026",
-      "unfreezingBtn": "Descongelando\u2026",
-      "updatingStatus": "Actualizando el estado de congelación\u2026",
+      "freezingBtn": "Congelando…",
+      "unfreezingBtn": "Descongelando…",
+      "updatingStatus": "Actualizando el estado de congelación…",
       "scopeCompanies": "Empresas",
       "scopeDepartments": "Departamentos",
       "companiesMetrics": "Indicadores de empresas",

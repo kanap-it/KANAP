@@ -242,7 +242,7 @@ export default function BudgetColumnsCompareReport() {
                     <MenuItem key={m} value={m}>{metricLabels[m]}</MenuItem>
                   ))}
                 </TextField>
-                <IconButton size="small" aria-label="Remove" disabled={selections.length <= 1} onClick={() => {
+                <IconButton size="small" aria-label={t("common:buttons.remove")} disabled={selections.length <= 1} onClick={() => {
                   setSelections((prev) => prev.filter((_, i) => i !== idx));
                 }}>
                   <DeleteIcon fontSize="small" />
@@ -266,7 +266,7 @@ export default function BudgetColumnsCompareReport() {
           />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+          <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>

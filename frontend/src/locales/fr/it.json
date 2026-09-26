@@ -811,7 +811,13 @@
         "derivedUsers": "Utilisateurs dérivés :",
         "basedOnAudience": "(basé sur l'audience)",
         "headcount": "(effectif)",
-        "itUsers": "(utilisateurs IT)"
+        "itUsers": "(utilisateurs IT)",
+        "company": "Société",
+        "departments": "Départements",
+        "noAudience": "Aucune audience définie.",
+        "addAudience": "+ Ajouter une audience",
+        "removeAudienceRow": "Retirer cette ligne d'audience",
+        "usersValue": "Utilisateurs : {{value}}"
       },
       "technical": {
         "title": "Informations techniques",
@@ -845,6 +851,16 @@
         "containsPii": "Contient des PII",
         "dataResidency": "Résidence des données (pays)",
         "addCountries": "Ajouter des pays"
+      },
+      "untitled": "Application sans nom",
+      "previous": "Application précédente",
+      "next": "Application suivante",
+      "loading": "Chargement de l'application…",
+      "notFound": "Application introuvable.",
+      "deleteTitle": "Supprimer l'application ?",
+      "deleteMessage": "Cette action supprime définitivement {{name}}. Elle est irréversible.",
+      "meta": {
+        "goLive": "Mise en service"
       }
     },
     "asset": {
@@ -878,7 +894,10 @@
         "lifecycle": "Cycle de vie",
         "goLiveDate": "Date de mise en service",
         "endOfLifeDate": "Date de fin de vie",
-        "notes": "Notes"
+        "notes": "Notes",
+        "searchAssetTypes": "Rechercher un type d'actif",
+        "searchSubLocations": "Rechercher un sous-site",
+        "locationContext": "Contexte du site"
       },
       "technical": {
         "environment": "Environnement",
@@ -957,7 +976,21 @@
         "title": "Modifier les membres",
         "memberServers": "Serveurs membres",
         "searchServers": "Rechercher des serveurs",
-        "membersHint": "Les membres doivent être des serveurs non-cluster."
+        "membersHint": "Les membres doivent être des serveurs non-cluster.",
+        "clusterOption": "Cluster : {{name}}",
+        "clusterTag": "cluster"
+      },
+      "newAsset": "Nouvel actif",
+      "untitled": "Actif sans nom",
+      "previous": "Actif précédent",
+      "next": "Actif suivant",
+      "deleteConfirm": "Supprimer l'actif « {{name}} » ?",
+      "meta": {
+        "editAssetType": "Modifier le type d'actif",
+        "cluster": "Cluster",
+        "editLocation": "Modifier le site",
+        "goLive": "Mise en service",
+        "editGoLive": "Modifier la mise en service"
       }
     },
     "connection": {
@@ -1066,7 +1099,38 @@
       "deleteUnsavedWarning": "Vous avez également des modifications non enregistrées dans cet espace. Ces modifications seront perdues.",
       "subLocationsAfterCreate": "Les sous-sites sont disponibles après la création du site.",
       "contactsAfterCreate": "Les contacts sont disponibles après la création du site.",
-      "relationsAfterCreate": "Les relations sont disponibles après la création du site."
+      "relationsAfterCreate": "Les relations sont disponibles après la création du site.",
+      "untitled": "Site sans nom",
+      "previous": "Site précédent",
+      "next": "Site suivant",
+      "namePlaceholder": "ex. : Centre d'exploitation Paris",
+      "changeHostingTitle": "Changer de catégorie d'hébergement ?",
+      "switchToOnPrem": "Passer à un type d'hébergement sur site efface le fournisseur cloud et la région.",
+      "switchToCloud": "Passer à un type d'hébergement cloud efface la société exploitante.",
+      "savesOnConfirm": "La modification est enregistrée dès que vous confirmez.",
+      "fields": {
+        "region": "Région",
+        "regionPlaceholder": "ex. : eu-west-1",
+        "cityPlaceholder": "ex. : Paris",
+        "searchCountries": "Rechercher un pays",
+        "unknownCountry": "Inconnu ({{code}})"
+      },
+      "meta": {
+        "setHostingType": "Définir le type d'hébergement",
+        "locationMissing": "Localisation manquante",
+        "operatingCompanyMissing": "Société exploitante manquante",
+        "cloudProviderMissing": "Fournisseur cloud manquant",
+        "editHostingType": "Modifier le type d'hébergement",
+        "editCountryCity": "Modifier le pays / la ville",
+        "company": "Société",
+        "editOperatingCompany": "Modifier la société exploitante",
+        "noCompanies": "Aucune société disponible",
+        "cloud": "Cloud",
+        "editProviderRegion": "Modifier le fournisseur et la région",
+        "jumpToSubLocations": "Aller aux sous-sites",
+        "subLocationCount_one": "{{count}} sous-site",
+        "subLocationCount_other": "{{count}} sous-sites"
+      }
     }
   },
   "components": {
@@ -1300,7 +1364,10 @@
     "loadSubLocationsFailed": "Échec du chargement des sous-sites",
     "saveSubLocationsFailed": "Échec de l'enregistrement des sous-sites",
     "loadSupportInfoFailed": "Échec du chargement des informations de support",
-    "saveSupportInfoFailed": "Échec de l'enregistrement des informations de support"
+    "saveSupportInfoFailed": "Échec de l'enregistrement des informations de support",
+    "saveClassificationFailed": "La classification n'a pas pu être enregistrée",
+    "reviewFailed": "Échec de la revue",
+    "deleteApplicationFailed": "Échec de la suppression de l'application"
   },
   "validation": {
     "missingFormData": "Données de formulaire manquantes",
@@ -1344,7 +1411,9 @@
     "environment": "Environnement",
     "notes": "Notes",
     "role": "Rôle",
-    "system": "Système"
+    "system": "Système",
+    "deprecatedOption": "{{label}} (obsolète)",
+    "legacyOption": "{{label}} (ancienne valeur)"
   },
   "classification": {
     "not_set": "Non défini",

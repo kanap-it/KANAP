@@ -193,7 +193,7 @@ export default function AnalyticsCategoryReport() {
                     title: datum.label,
                     data: [
                       { label: metricLabel, value: formatNumber(value) },
-                      { label: 'Share', value: `${pct.toFixed(1)}%` },
+                      { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                     ],
                   };
                 },
@@ -343,7 +343,7 @@ export default function AnalyticsCategoryReport() {
     >
       <Stack direction="column" spacing={2} alignItems="stretch">
         <Box sx={{ minWidth: 0 }}>
-          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+          <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.summaryTable")}</Typography>

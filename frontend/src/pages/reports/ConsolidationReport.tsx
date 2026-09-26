@@ -62,12 +62,12 @@ export default function ConsolidationReport() {
       const labelParts: Array<string> = [];
       if (account.account_number != null) labelParts.push(`[${account.account_number}]`);
       if (account.account_name) labelParts.push(account.account_name.trim());
-      const label = labelParts.join(' ').trim() || 'Unnamed account';
+      const label = labelParts.join(' ').trim() || t('reports.shared.unnamedAccount');
       items.push({ id: account.id, label });
     }
     items.sort((a, b) => a.label.localeCompare(b.label));
     return items;
-  }, [accounts]);
+  }, [accounts, t]);
 
   const selectedAccountOptions = useMemo<AccountOption[]>(() => {
     if (excludedAccounts.length === 0) return [];
@@ -90,7 +90,7 @@ export default function ConsolidationReport() {
     const makeKey = (a?: Account | null): { key: string; label: string } => {
       const num = a?.consolidation_account_number ?? null;
       const name = (a?.consolidation_account_name ?? '').trim() || null;
-      if (num == null && !name) return { key: 'unassigned', label: 'Unassigned' };
+      if (num == null && !name) return { key: 'unassigned', label: t('reports.consolidation.unassigned') };
       const label = name && num != null ? `[${num}] ${name}` : (name ?? `[${num}]`);
       // safe key for object props/series yKeys
       const key = `c_${num != null ? num : name!.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
@@ -115,7 +115,7 @@ export default function ConsolidationReport() {
       const pYear = years[0];
       return (b.values[pYear] || 0) - (a.values[pYear] || 0);
     });
-  }, [rows, accountById, years, metric, excludedAccounts]);
+  }, [rows, accountById, years, metric, excludedAccounts, t]);
 
   // Table rows
   const tableRows = useMemo(() => {
@@ -197,7 +197,7 @@ export default function ConsolidationReport() {
                     title: datum.label,
                     data: [
                       { label: metricLabel, value: formatNumber(value) },
-                      { label: 'Share', value: `${pct.toFixed(1)}%` },
+                      { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                     ],
                   };
                 },
@@ -348,7 +348,7 @@ export default function ConsolidationReport() {
     >
       <Stack direction="column" spacing={2} alignItems="stretch">
         <Box sx={{ minWidth: 0 }}>
-          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+          <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.summaryTable")}</Typography>

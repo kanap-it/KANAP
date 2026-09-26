@@ -94,7 +94,8 @@
     "readOnly": "Lecture seule",
     "managedDoc": "Document géré",
     "recommended": "Recommandé",
-    "openCalendar": "Ouvrir le calendrier"
+    "openCalendar": "Ouvrir le calendrier",
+    "datePlaceholder": "jj/mm/aaaa"
   },
   "delete": {
     "confirmTitle": "Confirmer la suppression",

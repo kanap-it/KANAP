@@ -385,17 +385,17 @@ export default function OpexDeltaReport() {
     allTotals.grossDecrease > 0 ? (topTotals.decrease / allTotals.grossDecrease) * 100 : null
   ), [topTotals.decrease, allTotals.grossDecrease]);
 
-  const netTitle = allTotals.net >= 0 ? 'Net increase (all items)' : 'Net decrease (all items)';
+  const netTitle = allTotals.net >= 0 ? t('reports.opexDelta.netIncrease') : t('reports.opexDelta.netDecrease');
   const topSelectionPrevSum = useMemo(() => processed.reduce((acc: number, r) => acc + (Number(r.previous) || 0), 0), [processed]);
   const topSelectionCurrSum = useMemo(() => processed.reduce((acc: number, r) => acc + (Number(r.current) || 0), 0), [processed]);
 
   const increaseCount = processed.filter((row) => row.direction === 'increase').length;
   const decreaseCount = processed.filter((row) => row.direction === 'decrease').length;
 
-  const directionLabel = (() => {
-    if (modes.length === 2) return 'Changes';
-    if (modes[0] === 'increase') return 'Increases';
-    return 'Decreases';
+  const chartTitleKey = (() => {
+    if (modes.length === 2) return 'reports.opexDelta.chartTitleChanges';
+    if (modes[0] === 'increase') return 'reports.opexDelta.chartTitleIncreases';
+    return 'reports.opexDelta.chartTitleDecreases';
   })();
 
   const countLabel = (() => {
@@ -409,18 +409,18 @@ export default function OpexDeltaReport() {
 
   const selectionFootnote = (() => {
     if (modes.length === 2) {
-      return `Selection totals — Inc: ${formatNumber(topTotals.increase)} · Dec: ${formatNumber(topTotals.decrease)}`;
+      return t('reports.opexDelta.selectionTotals', { inc: formatNumber(topTotals.increase), dec: formatNumber(topTotals.decrease) });
     }
     if (modes[0] === 'increase') {
-      return `Total Increase: ${formatNumber(topTotals.increase)}`;
+      return t('reports.opexDelta.totalIncrease', { value: formatNumber(topTotals.increase) });
     }
-    return `Total Decrease: ${formatNumber(topTotals.decrease)}`;
+    return t('reports.opexDelta.totalDecrease', { value: formatNumber(topTotals.decrease) });
   })();
 
   const chartOptions = useMemo(() => {
     const base = {
-      title: { text: `Top ${countLabel} OPEX ${directionLabel} — ${sourceLabel} → ${destinationLabel}` },
-      subtitle: { text: 'Share of total change magnitude' },
+      title: { text: t(chartTitleKey, { n: countLabel, source: sourceLabel, destination: destinationLabel }) },
+      subtitle: { text: t('reports.opexDelta.shareOfChangeMagnitude') },
       footnote: { text: selectionFootnote },
       data: chartData,
       legend: { enabled: false },
@@ -451,12 +451,12 @@ export default function OpexDeltaReport() {
               renderer: ({ datum }: any) => {
                 const magnitude = Number(datum.magnitude || 0);
                 const pct = totalMagnitude > 0 ? (magnitude / totalMagnitude) * 100 : 0;
-                const changeLabel = datum.direction === 'increase' ? 'Increase' : 'Decrease';
+                const changeLabel = datum.direction === 'increase' ? t('reports.opexDelta.increase') : t('reports.opexDelta.decrease');
                 return {
                   title: datum.product_name,
                   data: [
                     { label: changeLabel, value: formatNumber(magnitude) },
-                    { label: 'Share', value: `${pct.toFixed(1)}%` },
+                    { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                   ],
                 };
               },
@@ -492,12 +492,12 @@ export default function OpexDeltaReport() {
             renderer: ({ datum }: any) => {
               const magnitude = Number(datum.magnitude || 0);
               const pct = totalMagnitude > 0 ? (magnitude / totalMagnitude) * 100 : 0;
-              const changeLabel = datum.direction === 'increase' ? 'Increase' : 'Decrease';
+              const changeLabel = datum.direction === 'increase' ? t('reports.opexDelta.increase') : t('reports.opexDelta.decrease');
               return {
                 title: datum.product_name,
                 data: [
                   { label: changeLabel, value: formatNumber(datum.delta) },
-                  { label: 'Share', value: `${pct.toFixed(1)}%` },
+                  { label: t('reports.shared.share'), value: `${pct.toFixed(1)}%` },
                 ],
               };
             },
@@ -505,7 +505,7 @@ export default function OpexDeltaReport() {
         },
       ],
     };
-  }, [chartData, totalMagnitude, directionLabel, countLabel, sourceLabel, destinationLabel, chartType, selectionFootnote, modes.length]);
+  }, [chartData, totalMagnitude, chartTitleKey, countLabel, sourceLabel, destinationLabel, chartType, selectionFootnote, modes.length, t]);
 
   useEffect(() => {
     const api = gridApiRef.current;
@@ -537,14 +537,14 @@ export default function OpexDeltaReport() {
   const coverageLabel = (() => {
     if (modes.length === 2) {
       const pieces: string[] = [];
-      if (increaseShare != null) pieces.push(`Inc: ${increaseShare.toFixed(1)}%`);
-      if (decreaseShare != null) pieces.push(`Dec: ${decreaseShare.toFixed(1)}%`);
-      return pieces.length > 0 ? `Coverage — ${pieces.join(' · ')}` : 'Coverage — n/a';
+      if (increaseShare != null) pieces.push(t('reports.opexDelta.incValue', { value: `${increaseShare.toFixed(1)}%` }));
+      if (decreaseShare != null) pieces.push(t('reports.opexDelta.decValue', { value: `${decreaseShare.toFixed(1)}%` }));
+      return pieces.length > 0 ? t('reports.opexDelta.coverageSplit', { detail: pieces.join(' · ') }) : t('reports.opexDelta.coverageNa');
     }
     if (modes[0] === 'increase') {
-      return increaseShare == null ? 'Coverage — n/a' : `Coverage — ${increaseShare.toFixed(1)}% covered`;
+      return increaseShare == null ? t('reports.opexDelta.coverageNa') : t('reports.opexDelta.coveragePct', { pct: increaseShare.toFixed(1) });
     }
-    return decreaseShare == null ? 'Coverage — n/a' : `Coverage — ${decreaseShare.toFixed(1)}% covered`;
+    return decreaseShare == null ? t('reports.opexDelta.coverageNa') : t('reports.opexDelta.coveragePct', { pct: decreaseShare.toFixed(1) });
   })();
 
   const modeSlug = modes.length === 0 ? 'mode' : modes.slice().sort().join('-');
@@ -765,7 +765,7 @@ export default function OpexDeltaReport() {
                 setModes(unique);
               }
             }}
-            aria-label="Increase or decrease"
+            aria-label={t('reports.opexDelta.directionToggle')}
           >
             <ToggleButton value="increase">{t("reports.opexDelta.increase")}</ToggleButton>
             <ToggleButton value="decrease">{t("reports.opexDelta.decrease")}</ToggleButton>
@@ -781,7 +781,7 @@ export default function OpexDeltaReport() {
     >
       <Stack direction="column" spacing={2} alignItems="stretch">
         <Box sx={{ minWidth: 0 }}>
-          <ChartCard ref={chartRef} title="Chart" options={chartOptions} height={520} />
+          <ChartCard ref={chartRef} title={t('reports.shared.chart')} options={chartOptions} height={520} />
         </Box>
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{t("reports.shared.keyTable")}</Typography>
@@ -796,27 +796,27 @@ export default function OpexDeltaReport() {
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Typography variant="body2" color="text.secondary">
                 {modes.length === 2
-                  ? `Top ${increaseCount}/${decreaseCount} selection totals`
-                  : `Top ${processed.length} total ${modes[0] === 'increase' ? 'increase' : 'decrease'}`}
+                  ? t('reports.opexDelta.topSelectionTotals', { inc: increaseCount, dec: decreaseCount })
+                  : t(modes[0] === 'increase' ? 'reports.opexDelta.topTotalIncrease' : 'reports.opexDelta.topTotalDecrease', { count: processed.length })}
               </Typography>
               <Typography variant="subtitle2">
                 {modes.length === 2
-                  ? `Inc: ${formatNumber(topTotals.increase)} · Dec: ${formatNumber(topTotals.decrease)}`
+                  ? `${t('reports.opexDelta.incValue', { value: formatNumber(topTotals.increase) })} · ${t('reports.opexDelta.decValue', { value: formatNumber(topTotals.decrease) })}`
                   : formatNumber(modes[0] === 'increase' ? topTotals.increase : topTotals.decrease)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Source: {formatNumber(topSelectionPrevSum)} · Destination: {formatNumber(topSelectionCurrSum)}
+                {t('reports.opexDelta.sourceDestinationTotals', { source: formatNumber(topSelectionPrevSum), destination: formatNumber(topSelectionCurrSum) })}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <Typography variant="body2" color="text.secondary">
                 {modes.length === 2
-                  ? 'Gross changes (all items)'
-                  : `Gross ${modes[0] === 'increase' ? 'increase' : 'decrease'} (all items)`}
+                  ? t('reports.opexDelta.grossChanges')
+                  : t(modes[0] === 'increase' ? 'reports.opexDelta.grossIncrease' : 'reports.opexDelta.grossDecrease')}
               </Typography>
               <Typography variant="subtitle2">
                 {modes.length === 2
-                  ? `Inc: ${formatNumber(allTotals.grossIncrease)} · Dec: ${formatNumber(allTotals.grossDecrease)}`
+                  ? `${t('reports.opexDelta.incValue', { value: formatNumber(allTotals.grossIncrease) })} · ${t('reports.opexDelta.decValue', { value: formatNumber(allTotals.grossDecrease) })}`
                   : formatNumber(modes[0] === 'increase' ? allTotals.grossIncrease : allTotals.grossDecrease)}
               </Typography>
               <Typography variant="caption" color="text.secondary">

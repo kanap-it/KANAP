@@ -322,7 +322,8 @@
       "processOwnerHelper": "User ultimately responsible for the process",
       "itOwner": "IT owner",
       "itOwnerHelper": "IT contact responsible for tools / systems supporting this process",
-      "notesPlaceholder": "Internal notes, links to SOPs or process maps"
+      "notesPlaceholder": "Internal notes, links to SOPs or process maps",
+      "nameRequired": "Name is required"
     },
     "categoryManager": {
       "title": "Manage business process categories",
