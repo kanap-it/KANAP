@@ -33,7 +33,7 @@ Bloquee columnas presupuestarias para que no puedan editarse, importarse ni modi
 
 1. **Seleccione un año** del desplegable (rango: año actual menos uno hasta año actual más cuatro)
 2. **Seleccione alcances**: marque **OPEX**, **CAPEX** o ambos
-3. **Seleccione columnas** para cada alcance: Presupuesto, Revisión, Realizado, Aterrizaje previsto (las cuatro están seleccionadas por defecto)
+3. **Seleccione columnas** para cada alcance: Presupuesto, Revisión, Previsión, Realizado, Aterrizaje previsto (las cinco están seleccionadas por defecto)
 4. Haga clic en **Congelar datos** para bloquear, o **Descongelar datos** para desbloquear
 
 ### Qué hace la congelación

@@ -26,8 +26,15 @@ import { useFreezeState } from '../../hooks/useFreezeState';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const YEAR_RANGE = 6;
-const OPEX_COLUMNS: FreezeColumn[] = ['budget', 'revision', 'actual', 'landing'];
-const CAPEX_COLUMNS: FreezeColumn[] = ['budget', 'revision', 'actual', 'landing'];
+const OPEX_COLUMNS: FreezeColumn[] = ['budget', 'revision', 'forecast', 'actual', 'landing'];
+const CAPEX_COLUMNS: FreezeColumn[] = ['budget', 'revision', 'forecast', 'actual', 'landing'];
+const COLUMN_LABEL_KEYS: Record<FreezeColumn, string> = {
+  budget: 'operations.budgetColumns.budget',
+  revision: 'operations.budgetColumns.revision',
+  forecast: 'operations.budgetColumns.forecast',
+  actual: 'operations.budgetColumns.followUp',
+  landing: 'operations.budgetColumns.landing',
+};
 
 function useYearOptions() {
   const currentYear = new Date().getFullYear();
@@ -118,15 +125,17 @@ export default function BudgetFreezePage() {
     await unfreezeMutation.mutateAsync(targets);
   };
 
+  const columnLabel = (col: FreezeColumn) => t(COLUMN_LABEL_KEYS[col]);
+
   const summary = data?.summary;
   const scopeSummary = summary?.scopes;
   const loading = isLoading || isFetching || freezeMutation.isPending || unfreezeMutation.isPending;
 
   const renderScopeStatus = () => {
     if (!scopeSummary) return null;
-    const columnStatus = (label: string, info: { frozen: boolean; frozenAt: string | null; frozenBy: string | null } | undefined) => (
-      <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
-        <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>{label}</Typography>
+    const columnStatus = (col: FreezeColumn, info: { frozen: boolean; frozenAt: string | null; frozenBy: string | null } | undefined) => (
+      <Box key={col} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+        <Typography variant="body2">{columnLabel(col)}</Typography>
         <Typography variant="body2" color={info?.frozen ? 'error.main' : 'text.secondary'}>
           {info?.frozen ? t('operations.freeze.frozen') : t('operations.freeze.editable')}
         </Typography>
@@ -172,7 +181,7 @@ export default function BudgetFreezePage() {
               <TextField
                 select
                 size="small"
-                label="Year"
+                label={t('operations.freeze.year')}
                 value={year}
                 onChange={(e) => { setYear(Number(e.target.value)); setFeedback(null); }}
                 sx={{ width: 160 }}
@@ -197,19 +206,19 @@ export default function BudgetFreezePage() {
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                 {selectedScopes.includes('opex') && (
                   <FormControl size="small" sx={{ minWidth: 220 }} disabled={!canModify}>
-                    <InputLabel id="opex-columns-label">OPEX Columns</InputLabel>
+                    <InputLabel id="opex-columns-label">{t('operations.freeze.opexColumns')}</InputLabel>
                     <Select
                       labelId="opex-columns-label"
                       multiple
                       value={columnsByScope.opex}
-                      label="OPEX Columns"
+                      label={t('operations.freeze.opexColumns')}
                       onChange={handleColumnsChange('opex')}
-                      renderValue={(selected) => selected.map((c) => c.toUpperCase()).join(', ')}
+                      renderValue={(selected) => selected.map(columnLabel).join(', ')}
                     >
                       {OPEX_COLUMNS.map((col) => (
                         <MenuItem key={col} value={col}>
                           <Checkbox checked={columnsByScope.opex.includes(col)} />
-                          <Typography sx={{ ml: 1, textTransform: 'capitalize' }}>{col}</Typography>
+                          <Typography sx={{ ml: 1 }}>{columnLabel(col)}</Typography>
                         </MenuItem>
                       ))}
                     </Select>
@@ -217,19 +226,19 @@ export default function BudgetFreezePage() {
                 )}
                 {selectedScopes.includes('capex') && (
                   <FormControl size="small" sx={{ minWidth: 220 }} disabled={!canModify}>
-                    <InputLabel id="capex-columns-label">CAPEX Columns</InputLabel>
+                    <InputLabel id="capex-columns-label">{t('operations.freeze.capexColumns')}</InputLabel>
                     <Select
                       labelId="capex-columns-label"
                       multiple
                       value={columnsByScope.capex}
-                      label="CAPEX Columns"
+                      label={t('operations.freeze.capexColumns')}
                       onChange={handleColumnsChange('capex')}
-                      renderValue={(selected) => selected.map((c) => c.toUpperCase()).join(', ')}
+                      renderValue={(selected) => selected.map(columnLabel).join(', ')}
                     >
                       {CAPEX_COLUMNS.map((col) => (
                         <MenuItem key={col} value={col}>
                           <Checkbox checked={columnsByScope.capex.includes(col)} />
-                          <Typography sx={{ ml: 1, textTransform: 'capitalize' }}>{col}</Typography>
+                          <Typography sx={{ ml: 1 }}>{columnLabel(col)}</Typography>
                         </MenuItem>
                       ))}
                     </Select>
@@ -245,7 +254,7 @@ export default function BudgetFreezePage() {
                 disabled={!canModify || selectedScopes.length === 0 || loading}
                 startIcon={freezeMutation.isPending ? <CircularProgress size={16} /> : undefined}
               >
-                {freezeMutation.isPending ? 'Freezing…' : 'Freeze Data'}
+                {freezeMutation.isPending ? t('operations.freeze.freezing') : t('operations.freeze.freezeData')}
               </Button>
               <Button
                 variant="outlined"
@@ -253,14 +262,14 @@ export default function BudgetFreezePage() {
                 disabled={!canModify || selectedScopes.length === 0 || loading}
                 startIcon={unfreezeMutation.isPending ? <CircularProgress size={16} /> : undefined}
               >
-                {unfreezeMutation.isPending ? 'Unfreezing…' : 'Unfreeze Data'}
+                {unfreezeMutation.isPending ? t('operations.freeze.unfreezing') : t('operations.freeze.unfreezeData')}
               </Button>
             </Stack>
 
             {loading && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CircularProgress size={18} />
-                <Typography variant="body2">Updating freeze status…</Typography>
+                <Typography variant="body2">{t('operations.freeze.updating')}</Typography>
               </Box>
             )}
           </Stack>

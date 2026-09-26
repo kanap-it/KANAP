@@ -74,6 +74,7 @@
       "total": "Gesamt",
       "spreadHelper": "Jahresbetrag verteilen",
       "spreadApply": "Anwenden",
+      "spreadPlaceholder": "z. B. 120000",
       "profileFlat": "Gleichmäßig",
       "profile445": "4-4-5",
       "manual": "Manuell (monatlich)",
@@ -286,6 +287,7 @@
       "total": "Gesamt",
       "spreadHelper": "Jahresbetrag verteilen",
       "spreadApply": "Anwenden",
+      "spreadPlaceholder": "z. B. 120000",
       "profileFlat": "Gleichmäßig",
       "profile445": "4-4-5",
       "manual": "Manuell (monatlich)",
@@ -684,7 +686,8 @@
       "budget": "Budget",
       "revision": "Revision",
       "followUp": "Ist-Werte",
-      "landing": "Erwarteter Endwert"
+      "landing": "Erwarteter Endwert",
+      "forecast": "Prognose"
     }
   },
   "confirmations": {

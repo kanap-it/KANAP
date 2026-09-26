@@ -358,6 +358,7 @@ export class AiFinancialPlanMutationSupportService {
     }
     if (action === 'upsert_amounts') {
       const amounts = this.normalizeAmountPayload(input.amounts);
+      this.assertAmountsYearMatchesVersion(amounts, version);
       const before = await this.listAmounts(context, entityType, version.id, amounts.year);
       const beforeItems = Array.isArray(before.items) ? before.items : [];
       const reverseItems = completeAmountRowsForPeriods(beforeItems, amountTouchedPeriods(amounts));
@@ -580,6 +581,7 @@ export class AiFinancialPlanMutationSupportService {
 
     if (action === 'upsert_amounts') {
       const amounts = this.normalizeAmountPayload(mutation.amounts);
+      this.assertAmountsYearMatchesVersion(amounts, version);
       const previous = objectValue(preview.current_values?.values, 'current_values.values');
       const before = await this.listAmounts(context, entityType, version.id, amounts.year);
       const beforeItems = Array.isArray(before.items) ? before.items : [];
@@ -726,6 +728,18 @@ export class AiFinancialPlanMutationSupportService {
       throw new BadRequestException('Version Name is required for financial version creation.');
     }
     return { fields, displayValues, fieldLabels };
+  }
+
+  // A version holds one budget year: amounts for another year are refused at
+  // preview time rather than after approval.
+  private assertAmountsYearMatchesVersion(amounts: AmountPayload, version: FinancialVersionRef) {
+    const versionYear = Number(version.row.budget_year);
+    if (amounts.year !== versionYear) {
+      throw new BadRequestException(
+        `The amounts are for ${amounts.year}, but financial version "${version.label}" is for ${versionYear}. `
+        + `Use amounts.year ${versionYear}, or the version of ${amounts.year}.`,
+      );
+    }
   }
 
   private normalizeAmountPayload(raw: unknown): AmountPayload {

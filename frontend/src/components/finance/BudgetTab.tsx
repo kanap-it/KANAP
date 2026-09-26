@@ -44,7 +44,9 @@ type YearAmounts = {
   year: number;
 };
 
-const MEASURES: Array<{ key: MeasureKey; labelKey: string; freezeKey: 'budget' | 'revision' | 'actual' | 'landing' }> = [
+type FreezeKey = 'budget' | 'revision' | 'forecast' | 'actual' | 'landing';
+
+const MEASURES: Array<{ key: MeasureKey; labelKey: string; freezeKey: FreezeKey }> = [
   { key: 'planned', labelKey: 'operations.budgetColumns.budget', freezeKey: 'budget' },
   { key: 'committed', labelKey: 'operations.budgetColumns.revision', freezeKey: 'revision' },
   { key: 'actual', labelKey: 'operations.budgetColumns.followUp', freezeKey: 'actual' },
@@ -52,6 +54,9 @@ const MEASURES: Array<{ key: MeasureKey; labelKey: string; freezeKey: 'budget' |
 ];
 
 const ALL_COLS: AmountCol[] = ['planned', 'committed', 'actual', 'expected_landing', 'forecast'];
+const FREEZE_KEY: Record<AmountCol, FreezeKey> = {
+  planned: 'budget', committed: 'revision', actual: 'actual', expected_landing: 'landing', forecast: 'forecast',
+};
 
 function monthPeriod(year: number, m: number) { return `${year}-${String(m).padStart(2, '0')}-01`; }
 function emptyMonths(year: number): AmountRow[] {
@@ -92,11 +97,12 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
     return {
       budget: s?.budget?.frozen ?? false,
       revision: s?.revision?.frozen ?? false,
+      forecast: s?.forecast?.frozen ?? false,
       actual: s?.actual?.frozen ?? false,
       landing: s?.landing?.frozen ?? false,
     };
   }, [freezeData, config.freezeScope]);
-  const anyFrozen = frozen.budget || frozen.revision || frozen.actual || frozen.landing;
+  const anyFrozen = frozen.budget || frozen.revision || frozen.forecast || frozen.actual || frozen.landing;
 
   const autosave = useAutosave({ onError: (e) => setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.budget.failedToSave`))) });
 
@@ -106,6 +112,21 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
   const monthsRef = React.useRef(months); monthsRef.current = months;
   const versionRef = React.useRef(version); versionRef.current = version;
   const frozenRef = React.useRef(frozen); frozenRef.current = frozen;
+
+  // Edits not saved yet: yearly totals in flat mode, (period, measure) cells in
+  // monthly mode. A save sends only these, so it never overwrites a measure or
+  // a month the user did not touch.
+  const dirtyTotalsRef = React.useRef(new Set<MeasureKey>());
+  const dirtyCellsRef = React.useRef(new Map<string, Set<AmountCol>>());
+  const resetDirty = () => {
+    dirtyTotalsRef.current = new Set();
+    dirtyCellsRef.current = new Map();
+  };
+  const markCellDirty = (period: string, col: AmountCol) => {
+    const cols = dirtyCellsRef.current.get(period) ?? new Set<AmountCol>();
+    cols.add(col);
+    dirtyCellsRef.current.set(period, cols);
+  };
 
   const ensureVersion = React.useCallback(async (): Promise<Version> => {
     if (versionRef.current) return versionRef.current;
@@ -134,6 +155,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
         setMode('flat');
         setFlat({ planned: '', committed: '', actual: '', expected_landing: '' });
         setMonths(emptyMonths(year));
+        resetDirty();
         setLoadedYear(year);
         return;
       }
@@ -156,6 +178,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
           ? { period: p, planned: num('planned'), committed: num('committed'), actual: num('actual'), expected_landing: num('expected_landing'), forecast: num('forecast') }
           : { period: p, planned: 0, committed: 0, actual: 0, expected_landing: 0, forecast: 0 };
       }));
+      resetDirty();
       setLoadedYear(year);
     } catch (e) {
       setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.budget.failedToLoad`)));
@@ -166,70 +189,100 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
 
   React.useEffect(() => { void load(); }, [load]);
 
-  // Persist current state (flat or monthly), creating the version on first edit.
+  // Persist the edited totals (flat) or cells (monthly), creating the version on
+  // first edit. Frozen measures are never sent.
   const persist = React.useCallback(async () => {
-    const v = await ensureVersion();
     const fr = frozenRef.current;
-    const nextGrain = modeRef.current === 'flat' ? 'annual' : 'monthly';
-    if (v.input_grain !== nextGrain) {
-      await api.patch(`${config.itemsApi}/${id}/versions`, { id: v.id, input_grain: nextGrain });
-      setVersion((prev) => (prev ? { ...prev, input_grain: nextGrain } : prev));
+    const flatMode = modeRef.current === 'flat';
+    // Snapshot and clear: edits typed while this save is in flight stay dirty
+    // for the next one; a failed save puts its snapshot back.
+    const totalsSnapshot = flatMode ? dirtyTotalsRef.current : new Set<MeasureKey>();
+    const cellsSnapshot = flatMode ? new Map<string, Set<AmountCol>>() : dirtyCellsRef.current;
+    if (flatMode) dirtyTotalsRef.current = new Set(); else dirtyCellsRef.current = new Map();
+    try {
+      let body: Record<string, unknown> | null = null;
+      if (flatMode) {
+        const f = flatRef.current;
+        const totals: Partial<Record<MeasureKey, number>> = {};
+        MEASURES.forEach((m) => {
+          if (totalsSnapshot.has(m.key) && !fr[m.freezeKey]) totals[m.key] = Number(f[m.key] || 0);
+        });
+        if (Object.keys(totals).length > 0) body = { kind: 'annual', year, totals };
+      } else {
+        const rows = monthsRef.current.flatMap((m) => {
+          const cols = cellsSnapshot.get(m.period);
+          const row: Record<string, string | number> = { period: m.period };
+          ALL_COLS.forEach((c) => {
+            if (cols?.has(c) && !fr[FREEZE_KEY[c]]) row[c] = Number(m[c] || 0);
+          });
+          return Object.keys(row).length > 1 ? [row] : [];
+        });
+        if (rows.length > 0) body = { kind: 'monthly', year, months: rows };
+      }
+      if (!body) return;
+
+      const v = await ensureVersion();
+      const nextGrain = flatMode ? 'annual' : 'monthly';
+      if (v.input_grain !== nextGrain) {
+        await api.patch(`${config.itemsApi}/${id}/versions`, { id: v.id, input_grain: nextGrain });
+        setVersion((prev) => (prev ? { ...prev, input_grain: nextGrain } : prev));
+      }
+      await api.post(`${config.versionsApi}/${v.id}/amounts/bulk-upsert`, body);
+    } catch (e) {
+      totalsSnapshot.forEach((k) => dirtyTotalsRef.current.add(k));
+      cellsSnapshot.forEach((cols, period) => cols.forEach((c) => markCellDirty(period, c)));
+      // The save may have been refused because a column was frozen meanwhile:
+      // refresh the freeze state so that column turns read-only and the next
+      // save leaves it out instead of sending it again.
+      void queryClient.invalidateQueries({ queryKey: ['freeze-state', year] });
+      throw e;
     }
-    if (modeRef.current === 'flat') {
-      const f = flatRef.current;
-      const totals: Partial<Record<MeasureKey, number>> = {};
-      if (!fr.budget) totals.planned = Number(f.planned || 0);
-      if (!fr.revision) totals.committed = Number(f.committed || 0);
-      if (!fr.actual) totals.actual = Number(f.actual || 0);
-      if (!fr.landing) totals.expected_landing = Number(f.expected_landing || 0);
-      await api.post(`${config.versionsApi}/${v.id}/amounts/bulk-upsert`, { kind: 'annual', year, totals });
-    } else {
-      await api.post(`${config.versionsApi}/${v.id}/amounts/bulk-upsert`, {
-        kind: 'monthly', year,
-        months: monthsRef.current.map((m) => ({
-          period: m.period,
-          ...(fr.budget ? {} : { planned: Number(m.planned || 0) }),
-          ...(fr.revision ? {} : { committed: Number(m.committed || 0) }),
-          ...(fr.actual ? {} : { actual: Number(m.actual || 0) }),
-          ...(fr.landing ? {} : { expected_landing: Number(m.expected_landing || 0) }),
-          forecast: Number(m.forecast || 0),
-        })),
-      });
-    }
-  }, [ensureVersion, id, year]);
+  }, [ensureVersion, id, year, queryClient]);
 
   const scheduleSave = React.useCallback(() => { autosave.schedule(persist); }, [autosave, persist]);
 
+  const hasUnsavedEdits = () => dirtyTotalsRef.current.size > 0 || dirtyCellsRef.current.size > 0;
+  // Save every unsaved edit now, including one whose earlier save failed
+  // (autosave drops a failed save). False if the save fails.
+  const flushEdits = React.useCallback(async () => {
+    if (hasUnsavedEdits() && !autosave.isBusy()) autosave.schedule(persist);
+    return autosave.flush();
+  }, [autosave, persist]);
+
   // Flush pending edits before switching year so nothing is lost on reload.
   const handleYearChange = React.useCallback(async (y: number) => {
-    await autosave.flush();
+    if (!(await flushEdits())) return;
     onYearChange(y);
-  }, [autosave, onYearChange]);
+  }, [flushEdits, onYearChange]);
 
   useImperativeHandle(ref, () => ({
-    flush: () => autosave.flush(),
-    isDirty: () => autosave.isBusy(),
-  }), [autosave]);
+    flush: flushEdits,
+    isDirty: () => autosave.isBusy() || hasUnsavedEdits(),
+  }), [autosave, flushEdits]);
 
   const onFlatChange = (key: MeasureKey, value: number | '') => {
     setFlat((prev) => ({ ...prev, [key]: value }));
+    dirtyTotalsRef.current.add(key);
     scheduleSave();
   };
   const onMonthChange = (idx: number, key: AmountCol, value: number | '') => {
     setMonths((prev) => { const next = [...prev]; next[idx] = { ...next[idx], [key]: Number(value || 0) }; return next; });
+    markCellDirty(monthPeriod(year, idx + 1), key);
     scheduleSave();
   };
   // Clear every month for a column — convenient when entering a cash-out plan manually
   // (e.g. the whole amount in a single month).
   const clearColumn = (key: AmountCol) => {
     setMonths((prev) => prev.map((m) => ({ ...m, [key]: 0 })));
+    for (let m = 1; m <= 12; m++) markCellDirty(monthPeriod(year, m), key);
     scheduleSave();
   };
   const onModeChange = React.useCallback(async (next: 'flat' | 'monthly') => {
     if (next === modeRef.current) return;
     // Persist any pending edits in the current mode first, then switch the grain and
     // resync from the backend so the new view reflects stored data (no stale overwrite).
-    await autosave.flush();
+    // If they cannot be saved, stay: the reload would discard them.
+    if (!(await flushEdits())) return;
     setMode(next);
     const v = versionRef.current;
     if (!v) return; // no version yet — grain persists on first edit
@@ -239,13 +292,15 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
     } catch (e) {
       setError(getApiErrorMessage(e, t, t(`${config.i18nPrefix}.budget.failedToSave`)));
     }
-  }, [autosave, id, load, t]);
+  }, [flushEdits, id, load, t]);
 
   const applySpread = async () => {
     const amount = Number(spreadAmount || 0);
     if (!amount) return;
     setError(null);
     try {
+      // Save pending cell edits first: the reload below replaces the grid.
+      if (!(await flushEdits())) return;
       const v = await ensureVersion();
       await api.post(`${config.versionsApi}/${v.id}/amounts/bulk-upsert`, {
         kind: 'annual', year, totals: { [spreadMeasure]: amount }, spread_profile_name: spreadProfile,
@@ -293,6 +348,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
 
   const labelFor = (m: typeof MEASURES[number]) => t(m.labelKey);
   const isFrozen = (m: typeof MEASURES[number]) => frozen[m.freezeKey];
+  const gridColumns = ALL_COLS.map((col) => ({ col, fr: frozen[FREEZE_KEY[col]] }));
 
   const savingHint = autosave.status === 'saving' || autosave.status === 'pending'
     ? t('common:status.saving', 'Saving…')
@@ -347,7 +403,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
             <TextField select size="small" variant="standard" value={spreadMeasure} onChange={(e) => setSpreadMeasure(e.target.value as MeasureKey)} sx={[drawerSelectSx, { width: 'auto', minWidth: 120 }]}>
               {MEASURES.map((m) => <MenuItem key={m.key} value={m.key} sx={drawerMenuItemSx}>{labelFor(m)}</MenuItem>)}
             </TextField>
-            <FormattedNumberField value={spreadAmount} onChange={(e) => setSpreadAmount(e.target.value as unknown as number | '')} variant="standard" size="small" placeholder="e.g., 120000" sx={{ width: 120 }} />
+            <FormattedNumberField value={spreadAmount} onChange={(e) => setSpreadAmount(e.target.value as unknown as number | '')} variant="standard" size="small" placeholder={t(`${config.i18nPrefix}.budget.spreadPlaceholder`)} sx={{ width: 120 }} />
             <TextField select size="small" variant="standard" value={spreadProfile} onChange={(e) => setSpreadProfile(e.target.value as 'flat' | '4-4-5')} sx={[drawerSelectSx, { width: 'auto', minWidth: 90 }]}>
               <MenuItem value="flat" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.budget.profileFlat`)}</MenuItem>
               <MenuItem value="4-4-5" sx={drawerMenuItemSx}>{t(`${config.i18nPrefix}.budget.profile445`)}</MenuItem>
@@ -379,11 +435,15 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
                 <Box component="th" sx={headCellSx}>
                   <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25, justifyContent: 'flex-end' }}>
                     {t(`${config.i18nPrefix}.budget.forecast`)}
-                    <Tooltip title={t(`${config.i18nPrefix}.budget.clearColumn`)}>
-                      <IconButton size="small" aria-label={t(`${config.i18nPrefix}.budget.clearColumn`)} onClick={() => clearColumn('forecast')} sx={{ p: '2px' }}>
-                        <BackspaceOutlinedIcon sx={{ fontSize: 13 }} />
-                      </IconButton>
-                    </Tooltip>
+                    {frozen.forecast ? (
+                      <LockOutlinedIcon sx={{ fontSize: 12, color: 'kanap.text.tertiary' }} />
+                    ) : (
+                      <Tooltip title={t(`${config.i18nPrefix}.budget.clearColumn`)}>
+                        <IconButton size="small" aria-label={t(`${config.i18nPrefix}.budget.clearColumn`)} onClick={() => clearColumn('forecast')} sx={{ p: '2px' }}>
+                          <BackspaceOutlinedIcon sx={{ fontSize: 13 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Box>
                 </Box>
               </Box>
@@ -401,7 +461,7 @@ export default forwardRef<BudgetTabHandle, Props>(function BudgetTab({ id, year,
                         <Box component="td" sx={{ fontSize: 13, color: 'kanap.text.primary', px: 1, py: 0.25 }}>
                           {new Date(year, mi, 1).toLocaleString(locale, { month: 'short' })}
                         </Box>
-                        {([...MEASURES.map((m) => ({ col: m.key as AmountCol, fr: frozen[m.freezeKey] })), { col: 'forecast' as AmountCol, fr: false }]).map(({ col, fr }) => (
+                        {gridColumns.map(({ col, fr }) => (
                           <Box component="td" key={col} sx={{ px: 0.5, py: '2px' }}>
                             <FormattedNumberField
                               value={months[mi]?.[col] ?? 0}

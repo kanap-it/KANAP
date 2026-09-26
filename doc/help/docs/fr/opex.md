@@ -146,14 +146,14 @@ L'onglet Budget est l'endroit où vous saisissez les données financières par a
   - **Atterrissage (atterrissage prévu)** : Dépense réelle finale après la clôture de fin d'année
 
 **Mode Forfaitaire vs Manuel** :
-  - **Forfaitaire** : Saisissez un total par colonne ; les montants sont répartis uniformément sur 12 mois pour les besoins de ventilation
-  - **Manuel** : Saisissez les montants par mois (Jan-Déc) pour chaque colonne, plus une colonne **Prévision** pour la planification complémentaire
+  - **Forfaitaire** : Saisissez un total par colonne ; les montants sont répartis uniformément sur 12 mois pour les besoins de ventilation. Seul le total que vous modifiez est enregistré. Les autres colonnes gardent leurs montants mensuels.
+  - **Manuel** : Saisissez les montants par mois (Jan-Déc) pour chaque colonne, plus une colonne **Prévision** pour la planification complémentaire. Seuls les mois que vous modifiez sont enregistrés.
   - Basculez entre les modes avec les boutons radio en haut de l'onglet
 
 **Comportement du gel** :
   - Si les colonnes budgétaires d'une année sont gelées (via l'Administration budgétaire), les champs correspondants passent en lecture seule
   - Vous pouvez toujours consulter les données gelées ; les administrateurs peuvent dégeler via **Gestion budgétaire > Administration > Geler/Dégeler**
-  - Chaque colonne peut être gelée indépendamment (Budget, Révision, Suivi, Atterrissage)
+  - Chaque colonne peut être gelée indépendamment (Budget, Révision, Prévision, Réalisé, Atterrissage prévu)
 
 **Champ Notes** :
   - Chaque version budgétaire annuelle a un champ **Notes** pour les commentaires spécifiques à l'année (ex. : « Inclut une hausse de prix de 10 % au T3 »)

@@ -791,6 +791,18 @@ async function testBusinessTaskFinancialWritesAndRbac(harness: Harness) {
     assert.equal(versionRow.version_name, `Budget ${seed.tag}`);
     assert.equal(versionRow.allocation_method, 'manual_company');
 
+    // A version holds one year: amounts for another year are refused before approval.
+    await assert.rejects(
+      () => executeToolPreview(harness, financialCtx, 'write_financial_plan', {
+        entity_type: 'spend_items',
+        ref: createdSpendId,
+        action: 'upsert_amounts',
+        version_ref: versionRow.id,
+        amounts: { kind: 'monthly', year: 2027, months: [{ period: '2027-01-01', planned: 100 }] },
+      }),
+      /The amounts are for 2027, but financial version ".*" is for 2026/,
+    );
+
     const amountPreview = await executeToolPreview(harness, financialCtx, 'write_financial_plan', {
       entity_type: 'spend_items',
       ref: createdSpendId,

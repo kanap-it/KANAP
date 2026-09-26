@@ -8,20 +8,30 @@ import { CurrencySettingsService } from '../currency/currency-settings.service';
 import { SpendVersion } from '../spend/spend-version.entity';
 import { CapexVersion } from '../capex/capex-version.entity';
 
-export type FreezeColumn = 'budget' | 'revision' | 'actual' | 'landing';
+export type FreezeColumn = 'budget' | 'revision' | 'forecast' | 'actual' | 'landing';
 export type FreezeTarget = { scope: FreezeScope; columns?: FreezeColumn[] };
 
 const COLUMN_MAP: Record<FreezeColumn, FreezeColumn> = {
   budget: 'budget',
   revision: 'revision',
+  forecast: 'forecast',
   actual: 'actual',
   landing: 'landing',
+};
+
+// Column names as the budget screens show them, for error messages.
+const COLUMN_LABELS: Record<FreezeColumn, string> = {
+  budget: 'Budget',
+  revision: 'Revision',
+  forecast: 'Forecast',
+  actual: 'Actuals',
+  landing: 'Expected landing',
 };
 
 export const ALL_KEY = '__all__';
 
 function isColumn(value: any): value is FreezeColumn {
-  return value === 'budget' || value === 'revision' || value === 'actual' || value === 'landing';
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(COLUMN_MAP, value);
 }
 
 @Injectable()
@@ -223,10 +233,10 @@ export class FreezeService {
   async assertNotFrozen(params: { scope: FreezeScope; column?: FreezeColumn | null; year: number; action?: string }, opts?: { manager?: EntityManager }) {
     const frozen = await this.isFrozen(params, opts);
     if (frozen) {
-      const columnLabel = params.column ?? 'data';
-      const scopeLabel = params.scope.toUpperCase();
-      const action = params.action ? `${params.action} ` : '';
-      throw new ForbiddenException(`${action}not allowed: ${scopeLabel} ${columnLabel} for ${params.year} is frozen`);
+      const column = String(params.column ?? '').toLowerCase();
+      const columnLabel = isColumn(column) ? COLUMN_LABELS[column] : 'data';
+      const what = `${params.scope.toUpperCase()} ${columnLabel} for ${params.year} is frozen`;
+      throw new ForbiddenException(params.action ? `${params.action} not allowed: ${what}` : what);
     }
   }
 
@@ -237,12 +247,14 @@ export class FreezeService {
         opex: {
           budget: { frozen: false, frozenAt: null as Date | null, frozenBy: null as string | null },
           revision: { frozen: false, frozenAt: null as Date | null, frozenBy: null as string | null },
+          forecast: { frozen: false, frozenAt: null as Date | null, frozenBy: null as string | null },
           actual: { frozen: false, frozenAt: null as Date | null, frozenBy: null as string | null },
           landing: { frozen: false, frozenAt: null as Date | null, frozenBy: null as string | null },
         },
         capex: {
           budget: { frozen: false, frozenAt: null as Date | null, frozenBy: null as string | null },
           revision: { frozen: false, frozenAt: null as Date | null, frozenBy: null as string | null },
+          forecast: { frozen: false, frozenAt: null as Date | null, frozenBy: null as string | null },
           actual: { frozen: false, frozenAt: null as Date | null, frozenBy: null as string | null },
           landing: { frozen: false, frozenAt: null as Date | null, frozenBy: null as string | null },
         },

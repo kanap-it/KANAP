@@ -188,14 +188,15 @@ The Budget tab is where you enter financial data per year. It supports multiple 
 
 **Flat vs Manual by month mode**:
 
-- **Flat totals**: Enter one total per column; amounts are spread evenly across 12 months for allocation purposes
-- **Manual by month**: Enter amounts per month (Jan through Dec) for granular project spend tracking
+- **Flat totals**: Enter one total per column; amounts are spread evenly across 12 months for allocation purposes. Only the total you edit is saved. The other columns keep their monthly amounts.
+- **Manual by month**: Enter amounts per month (Jan through Dec) for granular project spend tracking. Only the months you change are saved.
 - Toggle between modes using the radio buttons at the top of the tab
-- When switching modes, the system calculates monthly values from the flat total (equal spread) or sums monthly values back to a flat total
+- Switching modes saves nothing: it only changes the view. Flat totals show the yearly total of the stored months, and Manual by month shows the stored months.
 
 **Freeze behavior**:
 
 - If a year's budget is frozen (via Budget Administration), inputs are disabled and show a "frozen" label
+- Each column can be frozen independently (Budget, Revision, Forecast, Actuals, Expected landing)
 - You can still view frozen data; admins can unfreeze via **Budget Management > Budget Administration > Freeze/Unfreeze**
 
 **Delete and redistribute** (manual by month mode only):

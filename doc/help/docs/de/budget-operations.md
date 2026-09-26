@@ -33,7 +33,7 @@ Sperren Sie Budgetspalten, sodass sie nicht bearbeitet, importiert oder auf ande
 
 1. **Wählen Sie ein Jahr** aus dem Dropdown (Bereich: aktuelles Jahr minus eins bis aktuelles Jahr plus vier)
 2. **Wählen Sie Geltungsbereiche**: Aktivieren Sie **OPEX**, **CAPEX** oder beides
-3. **Wählen Sie Spalten** für jeden Bereich: Budget, Revision, Ist-Werte, Endwert (alle vier sind standardmäßig ausgewählt)
+3. **Wählen Sie Spalten** für jeden Bereich: Budget, Revision, Prognose, Ist-Werte, Erwarteter Endwert (alle fünf sind standardmäßig ausgewählt)
 4. Klicken Sie auf **Daten einfrieren** zum Sperren oder **Daten freigeben** zum Entsperren
 
 ### Was das Einfrieren bewirkt

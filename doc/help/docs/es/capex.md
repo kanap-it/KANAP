@@ -188,15 +188,16 @@ La pestaña Presupuesto es donde introduce datos financieros por año. Soporta m
 
 **Modo Plano vs Manual por mes**:
 
-- **Totales planos**: Introduzca un total por columna; los importes se distribuyen uniformemente en 12 meses para fines de asignación
-- **Manual por mes**: Introduzca importes por mes (Ene a Dic) para un seguimiento granular del gasto del proyecto
+- **Totales planos**: Introduzca un total por columna; los importes se distribuyen uniformemente en 12 meses para fines de asignación. Solo se guarda el total que usted modifica. Las demás columnas conservan sus importes mensuales.
+- **Manual por mes**: Introduzca importes por mes (Ene a Dic) para un seguimiento granular del gasto del proyecto. Solo se guardan los meses que usted modifica.
 - Alterne entre modos usando los botones de radio en la parte superior de la pestaña
-- Al cambiar de modo, el sistema calcula valores mensuales desde el total plano (distribución igualitaria) o suma los valores mensuales de vuelta a un total plano
+- Cambiar de modo no guarda nada, solo cambia la vista. Los totales planos muestran el total anual de los meses guardados y el modo manual por mes muestra los meses guardados.
 
 **Comportamiento de congelación**:
 
 - Si el presupuesto de un año está congelado (vía Administración presupuestaria), las entradas están deshabilitadas y muestran una etiqueta "congelado"
 - Puede ver datos congelados; los administradores pueden descongelar vía **Gestión presupuestaria > Administración > Congelar/Descongelar**
+- Cada columna puede congelarse independientemente (Presupuesto, Revisión, Previsión, Realizado, Aterrizaje previsto)
 
 **Eliminar y redistribuir** (solo modo manual por mes):
 
