@@ -1201,7 +1201,6 @@ export class NotificationsService {
       if (lastNotified && now - lastNotified < EXPIRATION_DEDUPE_MS) {
         continue;
       }
-      this.recentNotifications.set(key, now);
 
       // Don't pass manager - notifications are fire-and-forget, so the transaction
       // may be closed by the time this runs. Preferences service uses its own connection.
@@ -1210,7 +1209,10 @@ export class NotificationsService {
         params.tenantId,
       );
 
+      // Opt-in only. Record the dedupe key only for a recipient who is emailed, so a user
+      // who opts in after a skipped run still gets the next warning.
       if (!this.checkPreferences(prefs, 'budget', 'expiration_warning')) continue;
+      this.recentNotifications.set(key, now);
 
       const locale = resolveEmailLocale(recipient.locale);
       const existing = localeGroups.get(locale);
