@@ -8,7 +8,16 @@ import { SpendAllocation } from './spend-allocation.entity';
 import { AllocationCalculatorService } from './allocation-calculator.service';
 import { AuditService } from '../audit/audit.service';
 import { FreezeColumn, FreezeService } from '../freeze/freeze.service';
-import { spreadAnnualToMonths } from './spread.util';
+import { toCents } from '../common/amount';
+import {
+  AmountMeasure,
+  BUDGET_COLUMN_MEASURE,
+  BudgetColumn,
+  MEASURE_FREEZE_COLUMN,
+  replaceAmounts,
+  spreadAnnualRows,
+  yearPeriods,
+} from './amounts-write.util';
 import { formatAllocationMethodLabel } from './allocation-utils';
 
 @Injectable()
@@ -23,36 +32,18 @@ export class SpendBudgetOperationsService {
     private readonly allocationCalculator: AllocationCalculatorService,
   ) {}
 
-  private mapFrontendColumnToFreeze(column: 'budget' | 'revision' | 'follow_up' | 'landing'): FreezeColumn {
-    switch (column) {
-      case 'budget':
-        return 'budget';
-      case 'revision':
-        return 'revision';
-      case 'follow_up':
-        return 'actual';
-      case 'landing':
-        return 'landing';
-      default:
-        throw new Error(`Unsupported budget column '${column}'`);
-    }
-  }
-
-  private async ensureOpexColumnsEditable(year: number, columns: Iterable<FreezeColumn>, mg: EntityManager) {
-    const seen = new Set<FreezeColumn>();
-    for (const column of columns) {
-      if (seen.has(column)) continue;
-      seen.add(column);
-      await this.freeze.assertNotFrozen({ scope: 'opex', column, year }, { manager: mg });
-    }
+  private mapFrontendColumnToFreeze(column: BudgetColumn): FreezeColumn {
+    const measure = BUDGET_COLUMN_MEASURE[column];
+    if (!measure) throw new Error(`Unsupported budget column '${column}'`);
+    return MEASURE_FREEZE_COLUMN[measure];
   }
 
   async copyBudgetColumn(
     operation: {
       sourceYear: number;
-      sourceColumn: 'budget' | 'revision' | 'follow_up' | 'landing';
+      sourceColumn: BudgetColumn;
       destinationYear: number;
-      destinationColumn: 'budget' | 'revision' | 'follow_up' | 'landing';
+      destinationColumn: BudgetColumn;
       percentageIncrease: number;
       overwrite: boolean;
       dryRun: boolean;
@@ -70,12 +61,9 @@ export class SpendBudgetOperationsService {
       action: 'Copy',
     }, { manager: mg });
 
-    const columnMapping: Record<'budget' | 'revision' | 'follow_up' | 'landing', keyof SpendAmount> = {
-      'budget': 'planned',
-      'revision': 'committed',
-      'follow_up': 'actual',
-      'landing': 'expected_landing',
-    };
+    const columnMapping: Record<BudgetColumn, AmountMeasure> = BUDGET_COLUMN_MEASURE;
+    // Freeze is checked once for the whole operation, not once per item.
+    const checkedFreeze = new Set<string>();
 
     const spendItems = await mg.getRepository(SpendItem).find({
       where: {
@@ -206,41 +194,13 @@ export class SpendBudgetOperationsService {
           }, { manager: mg });
         }
 
+        // Replace the destination measure only; the other measures keep their months.
         const dbColumnName = columnMapping[destinationColumn];
-
-        const existingAmounts = await mg.getRepository(SpendAmount).find({
-          where: { version_id: destinationVersion!.id }
-        });
-
-        const existingByPeriod = new Map(existingAmounts.map(a => [a.period, a]));
-
-        const annualTotals = { [dbColumnName]: newValue } as any;
-        const weights = Array.from({ length: 12 }, () => 1 / 12);
-        const monthly = spreadAnnualToMonths({
-          year: destinationYear,
-          totals: annualTotals,
-          profileWeights: weights
-        });
-
-        const rows = monthly.map((m: any) => {
-          const existing = existingByPeriod.get(m.period);
-          return {
-            version_id: destinationVersion!.id,
-            period: m.period,
-            planned: dbColumnName === 'planned' ? (m.planned || 0) : (existing?.planned || 0),
-            forecast: dbColumnName === 'forecast' ? (m.forecast || 0) : (existing?.forecast || 0),
-            committed: dbColumnName === 'committed' ? (m.committed || 0) : (existing?.committed || 0),
-            actual: dbColumnName === 'actual' ? (m.actual || 0) : (existing?.actual || 0),
-            expected_landing: dbColumnName === 'expected_landing' ? (m.expected_landing || 0) : (existing?.expected_landing || 0),
-            tenant_id: destinationVersion!.tenant_id,
-          };
-        });
-
-        console.log(`Upserting ${rows.length} amount records for ${dbColumnName}, preserving other columns`);
-
-        await mg.getRepository(SpendAmount).upsert(rows, {
-          conflictPaths: ['version_id', 'period']
-        });
+        await replaceAmounts(
+          { manager: mg, freeze: this.freeze, scope: 'opex', version: destinationVersion!, checkedFreeze },
+          destinationYear,
+          spreadAnnualRows(destinationYear, { [dbColumnName]: toCents(newValue) }),
+        );
 
         await this.audit.log({
           table: 'spend_items',
@@ -523,7 +483,7 @@ export class SpendBudgetOperationsService {
   async clearBudgetColumn(
     operation: {
       year: number;
-      column: 'budget' | 'revision' | 'follow_up' | 'landing';
+      column: BudgetColumn;
     },
     userId: string | null,
     opts?: { manager?: EntityManager }
@@ -538,14 +498,9 @@ export class SpendBudgetOperationsService {
       action: 'Clear',
     }, { manager: mg });
 
-    const columnMapping: Record<'budget' | 'revision' | 'follow_up' | 'landing', keyof SpendAmount> = {
-      'budget': 'planned',
-      'revision': 'committed',
-      'follow_up': 'actual',
-      'landing': 'expected_landing',
-    };
-
-    const dbColumnName = columnMapping[column];
+    const dbColumnName = BUDGET_COLUMN_MEASURE[column];
+    // Freeze is checked once for the whole operation, not once per item.
+    const checkedFreeze = new Set<string>();
 
     const spendItems = await mg.getRepository(SpendItem).find({
       where: {
@@ -591,19 +546,19 @@ export class SpendBudgetOperationsService {
 
         console.log(`Clearing ${spendItem.product_name}: ${dbColumnName} current value: ${currentValue}`);
 
-        for (const amount of existingAmounts) {
-          await mg.getRepository(SpendAmount).update(
-            { version_id: version.id, period: amount.period },
-            { [dbColumnName]: null }
-          );
-        }
+        // Zero, not NULL: the twelve months of this measure only.
+        await replaceAmounts(
+          { manager: mg, freeze: this.freeze, scope: 'opex', version, checkedFreeze },
+          year,
+          yearPeriods(year).map((period) => ({ period, [dbColumnName]: 0n })),
+        );
 
         await this.audit.log({
           table: 'spend_items',
           recordId: spendItem.id,
           action: 'update',
           before: { [column]: currentValue },
-          after: { [column]: null, operation: 'budget_column_clear', year, column },
+          after: { [column]: 0, operation: 'budget_column_clear', year, column },
           userId
         }, { manager: mg });
 

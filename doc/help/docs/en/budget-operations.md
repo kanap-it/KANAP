@@ -33,7 +33,7 @@ Lock budget columns so they cannot be edited, imported into, or modified in any 
 
 1. **Select a year** from the dropdown (range: current year minus one through current year plus four)
 2. **Select scopes**: tick **OPEX**, **CAPEX**, or both
-3. **Select columns** for each scope: Budget, Revision, Actual, Landing (all four are selected by default)
+3. **Select columns** for each scope: Budget, Revision, Forecast, Actuals, Expected landing (all five are selected by default)
 4. Click **Freeze Data** to lock, or **Unfreeze Data** to unlock
 
 ### What freezing does

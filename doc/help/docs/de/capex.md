@@ -188,15 +188,16 @@ Der Budget-Tab ist der Ort, an dem Sie Finanzdaten pro Jahr eingeben. Er unterst
 
 **Pauschal vs. Manuell pro Monat**:
 
-- **Pauschal**: Geben Sie eine Summe pro Spalte ein; Beträge werden gleichmäßig auf 12 Monate verteilt
-- **Manuell pro Monat**: Geben Sie Beträge pro Monat (Jan bis Dez) für granulare Projektverfolgung ein
+- **Pauschal**: Geben Sie eine Summe pro Spalte ein; Beträge werden gleichmäßig auf 12 Monate verteilt. Nur die Summe, die Sie ändern, wird gespeichert. Die anderen Spalten behalten ihre Monatsbeträge.
+- **Manuell pro Monat**: Geben Sie Beträge pro Monat (Jan bis Dez) für granulare Projektverfolgung ein. Nur die Monate, die Sie ändern, werden gespeichert.
 - Wechseln Sie zwischen den Modi mit den Optionsfeldern oben im Tab
-- Beim Moduswechsel berechnet das System Monatswerte aus der Pauschalsumme (Gleichverteilung) oder summiert Monatswerte zurück zu einer Pauschalsumme
+- Ein Moduswechsel speichert nichts, er ändert nur die Ansicht. Pauschal zeigt die Jahressumme der gespeicherten Monate, Manuell pro Monat zeigt die gespeicherten Monate.
 
 **Einfrierverhalten**:
 
 - Wenn das Budget eines Jahres eingefroren ist (über Budget-Administration), sind die Eingaben deaktiviert und zeigen ein „Eingefroren"-Label
 - Sie können eingefrorene Daten weiterhin einsehen; Administratoren können über **Budgetverwaltung > Administration > Einfrieren/Freigeben** entsperren
+- Jede Spalte kann unabhängig eingefroren werden (Budget, Revision, Prognose, Ist-Werte, Erwarteter Endwert)
 
 **Löschen und umverteilen** (nur im Modus Manuell pro Monat):
 

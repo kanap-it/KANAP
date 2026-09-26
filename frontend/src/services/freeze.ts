@@ -1,7 +1,7 @@
 import api from '../api';
 
 export type FreezeScope = 'opex' | 'capex' | 'companies' | 'departments';
-export type FreezeColumn = 'budget' | 'revision' | 'actual' | 'landing';
+export type FreezeColumn = 'budget' | 'revision' | 'forecast' | 'actual' | 'landing';
 
 export type FreezeEntry = {
   id: string;

@@ -103,6 +103,7 @@
       "total": "Total",
       "spreadHelper": "Spread an annual amount",
       "spreadApply": "Apply",
+      "spreadPlaceholder": "e.g. 120000",
       "profileFlat": "Flat",
       "profile445": "4-4-5",
       "manual": "Manual (monthly)",
@@ -286,6 +287,7 @@
       "total": "Total",
       "spreadHelper": "Spread an annual amount",
       "spreadApply": "Apply",
+      "spreadPlaceholder": "e.g. 120000",
       "profileFlat": "Flat",
       "profile445": "4-4-5",
       "manual": "Manual (monthly)",
@@ -684,7 +686,8 @@
       "budget": "Budget",
       "revision": "Revision",
       "followUp": "Actuals",
-      "landing": "Expected landing"
+      "landing": "Expected landing",
+      "forecast": "Forecast"
     }
   },
   "confirmations": {

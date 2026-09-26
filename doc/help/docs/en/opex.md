@@ -146,14 +146,14 @@ The Budget tab is where you enter financial data per year. It supports multiple 
   - **Landing (expected landing)**: Final actual spend after year-end close
 
 **Flat vs Manual mode**:
-  - **Flat**: Enter one total per column; amounts are spread evenly across 12 months for allocation purposes
-  - **Manual**: Enter amounts per month (Jan-Dec) for each column, plus a **Forecast** column for additional planning
+  - **Flat**: Enter one total per column; amounts are spread evenly across 12 months for allocation purposes. Only the total you edit is saved. The other columns keep their monthly amounts.
+  - **Manual**: Enter amounts per month (Jan-Dec) for each column, plus a **Forecast** column for additional planning. Only the months you change are saved.
   - Toggle between modes using the radio buttons at the top of the tab
 
 **Freeze behavior**:
   - If a year's budget columns are frozen (via Budget Administration), the corresponding inputs become read-only
   - You can still view frozen data; admins can unfreeze via **Budget Management > Budget Administration > Freeze/Unfreeze**
-  - Each column can be frozen independently (Budget, Revision, Follow-up, Landing)
+  - Each column can be frozen independently (Budget, Revision, Forecast, Actuals, Expected landing)
 
 **Notes field**:
   - Each year's budget version has a **Notes** field for year-specific comments (e.g., "Includes 10% price increase in Q3")

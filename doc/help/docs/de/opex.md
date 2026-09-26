@@ -146,14 +146,14 @@ Der Budget-Tab ist der Ort, an dem Sie Finanzdaten pro Jahr eingeben. Er unterst
   - **Endwert (erwarteter Endwert)**: Tatsächliche Ausgaben nach dem Jahresabschluss
 
 **Pauschal vs. Manueller Modus**:
-  - **Pauschal**: Geben Sie eine Summe pro Spalte ein; Beträge werden gleichmäßig auf 12 Monate verteilt
-  - **Manuell**: Geben Sie Beträge pro Monat (Jan-Dez) für jede Spalte ein, plus eine **Prognose**-Spalte für zusätzliche Planung
+  - **Pauschal**: Geben Sie eine Summe pro Spalte ein; Beträge werden gleichmäßig auf 12 Monate verteilt. Nur die Summe, die Sie ändern, wird gespeichert. Die anderen Spalten behalten ihre Monatsbeträge.
+  - **Manuell**: Geben Sie Beträge pro Monat (Jan-Dez) für jede Spalte ein, plus eine **Prognose**-Spalte für zusätzliche Planung. Nur die Monate, die Sie ändern, werden gespeichert.
   - Wechseln Sie zwischen den Modi mit den Optionsfeldern oben im Tab
 
 **Einfrierverhalten**:
   - Wenn Budgetspalten eines Jahres eingefroren sind (über Budget-Administration), werden die entsprechenden Eingaben schreibgeschützt
   - Sie können eingefrorene Daten weiterhin einsehen; Administratoren können über **Budgetverwaltung > Administration > Einfrieren/Freigeben** entsperren
-  - Jede Spalte kann unabhängig eingefroren werden (Budget, Revision, Prognose, Endwert)
+  - Jede Spalte kann unabhängig eingefroren werden (Budget, Revision, Prognose, Ist-Werte, Erwarteter Endwert)
 
 **Notizfeld**:
   - Jede Jahresbudget-Version hat ein **Notizen**-Feld für jahresspezifische Kommentare (z. B. „Enthält 10 % Preiserhöhung in Q3")

@@ -154,9 +154,10 @@ L'onglet Budget est l'endroit où vous saisissez les données financières par a
 
 **Mode Forfaitaire vs Manuel par mois** :
 
-- **Totaux forfaitaires** : Saisissez un total par colonne ; les montants sont répartis uniformément sur 12 mois pour les besoins de ventilation
-- **Manuel par mois** : Saisissez les montants par mois (Jan à Déc) pour un suivi granulaire des dépenses projet
+- **Totaux forfaitaires** : Saisissez un total par colonne ; les montants sont répartis uniformément sur 12 mois pour les besoins de ventilation. Seul le total que vous modifiez est enregistré. Les autres colonnes gardent leurs montants mensuels.
+- **Manuel par mois** : Saisissez les montants par mois (Jan à Déc) pour un suivi granulaire des dépenses projet. Seuls les mois que vous modifiez sont enregistrés.
 - Basculez entre les modes avec les boutons radio en haut de l'onglet
+- Changer de mode n'enregistre rien : seul l'affichage change. Les totaux forfaitaires montrent le total annuel des mois enregistrés, le mode manuel par mois montre les mois enregistrés.
 
 **Supprimer et redistribuer** (mode manuel par mois uniquement) :
 

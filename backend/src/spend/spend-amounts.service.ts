@@ -1,13 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, Between, EntityManager } from 'typeorm';
+import { Repository, Between, EntityManager } from 'typeorm';
 import { SpendAmount } from './spend-amount.entity';
 import { SpreadProfile } from './spread-profile.entity';
-import { spreadAnnualToMonths, spreadQuarterlyToMonths } from './spread.util';
 import { SpendVersion } from './spend-version.entity';
 import { AuditService } from '../audit/audit.service';
-import { FreezeColumn, FreezeService } from '../freeze/freeze.service';
-import { addCents, formatCents, toCents } from '../common/amount';
+import { FreezeService } from '../freeze/freeze.service';
+import { addCents, formatCents } from '../common/amount';
+import { writeAmountsPayload } from './amounts-write.util';
+import { FLAT_WEIGHTS, profileWeights } from './spread.util';
 
 type AnnualPayload = {
   kind: 'annual';
@@ -47,150 +48,25 @@ export class SpendAmountsService {
     private readonly freeze: FreezeService,
   ) {}
 
-  private mapAmountColumn(column: string | undefined): FreezeColumn | null {
-    switch (column) {
-      case 'planned':
-        return 'budget';
-      case 'committed':
-        return 'revision';
-      case 'actual':
-        return 'actual';
-      case 'expected_landing':
-        return 'landing';
-      default:
-        return null;
-    }
-  }
-
   async bulkUpsert(versionId: string, payload: AnnualPayload | QuarterlyPayload | MonthlyPayload, userId?: string, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
-    const versions = mg.getRepository(SpendVersion);
-    const repo = mg.getRepository(SpendAmount);
-    const version = await versions.findOne({ where: { id: versionId } });
+    const version = await mg.getRepository(SpendVersion).findOne({ where: { id: versionId } });
     if (!version) throw new NotFoundException('Version not found');
-    const tenantId = version.tenant_id;
 
-    let rows: Array<Omit<SpendAmount, 'id' | 'created_at' | 'updated_at'>> = [] as any;
-    let periods: string[] = [];
-    let before: SpendAmount[] = [];
-
-    const touchedColumns = new Set<FreezeColumn>();
-    const registerColumn = (key: string | undefined) => {
-      const mapped = this.mapAmountColumn(key);
-      if (mapped) touchedColumns.add(mapped);
+    // 'flat' (or unset) spreads equally across 12 months; a named SpreadProfile
+    // applies its stored 12 weights, which the spread normalises. Falls back to
+    // equal twelfths if the profile is missing or malformed.
+    const annualWeights = async (profileName: string | undefined): Promise<readonly bigint[]> => {
+      if (!profileName || profileName === 'flat') return FLAT_WEIGHTS;
+      const profile = await mg.getRepository(SpreadProfile).findOne({ where: { name: profileName } });
+      return profileWeights(profile?.weights_json) ?? FLAT_WEIGHTS;
     };
 
-    const toDbAmount = (value: unknown) => formatCents(toCents(value as any));
-
-    if ((payload as any).kind === 'annual') {
-      const annual = payload as AnnualPayload;
-      // Resolve spread weights: 'flat' (or unset) spreads equally across 12 months;
-      // a named SpreadProfile applies its stored 12 weights (normalised). Falls back
-      // to equal twelfths if the profile is missing or malformed.
-      const equalWeights = Array.from({ length: 12 }, () => 1 / 12);
-      let weights = equalWeights;
-      const profileName = annual.spread_profile_name;
-      if (profileName && profileName !== 'flat') {
-        const profile = await mg.getRepository(SpreadProfile).findOne({ where: { name: profileName } });
-        const raw = profile?.weights_json as number[] | undefined;
-        if (Array.isArray(raw) && raw.length === 12) {
-          const sum = raw.reduce((acc, w) => acc + (Number(w) || 0), 0);
-          if (sum > 0) weights = raw.map((w) => (Number(w) || 0) / sum);
-        }
-      }
-      const totals = annual.totals ?? {};
-      for (const key of Object.keys(totals)) {
-        if ((totals as any)[key] != null) registerColumn(key);
-      }
-      const annualRows = spreadAnnualToMonths({
-        year: annual.year,
-        totals,
-        profileWeights: weights,
-      });
-      periods = annualRows.map((r) => r.period);
-      before = await repo.find({ where: { version_id: versionId, period: In(periods) } });
-      const prevByPeriod = new Map(before.map((b) => [b.period, b]));
-      rows = annualRows.map((r) => {
-        const prev = prevByPeriod.get(r.period);
-        const plannedValue = touchedColumns.has('budget') ? r.planned : prev?.planned;
-        const committedValue = touchedColumns.has('revision') ? r.committed : prev?.committed;
-        const actualValue = touchedColumns.has('actual') ? r.actual : prev?.actual;
-        const landingValue = touchedColumns.has('landing') ? r.expected_landing : prev?.expected_landing;
-        return {
-          version_id: versionId,
-          period: r.period,
-          planned: toDbAmount(plannedValue ?? 0),
-          forecast: toDbAmount((r.forecast ?? prev?.forecast) ?? 0),
-          committed: toDbAmount(committedValue ?? 0),
-          actual: toDbAmount(actualValue ?? 0),
-          expected_landing: toDbAmount(landingValue ?? 0),
-          tenant_id: tenantId,
-        };
-      });
-    } else if ((payload as any).kind === 'monthly') {
-      // Upsert provided months/measures directly
-      const monthly = payload as MonthlyPayload;
-      const months = monthly.months ?? [];
-      if (!Array.isArray(months) || months.length === 0) throw new BadRequestException('months required');
-
-      periods = months.map((m) => m.period);
-      before = await repo.find({ where: { version_id: versionId, period: In(periods) } });
-      const prevByPeriod = new Map(before.map((b) => [b.period, b]));
-
-      for (const month of months) {
-        if (Object.prototype.hasOwnProperty.call(month, 'planned')) registerColumn('planned');
-        if (Object.prototype.hasOwnProperty.call(month, 'committed')) registerColumn('committed');
-        if (Object.prototype.hasOwnProperty.call(month, 'actual')) registerColumn('actual');
-        if (Object.prototype.hasOwnProperty.call(month, 'expected_landing')) registerColumn('expected_landing');
-      }
-
-      rows = months.map((m) => {
-        const prev = prevByPeriod.get(m.period);
-        return {
-          version_id: versionId,
-          period: m.period,
-          planned: toDbAmount(m.planned ?? prev?.planned ?? 0),
-          forecast: toDbAmount(m.forecast ?? prev?.forecast ?? 0),
-          committed: toDbAmount(m.committed ?? prev?.committed ?? 0),
-          actual: toDbAmount(m.actual ?? prev?.actual ?? 0),
-          expected_landing: toDbAmount(m.expected_landing ?? prev?.expected_landing ?? 0),
-          tenant_id: tenantId,
-        };
-      });
-    } else if ((payload as any).kind === 'quarterly') {
-      const q = payload as QuarterlyPayload;
-      const dist = q.spread_profile_name === '4-4-5' ? '445' : 'equal';
-      registerColumn(q.measure);
-      rows = spreadQuarterlyToMonths({
-        year: q.year,
-        measure: q.measure,
-        quarters: { Q1: q.Q1 ?? 0, Q2: q.Q2 ?? 0, Q3: q.Q3 ?? 0, Q4: q.Q4 ?? 0 },
-        distribution: dist,
-      }).map((r) => ({
-        version_id: versionId,
-        period: r.period,
-        planned: toDbAmount(r.planned),
-        forecast: toDbAmount(r.forecast),
-        committed: toDbAmount(r.committed),
-        actual: toDbAmount(r.actual),
-        expected_landing: toDbAmount(r.expected_landing),
-        tenant_id: tenantId,
-      }));
-      periods = rows.map((r) => r.period);
-      before = await repo.find({ where: { version_id: versionId, period: In(periods) } });
-    } else {
-      throw new BadRequestException('Unsupported payload');
-    }
-
-    if (touchedColumns.size > 0) {
-      for (const column of touchedColumns) {
-        await this.freeze.assertNotFrozen({ scope: 'opex', column, year: (payload as any).year }, { manager: mg });
-      }
-    }
-
-    await repo.upsert(rows as any, { conflictPaths: ['version_id', 'period'] });
-
-    const after = await repo.find({ where: { version_id: versionId, period: In(periods) } });
+    const { before, after } = await writeAmountsPayload(
+      { manager: mg, freeze: this.freeze, scope: 'opex', version },
+      payload,
+      annualWeights,
+    );
 
     await this.audit.log({ table: 'spend_amounts', recordId: null, action: 'update', before, after, userId }, { manager: mg });
 

@@ -146,14 +146,14 @@ La pestaña Presupuesto es donde introduce datos financieros por año. Soporta m
   - **Aterrizaje previsto**: Gasto real final después del cierre de fin de año
 
 **Modo Plano vs Manual**:
-  - **Plano**: Introduzca un total por columna; los importes se distribuyen uniformemente en 12 meses para fines de asignación
-  - **Manual**: Introduzca importes por mes (Ene-Dic) para cada columna, más una columna de **Previsión** para planificación adicional
+  - **Plano**: Introduzca un total por columna; los importes se distribuyen uniformemente en 12 meses para fines de asignación. Solo se guarda el total que usted modifica. Las demás columnas conservan sus importes mensuales.
+  - **Manual**: Introduzca importes por mes (Ene-Dic) para cada columna, más una columna de **Previsión** para planificación adicional. Solo se guardan los meses que usted modifica.
   - Alterne entre modos usando los botones de radio en la parte superior de la pestaña
 
 **Comportamiento de congelación**:
   - Si las columnas presupuestarias de un año están congeladas (vía Administración presupuestaria), las entradas correspondientes se vuelven de solo lectura
   - Puede ver datos congelados; los administradores pueden descongelar vía **Gestión presupuestaria > Administración > Congelar/Descongelar**
-  - Cada columna puede congelarse independientemente (Presupuesto, Revisión, Seguimiento, Aterrizaje previsto)
+  - Cada columna puede congelarse independientemente (Presupuesto, Revisión, Previsión, Realizado, Aterrizaje previsto)
 
 **Campo de Notas**:
   - Cada versión presupuestaria anual tiene un campo de **Notas** para comentarios específicos del año (p. ej., "Incluye aumento de precio del 10% en T3")

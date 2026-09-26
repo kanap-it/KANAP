@@ -1,44 +1,26 @@
+import { parseDecimalLiteral, rescale } from './decimal';
+
 export type AmountInput = string | number | bigint | null | undefined;
 
 /**
- * Convert an arbitrary numeric-like input into cents (integer with 2 decimal precision).
- * Values are rounded half-up at the third decimal to avoid floating artifacts.
+ * Convert an amount into cents (a bigint with 2 decimal precision).
+ *
+ * The value is read as a decimal, never through binary floating point: a
+ * number is taken in its shortest round-trip form (`String(1.005)` is
+ * "1.005"), a string is parsed digit by digit (whitespace and `_` are ignored,
+ * a comma is a decimal separator, exponent notation is accepted). It is then
+ * rounded half away from zero at the third decimal: "1.005" is 101 cents,
+ * "-1.125" is -113.
+ *
+ * Empty, null and undefined are zero, as is a non-finite number; any other
+ * input that is not a decimal throws `Invalid amount`.
  */
 export function toCents(value: AmountInput): bigint {
   if (value == null) return 0n;
-
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) return 0n;
-    return BigInt(Math.round(value * 100));
-  }
-
-  const str = value.toString().trim();
-  if (str === '') return 0n;
-
-  const sanitized = str
-    .replace(/\s+/g, '')
-    .replace(/_/g, '')
-    .replace(/,/g, '.');
-
-  // Fast-path: if parsing as number still works safely, reuse Number logic.
-  const maybeNumber = Number(sanitized);
-  if (Number.isFinite(maybeNumber) && Math.abs(maybeNumber) < Number.MAX_SAFE_INTEGER / 200) {
-    return BigInt(Math.round(maybeNumber * 100));
-  }
-
-  const neg = sanitized.startsWith('-');
-  const unsigned = neg ? sanitized.slice(1) : sanitized;
-  const [intPartRaw, decRaw = ''] = unsigned.split('.');
-  const intPart = intPartRaw.replace(/^0+(?=\d)/, '') || '0';
-  const decNormalized = (decRaw + '00').slice(0, 3);
-  const major = intPart === '' ? '0' : intPart;
-  const centsBase = major + decNormalized.slice(0, 2);
-  let cents = BigInt(centsBase || '0');
-
-  const roundingDigit = decNormalized.charCodeAt(2) - 48;
-  if (roundingDigit >= 5) cents += 1n;
-
-  return neg ? -cents : cents;
+  if (typeof value === 'number' && !Number.isFinite(value)) return 0n;
+  if (typeof value === 'string' && value.trim() === '') return 0n;
+  const { mantissa, scale } = parseDecimalLiteral(value);
+  return rescale(mantissa, scale, 2);
 }
 
 export function addCents(current: bigint, value: AmountInput): bigint {

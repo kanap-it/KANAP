@@ -33,7 +33,7 @@ Verrouillez les colonnes budgétaires pour qu'elles ne puissent être ni modifi�
 
 1. **Sélectionnez une année** dans le menu déroulant (plage : année en cours moins un à année en cours plus quatre)
 2. **Sélectionnez les périmètres** : cochez **OPEX**, **CAPEX** ou les deux
-3. **Sélectionnez les colonnes** pour chaque périmètre : Budget, Révision, Réalisé, Atterrissage (les quatre sont sélectionnées par défaut)
+3. **Sélectionnez les colonnes** pour chaque périmètre : Budget, Révision, Prévision, Réalisé, Atterrissage prévu (les cinq sont sélectionnées par défaut)
 4. Cliquez sur **Geler les données** pour verrouiller, ou **Dégeler les données** pour déverrouiller
 
 ### Ce que fait le gel

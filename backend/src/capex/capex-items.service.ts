@@ -12,7 +12,7 @@ import { AnalyticsCategory } from '../analytics/analytics-category.entity';
 import { User } from '../users/user.entity';
 import { parseExportPagination, parsePagination, buildWhereFromAgFilters } from '../common/pagination';
 import { AuditService } from '../audit/audit.service';
-import { spreadAnnualToMonths } from '../spend/spread.util';
+import { AmountMeasure, replaceAmounts, spreadAnnualRows } from '../spend/amounts-write.util';
 import { format } from '@fast-csv/format';
 import { parseString } from '@fast-csv/parse';
 import * as fs from 'fs';
@@ -21,7 +21,7 @@ import { CapexLink } from './capex-link.entity';
 import { CapexAttachment } from './capex-attachment.entity';
 import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
 import { addCents, formatCents, toCents } from '../common/amount';
-import { FreezeColumn, FreezeService } from '../freeze/freeze.service';
+import { FreezeService } from '../freeze/freeze.service';
 import { formatAllocationMethodLabel } from '../spend/allocation-utils';
 import { FxRateService, FxLookupKey, FxResolvedRate } from '../currency/fx-rate.service';
 import { resolveLifecycleState, StatusState } from '../common/status';
@@ -218,43 +218,29 @@ export class CapexItemsService {
     });
   }
 
-  private mapFrontendColumnToFreeze(column: 'budget' | 'revision' | 'follow_up' | 'landing'): FreezeColumn {
-    switch (column) {
-      case 'budget':
-        return 'budget';
-      case 'revision':
-        return 'revision';
-      case 'follow_up':
-        return 'actual';
-      case 'landing':
-        return 'landing';
-      default:
-        throw new Error(`Unsupported CAPEX column '${column}'`);
+  /**
+   * Spread a year's totals from the file flat over its twelve months. Only the
+   * measures with a value in the file replace that year: a blank cell leaves
+   * the stored months as they are, an explicit 0 clears them.
+   */
+  async writeImportedTotals(
+    mg: EntityManager,
+    version: CapexVersion,
+    year: number,
+    totals: Partial<Record<'planned' | 'actual' | 'expected_landing' | 'committed', number>>,
+    checkedFreeze?: Set<string>,
+  ) {
+    const annualTotals: Partial<Record<AmountMeasure, bigint>> = {};
+    for (const measure of ['planned', 'actual', 'expected_landing', 'committed'] as const) {
+      const value = totals[measure];
+      if (value != null && !isNaN(Number(value))) annualTotals[measure] = toCents(value);
     }
-  }
-
-  private mapTotalsKeyToFreeze(key: string | undefined): FreezeColumn | null {
-    switch (key) {
-      case 'planned':
-        return 'budget';
-      case 'committed':
-        return 'revision';
-      case 'actual':
-        return 'actual';
-      case 'expected_landing':
-        return 'landing';
-      default:
-        return null;
-    }
-  }
-
-  private async ensureCapexColumnsEditable(year: number, columns: Iterable<FreezeColumn>, mg: EntityManager) {
-    const seen = new Set<FreezeColumn>();
-    for (const column of columns) {
-      if (seen.has(column)) continue;
-      seen.add(column);
-      await this.freeze.assertNotFrozen({ scope: 'capex', column, year }, { manager: mg });
-    }
+    if (Object.keys(annualTotals).length === 0) return;
+    await replaceAmounts(
+      { manager: mg, freeze: this.freeze, scope: 'capex', version, checkedFreeze },
+      year,
+      spreadAnnualRows(year, annualTotals),
+    );
   }
 
   async list(query: any, opts?: { manager?: EntityManager }) {
@@ -1307,7 +1293,7 @@ export class CapexItemsService {
       if (hasComma && hasDot) { s = s.replace(/\./g, ''); s = s.replace(/,/g, '.'); }
       else if (hasComma && !hasDot) { s = s.replace(/,/g, '.'); }
       s = s.replace(/[^0-9.-]/g, '');
-      if (s === '' || s === '-' || s === '.' || s === '-.' || s === '-0') return undefined;
+      if (s === '' || s === '-' || s === '.' || s === '-.') return undefined;
       const cents = toCents(s);
       return Number(formatCents(cents));
     };
@@ -1415,18 +1401,27 @@ export class CapexItemsService {
       if (!invOk) errors.push({ row: line, message: 'investment_type invalid' });
       if (!['mandatory','high','medium','low'].includes(priority)) errors.push({ row: line, message: 'priority invalid' });
 
-      const tMinus1 = { planned: parseAmount((r['y_minus1_budget'] ?? '').toString()), expected_landing: parseAmount((r['y_minus1_landing'] ?? '').toString()) };
+      // An amount that is not a number is a row error.
+      const amount = (column: string) => {
+        try {
+          return parseAmount((r[column] ?? '').toString());
+        } catch {
+          errors.push({ row: line, message: `${column} must be a number` });
+          return undefined;
+        }
+      };
+      const tMinus1 = { planned: amount('y_minus1_budget'), expected_landing: amount('y_minus1_landing') };
       const tY = {
-        planned: parseAmount((r['y_budget'] ?? '').toString()),
-        actual: parseAmount((r['y_follow_up'] ?? '').toString()),
-        expected_landing: parseAmount((r['y_landing'] ?? '').toString()),
-        committed: parseAmount((r['y_revision'] ?? '').toString()),
+        planned: amount('y_budget'),
+        actual: amount('y_follow_up'),
+        expected_landing: amount('y_landing'),
+        committed: amount('y_revision'),
       };
       const tPlus1 = {
-        planned: parseAmount((r['y_plus1_budget'] ?? '').toString()),
-        committed: parseAmount((r['y_plus1_revision'] ?? '').toString()),
+        planned: amount('y_plus1_budget'),
+        committed: amount('y_plus1_revision'),
       };
-      const tPlus2 = { planned: parseAmount((r['y_plus2_budget'] ?? '').toString()) };
+      const tPlus2 = { planned: amount('y_plus2_budget') };
       const totals: any = {}; totals[Y - 1] = tMinus1; totals[Y] = tY; totals[Y + 1] = tPlus1; totals[Y + 2] = tPlus2;
       normalized.push({
         item_number,
@@ -1494,6 +1489,7 @@ export class CapexItemsService {
     };
 
     let processed = 0;
+    const checkedFreeze = new Set<string>();
     for (const item of unique) {
       const exists = await findExisting(item);
       const analyticsCategory = await ensureCategory(item.analytics_category_name);
@@ -1538,41 +1534,7 @@ export class CapexItemsService {
           version = await mg.getRepository(CapexVersion).save(version);
           await this.audit.log({ table: 'capex_versions', recordId: version.id, action: 'create', before: null, after: version, userId }, { manager: mg });
         }
-        const tenantId = version.tenant_id;
-        const annualTotals: Record<string, number> = {};
-        const touchedColumns = new Set<FreezeColumn>();
-        if (totals.planned != null && !isNaN(Number(totals.planned))) {
-          annualTotals.planned = Number(totals.planned);
-          touchedColumns.add('budget');
-        }
-        if (totals.actual != null && !isNaN(Number(totals.actual))) {
-          annualTotals.actual = Number(totals.actual);
-          touchedColumns.add('actual');
-        }
-        if (totals.expected_landing != null && !isNaN(Number(totals.expected_landing))) {
-          annualTotals.expected_landing = Number(totals.expected_landing);
-          touchedColumns.add('landing');
-        }
-        if (totals.committed != null && !isNaN(Number(totals.committed))) {
-          annualTotals.committed = Number(totals.committed);
-          touchedColumns.add('revision');
-        }
-        if (touchedColumns.size > 0) {
-          await this.ensureCapexColumnsEditable(yr, touchedColumns, mg);
-        }
-        const weights = Array.from({ length: 12 }, () => 1 / 12);
-        const monthly = spreadAnnualToMonths({ year: yr, totals: annualTotals, profileWeights: weights });
-        const rows = monthly.map((m: any) => ({
-          version_id: version!.id,
-          period: m.period,
-          planned: m.planned,
-          forecast: m.forecast,
-          committed: m.committed,
-          actual: m.actual,
-          expected_landing: m.expected_landing,
-          tenant_id: tenantId,
-        }));
-        await mg.getRepository(CapexAmount).upsert(rows as any, { conflictPaths: ['version_id', 'period'] });
+        await this.writeImportedTotals(mg, version, yr, totals, checkedFreeze);
       }
       processed += 1;
     }
