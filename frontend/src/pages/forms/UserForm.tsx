@@ -202,6 +202,7 @@ export default function UserForm({
           render={({ field }) => (
             <StatusSwitch
               label={t('userForm.fields.enabled')}
+              offLabel={t('common:statuses.disabled')}
               value={!!field.value}
               onChange={(v) => field.onChange(v)}
               error={!!err.status}

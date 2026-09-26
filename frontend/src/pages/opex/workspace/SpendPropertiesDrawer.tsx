@@ -193,6 +193,7 @@ export default function SpendPropertiesDrawer({
               onDisabledAtChange={onDisabledAtChange}
               disabled={disabled}
               statusLabel={t('opex.status.enabled')}
+              statusOffLabel={t('opex.status.disabled')}
               disabledAtLabel={t('opex.fields.endOfValidity')}
               disabledAtHelperText={t('opex.fields.endOfValidityHint')}
             />

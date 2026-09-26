@@ -151,7 +151,8 @@ export default forwardRef<BusinessProcessCreateEditorHandle, Props>(function Bus
         control={control}
         render={({ field }) => (
           <StatusSwitch
-            label="Enabled"
+            label={t('common:statuses.enabled')}
+            offLabel={t('common:statuses.disabled')}
             value={normalizeStatus(statusValue ?? STATUS_ENABLED) === STATUS_ENABLED}
             onChange={(checked) => field.onChange(checked ? STATUS_ENABLED : STATUS_DISABLED)}
             disabled={disabled}

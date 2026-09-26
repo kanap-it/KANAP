@@ -279,6 +279,7 @@ export default function CapexPropertiesDrawer({
               onDisabledAtChange={onDisabledAtChange}
               disabled={disabled}
               statusLabel={t('capex.status.enabled')}
+              statusOffLabel={t('capex.status.disabled')}
               disabledAtLabel={t('capex.fields.endOfValidity')}
               disabledAtHelperText={t('capex.fields.endOfValidityHint')}
             />

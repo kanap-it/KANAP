@@ -149,7 +149,6 @@ export default forwardRef<SupplierCreateEditorHandle, Props>(function SupplierCr
               shouldDirty: true,
               shouldValidate: true,
             })}
-            statusLabel="Enabled"
             statusName={field.name}
             statusError={!!err.status}
             statusHelperText={err.status?.message as string}
