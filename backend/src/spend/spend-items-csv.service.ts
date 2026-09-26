@@ -524,6 +524,9 @@ export class SpendItemsCsvService {
     const item_number = await this.itemNumbers.nextItemNumber('spend', tenantId, manager);
     const entity = repo.create({
       ...rest,
+      // Set here, not left to the column default: save() does not read it
+      // back, and the versions created for this line inherit it.
+      tenant_id: tenantId,
       // These columns are NOT NULL on the entity while the DTO allows null
       product_name: rest.product_name ?? undefined,
       currency: rest.currency ?? undefined,

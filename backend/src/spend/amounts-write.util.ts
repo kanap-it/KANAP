@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { FreezeColumn, FreezeService } from '../freeze/freeze.service';
 import { formatCents, toCents } from '../common/amount';
@@ -225,7 +225,21 @@ async function createMissingMonths(ctx: AmountsWriteContext, periods: string[]):
   return new Set(created.map((row) => row.period));
 }
 
+/**
+ * Every statement writes the version's tenant_id explicitly. A version built in
+ * memory without it (an entity whose column default was never read back) would
+ * insert NULL and fail as a row-level security violation: refuse it by name.
+ */
+function assertVersionTenant(version: AmountVersion) {
+  if (typeof version.tenant_id !== 'string' || version.tenant_id.trim() === '') {
+    throw new InternalServerErrorException(
+      `Amounts write refused: version ${version.id} carries no tenant_id. Load the version from the database or set tenant_id when creating it.`,
+    );
+  }
+}
+
 async function write(ctx: AmountsWriteContext, year: number, rows: AmountRowInput[], periods: string[], measures: AmountMeasure[]) {
+  assertVersionTenant(ctx.version);
   await assertMeasuresEditable(ctx, year, measures);
   // Concurrent writes on the same line must queue up, never deadlock: every
   // month is first created and then locked in period order, whatever order
