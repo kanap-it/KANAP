@@ -1,6 +1,6 @@
 # Budgetverwaltung -- Übersicht
 
-Das Dashboard der Budgetverwaltung ist die erste Seite, die Sie nach der Anmeldung sehen. Es bietet Ihnen einen Überblick darüber, wo Ihre IT-Ausgaben aktuell stehen -- OPEX- und CAPEX-Snapshots, anstehende Fristen, Datenqualitätsindikatoren und die Positionen, die Ihre Aufmerksamkeit am meisten verdienen -- alles an einem Ort.
+Das Dashboard der Budgetverwaltung ist die erste Seite, die Sie nach der Anmeldung sehen. Es bietet Ihnen einen Überblick darüber, wo Ihre IT-Ausgaben aktuell stehen -- OPEX- und CAPEX-Überblick, anstehende Fristen, Datenqualitätsindikatoren und die Positionen, die Ihre Aufmerksamkeit am meisten verdienen -- alles an einem Ort.
 
 ## Wo Sie es finden
 
@@ -13,15 +13,15 @@ Das Dashboard besteht aus Kacheln, die in einem responsiven Raster angeordnet si
 
 ## Kacheln
 
-### OPEX-Snapshot
+### OPEX-Überblick
 
-Eine kompakte Tabelle, die drei Geschäftsjahre abdeckt: Vorjahr (J-1), aktuelles Jahr (J) und nächstes Jahr (J+1). Bis zu vier Wertspalten erscheinen, je nachdem ob Daten vorhanden sind: **Budget**, **Revision**, **Prognose** und **Endwert**. Alle Beträge sind auf den nächsten Tausender gerundet und mit dem Suffix „k" angezeigt (z. B. `7 846k`).
+Eine kompakte Tabelle, die drei Geschäftsjahre abdeckt: Vorjahr (J-1), aktuelles Jahr (J) und nächstes Jahr (J+1). Bis zu vier Wertspalten erscheinen, je nachdem ob Daten vorhanden sind: **Budget**, **Revision**, **Ist-Werte** und **Erwarteter Endwert**. Alle Beträge sind auf den nächsten Tausender gerundet und mit dem Suffix „k" angezeigt (z. B. `7 846k`).
 
 Klicken Sie auf **Anzeigen**, um die OPEX-Liste zu öffnen.
 
-### CAPEX-Snapshot
+### CAPEX-Überblick
 
-Gleiches Layout und gleiche Formatierung wie der OPEX-Snapshot, aber mit Daten aus Ihren Investitionsausgaben.
+Gleiches Layout und gleiche Formatierung wie der OPEX-Überblick, aber mit Daten aus Ihren Investitionsausgaben.
 
 Klicken Sie auf **Anzeigen**, um die CAPEX-Liste zu öffnen.
 
@@ -60,7 +60,7 @@ Die fünf größten OPEX-Positionen für das aktuelle Jahr, nach Budgetbetrag so
 
 Klicken Sie auf **Öffnen**, um den vollständigen Top-OPEX-Bericht anzuzeigen.
 
-### Top Steigerungen (J vs J-1)
+### Stärkste Zuwächse (J vs J-1)
 
 Die fünf OPEX-Positionen mit der größten Budgeterhöhung im Vergleich zum Vorjahr. Beträge sind auf Tausender gerundet mit dem Suffix „k".
 

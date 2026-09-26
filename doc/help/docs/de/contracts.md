@@ -86,8 +86,8 @@ Der Übersichts-Tab erfasst die Identität und den Lebenszyklusstatus des Vertra
 - **Vertragsunternehmen**: Welches Unternehmen Vertragspartei ist
 - **Verantwortlicher**: Die für die Verwaltung dieses Vertrags zuständige Person
 - **Notizen**: Freitext-Notizen
-- **Aktiviert-Umschalter**: Vertrag als aktiv oder deaktiviert markieren
-- **Deaktiviert am**: Wann der Vertrag deaktiviert wurde (oder wird) -- Datum im Format TT/MM/JJJJ eingeben oder den Kalender verwenden
+- **Statusschalter**: Seine Beschriftung zeigt den aktuellen Zustand (**Aktiviert** oder **Deaktiviert**). Wenn Sie den Vertrag ohne Datum auf **Deaktiviert** setzen, wird das Ende der Gültigkeit auf heute gesetzt
+- **Ende der Gültigkeit**: das Datum, an dem der Vertrag endet. Geben Sie ein Datum im Format tt/mm/jjjj ein oder verwenden Sie die Kalender-Schaltfläche. Lassen Sie es leer, damit der Vertrag unbegrenzt aktiv bleibt
 
 **Funktionsweise**:
 

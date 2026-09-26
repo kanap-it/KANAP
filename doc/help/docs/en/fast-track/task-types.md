@@ -162,9 +162,9 @@ The rest of this guide covers the practical essentials. For full detail, see [Ta
 |---------|---------------|-----------------|
 | **Standalone** | Independent work, not linked to anything | **Portfolio > Tasks > New** |
 | **Project** | Deliverable within a project | Project workspace **Tasks** tab, or **Timeline** phase shortcut |
-| **OPEX** | Action tied to an OPEX item | OPEX workspace **Tasks** tab |
+| **OPEX** | Action tied to an OPEX item | OPEX workspace, **Tasks** panel on the **Overview** tab |
 | **Contract** | Action tied to a contract | Contract workspace **Tasks** tab |
-| **CAPEX** | Action tied to a CAPEX item | CAPEX workspace **Tasks** tab |
+| **CAPEX** | Action tied to a CAPEX item | CAPEX workspace, **Tasks** panel on the **Overview** tab |
 
 All tasks appear in the central **Portfolio > Tasks** list regardless of context, so you always have one place to see everything.
 

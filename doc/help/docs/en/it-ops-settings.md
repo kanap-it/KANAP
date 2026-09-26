@@ -1,8 +1,8 @@
-# IT Landscape Settings
+# IT landscape settings
 
-The **IT Landscape Settings** page lets you customize the dropdown values used throughout IT Landscape. These lists control what options appear when users create or edit Applications, Interfaces, Assets, Connections, and Locations. Changes here apply to all users in your workspace.
+The **IT landscape settings** page lets you customize the dropdown values used throughout IT Landscape. These lists control what options appear when users create or edit Applications, Interfaces, Assets, Connections, and Locations. Changes here apply to all users in your workspace.
 
-For map readability, **Entities** and **Server Roles** also include a **Graph Tier** field used by the Connection Map's role-based placement.
+For map readability, **Entities** and **Server roles** also include a **Graph tier** field used by the Connection Map's role-based placement.
 
 ## Where to find it
 
@@ -16,13 +16,14 @@ If you don't see the **Settings** entry in the IT Landscape drawer, ask your adm
 
 ## How the page is organized
 
-Settings are grouped into three collapsible sections:
+The **Classifications and continuity** editor sits at the top of the page. Below it, lists are grouped into four collapsible sections:
 
-1. **Locations** - Lists used when creating or editing Locations.
-2. **Servers & Connections** - Lists for Servers, Connections, and related infrastructure data.
-3. **Apps, Services & Interfaces** - Lists used across Applications, App Instances, Interfaces, and Bindings.
+1. **Locations** - Lists used when creating or editing locations.
+2. **Servers & connections** - Lists used for servers, connections, and related risk/endpoint data.
+3. **Apps, services & interfaces** - Lists used across applications, app instances, interfaces, and bindings.
+4. **Incidents** - Lists used by the incident register.
 
-Each list appears as an expandable panel. Click a panel header to expand it and see the values. Only one section loads its content when you first expand it, which keeps the page fast even when you have many lists.
+Within a section, lists are sorted by name. Each list appears as an expandable panel with a short hint that says where its values are used (for example, *Applications / Category selector*). Click a panel header to expand it and see the values. Only one section loads its content when you first expand it, which keeps the page fast even when you have many lists.
 
 ### Editor controls
 
@@ -61,9 +62,9 @@ Editors always show and edit the base text; when the displayed name differs for 
 
 ## Locations
 
-### Cloud Providers
+### Cloud providers
 
-Cloud providers available for Assets and cloud-type Locations (e.g., AWS, Azure, GCP).
+Cloud providers used by servers and locations (e.g., AWS, Azure, GCP).
 
 **Columns**: Name, No longer offered
 
@@ -71,26 +72,26 @@ Cloud providers available for Assets and cloud-type Locations (e.g., AWS, Azure,
 - Assets workspace → Overview tab → **Provider** field
 - Locations workspace → Overview tab → **Cloud provider** (when hosting type is cloud)
 
-### Hosting Types
+### Hosting types
 
-Location hosting models (e.g., On-prem, Colocation, Public Cloud, Private Cloud, SaaS).
+Location hosting models available when creating locations (e.g., on-prem, colocation, public cloud, SaaS).
 
-**Columns**: Name, Category (On-prem/Colocation or Cloud/SaaS), No longer offered
+**Columns**: Name, Category (**On-prem / colocation** or **Cloud / SaaS**), No longer offered
 
 **Where used**:
 - Locations workspace → Overview tab → **Hosting Type** field
 
 The category determines which fields appear when editing a Location:
-- **On-prem / Colocation** shows Operating Company and Datacenter fields
+- **On-prem / colocation** shows Operating Company and Datacenter fields
 - **Cloud / SaaS** shows Cloud Provider, Region, and Additional information fields
 
 ---
 
-## Servers & Connections
+## Servers & connections
 
-### Connection Types
+### Connection types
 
-A two-level catalog of connection protocols organized by category, with typical ports.
+A two-level catalog (category and entry) of connection protocols, with typical ports.
 
 **Columns**: Category (e.g., Database, Remote Access), Name, Typical ports, No longer offered
 
@@ -103,7 +104,7 @@ Default categories include: Application, Authentication, Backup, Database, Email
 
 ### Domains
 
-Active Directory or DNS domains that assets can belong to. Used to compute the fully qualified domain name (FQDN) for each asset.
+Active Directory or DNS domains for assets. Built-in entries cannot be modified. The DNS suffix is used to compute the fully qualified domain name (FQDN) for each asset.
 
 **Columns**: Name, DNS suffix, No longer offered
 
@@ -121,17 +122,17 @@ Active Directory or DNS domains that assets can belong to. Used to compute the f
 
 ### Entities
 
-Source and target entities for data flows and access patterns (e.g., Internal Users, Internet, Partner Networks, External Systems).
+Endpoints used in connections and maps (e.g., Internal Users, Internet, Partner Networks, External Systems). The graph tier sets their default placement on the map.
 
 **Columns**: Name, Graph tier, No longer offered
 
 **Where used**:
 - Connections workspace → **Source Entity** and **Target Entity** fields
-- Connection Map → entities appear as flow endpoints and use Graph Tier for vertical placement (default entities are Top)
+- Connection Map → entities appear as flow endpoints and use their graph tier for vertical placement (default entities are Top)
 
-### Graph Tier values
+### Graph tier values
 
-Graph Tier controls the preferred vertical band in Connection Map when **Role-based placement** is enabled:
+The graph tier controls the preferred vertical band in Connection Map when **Role-based placement** is enabled:
 
 - **Top**: Most user-facing or external endpoints
 - **Upper**: Upper application/service layer
@@ -139,9 +140,9 @@ Graph Tier controls the preferred vertical band in Connection Map when **Role-ba
 - **Lower**: Supporting infrastructure
 - **Bottom**: Data/storage-heavy endpoints
 
-### IP Address Types
+### IP address types
 
-Types of IP addresses that can be assigned to assets. Useful for distinguishing between different network interfaces like host IPs, management interfaces, and storage networks.
+Types of IP addresses for assets. Useful for distinguishing between different network interfaces like host IPs, management interfaces, and storage networks.
 
 **Columns**: Name, No longer offered
 
@@ -155,9 +156,9 @@ Assets can have multiple IP addresses, each with its own type. For example, a ph
 - An **IPMI** IP for out-of-band management
 - An **iSCSI** IP for storage network connectivity
 
-### Network Zones
+### Network zones
 
-Network zones used to categorize subnets and describe asset connectivity (e.g., LAN, DMZ, Industrial LAN, WiFi, Public Cloud, Guest, Management, Storage, VPN).
+Network zones used to categorize subnets and describe connectivity (e.g., LAN, DMZ, Industrial LAN, WiFi, Public Cloud, Guest, Management, Storage, VPN).
 
 **Columns**: Name, No longer offered
 
@@ -167,7 +168,7 @@ Network zones used to categorize subnets and describe asset connectivity (e.g., 
 
 ### Subnets
 
-Define network subnets with CIDR notation, optional VLAN assignments, and network zone classification. Each subnet belongs to a specific Location.
+Define network subnets with CIDR notation and optional VLAN assignments. Each subnet belongs to a network zone and to a location.
 
 **Columns**: Location, CIDR, VLAN (1-4094), Network zone, Description, No longer offered
 
@@ -181,11 +182,11 @@ Define network subnets with CIDR notation, optional VLAN assignments, and networ
 
 **Auto-population**: When you select a subnet on an Asset, the Network Zone is automatically populated from the subnet's configuration.
 
-### Operating Systems
+### Operating systems
 
-Catalog of operating systems for Assets, including support lifecycle dates.
+Catalog of operating systems available for servers, with standard and extended support end dates.
 
-**Columns**: Name, Standard support end date, Extended support end date, No longer offered
+**Columns**: Name, Standard support, Extended support, No longer offered
 
 **Where used**:
 - Assets workspace → Technical tab → **Operating System** selector (helper text shows support dates)
@@ -194,9 +195,9 @@ Dates are stored as `YYYY-MM-DD` but displayed and edited as `DD/MM/YYYY`.
 
 Default entries include Windows Server versions, Ubuntu LTS, RHEL, Debian, and SLES with appropriate support dates.
 
-### Server Roles
+### Server roles
 
-Roles assigned to assets when linking them to application instances (e.g., Web server, Database server, Worker).
+Roles assigned to servers when linking app instances (e.g., Web server, Database server, Worker). The graph tier sets their placement on the connection map.
 
 **Columns**: Name, Graph tier, No longer offered
 
@@ -209,22 +210,22 @@ Default built-in examples:
 - `app`, `cloud-service` → **Upper**
 - `db` → **Bottom**
 
-### Asset Types
+### Asset types
 
-Logical types for infrastructure assets (e.g., Physical server, Virtual machine, Container, Serverless, Appliance).
+Logical types for servers and infrastructure assets (e.g., Physical server, Virtual machine, Container, Serverless, Appliance). Physical assets can track hardware and support information.
 
-**Columns**: Name, No longer offered
+**Columns**: Name, Physical, No longer offered
 
 **Where used**:
 - Assets workspace → Overview tab → **Type** field
 
 ---
 
-## Apps, Services & Interfaces
+## Apps, services & interfaces
 
-### Access Methods
+### Access methods
 
-Methods by which users access applications (e.g., Web browser, Mobile app, VDI session).
+Methods by which users access applications (e.g., Web, Mobile, VDI).
 
 **Columns**: Name, No longer offered
 
@@ -235,7 +236,7 @@ Methods by which users access applications (e.g., Web browser, Mobile app, VDI s
 
 **Tip**: Customize access methods to match how your organization categorizes application access. For example, add "Citrix" or "Thin Client" if those are common access patterns in your environment.
 
-### Application Categories
+### Application categories
 
 Categories that describe the primary purpose of each application or service.
 
@@ -249,26 +250,13 @@ Categories that describe the primary purpose of each application or service.
 
 **Tip**: Customize categories to match your organization's terminology. For example, rename "Line-of-business" to "Business Applications" if that's how your team refers to them.
 
-### Data Classes
-
-Data classification levels for Applications and Interfaces.
-
-**Columns**: Name, No longer offered
-
-**Locked codes**: The built-in levels (Public, Internal, Confidential, Restricted) cannot be deleted or deprecated.
-
-**Where used**:
-- Applications workspace → Compliance tab → **Data Class** field
-- Interfaces workspace → Overview tab → **Data Class** field
-- Applications list → **Data Class** column
-
 ### Classifications and continuity
 
-This editor configures the levels used to classify applications. It is available to `settings:admin` users from the **Apps, Services & Interfaces** section and opens as a single dialog with one list per catalog:
+This editor configures the levels used to classify applications. It is available to `settings:admin` users at the top of the page and opens as a single dialog with one list per catalog:
 
 - **Business criticality**: the levels an application can be assigned. Each level has a name, a description shown under the name when choosing a level, an optional **maximum tolerable downtime** in minutes, and a **No longer offered** flag. The downtime documents the level and triggers a warning on an application whose RTO reaches it; it is an attribute of the level, not a value entered on applications.
 - **Cyber criticality**: independent consequence levels.
-- **Data confidentiality**: the Data Classes catalog, with descriptions.
+- **Data confidentiality**: the data classes catalog, with descriptions.
 - **Recovery waves**: ordered restoration stages. The order does not represent severity or a time estimate.
 
 **Order is the position in the list.** Severity catalogs are listed from the most critical level at the top to the least critical at the bottom; recovery waves in restoration order. Use the arrows to move a level; the position drives the sort order of lists, the "highest level" rule used by interfaces and connections, and the order of the pickers. **Add level** appends at the bottom.
@@ -279,63 +267,72 @@ Codes are generated from names and never shown; the naming rules above apply.
 
 The business levels also power operational criticality on interfaces and connections. Missing derived inputs are marked incomplete; they are not treated as the lowest level.
 
-### Integration Patterns
+#### Data confidentiality
 
-Integration patterns for Interface legs (e.g., REST API, File batch, Queue, DB staging).
+The **Data confidentiality** list holds the data classes used by applications and interfaces. The built-in levels (Public, Internal, Confidential, Restricted) cannot be deleted or deprecated.
+
+**Where used**:
+- Applications workspace → Compliance tab → **Data Class** field
+- Interfaces workspace → Overview tab → **Data Class** field
+- Applications list → **Data Class** column
+
+### Integration patterns
+
+Integration patterns used by interface legs (e.g., REST API, File batch, Queue, DB staging).
 
 **Columns**: Name, No longer offered
 
 **Where used**:
 - Interface legs → **Pattern** field
 
-### Interface Authentication Modes
+### Interface authentication modes
 
-Authentication modes for Interface bindings (e.g., Service account, OAuth2, API key, Certificate).
+Authentication modes for interface legs and bindings (e.g., Service account, OAuth2, API key, Certificate).
 
 **Columns**: Name, No longer offered
 
 **Where used**:
 - Interface bindings → **Auth Mode** field
 
-### Interface Data Categories
+### Interface data categories
 
-Business data categories for Interfaces (e.g., Master Data, Transactional, Reporting, Control).
+Business data categories for interfaces (e.g., Master Data, Transactional, Reporting, Control).
 
 **Columns**: Name, No longer offered
 
 **Where used**:
 - Interfaces workspace → **Data Category** field
 
-### Interface Data Formats
+### Interface data formats
 
-Payload formats for Interface legs (e.g., CSV, JSON, XML, IDoc, Binary).
+Data formats for interface legs (e.g., CSV, JSON, XML, IDoc, Binary).
 
 **Columns**: Name, No longer offered
 
 **Where used**:
 - Interface legs → **Format** field
 
-### Interface Protocols
+### Interface protocols
 
-Technical protocols for Interface bindings (e.g., HTTP/REST, gRPC, SFTP, Kafka, Database).
+Supported protocols for interface bindings between applications (e.g., HTTP/REST, gRPC, SFTP, Kafka, Database).
 
 **Columns**: Name, No longer offered
 
 **Where used**:
 - Interface bindings → **Protocol** field (legacy bindings)
 
-### Interface Trigger Types
+### Interface trigger types
 
-Trigger mechanisms for Interface legs (e.g., Event-based, Scheduled, Real-time, Manual).
+Trigger types for interface legs (e.g., Event-based, Scheduled, Real-time, Manual).
 
 **Columns**: Name, No longer offered
 
 **Where used**:
 - Interface legs → **Trigger** field
 
-### Lifecycle Statuses
+### Lifecycle statuses
 
-Shared lifecycle states for Applications, App Instances, Interfaces, Interface Bindings, and Assets.
+Shared lifecycle options for applications, app instances, interfaces, interface bindings, and servers.
 
 **Columns**: Name, No longer offered
 
@@ -346,10 +343,23 @@ Shared lifecycle states for Applications, App Instances, Interfaces, Interface B
 
 ---
 
+## Incidents
+
+### Incident categories
+
+Categories used to classify entries in the incident register.
+
+**Columns**: Name, No longer offered
+
+**Where used**:
+- Incidents → **Category** selector
+
+---
+
 ## How changes affect existing data
 
 - **Existing records keep their value** - Renaming only changes what users see, not the underlying data.
-- **Deprecated values**:
+- **Values marked No longer offered**:
   - Remain valid for records that already use them.
   - Are hidden from dropdowns when creating new records.
   - Still appear during edits if the record already uses that value.
@@ -363,34 +373,34 @@ This approach lets you evolve your taxonomy over time without breaking existing 
 
 | List | Where it's used |
 |------|-----------------|
-| **Access Methods** | Applications (Technical & Support tab → Access Methods) |
-| **Application Categories** | Applications (Category) |
-| **Cloud Providers** | Assets (Provider), Locations (Cloud provider) |
-| **Connection Types** | Connections (Connection Type) |
-| **Data Classes** | Applications (Compliance tab), Interfaces (Overview), Applications list |
+| **Access methods** | Applications (Technical & Support tab → Access Methods) |
+| **Application categories** | Applications (Category) |
+| **Cloud providers** | Assets (Provider), Locations (Cloud provider) |
+| **Connection types** | Connections (Connection Type) |
 | **Domains** | Assets (Technical tab → Domain, FQDN) |
-| **Entities** | Connections (Source/Target Entity), Connection Map (Graph Tier placement) |
-| **Hosting Types** | Locations (Overview) |
-| **Integration Patterns** | Interface legs (Pattern) |
-| **Interface Auth Modes** | Interface bindings (Auth Mode) |
-| **Interface Data Categories** | Interfaces (Data Category) |
-| **Interface Data Formats** | Interface legs (Format) |
-| **Interface Protocols** | Interface bindings (Protocol) |
-| **Interface Trigger Types** | Interface legs (Trigger) |
-| **IP Address Types** | Assets (Technical tab → IP Addresses → Type) |
-| **Lifecycle Statuses** | Applications, App Instances, Interfaces, Bindings, Assets |
-| **Network Zones** | Subnets (Network Zone), Assets (auto-populated from subnet) |
-| **Operating Systems** | Assets (Technical tab) |
+| **Entities** | Connections (Source/Target Entity), Connection Map (graph tier placement) |
+| **Hosting types** | Locations (Overview) |
+| **Integration patterns** | Interface legs (Pattern) |
+| **Interface authentication modes** | Interface bindings (Auth Mode) |
+| **Interface data categories** | Interfaces (Data Category) |
+| **Interface data formats** | Interface legs (Format) |
+| **Interface protocols** | Interface bindings (Protocol) |
+| **Interface trigger types** | Interface legs (Trigger) |
+| **Incident categories** | Incidents (Category) |
+| **IP address types** | Assets (Technical tab → IP Addresses → Type) |
+| **Lifecycle statuses** | Applications, App Instances, Interfaces, Bindings, Assets |
+| **Network zones** | Subnets (Network Zone), Assets (auto-populated from subnet) |
+| **Operating systems** | Assets (Technical tab) |
 | **Subnets** | Assets (Technical tab → IP Addresses → Subnet selector) |
-| **Server Roles** | Applications → Servers tab (role when linking asset to app), Connection Map (Graph Tier placement) |
-| **Asset Types** | Assets (Overview → Type) |
+| **Server roles** | Applications → Servers tab (role when linking asset to app), Connection Map (graph tier placement) |
+| **Asset types** | Assets (Overview → Type) |
 
 ---
 
 ## Tips
 
 - **Align names with your terminology** - Review the defaults and rename values to match how your organization talks about these concepts. Records keep their link to the value; only the name changes.
-- **Deprecate gradually** - When transitioning away from a value, mark it deprecated rather than deleting it. This keeps historical data intact while steering users toward new options.
-- **Coordinate Data Classes with security** - Changes to Data Classes should align with your information security policies. Discuss with compliance before adding or renaming classification levels.
-- **Use typical ports as documentation** - The Connection Types "Typical ports" field is informational. Fill it in to help users understand what ports each connection type commonly uses.
-- **Tune map readability with tiers** - Keep Entities and Server Roles Graph Tiers aligned with your architecture layers (edge, app, data) for clearer Connection Map layouts.
+- **Retire gradually** - When transitioning away from a value, mark it **No longer offered** rather than removing it. This keeps historical data intact while steering users toward new options.
+- **Coordinate data classes with security** - Changes to data classes should align with your information security policies. Discuss with compliance before adding or renaming classification levels.
+- **Use typical ports as documentation** - The **Typical ports** field of connection types is informational. Fill it in to help users understand what ports each connection type commonly uses.
+- **Tune map readability with tiers** - Keep the graph tiers of entities and server roles aligned with your architecture layers (edge, app, data) for clearer Connection Map layouts.

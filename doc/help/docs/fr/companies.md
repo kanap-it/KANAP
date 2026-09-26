@@ -96,7 +96,7 @@ L'onglet Vue d'ensemble contient les informations générales sur la société.
 - **N° d'immatriculation** : numéro d'immatriculation de la société
 - **N° TVA** : numéro d'identification TVA
 - **Devise de base** (obligatoire) : code devise ISO, recherche par nom ou code
-- **Statut / Date de désactivation** : contrôle si la société est active (voir ci-dessous)
+- **Cycle de vie** : l'interrupteur de statut, dont le libellé indique l'état actuel (**Activé** ou **Désactivé**), et la date de **Fin de validité**. Voir [Statut et cycle de vie](#statut-et-cycle-de-vie)
 - **Notes** : notes en texte libre
 
 ---
@@ -137,12 +137,13 @@ Chaque société peut être liée à un **Plan comptable** (CoA), qui définit l
 
 **Conseil** : Si vous voyez un avertissement « compte obsolète » lors de la modification de postes OPEX/CAPEX, cela signifie que le compte n'appartient pas au plan comptable actuel de la société. Mettez à jour le compte vers un compte du bon CoA pour résoudre cet avertissement.
 
-## Statut et date de désactivation
+## Statut et cycle de vie
 
-Utilisez la **Date de désactivation** pour contrôler quand une société cesse d'être active.
+Utilisez la **Fin de validité** pour contrôler quand une société cesse d'être active.
 
-- Les sociétés sont **Activées** par défaut. Vous pouvez aussi planifier une date de désactivation future.
-- Après la date de désactivation :
+- Les sociétés sont **Activées** par défaut. Laissez la **Fin de validité** vide pour que la société reste active indéfiniment, ou programmez une date future.
+- Passer la société à **Désactivé** sans date fixe sa fin de validité à aujourd'hui.
+- Après la fin de validité :
     - La société n'apparaît plus dans les listes de sélection pour les nouvelles ventilations et est exclue des rapports pour les années strictement postérieures.
     - Les données historiques restent intactes ; la société apparaît toujours dans les rapports couvrant les années où elle était active.
 - **Préférez la désactivation à la suppression.** La suppression n'est possible que si rien ne référence la société (pas de ventilations ni de dépenses).

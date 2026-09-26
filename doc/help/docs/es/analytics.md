@@ -49,18 +49,19 @@ Esta es la única pestaña. Contiene todos los campos de la categoría.
 **Qué puede editar**:
 - **Nombre**: La etiqueta de la categoría. Al cambiarla, se actualizan los desplegables e informes en todas partes.
 - **Descripción**: Explicación de texto libre sobre el uso previsto de la categoría.
-- **Estado / Fecha de desactivación**: Desactive la categoría para retirarla. Consulte la sección a continuación para más detalles.
+- **Ciclo de vida**: el interruptor de estado, cuya etiqueta muestra el estado actual (**Activado** o **Desactivado**), y la fecha de **Fin de validez**. Consulte [Estado y ciclo de vida](#estado-y-ciclo-de-vida).
 
 **Navegación del espacio de trabajo**: Utilice los botones **Anterior** y **Siguiente** para recorrer las categorías sin volver a la lista. El espacio de trabajo conserva su contexto actual de ordenación, búsqueda y filtro. Si tiene cambios sin guardar, se le solicitará confirmación antes de navegar.
 
 **Consejo**: Haga clic en el icono de cerrar (X) en la esquina superior derecha para volver a la lista con sus filtros intactos.
 
-## Estado y fecha de desactivación
+## Estado y ciclo de vida
 
-Utilice el conmutador de estado para retirar una categoría sin eliminarla.
+Cada categoría tiene un estado (**Activado** o **Desactivado**) y un **Fin de validez** opcional. Permiten retirar una categoría sin eliminarla.
 
-- Cuando desactiva una categoría, se registra una **Fecha de desactivación**.
-- Después de esa fecha, la categoría ya no aparece en los desplegables de selección para nuevos elementos.
+- **Fin de validez**: la fecha en que la categoría termina. Déjela en blanco para que la categoría permanezca activa indefinidamente. También puede programar una fecha futura.
+- Si cambia la categoría a **Desactivado** sin fecha, el fin de validez se fija en hoy. Si la vuelve a **Activado**, la fecha se borra.
+- Después del fin de validez, la categoría ya no aparece en los desplegables de selección para nuevos elementos.
 - Los elementos existentes conservan su asignación y los informes históricos siguen siendo precisos.
 - **Prefiera desactivar en lugar de eliminar**: no hay acción de eliminar en esta página. La desactivación preserva la continuidad de los informes manteniendo la lista limpia.
 

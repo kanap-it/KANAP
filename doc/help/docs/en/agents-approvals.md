@@ -127,7 +127,7 @@ Each ticket group and each attention row carries a **Trace** button. It opens th
 - Nothing here has reached the requester until you approve it. Reading a draft, tracing it, or leaving it in the queue changes nothing on the ticket.
 - Reject rather than ignore. A rejected proposal stays in the audit trail with your optional note, which is far more useful later than a proposal that simply expired unattended.
 - Dismiss, don't reject, a proposal you simply won't send. If a draft is accurate but shouldn't go out — a sensitive ticket, a colleague already replied — **Dismiss** sets it aside without counting against the agent. Keep **Reject** for proposals that were genuinely wrong.
-- A missing **Synthesis fallback** note is good news, not missing information. Spend your closest reading on the drafts that *do* carry it.
+- A missing fallback note is good news, not missing information. Spend your closest reading on the drafts that *do* carry it.
 - If an approved change lands in **Needs attention**, the red caption and the **Trace** button tell you whether it was the agent, a safety check, or the connected ticketing system that stopped it — fix the underlying cause, then **Re-run analysis**, rather than re-approving blindly.
 - Don't acknowledge to make a number go away. **Acknowledge** is a record that a person looked at the failure; a queue you clear without reading is worth less than one you leave alone.
 - The combined queue at `/agents/approvals` is fastest when you run several agents; switch to an agent's own **Approvals** tab when you want to focus on just that one.

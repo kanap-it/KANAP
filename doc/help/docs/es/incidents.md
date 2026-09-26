@@ -270,7 +270,7 @@ Mantenga la lista corta. Las categorías son aquello por lo que agrupará un añ
 
 ## Preguntar al asistente
 
-Plaid puede consultar el registro en el chat, con los mismos permisos que en el resto de la aplicación. Pídale un recuento (« ¿Cuántos incidentes críticos este trimestre? »), una lista filtrada (« Lista de incidentes abiertos en PAR-ESX-01 ») o una ficha completa (« Resumen de INC-2 »). Esta última incluye el diario y la revisión del incidente, de modo que una pregunta puede responderse a partir de la causa raíz o de las lecciones aprendidas. Un incidente restringido queda fuera de las respuestas, de los recuentos y de las fuentes, incluida su revisión. Las referencias de incidente como `INC-12` en la respuesta son enlaces al espacio de trabajo.
+Plaid puede consultar el registro en el chat, con los mismos permisos que en el resto de la aplicación. Pídale un recuento (« ¿Cuántos incidentes críticos este trimestre? »), una lista filtrada (« Lista de incidentes abiertos en PAR-ESX-01 ») o una ficha completa (« Resumen de INC-2 »). Esta última incluye el diario y la revisión del incidente, de modo que una pregunta puede responderse a partir de la causa raíz o de las lecciones aprendidas. Un incidente restringido queda fuera de las respuestas, de los recuentos y de las fuentes, incluida su revisión.
 
 ---
 

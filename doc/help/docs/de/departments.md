@@ -61,7 +61,7 @@ Der Übersichts-Tab erfasst die Identität und den Status der Abteilung.
 - **Name**: Abteilungsname (Pflicht)
 - **Unternehmen**: Übergeordnetes Unternehmen -- verknüpft mit Unternehmen-Stammdaten (Pflicht). Unternehmen, die bereits eine Abteilung mit gleichem Namen haben, werden automatisch aus dem Dropdown ausgeschlossen, um Duplikate zu vermeiden.
 - **Beschreibung**: Freitext-Beschreibung
-- **Status**: Aktiviert oder Deaktiviert, mit optionalem geplanten Deaktivierungsdatum
+- **Lebenszyklus**: der Statusschalter, dessen Beschriftung den aktuellen Zustand zeigt (**Aktiviert** oder **Deaktiviert**), und das Datum **Ende der Gültigkeit**. Lassen Sie das Datum leer, damit die Abteilung unbegrenzt aktiv bleibt, oder setzen Sie ein zukünftiges Datum, um ihr Ende zu planen. Wenn Sie die Abteilung ohne Datum auf **Deaktiviert** setzen, wird das Ende der Gültigkeit auf heute gesetzt
 
 **Tipp**: Beim Erstellen einer neuen Abteilung wird der Details-Tab erst nach dem Speichern des initialen Datensatzes verfügbar.
 

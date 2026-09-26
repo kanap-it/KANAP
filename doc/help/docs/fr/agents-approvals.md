@@ -92,15 +92,9 @@ Approuver l'une de ces actions — seule ou dans le cadre d'un **Tout approuver*
 
 ## Lire les réponses rédigées : la note de secours
 
-Lorsqu'un agent rédige une **Réponse demandeur** ou une **Note interne**, il ancre normalement ce brouillon dans vos bibliothèques de la [Base de connaissances](knowledge.md) et cite les sources qu'il a utilisées. Il arrive que vous voyiez une petite légende **Synthèse de secours** sur une telle proposition. Cela signifie que l'agent n'a pas pu étayer ce brouillon particulier avec des sources citées — traitez-le donc comme une simple suggestion et lisez-le attentivement avant de l'approuver, plutôt que de lui faire confiance comme s'il était vérifié par rapport aux sources.
+Lorsqu'un agent rédige une **Réponse demandeur** ou une **Note interne**, il ancre normalement ce brouillon dans vos bibliothèques de la [Base de connaissances](knowledge.md) et cite les sources qu'il a utilisées. Il arrive que vous voyiez la mention **Cette réponse n'est pas étayée par votre base de connaissances.** sur une telle proposition. Cela signifie que l'agent n'a pas pu étayer ce brouillon particulier avec des sources citées — traitez-le donc comme une simple suggestion et lisez-le attentivement avant de l'approuver, plutôt que de lui faire confiance comme s'il était vérifié par rapport aux sources.
 
-La légende nomme la raison en termes simples, par exemple :
-
-- **Erreur de synthèse** — un problème est survenu lors de la composition de la réponse étayée.
-- **Synthèse désactivée** — la rédaction étayée est désactivée pour cette instance.
-- **Projection au-delà du plafond du run** — la composition de la réponse étayée aurait dépassé le budget de ce contrôle.
-- **Fuite de contexte opérationnel bloquée** — le brouillon a été retenu car il risquait d'exposer des consignes internes au demandeur.
-- **Synthèse invalide ou non étayée** — le brouillon n'a pas pu être vérifié par rapport à vos sources.
+**Détails** ouvre la raison technique (pour le support), par exemple une erreur de synthèse ou une fuite de consignes internes bloquée. Vous n'avez pas besoin de ces codes pour décider.
 
 L'essentiel à retenir est que **l'absence de cette note est le cas normal et sain.** La plupart des brouillons sont étayés et ne portent aucune légende. Et une réponse peut légitimement n'avoir aucune source citée — un accusé de réception administratif ou une escalade purement interne n'est pas censé être rédigé à partir de votre base de connaissances — sans déclencher cet avertissement. Ne voyez donc pas l'absence de note de secours comme un problème ; cela signifie que le brouillon est soit correctement étayé, soit qu'il n'était pas censé l'être. La note n'apparaît que lorsque l'agent a tenté d'étayer une réponse et n'y est pas parvenu.
 
@@ -133,7 +127,7 @@ Chaque groupe de ticket et chaque ligne d'attention porte un bouton **Trace**. I
 - Rien ici n'a atteint le demandeur tant que vous ne l'avez pas approuvé. Lire un brouillon, le tracer ou le laisser dans la file ne change rien au ticket.
 - Rejetez plutôt que d'ignorer. Une proposition rejetée reste dans le journal d'audit avec votre note facultative, ce qui est bien plus utile par la suite qu'une proposition qui a simplement expiré sans avoir été traitée.
 - Écartez, plutôt que de rejeter, une proposition que vous ne comptez tout simplement pas envoyer. Si un brouillon est juste mais ne doit pas partir — un ticket sensible, un collègue qui a déjà répondu — **Écarter** le met de côté sans pénaliser l'agent. Réservez **Rejeter** aux propositions réellement erronées.
-- L'absence de note **Synthèse de secours** est une bonne nouvelle, pas une information manquante. Réservez votre lecture la plus attentive aux brouillons qui *en* portent une.
+- L'absence de note de secours est une bonne nouvelle, pas une information manquante. Réservez votre lecture la plus attentive aux brouillons qui *en* portent une.
 - Si un changement approuvé se retrouve dans **Attention requise**, la légende rouge et le bouton **Trace** vous indiquent si c'est l'agent, un contrôle de sécurité ou le système de tickets connecté qui l'a bloqué — corrigez la cause sous-jacente, puis utilisez **Relancer l'analyse**, plutôt que de réapprouver à l'aveugle.
 - Ne prenez pas acte pour faire disparaître un chiffre. **Prendre acte** atteste qu'une personne a examiné l'échec ; une file que vous videz sans la lire vaut moins qu'une file que vous laissez telle quelle.
 - La file combinée `/agents/approvals` est la plus rapide lorsque vous exécutez plusieurs agents ; passez à l'onglet **Approbations** propre à un agent lorsque vous voulez vous concentrer sur celui-là uniquement.

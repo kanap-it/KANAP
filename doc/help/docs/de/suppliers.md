@@ -59,7 +59,7 @@ Der Übersichts-Tab erfasst die Identität und den Status des Lieferanten.
 **Was Sie bearbeiten können**:
 - **Name**: Lieferanten- oder Anbietername (Pflicht)
 - **ERP-Lieferanten-ID**: Referenz-ID aus Ihrem Beschaffungs- oder ERP-System
-- **Status**: Aktiviert oder Deaktiviert, mit optionalem Deaktivierungsdatum
+- **Lebenszyklus**: der Statusschalter, dessen Beschriftung den aktuellen Zustand zeigt (**Aktiviert** oder **Deaktiviert**), und das Datum **Ende der Gültigkeit**. Lassen Sie das Datum leer, damit der Lieferant unbegrenzt aktiv bleibt, oder setzen Sie ein zukünftiges Datum, um sein Ende zu planen. Wenn Sie den Lieferanten ohne Datum auf **Deaktiviert** setzen, wird das Ende der Gültigkeit auf heute gesetzt
 - **Notizen**: Freitext-Notizen zum Anbieter
 
 Zum Bearbeiten ist die Berechtigung `suppliers:manager` erforderlich. Schreibgeschützte Benutzer sehen die gleichen Felder, können aber keine Änderungen vornehmen.

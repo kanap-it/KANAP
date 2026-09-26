@@ -20,12 +20,14 @@ La page d'accueil des rapports du portefeuille liste les rapports disponibles so
 **Ce qui s'est passé**
 - **Bilan de la période** : demandes, projets et tâches créés, modifiés et clôturés sur une période.
 - **Activité par personne** : la même page, ouverte sur sa lecture des tâches par personne.
+- **Temps saisi** : où partent les jours saisis, mois après mois : projets ou autre travail, équipe par équipe.
 
 **Ce qui est en cours**
 - **Flux et ancienneté** : ce qui entre et ce qui sort semaine après semaine, l'âge du travail ouvert et le temps qu'il faut pour clôturer.
 - **Points d'attention par contributeur** : les tâches ouvertes, en retard et sans mouvement, équipe par équipe et personne par personne.
 
 **Ce qui vient**
+- **À venir** : les tâches qui arrivent à échéance, les fins et démarrages de projet prévus, les demandes en attente depuis trop longtemps et les livraisons demandées.
 - **Planning de capacité** : la charge attendue par rapport à la capacité, pour les contributeurs et les équipes.
 
 ---
@@ -92,6 +94,33 @@ Une Filière manquante n'est comptée que si l'élément a déjà une Catégorie
 Chaque chiffre supérieur à zéro est un lien. Un clic ouvre la liste correspondante, déjà filtrée sur exactement les éléments derrière le chiffre, pour tout le tenant. Le total de la liste correspond au chiffre cliqué. Les zéros sont affichés pour le contexte mais ne sont pas cliquables.
 
 Quand rien ne manque, le bandeau affiche une seule ligne confirmant que tout ce qui est ouvert est classé.
+
+---
+
+## À venir
+
+Utilisez ce rapport pour voir ce qui arrive bientôt à échéance et ce qui attend depuis trop longtemps. C'est le seul rapport tourné vers l'avenir : le bilan de la période lit le passé, le rapport de flux et les blocs d'attention lisent le présent.
+
+### Ce qu'il affiche
+
+La page comporte cinq sections. Chacune indique le nombre d'éléments qu'elle contient, un tableau trié par date et un horizon que vous pouvez modifier à droite de son titre.
+
+- **Fins de projet prévues** : projets ouverts dont la fin prévue tombe entre aujourd'hui et la fin de l'horizon. Horizon : 30 (par défaut), 60 ou 90 jours. Les projets qui ont déjà dépassé leur fin prévue restent dans le rapport de flux ; une ligne donne leur nombre et l'ouvre.
+- **Démarrages de projet prévus** : projets encore en Liste d'attente ou Planifié dont le début prévu tombe dans le même horizon.
+- **Demandes en attente** : demandes encore En attente de revue, créées il y a au moins 14, 30 (par défaut) ou 60 jours. Les demandes Candidat, Approuvé et Suspendu ont déjà fait l'objet d'une décision : elles ne figurent pas ici.
+- **Livraisons demandées** : demandes ouvertes (En attente de revue, Candidat, Approuvé, Suspendu) dont la date de livraison demandée tombe dans l'horizon des projets.
+- **Tâches à échéance** : tâches ouvertes (Ouvert, En cours, En attente, En test) dont l'échéance tombe entre aujourd'hui et la fin de l'horizon, bornes incluses. Horizon : 7, 14 (par défaut) ou 30 jours. Seules les tâches autonomes et les tâches de projet comptent, comme dans les autres rapports. Une ligne sous le titre donne le nombre de tâches déjà en retard, avec un lien vers elles.
+
+L'horizon des projets est partagé : le modifier dans l'une des trois sections qui l'utilisent le modifie dans les trois. La page mémorise vos horizons et les sections que vous avez repliées.
+
+### Filtres
+
+- **Projet** : les tâches de ces projets, ces projets eux-mêmes et les demandes qui leur sont liées.
+- **Équipe** : les tâches assignées à un membre de l'équipe, et les projets et demandes qui en impliquent un.
+
+### Ouvrir la liste
+
+Chaque chiffre supérieur à zéro est un lien. Il ouvre la liste des tâches, des projets ou des demandes filtrée exactement sur les éléments de la section, avec les mêmes filtres de projet et d'équipe : le total de la liste correspond donc au chiffre. Le rapport n'a pas d'export : les listes s'exportent déjà.
 
 ---
 
@@ -233,6 +262,37 @@ Les listes de modifications ajoutent la colonne **Modifications** à la fin.
 - **XLSX** : trois feuilles, Requests, Projects et Tasks. Les lignes vont des créations aux modifications puis aux clôtures, avec une colonne **Event** en tête qui indique de quelle liste vient la ligne. La cellule du nom renvoie vers l'élément.
 
 Les deux exports portent la référence, la société, l'origine d'un projet, les modifications d'une ligne modifiée et la date de l'événement. Les lignes de clôture portent aussi le jour de création.
+
+## Temps saisi
+
+Les jours saisis mois après mois, sur des projets ou sur un autre travail, équipe par équipe et personne par personne. Le rapport montre comment la charge se répartit, pas qui saisit le plus : les équipes gardent leur ordre configuré et les personnes sont classées par ordre alphabétique.
+
+### D'où viennent les jours
+
+Le rapport lit toutes les saisies de temps : le temps saisi sur les tâches et le temps saisi directement sur un projet. Un jour vaut 8 heures, et les chiffres ont une décimale. Chaque saisie tombe dans le mois de sa date, dans votre propre fuseau horaire.
+
+- **Jours projet** : temps saisi sur une tâche qui appartient à un projet, ou directement sur un projet.
+- **Jours autre** : tout le reste du temps, par exemple les tâches autonomes.
+
+Choisissez **6 mois** ou **12 mois**. Le mois en cours est toujours le dernier. La page mémorise votre choix.
+
+### Ce qu'il affiche
+
+- **Tuiles** : jours projet, jours autre, le total, la part projet et le nombre de contributeurs qui n'ont rien saisi sur la période. Le travail hors projet est souvent moins saisi que le travail projet, et cette dernière tuile le rappelle.
+- **Graphique** : jours projet et jours autre empilés, mois par mois.
+- **Tableau** : une ligne par équipe, une colonne par mois. Chaque cellule affiche les jours saisis, avec jours projet / jours autre en dessous. Dépliez une équipe pour voir ses membres. Un contributeur qui n'a rien saisi apparaît quand même, avec des cellules vides. Les personnes sans équipe sont regroupées sous **Sans équipe**. Le temps saisi sans personne y apparaît sous **Utilisateur inconnu**.
+
+Le rapport n'affiche que des jours. Il n'affiche jamais les notes d'une saisie.
+
+### Filtres
+
+- **Équipe** : les personnes des équipes sélectionnées.
+- **Projet** : uniquement le temps saisi sur les projets sélectionnés, sur leurs tâches ou directement. Les jours autre valent alors zéro.
+
+### Exports
+
+- **CSV** : une ligne par personne et par mois, avec l'équipe, la personne, le mois, les jours projet, les jours autre et le total.
+- **PNG** : le graphique.
 
 ## Conseils
 - **Gardez les profils de contributeurs à jour** : La capacité est basée sur la disponibilité des contributeurs et les statistiques de temps historiques.

@@ -36,7 +36,7 @@ Consultez les ventilations de coûts à travers toutes les sociétés avec des K
 ### Contrôles
 
 - **Année** : Année fiscale précédente, en cours ou suivante
-- **Colonne** : Budget, Atterrissage, Suivi ou Révision
+- **Colonne** : Budget, Atterrissage prévu, Réalisé ou Révision
 - **Totaux par société** (case à cocher) : Afficher ou masquer le tableau et le graphique en barres des totaux par société
 - **Ventilations détaillées** (case à cocher) : Afficher ou masquer la ventilation société/département
 - **Inclure les KPI** (case à cocher) : Afficher ou masquer le tableau des KPI
@@ -100,7 +100,7 @@ Vue détaillée des ventilations de refacturation d'une société avec départem
 
 - **Société** : Sélectionnez la société à analyser
 - **Année** : Année fiscale précédente, en cours ou suivante
-- **Colonne** : Budget, Atterrissage, Suivi ou Révision
+- **Colonne** : Budget, Atterrissage prévu, Réalisé ou Révision
 - **Totaux par département** (case à cocher) : Afficher ou masquer la ventilation par département
 - **Postes de refacturation** (case à cocher) : Afficher ou masquer les ventilations détaillées par poste
 - **KPI de refacturation** (case à cocher) : Afficher ou masquer le tableau comparatif des KPI
@@ -145,7 +145,7 @@ Identifiez vos coûts OPEX récurrents les plus importants pour une année donn�
 ### Contrôles
 
 - **Année** : Année précédente, en cours ou suivante
-- **Métrique** : Budget, Révision, Suivi ou Atterrissage
+- **Métrique** : Budget, Révision, Réalisé ou Atterrissage prévu
 - **Nombre top** : Combien de postes afficher (par défaut : 10, minimum : 1)
 - **Type de graphique** : Graphique en secteurs ou en barres horizontales
 - **Exclure des postes** : Autocomplétion multi-sélection pour exclure des produits spécifiques
@@ -220,7 +220,7 @@ Comparez les métriques OPEX sur plusieurs années sur un seul graphique en cour
 
 - **Année de début** : Début de la plage (année en cours moins 2 à plus 2)
 - **Année de fin** : Fin de la plage
-- **Métriques** : Multi-sélection parmi Budget, Suivi, Atterrissage, Révision (au moins une requise)
+- **Métriques** : Multi-sélection parmi Budget, Réalisé, Atterrissage prévu, Révision (au moins une requise)
 
 ### Ce que vous verrez
 
@@ -258,7 +258,7 @@ Comparez de manière flexible jusqu'à 10 combinaisons année+colonne pour OPEX 
 ### Contrôles
 
 - **Type de poste** : Bascule OPEX ou CAPEX
-- **Sélections** : Chaque sélection a un sélecteur d'année et un sélecteur de colonne (Budget, Révision, Suivi, Atterrissage). Ajoutez des sélections avec le bouton **Ajouter** et supprimez avec l'icône de suppression. Maximum 10 sélections ; minimum 1.
+- **Sélections** : Chaque sélection a un sélecteur d'année et un sélecteur de colonne (Budget, Révision, Réalisé, Atterrissage prévu). Ajoutez des sélections avec le bouton **Ajouter** et supprimez avec l'icône de suppression. Maximum 10 sélections ; minimum 1.
 - **Regroupement par année** (case à cocher) : Lorsque activé et qu'au moins deux années partagent une métrique, bascule vers un graphique en courbe groupé avec une série par métrique et les années sur l'axe X. Lorsque désactivé, affiche un graphique en courbe plat avec chaque sélection comme point de données.
 
 ### Ce que vous verrez
@@ -288,7 +288,7 @@ Consultez les données budgétaires OPEX regroupées par compte de consolidation
 ### Contrôles
 
 - **Année de début** et **Année de fin** : Année précédente, en cours ou suivante
-- **Métrique** : Budget, Suivi, Atterrissage ou Révision
+- **Métrique** : Budget, Réalisé, Atterrissage prévu ou Révision
 - **Type de graphique** : Graphique en secteurs ou en barres horizontales (disponible uniquement pour une seule année sélectionnée)
 - **Exclure des comptes** : Autocomplétion multi-sélection pour exclure des comptes spécifiques
 
@@ -316,7 +316,7 @@ Consultez les données budgétaires OPEX regroupées par catégorie analytique. 
 ### Contrôles
 
 - **Année de début** et **Année de fin** : Année précédente, en cours ou suivante
-- **Métrique** : Budget, Suivi, Atterrissage ou Révision
+- **Métrique** : Budget, Réalisé, Atterrissage prévu ou Révision
 - **Type de graphique** : Graphique en secteurs ou en barres horizontales (année unique uniquement)
 - **Exclure des catégories analytiques** : Autocomplétion multi-sélection pour exclure des catégories spécifiques
 
@@ -353,8 +353,8 @@ Tous les rapports qui proposent un sélecteur de métrique utilisent les mêmes 
 |-----|---------|
 | `budget` | Budget |
 | `revision` | Révision |
-| `follow_up` | Suivi |
-| `landing` | Atterrissage |
+| `follow_up` | Réalisé |
+| `landing` | Atterrissage prévu |
 
 ### Navigation
 
@@ -366,7 +366,7 @@ Chaque rapport affiche un fil d'Ariane vers le hub **Rapports**, vous permettant
 
 - **Commencez par la refacturation globale** : Obtenez la vue d'ensemble des ventilations avant de plonger dans une société spécifique.
 - **Utilisez le Top OPEX pour des gains rapides** : Les postes les plus importants sont vos premiers candidats à l'optimisation.
-- **Comparez Budget vs Atterrissage** : Utilisez le rapport de comparaison de colonnes pour mesurer la précision des prévisions sur plusieurs années.
+- **Comparez Budget vs Atterrissage prévu** : Utilisez le rapport de comparaison de colonnes pour mesurer la précision des prévisions sur plusieurs années.
 - **Basculez les sections sur les rapports de refacturation** : Les cases à cocher vous permettent de vous concentrer uniquement sur les données dont vous avez besoin -- départements, postes, KPI ou flux -- sans encombrement visuel.
 - **Regroupement par année dans la comparaison de colonnes** : Lorsque vous comparez la même métrique sur plusieurs années, activez le regroupement par année pour un graphique en courbe plus lisible.
 - **Exportez pour les présentations** : Les graphiques s'exportent en PNG et les tableaux en CSV, tous deux prêts pour les diaporamas ou les tableurs.

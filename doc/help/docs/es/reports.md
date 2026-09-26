@@ -36,7 +36,7 @@ Vea las asignaciones de costes entre todas las empresas con KPI resumen y flujos
 ### Controles
 
 - **Año**: Ejercicio fiscal anterior, actual o siguiente
-- **Columna**: Presupuesto, Aterrizaje previsto, Seguimiento o Revisión
+- **Columna**: Presupuesto, Aterrizaje previsto, Realizado o Revisión
 - **Totales por empresa** (casilla): Mostrar u ocultar la tabla de totales por empresa y el gráfico de barras
 - **Asignaciones detalladas** (casilla): Mostrar u ocultar el desglose empresa-departamento
 - **Incluir KPI** (casilla): Mostrar u ocultar la tabla de KPI
@@ -100,7 +100,7 @@ Profundice en las asignaciones de contracargo de una empresa entre departamentos
 
 - **Empresa**: Seleccione qué empresa analizar
 - **Año**: Ejercicio fiscal anterior, actual o siguiente
-- **Columna**: Presupuesto, Aterrizaje previsto, Seguimiento o Revisión
+- **Columna**: Presupuesto, Aterrizaje previsto, Realizado o Revisión
 - **Totales por departamento** (casilla): Mostrar u ocultar el desglose por departamento
 - **Partidas de contracargo** (casilla): Mostrar u ocultar asignaciones detalladas
 - **KPI de contracargo** (casilla): Mostrar u ocultar la tabla comparativa de KPI
@@ -145,7 +145,7 @@ Identifique sus mayores costes OPEX recurrentes para un año dado.
 ### Controles
 
 - **Año**: Año anterior, actual o siguiente
-- **Métrica**: Presupuesto, Revisión, Seguimiento o Aterrizaje previsto
+- **Métrica**: Presupuesto, Revisión, Realizado o Aterrizaje previsto
 - **Cantidad top**: Cuántas partidas mostrar (predeterminado: 10, mínimo: 1)
 - **Tipo de gráfico**: Gráfico circular o gráfico de barras horizontales
 - **Excluir partidas**: Autocompletado de selección múltiple para excluir productos específicos
@@ -220,7 +220,7 @@ Compare métricas OPEX en múltiples años en un solo gráfico de líneas.
 
 - **Año de inicio**: Inicio del rango (año actual menos 2 hasta más 2)
 - **Año de fin**: Fin del rango
-- **Métricas**: Selección múltiple de Presupuesto, Seguimiento, Aterrizaje previsto, Revisión (al menos una requerida)
+- **Métricas**: Selección múltiple de Presupuesto, Realizado, Aterrizaje previsto, Revisión (al menos una requerida)
 
 ### Qué verá
 
@@ -258,7 +258,7 @@ Compare de forma flexible hasta 10 combinaciones de año+columna para OPEX o CAP
 ### Controles
 
 - **Tipo de partida**: Conmutador OPEX o CAPEX
-- **Selecciones**: Cada selección tiene un selector de año y un selector de columna (Presupuesto, Revisión, Seguimiento, Aterrizaje previsto). Añada selecciones con el botón **Añadir** y elimine con el icono de borrar. Máximo de 10 selecciones; mínimo de 1.
+- **Selecciones**: Cada selección tiene un selector de año y un selector de columna (Presupuesto, Revisión, Realizado, Aterrizaje previsto). Añada selecciones con el botón **Añadir** y elimine con el icono de borrar. Máximo de 10 selecciones; mínimo de 1.
 - **Agrupación por año** (casilla): Cuando está habilitada y al menos dos años comparten una métrica, cambia a un gráfico de líneas agrupado con una serie por métrica y años en el eje X. Cuando está deshabilitada, muestra un gráfico de líneas plano con cada selección como punto de datos.
 
 ### Qué verá
@@ -288,7 +288,7 @@ Vea datos presupuestarios OPEX agrupados por cuenta de consolidación, con el ti
 ### Controles
 
 - **Año de inicio** y **Año de fin**: Año anterior, actual o siguiente
-- **Métrica**: Presupuesto, Seguimiento, Aterrizaje previsto o Revisión
+- **Métrica**: Presupuesto, Realizado, Aterrizaje previsto o Revisión
 - **Tipo de gráfico**: Gráfico circular o de barras horizontales (solo disponible cuando se selecciona un solo año)
 - **Excluir cuentas**: Autocompletado de selección múltiple para excluir cuentas específicas
 
@@ -316,7 +316,7 @@ Vea datos presupuestarios OPEX agrupados por categoría analítica. El diseño e
 ### Controles
 
 - **Año de inicio** y **Año de fin**: Año anterior, actual o siguiente
-- **Métrica**: Presupuesto, Seguimiento, Aterrizaje previsto o Revisión
+- **Métrica**: Presupuesto, Realizado, Aterrizaje previsto o Revisión
 - **Tipo de gráfico**: Gráfico circular o de barras horizontales (solo un año)
 - **Excluir categorías analíticas**: Autocompletado de selección múltiple para excluir categorías específicas
 
@@ -353,7 +353,7 @@ Todos los informes que ofrecen un selector de métrica usan las mismas cuatro co
 |-------|----------|
 | `budget` | Presupuesto |
 | `revision` | Revisión |
-| `follow_up` | Seguimiento |
+| `follow_up` | Realizado |
 | `landing` | Aterrizaje previsto |
 
 ### Navegación

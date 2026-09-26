@@ -1,6 +1,6 @@
 # Vista general de la gestión presupuestaria
 
-El Panel de control de la gestión presupuestaria es la primera página que ve después de iniciar sesión. Le ofrece una vista de alto nivel de dónde se encuentra su gasto IT en este momento -- instantáneas de OPEX y CAPEX, próximos plazos, indicadores de calidad de datos y los elementos que más merecen su atención -- todo en un solo lugar.
+El Panel de control de la gestión presupuestaria es la primera página que ve después de iniciar sesión. Le ofrece una vista de alto nivel de dónde se encuentra su gasto IT en este momento -- resúmenes de OPEX y CAPEX, próximos plazos, indicadores de calidad de datos y los elementos que más merecen su atención -- todo en un solo lugar.
 
 ## Dónde encontrarlo
 
@@ -13,15 +13,15 @@ El panel de control está construido a partir de mosaicos dispuestos en una cuad
 
 ## Mosaicos
 
-### Instantánea OPEX
+### Resumen OPEX
 
-Una tabla compacta que cubre tres ejercicios fiscales: año anterior (A-1), año actual (A) y año siguiente (A+1). Hasta cuatro columnas de valores aparecen dependiendo de si existen datos: **Presupuesto**, **Revisión**, **Seguimiento** y **Aterrizaje previsto**. Todos los importes se redondean al millar más cercano y se muestran con el sufijo "k" (por ejemplo, `7 846k`).
+Una tabla compacta que cubre tres ejercicios fiscales: año anterior (A-1), año actual (A) y año siguiente (A+1). Hasta cuatro columnas de valores aparecen dependiendo de si existen datos: **Presupuesto**, **Revisión**, **Realizado** y **Aterrizaje previsto**. Todos los importes se redondean al millar más cercano y se muestran con el sufijo "k" (por ejemplo, `7 846k`).
 
 Haga clic en **Ver** para abrir la lista OPEX.
 
-### Instantánea CAPEX
+### Resumen CAPEX
 
-Mismo diseño y formato que la Instantánea OPEX, pero extraído de sus datos de inversión de capital.
+Mismo diseño y formato que el Resumen OPEX, pero extraído de sus datos de inversión de capital.
 
 Haga clic en **Ver** para abrir la lista CAPEX.
 
@@ -37,7 +37,7 @@ Lista los próximos cinco plazos de cancelación de contratos que aún están en
 
 Haga clic en **Ver todo** para abrir la página de Contratos.
 
-### Higiene de datos (OPEX)
+### Calidad de datos (OPEX)
 
 Cuatro indicadores que le ayudan a detectar registros OPEX incompletos de un vistazo:
 

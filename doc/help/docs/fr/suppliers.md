@@ -59,7 +59,7 @@ L'onglet Vue d'ensemble capture l'identité et le statut du fournisseur.
 **Ce que vous pouvez modifier** :
 - **Nom** : Nom du fournisseur ou du vendeur (obligatoire)
 - **ID Fournisseur ERP** : Identifiant de référence de votre système d'approvisionnement ou ERP
-- **Statut** : Activé ou Désactivé, avec une date de désactivation optionnelle
+- **Cycle de vie** : l'interrupteur de statut, dont le libellé indique l'état actuel (**Activé** ou **Désactivé**), et la date de **Fin de validité**. Laissez la date vide pour que le fournisseur reste actif indéfiniment, ou fixez une date future pour programmer sa fin. Passer le fournisseur à **Désactivé** sans date fixe la fin de validité à aujourd'hui
 - **Notes** : Notes libres sur le vendeur
 
 La modification nécessite l'autorisation `suppliers:manager`. Les utilisateurs en lecture seule voient les mêmes champs mais ne peuvent pas les modifier.

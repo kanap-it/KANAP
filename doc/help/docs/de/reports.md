@@ -36,7 +36,7 @@ Zeigen Sie Kostenzuordnungen über alle Unternehmen hinweg mit Zusammenfassungs-
 ### Steuerungen
 
 - **Jahr**: Vorheriges, aktuelles oder nächstes Geschäftsjahr
-- **Spalte**: Budget, Endwert, Prognose oder Revision
+- **Spalte**: Budget, Erwarteter Endwert, Ist-Werte oder Revision
 - **Unternehmens-Summen** (Kontrollkästchen): Unternehmens-Summentabelle und Balkendiagramm ein-/ausblenden
 - **Detaillierte Zuordnungen** (Kontrollkästchen): Aufschlüsselung nach Unternehmen/Abteilung ein-/ausblenden
 - **KPIs einbeziehen** (Kontrollkästchen): KPI-Tabelle ein-/ausblenden
@@ -100,7 +100,7 @@ Detailansicht der Leistungsverrechnungs-Zuordnungen eines einzelnen Unternehmens
 
 - **Unternehmen**: Welches Unternehmen analysiert werden soll
 - **Jahr**: Vorheriges, aktuelles oder nächstes Geschäftsjahr
-- **Spalte**: Budget, Endwert, Prognose oder Revision
+- **Spalte**: Budget, Erwarteter Endwert, Ist-Werte oder Revision
 - **Abteilungs-Summen** (Kontrollkästchen): Abteilungsaufschlüsselung ein-/ausblenden
 - **Verrechnungspositionen** (Kontrollkästchen): Einzelzuordnungen ein-/ausblenden
 - **Verrechnungs-KPIs** (Kontrollkästchen): KPI-Vergleichstabelle ein-/ausblenden
@@ -145,7 +145,7 @@ Identifizieren Sie Ihre größten wiederkehrenden OPEX-Kosten für ein bestimmte
 ### Steuerungen
 
 - **Jahr**: Vorheriges, aktuelles oder nächstes Jahr
-- **Kennzahl**: Budget, Revision, Prognose oder Endwert
+- **Kennzahl**: Budget, Revision, Ist-Werte oder Erwarteter Endwert
 - **Top-Anzahl**: Wie viele Positionen angezeigt werden (Standard: 10, Minimum: 1)
 - **Diagrammtyp**: Kreisdiagramm oder horizontales Balkendiagramm
 - **Positionen ausschließen**: Mehrfachauswahl mit Autovervollständigung zum Ausschließen bestimmter Produkte
@@ -220,7 +220,7 @@ Vergleichen Sie OPEX-Kennzahlen über mehrere Jahre in einem einzelnen Liniendia
 
 - **Startjahr**: Beginn des Bereichs (aktuelles Jahr minus 2 bis plus 2)
 - **Endjahr**: Ende des Bereichs
-- **Kennzahlen**: Mehrfachauswahl aus Budget, Prognose, Endwert, Revision (mindestens eine erforderlich)
+- **Kennzahlen**: Mehrfachauswahl aus Budget, Ist-Werte, Erwarteter Endwert, Revision (mindestens eine erforderlich)
 
 ### Was Sie sehen
 
@@ -258,7 +258,7 @@ Vergleichen Sie flexibel bis zu 10 Jahr+Spalten-Kombinationen für entweder OPEX
 ### Steuerungen
 
 - **Positionstyp**: OPEX- oder CAPEX-Umschalter
-- **Auswahlen**: Jede Auswahl hat eine Jahrauswahl und eine Spaltenauswahl (Budget, Revision, Prognose, Endwert). Auswahlen mit der **Hinzufügen**-Schaltfläche hinzufügen und mit dem Löschsymbol entfernen. Maximum von 10 Auswahlen; Minimum von 1.
+- **Auswahlen**: Jede Auswahl hat eine Jahrauswahl und eine Spaltenauswahl (Budget, Revision, Ist-Werte, Erwarteter Endwert). Auswahlen mit der **Hinzufügen**-Schaltfläche hinzufügen und mit dem Löschsymbol entfernen. Maximum von 10 Auswahlen; Minimum von 1.
 - **Jahresgruppierung** (Kontrollkästchen): Wenn aktiviert und mindestens zwei Jahre eine Kennzahl teilen, wechselt zu einem gruppierten Liniendiagramm mit einer Serie pro Kennzahl und Jahren auf der X-Achse. Wenn deaktiviert, zeigt ein flaches Liniendiagramm mit jeder Auswahl als Datenpunkt.
 
 ### Was Sie sehen
@@ -288,7 +288,7 @@ Zeigen Sie OPEX-Budgetdaten gruppiert nach Konsolidierungskonto, wobei sich der 
 ### Steuerungen
 
 - **Startjahr** und **Endjahr**: Vorheriges, aktuelles oder nächstes Jahr
-- **Kennzahl**: Budget, Prognose, Endwert oder Revision
+- **Kennzahl**: Budget, Ist-Werte, Erwarteter Endwert oder Revision
 - **Diagrammtyp**: Kreisdiagramm oder horizontales Balkendiagramm (nur verfügbar bei Auswahl eines einzelnen Jahres)
 - **Konten ausschließen**: Mehrfachauswahl mit Autovervollständigung zum Ausschließen bestimmter Konten
 
@@ -316,7 +316,7 @@ Zeigen Sie OPEX-Budgetdaten gruppiert nach Analysekategorie. Das Layout entspric
 ### Steuerungen
 
 - **Startjahr** und **Endjahr**: Vorheriges, aktuelles oder nächstes Jahr
-- **Kennzahl**: Budget, Prognose, Endwert oder Revision
+- **Kennzahl**: Budget, Ist-Werte, Erwarteter Endwert oder Revision
 - **Diagrammtyp**: Kreisdiagramm oder horizontales Balkendiagramm (nur Einzeljahr)
 - **Analysekategorien ausschließen**: Mehrfachauswahl mit Autovervollständigung zum Ausschließen bestimmter Kategorien
 
@@ -353,8 +353,8 @@ Alle Berichte, die eine Kennzahlauswahl bieten, verwenden die gleichen vier Spal
 |-----------|-------------|
 | `budget` | Budget |
 | `revision` | Revision |
-| `follow_up` | Prognose |
-| `landing` | Endwert |
+| `follow_up` | Ist-Werte |
+| `landing` | Erwarteter Endwert |
 
 ### Navigation
 
@@ -366,7 +366,7 @@ Jeder Bericht zeigt eine Breadcrumb-Navigation zurück zum **Berichte**-Hub, sod
 
 - **Mit der Globalen Leistungsverrechnung beginnen**: Verschaffen Sie sich den Gesamtüberblick über Zuordnungen, bevor Sie in ein einzelnes Unternehmen eintauchen.
 - **Top OPEX für schnelle Erfolge nutzen**: Die größten Kostenpositionen sind Ihre ersten Kandidaten für Optimierung.
-- **Budget vs. Endwert vergleichen**: Verwenden Sie den Spaltenvergleichsbericht, um die Prognosegenauigkeit über Jahre zu messen.
+- **Budget vs. Erwarteter Endwert vergleichen**: Verwenden Sie den Spaltenvergleichsbericht, um die Prognosegenauigkeit über Jahre zu messen.
 - **Abschnitte in Leistungsverrechnungsberichten umschalten**: Die Kontrollkästchen ermöglichen es, sich nur auf die benötigten Daten zu konzentrieren -- Abteilungen, Positionen, KPIs oder Flüsse -- ohne visuelle Unordnung.
 - **Jahresgruppierung im Spaltenvergleich**: Wenn Sie die gleiche Kennzahl über mehrere Jahre vergleichen, aktivieren Sie die Jahresgruppierung für ein übersichtlicheres Liniendiagramm.
 - **Für Präsentationen exportieren**: Diagramme exportieren als PNG und Tabellen als CSV, beides bereit für Folien oder Tabellenkalkulationen.

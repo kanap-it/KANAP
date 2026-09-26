@@ -59,7 +59,7 @@ The Overview tab captures the supplier's identity and status.
 **What you can edit**:
 - **Name**: Supplier or vendor name (required)
 - **ERP Supplier ID**: Reference ID from your procurement or ERP system
-- **Status**: Enabled or Disabled, with an optional disabled-from date
+- **Lifecycle**: the status switch, labelled with the current state (**Enabled** or **Disabled**), and the **End of validity** date. Leave the date blank to keep the supplier active indefinitely, or set a future date to schedule its end. Switching the supplier to **Disabled** without a date sets the end of validity to today
 - **Notes**: Free-form notes about the vendor
 
 Editing requires `suppliers:manager` permission. Read-only users see the same fields but cannot make changes.

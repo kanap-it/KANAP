@@ -81,7 +81,7 @@ Cada sub-ubicación tiene:
 - **Nombre**: Una etiqueta corta (p. ej., "Edificio A - Sala 1 - Rack 5")
 - **Descripción**: Detalle adicional opcional
 
-Las sub-ubicaciones están disponibles después de guardar la ubicación por primera vez. Se guardan junto con el formulario de Vista general cuando hace clic en **Guardar**.
+Las sub-ubicaciones están disponibles en cuanto la ubicación existe (después de hacer clic en **Crear**). Cada fila se guarda por sí sola al salir del campo, y eliminar una sub-ubicación pide confirmación primero.
 
 Los activos pueden asignarse a una sub-ubicación específica dentro de una ubicación, lo que le permite rastrear exactamente dónde se encuentra el hardware. Cuando existen sub-ubicaciones, la pestaña Relaciones muestra a qué sub-ubicación pertenece cada activo.
 
@@ -97,7 +97,7 @@ Esta pestaña organiza las personas y referencias asociadas a una ubicación en 
 
 **Sitios web relevantes**: Enlaces útiles como portales de proveedores, documentación de instalaciones o páginas de estado. Cada fila tiene una **Descripción** y una **URL**.
 
-Haga clic en **Guardar** en el encabezado del espacio de trabajo para persistir los cambios en las tres secciones a la vez.
+Los cambios se guardan automáticamente. Añadir un contacto o un enlace lo guarda al momento, y un rol, una descripción o una URL se guarda al salir del campo.
 
 ---
 

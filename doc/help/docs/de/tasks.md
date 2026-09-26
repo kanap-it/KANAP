@@ -156,7 +156,7 @@ Unter der Symbolleiste zeigt der Titelblock:
 Die Leiste ist einklappbar (klicken Sie auf die vertikale Registerkarte **Eigenschaften** am rechten Rand zum Öffnen oder Schließen; drücken Sie **P** als Tastenkürzel). Ihre Breite und der Öffnungszustand werden lokal gespeichert. Die Leiste enthält vier Gruppen, getrennt durch Trennlinien:
 
 **Kontext**:
-  - **Verknüpft mit**: Eigenständig, Projekt, OPEX, Vertrag oder CAPEX. Sie können den Typ ändern und ein neues Element auswählen; beim Speichern wendet KANAP alle damit verbundenen Nebeneffekte an (siehe [Aufgaben-Kontext ändern](#aufgaben-kontext-ändern))
+  - **Verknüpft mit**: Eigenständig, Projekt, OPEX, Vertrag oder CAPEX. Sie können den Typ ändern und ein neues Element auswählen; beim Speichern wendet KANAP alle damit verbundenen Nebeneffekte an (siehe [Aufgaben-Kontext ändern](#aufgaben-kontext-andern))
   - **Phase** (nur Projektaufgaben): Standardmäßig **Projektebene**, es sei denn, Sie wählen eine Projektphase
   - **Aufgabentyp**: Aufgabe, Bug, Problem, Vorfall oder ein beliebiger benutzerdefinierter Typ, der von Ihrem Administrator konfiguriert wurde
 
@@ -282,7 +282,7 @@ Das Beschreibungsfeld unterstützt das Importieren und Exportieren von Dokumente
 3. Wählen Sie eine `.docx`-Datei von Ihrem Computer
 4. Wenn die Beschreibung bereits Inhalt hat, bestätigen Sie, dass Sie ihn ersetzen möchten
 5. Das Dokument wird in Markdown konvertiert und in den Editor geladen
-6. Überprüfen Sie das Ergebnis und klicken Sie auf **Speichern**, um die Änderungen zu behalten
+6. Überprüfen Sie das Ergebnis. Die importierte Beschreibung wird sofort gespeichert, und spätere Änderungen werden automatisch gespeichert
 
 In das Dokument eingebettete Bilder werden automatisch in den Speicher hochgeladen. Wenn Inhalte nicht sauber konvertiert werden können, erscheint eine Warnung am unteren Bildschirmrand.
 
@@ -365,7 +365,7 @@ Verwenden Sie im Projekt-Arbeitsbereich den Reiter **Aufgaben**, um Projektergeb
 **Tipp**: Klicken Sie im Reiter Zeitleiste auf die Schaltfläche **[+]** neben einer Phase, um eine Aufgabe zu erstellen, die mit dieser Phase vorab verknüpft ist.
 
 ### Aus OPEX-Positionen
-Verwenden Sie im OPEX-Arbeitsbereich den Reiter **Aufgaben**, um Aufgaben zu erstellen wie:
+Verwenden Sie im OPEX-Arbeitsbereich den Bereich **Aufgaben** im Tab **Übersicht**, um Aufgaben zu erstellen wie:
 - „Lieferantenpreise für 2026 überprüfen"
 - „Mengenrabatt verhandeln"
 

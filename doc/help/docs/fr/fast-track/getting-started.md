@@ -97,7 +97,7 @@ Vous pouvez affiner les notifications par espace de travail :
 |-------------------|-----------------------------|
 | **Portefeuille** | Changements de statut, ajouts à une équipe, changements d'équipe sur les éléments que vous pilotez, commentaires |
 | **Tâches** | Notifications d'assignation (comme responsable, demandeur ou observateur), changements de statut, commentaires |
-| **Budget** | Avertissements d'expiration, changements de statut, commentaires |
+| **Budget** | Alertes d'expiration, changements de statut, commentaires |
 
 ### L'e-mail de revue hebdomadaire
 

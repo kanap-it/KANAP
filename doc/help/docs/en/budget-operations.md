@@ -68,9 +68,9 @@ Copy budget data from one year and column to another, with an optional percentag
 | Field | Description |
 |-------|-------------|
 | **Source Year** | Year to copy from (range: current year minus one through current year plus five) |
-| **Source Column** | Budget, Revision, Follow-up, or Landing |
+| **Source Column** | Budget, Revision, Actuals, or Expected landing |
 | **Destination Year** | Year to copy to (same range) |
-| **Destination Column** | Budget, Revision, Follow-up, or Landing |
+| **Destination Column** | Budget, Revision, Actuals, or Expected landing |
 | **Percentage Increase** | Adjustment applied to copied values (e.g., `3` = +3%). Defaults to 0. Accepts decimals. |
 | **Overwrite existing data** | Toggle. When off, items that already have a value in the destination are skipped. When on, all destination values are replaced. |
 
@@ -166,7 +166,7 @@ Clear all data from a specific budget column for a given year. This is a destruc
 | Field | Description |
 |-------|-------------|
 | **Year** | The fiscal year to clear (range: current year minus one through current year plus five) |
-| **Budget Column** | Budget, Revision, Follow-up, or Landing |
+| **Budget Column** | Budget, Revision, Actuals, or Expected landing |
 
 ### Preview
 

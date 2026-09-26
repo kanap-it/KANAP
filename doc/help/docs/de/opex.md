@@ -8,22 +8,23 @@ Der OPEX-Arbeitsbereich unterstützt Sie bei der Verwaltung jeder Ausgabenpositi
 
 Navigieren Sie zu **Budgetverwaltung > OPEX**, um Ihre Liste zu sehen. Klicken Sie auf **Neu**, um Ihre erste Position zu erstellen.
 
+Der Arbeitsbereich öffnet sich im Erstellungsmodus, mit geöffnetem Bereich **Eigenschaften** rechts. Geben Sie den Produktnamen oben im Titel ein, füllen Sie die Eigenschaften aus und klicken Sie dann auf **Erstellen**.
+
 **Pflichtfelder**:
-  - **Produktname**: Was Sie ausgeben (z. B. „Salesforce Lizenzen", „AWS Compute")
+  - **Produktname** (der Titel): Was Sie ausgeben (z. B. „Salesforce Lizenzen", „AWS Compute")
   - **Lieferant**: Wen Sie bezahlen. Verknüpft mit Ihren Stammdaten-Lieferanten
-  - **Währung**: ISO-Code (z. B. USD, EUR). Standardmäßig Ihre Arbeitsbereich-Währung; kann pro Position überschrieben werden
   - **Zahlendes Unternehmen**: Welches Unternehmen den Lieferanten bezahlt (erforderlich für die Buchhaltung)
   - **Konto**: Das Sachkonto für diese Ausgabe. Es erscheinen nur Konten aus dem Kontenplan des zahlenden Unternehmens
-  - **Gültig ab**: Wann diese Ausgabe beginnt (TT/MM/JJJJ)
+  - **Währung**: ISO-Code (z. B. USD, EUR). Standardmäßig Ihre Arbeitsbereich-Währung; kann pro Position überschrieben werden
+  - **Beginn der Gültigkeit**: Wann diese Ausgabe beginnt (TT/MM/JJJJ)
 
 **Optional aber nützlich**:
-  - **Beschreibung**: Zusätzlicher Kontext oder Notizen zur Ausgabe
-  - **Ende der Gültigkeit**: Das Datum, an dem diese Ausgabe endet. Lassen Sie es leer, wenn es kein Ende gibt. Danach ist die Position deaktiviert und spätere Jahre zählen in den Budgetansichten nicht mehr
-  - **IT-Verantwortlicher** / **Fachbereichsverantwortlicher**: Wer verantwortlich ist
   - **Analysekategorie**: Benutzerdefinierte Gruppierung für Berichte (z. B. „Infrastruktur", „Business Apps"). Neue Kategorien können spontan erstellt werden
-  - **Notizen**: Freitext-Notizen
+  - **Ende der Gültigkeit**: Das Datum, an dem diese Ausgabe endet. Lassen Sie es leer, wenn es kein Ende gibt. Danach ist die Position deaktiviert und spätere Jahre zählen in den Budgetansichten nicht mehr
+  - **IT-Verantwortlicher** / **Fachverantwortlicher**: Wer verantwortlich ist
+  - **Beschreibung** und **Notizen**: Freitext im Tab Übersicht
 
-Nach dem Speichern werden alle Tabs freigeschaltet: **Übersicht**, **Budget**, **Zuordnungen**, **Aufgaben** und **Verknüpfungen**.
+Sobald die Position erstellt ist, schaltet der Arbeitsbereich alle vier Tabs frei: **Übersicht**, **Budget**, **Zuordnungen** und **Verknüpfungen**.
 
 **Tipp**: Sie können Positionen schnell erstellen und Budgets und Zuordnungen später ergänzen. Beginnen Sie mit dem Wesentlichen und verfeinern Sie iterativ.
 
@@ -41,12 +42,12 @@ Die OPEX-Liste (unter **Budgetverwaltung > OPEX**) ist Ihre Hauptansicht zum Dur
   - **Konto**: Die Sachkonto-Nummer und -Bezeichnung
   - **Zuordnung**: Die Zuordnungsmethoden-Bezeichnung für das aktuelle Jahr (verlinkt zum Zuordnungen-Tab)
   - **J Budget**: Budget des aktuellen Jahres (verlinkt zum Budget-Tab für dieses Jahr)
-  - **J Endwert**: Endwert des aktuellen Jahres (verlinkt zum Budget-Tab für dieses Jahr)
-  - **Aufgabe**: Der neueste Aufgabentitel (verlinkt zum Aufgaben-Tab)
+  - **J Erwarteter Endwert**: Erwarteter Endwert des aktuellen Jahres (verlinkt zum Budget-Tab für dieses Jahr)
+  - **Aufgabe**: Der neueste Aufgabentitel (verlinkt zum Tab Übersicht, in dem sich der Aufgabenbereich befindet)
 
 **Zusätzliche Spalten** (standardmäßig ausgeblendet, über Spaltenauswahl umschaltbar):
-  - **J-1 Budget / J-1 Endwert**: Vorjahreswerte
-  - **J Revision / J Prognose**: Revision und Prognose des aktuellen Jahres
+  - **J-1 Budget / J-1 Erwarteter Endwert**: Vorjahreswerte
+  - **J Revision / J Ist-Werte**: Revision und Ist-Werte des aktuellen Jahres
   - **J+1 Budget / J+1 Revision**: Werte des nächsten Jahres
   - **J+2 Budget**: Budget in zwei Jahren
   - **Aktiviert**: Positionsstatus (aktiviert oder deaktiviert)
@@ -77,9 +78,9 @@ Die OPEX-Liste (unter **Budgetverwaltung > OPEX**) ist Ihre Hauptansicht zum Dur
 **Deep Linking**:
   - Das Anklicken einer beliebigen Zelle öffnet den Arbeitsbereich auf dem relevantesten Tab:
     - **Produktname**, **Lieferant**, **Zahlendes Unternehmen**, **Konto** und andere allgemeine Spalten: Öffnet den **Übersichts**-Tab
-    - **Budgetspalten** (J Budget, J Endwert, J-1 Budget usw.): Öffnet den **Budget**-Tab voreingestellt auf dieses Jahr
+    - **Budgetspalten** (J Budget, J Erwarteter Endwert, J-1 Budget usw.): Öffnet den **Budget**-Tab voreingestellt auf dieses Jahr
     - **Zuordnung**: Öffnet den **Zuordnungen**-Tab für das aktuelle Jahr
-    - **Aufgabe**: Öffnet den **Aufgaben**-Tab
+    - **Aufgabe**: Öffnet den Tab **Übersicht**, in dem sich der Aufgabenbereich befindet
     - **Vertrag**: Öffnet den verknüpften Vertrags-Arbeitsbereich direkt (nicht den OPEX-Arbeitsbereich)
 
 **Aktionen**:
@@ -91,6 +92,7 @@ Die OPEX-Liste (unter **Budgetverwaltung > OPEX**) ist Ihre Hauptansicht zum Dur
 **Zurück/Weiter-Navigation**:
   - Wenn Sie eine Position öffnen, zeigt der Arbeitsbereich **Zurück** und **Weiter**-Schaltflächen
   - Diese navigieren durch die Liste in der aktuellen Sortierreihenfolge unter Berücksichtigung von Filtern und Suche
+  - Der Wechsel zu einer anderen Position speichert zuerst Ihre ausstehenden Änderungen
   - Ihr Listenkontext (Sortierung, Filter, Suche) bleibt erhalten, wenn Sie den Arbeitsbereich schließen
 
 **Tipp**: Verwenden Sie Spaltenfilter + Schnellsuche, um fokussierte Ansichten zu erstellen (z. B. „Alle Cloud-Ausgaben über 10k"), und navigieren Sie dann mit Zurück/Weiter von Position zu Position, um Budgets zu überprüfen.
@@ -99,93 +101,104 @@ Die OPEX-Liste (unter **Budgetverwaltung > OPEX**) ist Ihre Hauptansicht zum Dur
 
 ## Der OPEX-Arbeitsbereich
 
-Klicken Sie auf eine beliebige Zeile in der Liste, um den Arbeitsbereich zu öffnen. Er hat fünf Tabs, vertikal links angeordnet, jeweils fokussiert auf einen bestimmten Aspekt der Ausgabenposition.
+Klicken Sie auf eine beliebige Zeile der Liste, um den Arbeitsbereich zu öffnen. Er besteht aus vier Teilen:
+
+  - **Kopfzeile**: die Referenz der Position (z. B. `OPX-12`) mit einer Kopierschaltfläche, der Produktname (anklicken, um die Position umzubenennen), **Zurück** / **Weiter**, **Link senden** und die Schaltfläche zum Schließen
+  - **Metadatenleiste** unter dem Titel: **Status**, **IT-Verantwortlicher** und **Fachverantwortlicher**, direkt bearbeitbar
+  - **Vier Tabs**: **Übersicht**, **Budget**, **Zuordnungen** und **Verknüpfungen** (der Tab Verknüpfungen zeigt die Anzahl der Verknüpfungen der Position)
+  - **Bereich Eigenschaften** rechts: die Hauptfelder der Position. Öffnen oder schließen Sie ihn mit der Eigenschaften-Schaltfläche; der Arbeitsbereich merkt sich Ihre Wahl
+
+**Automatisches Speichern**:
+  - Jede Änderung wird automatisch gespeichert. In der Kopfzeile erscheint der Hinweis **Wird gespeichert...** / **Gespeichert**
+  - Beim Wechsel des Tabs, beim Wechsel zur vorherigen oder nächsten Position oder beim Schließen des Arbeitsbereichs werden ausstehende Änderungen zuerst gespeichert. Schlägt ein Speichervorgang fehl, bleiben Sie an Ort und Stelle und eine Meldung nennt den Grund, sodass keine Änderung unbemerkt verloren geht
+  - **Strg+S** (**Cmd+S** auf dem Mac) speichert sofort
 
 ### Übersicht
 
-Dieser Tab zeigt alle allgemeinen Informationen zur Ausgabenposition.
+Der Tab Übersicht enthält die Freitextfelder und die Aufgaben der Position.
 
 **Was Sie bearbeiten können**:
-  - **Produktname** (Pflicht)
-  - **Beschreibung**
-  - **Lieferant** (Autovervollständigung aus Ihren Stammdaten-Lieferanten; Pflicht)
-  - **Währung** (Standard ist Arbeitsbereich-Währung; zeigt nur zugelassene Währungen)
-  - **Zahlendes Unternehmen** (Autovervollständigung aus Ihren Unternehmen; Pflicht)
-  - **Konto** (gefiltert nach dem Kontenplan des zahlenden Unternehmens; Pflicht)
-  - **Gültig ab** (Datumsfeld)
-  - **IT-Verantwortlicher** und **Fachbereichsverantwortlicher** (Autovervollständigung aus aktivierten Benutzern)
-  - **Analysekategorie** (Autovervollständigung; erstellt neue Kategorien spontan)
-  - **Notizen**
+  - **Beschreibung**: Was die Ausgabe abdeckt
+  - **Notizen**: Interne Freitext-Notizen
 
-**Status und Lebenszyklus**:
-  - Verwenden Sie den **Aktiviert**-Umschalter oder setzen Sie ein **Ende der Gültigkeit**, um zu steuern, wann die Position in Berichten und Auswahllisten erscheint
-  - Deaktivierte Positionen werden aus Berichten für Jahre ausgeschlossen, die strikt nach dem Ende der Gültigkeit liegen
-  - Historische Daten bleiben erhalten; Sie sehen deaktivierte Positionen weiterhin in Berichten, die Jahre abdecken, in denen sie aktiv waren
+**Aufgabenbereich**:
+  - Listet alle mit dieser OPEX-Position verknüpften Aufgaben mit den Spalten **Titel**, **Status**, **Priorität**, **Fälligkeitsdatum** und **Aktionen**. Der Titel des Bereichs zeigt die Anzahl der Aufgaben
+  - Filter **Status**: Alle (Standard), Aktiv (nicht erledigt), Offen, In Bearbeitung, Ausstehend, Im Test, Erledigt oder Abgebrochen. Die Zurücksetzen-Schaltfläche löscht ihn
+  - Klicken Sie auf **Aufgabe hinzufügen**, um eine neue, bereits mit dieser Position verknüpfte Aufgabe zu öffnen. Titel, Beschreibung, Priorität, Zuständigen und Fälligkeitsdatum füllen Sie im Aufgaben-Arbeitsbereich aus
+  - Mit dem Öffnen-Symbol gehen Sie zu einer Aufgabe, mit dem Löschsymbol löschen Sie sie (nach Bestätigung)
+  - Aufgaben haben eigene Berechtigungen (`tasks:member` zum Erstellen und Bearbeiten). OPEX-Manager-Zugriff allein berechtigt nicht zum Bearbeiten von Aufgaben; wenden Sie sich an Ihren Administrator, wenn Sie keine Aufgaben erstellen können
+  - Aufgaben können auch unter **Portfolio > Aufgaben** angezeigt und verwaltet werden, wo alle Aufgaben Ihrer Organisation erscheinen
 
-**Speichern und Zurücksetzen**:
-  - Änderungen werden **nicht** automatisch gespeichert
-  - Klicken Sie auf **Speichern**, um Ihre Bearbeitungen zu sichern, oder **Zurücksetzen**, um sie zu verwerfen
-  - Wenn Sie mit nicht gespeicherten Änderungen navigieren oder Tabs wechseln, werden Sie aufgefordert, zu speichern oder zu verwerfen
+**Bereich Eigenschaften**:
+  - **Lieferant**, **Zahlendes Unternehmen**, **Konto** (gefiltert nach dem Kontenplan des zahlenden Unternehmens), **Währung** (nur die in Ihrem Arbeitsbereich erlaubten Währungen), **Analysekategorie** und **Beginn der Gültigkeit**
+  - **Lebenszyklus**: der Schalter **Aktiviert** und das Datum **Ende der Gültigkeit**. Siehe [Status und Lebenszyklus](#status-und-lebenszyklus)
+  - Die Daten **Erstellt** und **Aktualisiert** (schreibgeschützt)
 
-**Tipp**: Wenn Sie eine Warnung „Veraltetes Konto" sehen, bedeutet dies, dass das ausgewählte Konto nicht zum Kontenplan des zahlenden Unternehmens gehört. Wählen Sie ein anderes Konto, um die Warnung zu beheben.
+**Tipp**: Beim Erstellen einer Position bedeutet die Warnung „Veraltetes Konto", dass das ausgewählte Konto nicht zum Kontenplan des zahlenden Unternehmens gehört. Wählen Sie ein anderes Konto, um die Warnung zu beheben.
 
 ---
 
 ### Budget
 
-Der Budget-Tab ist der Ort, an dem Sie Finanzdaten pro Jahr eingeben. Er unterstützt mehrere Budgetspalten und zwei Eingabemodi: **Pauschal** (Jahressummen) und **Manuell** (monatliche Aufschlüsselung).
+Im Budget-Tab geben Sie Finanzdaten pro Jahr ein. Er unterstützt mehrere Budgetspalten und zwei Eingabemodi, die als Tabs erscheinen: **Jährlich** (Jahressummen) und **Monatlich** (monatliche Aufschlüsselung).
 
-**Jahrauswahl**:
-  - Verwenden Sie die Jahrreiter oben, um zwischen J-2, J-1, J (aktuelles Jahr), J+1 und J+2 zu wechseln
-  - Jedes Jahr hat seine eigene Version, seinen Modus und seine Beträge
-  - Jahreswechsel mit nicht gespeicherten Änderungen löst einen Speichern/Verwerfen-Dialog aus
+**Jahresauswahl**:
+  - Verwenden Sie die Jahres-Tabs oben, um zwischen J-2, J-1, J (aktuelles Jahr), J+1 und J+2 zu wechseln
+  - Jedes Jahr hat seine eigene Version, seinen eigenen Modus und eigene Beträge
+  - Beim Wechsel des Jahres werden Ihre ausstehenden Änderungen zuerst gespeichert
 
 **Budgetspalten**:
-  - **Budget (geplant)**: Genehmigtes Jahresbudget zu Jahresbeginn
-  - **Revision (festgelegt)**: Halbjahres-Budgetaktualisierung (z. B. nach einer Neuprognose)
-  - **Prognose (tatsächlich)**: Erwartete tatsächliche Ausgaben (Ihre beste Schätzung im Jahresverlauf)
-  - **Endwert (erwarteter Endwert)**: Tatsächliche Ausgaben nach dem Jahresabschluss
+  - **Budget**: Ursprüngliches Jahresbudget, das zu Jahresbeginn genehmigt wurde
+  - **Revision**: Budgetaktualisierung im Jahresverlauf (z. B. nach einer Neuprognose)
+  - **Ist-Werte**: Erwartete tatsächliche Ausgaben (Ihre beste Schätzung im Jahresverlauf)
+  - **Erwarteter Endwert**: Tatsächliche Ausgaben nach dem Jahresabschluss
 
-**Pauschal vs. Manueller Modus**:
-  - **Pauschal**: Geben Sie eine Summe pro Spalte ein; Beträge werden gleichmäßig auf 12 Monate verteilt. Nur die Summe, die Sie ändern, wird gespeichert. Die anderen Spalten behalten ihre Monatsbeträge.
-  - **Manuell**: Geben Sie Beträge pro Monat (Jan-Dez) für jede Spalte ein, plus eine **Prognose**-Spalte für zusätzliche Planung. Nur die Monate, die Sie ändern, werden gespeichert.
-  - Wechseln Sie zwischen den Modi mit den Optionsfeldern oben im Tab
+**Jährlich oder Monatlich**:
+  - **Jährlich**: Geben Sie eine Summe pro Spalte ein; die Beträge werden für Zuordnungszwecke gleichmäßig auf 12 Monate verteilt. Nur die Summe, die Sie bearbeiten, wird gespeichert. Die anderen Spalten behalten ihre Monatsbeträge.
+  - **Monatlich**: Geben Sie Beträge pro Monat (Jan-Dez) für jede Spalte ein, plus eine Spalte **Prognose** für zusätzliche Planung. Quartalszwischensummen und eine Jahressumme werden angezeigt. Nur die Monate, die Sie ändern, werden gespeichert.
+  - Wechseln Sie mit den Tabs **Jährlich** und **Monatlich** zwischen den Modi. Der Wechsel ändert Ihre Beträge nicht.
 
 **Einfrierverhalten**:
-  - Wenn Budgetspalten eines Jahres eingefroren sind (über Budget-Administration), werden die entsprechenden Eingaben schreibgeschützt
-  - Sie können eingefrorene Daten weiterhin einsehen; Administratoren können über **Budgetverwaltung > Administration > Einfrieren/Freigeben** entsperren
+  - Wenn die Budgetspalten eines Jahres eingefroren sind (über die Budgetadministration), werden die entsprechenden Felder schreibgeschützt und zeigen ein Schloss-Symbol
+  - Sie können eingefrorene Daten weiterhin ansehen; Administratoren können sie über **Budgetverwaltung > Administration > Einfrieren/Freigeben** wieder freigeben
   - Jede Spalte kann unabhängig eingefroren werden (Budget, Revision, Prognose, Ist-Werte, Erwarteter Endwert)
 
-**Notizfeld**:
-  - Jede Jahresbudget-Version hat ein **Notizen**-Feld für jahresspezifische Kommentare (z. B. „Enthält 10 % Preiserhöhung in Q3")
+**Werkzeuge im Monatsmodus**:
+  - **Jahresbetrag verteilen**: Wählen Sie eine Spalte, geben Sie einen Jahresbetrag und ein Profil ein (**Gleichmäßig** oder **4-4-5**) und klicken Sie auf **Anwenden**, um die 12 Monate zu füllen
+  - **Spalte leeren**: Das Symbol neben einer Spaltenüberschrift setzt alle Monate dieser Spalte auf null, zum Beispiel bevor Sie den gesamten Betrag in einem einzigen Monat erfassen
 
-**Vorgehensweise**:
+**Mehrjahrestrend**:
+  - Ein Diagramm unter dem Raster zeigt die Budgetspalten der Position über mehrere Jahre und aktualisiert sich während der Eingabe
+
+**So verwenden Sie ihn**:
   1. Wählen Sie das Jahr, für das Sie planen
-  2. Wählen Sie den Pauschalen oder Manuellen Modus
-  3. Füllen Sie die relevanten Spalten aus (Budget für die Erstplanung, Prognose für die Nachverfolgung, Endwert für Ist-Werte)
-  4. Klicken Sie auf **Speichern**, um Ihre Änderungen zu sichern
+  2. Wählen Sie den Tab **Jährlich** oder **Monatlich**
+  3. Füllen Sie die relevanten Spalten aus (Budget für die Erstplanung, Ist-Werte für die Nachverfolgung, Erwarteter Endwert für die Zahl zum Jahresende)
+  4. Ihre Änderungen werden automatisch gespeichert; neben den Jahres-Tabs erscheint der Hinweis **Wird gespeichert...** / **Gespeichert**
 
-**Tipp**: Für die meisten Positionen ist der Pauschalmodus schneller. Verwenden Sie den Manuellen Modus, wenn die Ausgaben monatlich stark variieren (z. B. saisonale Lizenzierung, einmalige Einrichtungsgebühren).
+**Tipp**: Für die meisten Positionen ist der Modus Jährlich schneller. Verwenden Sie den Modus Monatlich, wenn die Ausgaben von Monat zu Monat stark schwanken (z. B. saisonale Lizenzen, einmalige Einrichtungsgebühren).
 
 ---
 
 ### Zuordnungen
 
-Der Zuordnungen-Tab verteilt die Ausgaben auf Ihre Unternehmen und Abteilungen. Dies steuert Leistungsverrechnungsberichte und Kosten-pro-Benutzer-KPIs.
+Der Tab Zuordnungen verteilt die Ausgabe auf Ihre Unternehmen und Abteilungen. Das speist Leistungsverrechnungsberichte und Kosten-pro-Benutzer-KPIs.
 
-**Jahrauswahl**:
-  - Funktioniert wie beim Budget: verwenden Sie Jahrreiter zum Wechseln zwischen J-2, J-1, J, J+1, J+2
+**Jahresauswahl**:
+  - Funktioniert wie beim Budget: Wechseln Sie mit den Jahres-Tabs zwischen J-2, J-1, J, J+1, J+2
   - Jedes Jahr kann eine andere Zuordnungsmethode haben
+  - Das **Jahresbudget** des ausgewählten Jahres erscheint rechts, und die Tabelle zeigt jeden Anteil als Prozentsatz und als Betrag
 
 **Zuordnungsmethoden**:
 
 | Methode | Funktionsweise |
-|---------|----------------|
-| **Mitarbeiterzahl (Standard)** | Teilt Ausgaben proportional nach der Mitarbeiterzahl jedes Unternehmens für das ausgewählte Jahr. Keine manuelle Auswahl erforderlich -- Prozentsätze werden automatisch aus Unternehmenskennzahlen berechnet. Dies ist die Standardmethode. |
-| **IT-Benutzer** | Teilt Ausgaben proportional nach der IT-Benutzerzahl jedes Unternehmens für das ausgewählte Jahr. |
+|---|---|
+| **Mitarbeiterzahl (Standard)** | Teilt Ausgaben proportional nach der Mitarbeiterzahl jedes Unternehmens für das ausgewählte Jahr. Keine manuelle Auswahl erforderlich -- die Prozentsätze werden automatisch aus den Unternehmenskennzahlen berechnet. Das ist der Standard. |
+| **IT-Benutzer** | Teilt Ausgaben proportional nach der Anzahl der IT-Benutzer jedes Unternehmens für das ausgewählte Jahr. |
 | **Umsatz** | Teilt Ausgaben proportional nach dem Umsatz jedes Unternehmens für das ausgewählte Jahr. |
-| **Manuell nach Unternehmen** | Sie wählen aus, welche Unternehmen diese Ausgabe erhalten, und wählen einen Treiber (Mitarbeiterzahl, IT-Benutzer oder Umsatz), um Prozentsätze nur unter den ausgewählten Unternehmen zu berechnen. |
-| **Manuell nach Abteilung** | Sie wählen bestimmte Unternehmen/Abteilungs-Paare aus. Prozentsätze werden aus der Mitarbeiterzahl jeder Abteilung berechnet. Nützlich, wenn eine Ausgabenposition nur bestimmten Abteilungen zugutekommt (z. B. ein CRM, das vom Vertrieb genutzt wird). |
+| **Manuell nach Unternehmen** | Sie wählen aus, welche Unternehmen diese Ausgabe erhalten, und wählen unter **Zuordnen nach** einen Treiber (Mitarbeiterzahl, IT-Benutzer oder Umsatz), um die Prozentsätze nur unter den ausgewählten Unternehmen zu berechnen. |
+| **Manuell nach Abteilung** | Sie wählen bestimmte Unternehmen/Abteilungs-Paare aus. Die Prozentsätze werden aus der Mitarbeiterzahl jeder Abteilung berechnet. Nützlich, wenn eine Ausgabenposition nur bestimmten Abteilungen zugutekommt (z. B. ein CRM, das vom Vertrieb genutzt wird). |
+| **Manuelle Prozentsätze** | Sie wählen die Unternehmen und geben jeden Prozentsatz selbst ein. Die Summe muss 100 % ergeben. |
 
 **Standard- und fixierte Methoden**:
   - Der **Standard**-Eintrag -- angezeigt als *Mitarbeiterzahl (Standard)*, bis Ihre Organisation eine andere Methode konfiguriert -- folgt der Einstellung unter **Budgetverwaltung > Administration > Standard-Zuordnungsmethode**. Jede Position, die auf Standard bleibt, wird neu berechnet, wenn ein Administrator diese Einstellung ändert
@@ -194,103 +207,61 @@ Der Zuordnungen-Tab verteilt die Ausgaben auf Ihre Unternehmen und Abteilungen. 
   - Positionen mit einer manuellen Zuordnung sind vom Standard nie betroffen
 
 **Wie Prozentsätze funktionieren**:
-  - Für **automatische Methoden** (Mitarbeiterzahl, IT-Benutzer, Umsatz): Prozentsätze werden bei jedem Laden der Seite aus den aktuellen Unternehmenskennzahlen berechnet. Sie bearbeiten sie nicht direkt
-  - Für **manuelle Methoden**: Sie wählen die Unternehmen oder Abteilungen aus, und das System berechnet Prozentsätze basierend auf Ihrem gewählten Treiber und den aktuellen Kennzahlen
-  - Prozentsätze spiegeln Live-Daten wider. Wenn Sie die Mitarbeiterzahl eines Unternehmens aktualisieren, werden Zuordnungen sofort neu berechnet
-  - Der Gesamtprozentsatz-Indikator zeigt eine laufende Summe. Für automatische Methoden wird der Rest automatisch verteilt; für manuelle Methoden verwendet die Vorschau Live-Kennzahlen
+  - Bei **automatischen Methoden** (Mitarbeiterzahl, IT-Benutzer, Umsatz): Die Prozentsätze werden aus den aktuellen Kennzahlen Ihrer aktiven Unternehmen berechnet. Sie bearbeiten sie nicht direkt
+  - Bei **Manuell nach Unternehmen** und **Manuell nach Abteilung**: Sie wählen die Unternehmen oder Abteilungen, und das System berechnet die Prozentsätze aus dem gewählten Treiber und den aktuellen Kennzahlen
+  - Bei **Manuelle Prozentsätze**: Die Eingabe eines Prozentsatzes fixiert diese Zeile, und die übrigen Zeilen teilen sich den Rest. **Gleichmäßig aufteilen** gibt jeder Zeile denselben Anteil; **Manuelle Fixierungen löschen** hebt die Fixierungen auf
+  - Die Prozentsätze spiegeln Live-Daten wider. Wenn Sie die Mitarbeiterzahl eines Unternehmens aktualisieren, werden die Zuordnungen neu berechnet
 
-**Vorgehensweise**:
+**So verwenden Sie ihn**:
   1. Wählen Sie das Jahr
-  2. Wählen Sie eine Zuordnungsmethode aus dem Dropdown
-  3. Bei Manuell nach Unternehmen wählen Sie einen Zuordnungstreiber (Mitarbeiterzahl, IT-Benutzer oder Umsatz) und wählen Unternehmen aus
-  4. Bei Manuell nach Abteilung wählen Sie Unternehmen/Abteilungs-Paare aus
-  5. Klicken Sie auf **Speichern**, um Methode und Auswahl zu sichern
+  2. Wählen Sie unter **Methode** eine Zuordnungsmethode
+  3. Bei einer manuellen Methode fügen Sie mit **Zeile hinzufügen** Unternehmen (oder Unternehmen/Abteilungs-Paare) hinzu und entfernen sie mit dem Entfernen-Symbol. Bei **Manuell nach Unternehmen** wählen Sie unter **Zuordnen nach** einen Treiber
+  4. Änderungen werden automatisch gespeichert
 
 **Häufige Probleme**:
-  - **Fehler „Fehlende Kennzahlen"**: Ein oder mehrere Unternehmen haben für das ausgewählte Jahr keine oder eine Mitarbeiterzahl/IT-Benutzer/Umsatz von Null. Füllen Sie die Kennzahlen unter **Stammdaten > Unternehmen** (Details-Tab) aus
-  - **„Summe ist nicht 100 %"**: Meist durch fehlende Kennzahlen verursacht. Korrigieren Sie die Unternehmensdaten und laden Sie die Zuordnungen neu
+  - **Fehlende Kennzahlen**: Für ein oder mehrere Unternehmen fehlen Mitarbeiterzahl, IT-Benutzer oder Umsatz für das ausgewählte Jahr, oder der Wert ist null. Tragen Sie die Kennzahlen unter **Stammdaten > Unternehmen** (Details-Tab) ein
+  - **„Manuelle Prozentsätze müssen in Summe 100 % ergeben."**: Passen Sie die Zeilen an oder klicken Sie auf **Gleichmäßig aufteilen**
 
-**Tipp**: Verwenden Sie Mitarbeiterzahl (Standard) für die meisten Positionen -- es ist am einfachsten und aktualisiert sich automatisch. Reservieren Sie manuelle Methoden für Ausgaben, die nur bestimmten Unternehmen oder Abteilungen zugutekommen.
-
----
-
-### Aufgaben
-
-Der Aufgaben-Tab hilft Ihnen, Aufgaben und Nachverfolgungen im Zusammenhang mit dieser OPEX-Position zu verfolgen (z. B. „Lizenz bis Q3 verlängern", „Nutzungskennzahlen überprüfen").
-
-**Aufgabenliste**:
-  - Zeigt alle mit dieser OPEX-Position verknüpften Aufgaben
-  - Spalten: **Titel**, **Status**, **Priorität**, **Fälligkeitsdatum**, **Aktionen**
-  - Klicken Sie auf einen Aufgabentitel, um den vollständigen Aufgaben-Arbeitsbereich zu öffnen
-  - Standardfilter zeigt aktive Aufgaben (blendet erledigte und abgebrochene aus)
-
-**Filtern**:
-  - Klicken Sie auf das Filtersymbol, um Filtersteuerungen ein-/auszublenden
-  - **Statusfilter**: Alle, Aktiv (blendet erledigte/abgebrochene aus), Offen, In Bearbeitung, Ausstehend, Im Test, Erledigt oder Abgebrochen
-  - Klicken Sie auf die Löschen-Schaltfläche, um Filter zurückzusetzen
-
-**Aufgabe erstellen**:
-  - Klicken Sie auf **Aufgabe hinzufügen**, um den Aufgaben-Erstellungsarbeitsbereich zu öffnen
-  - Die Aufgabe wird automatisch mit dieser OPEX-Position verknüpft
-  - Füllen Sie im Aufgaben-Arbeitsbereich Titel, Beschreibung, Priorität, Beauftragten und Fälligkeitsdatum aus
-
-**Aufgabe löschen**:
-  - Klicken Sie auf das Löschsymbol in der Aktionen-Spalte
-  - Bestätigen Sie die Löschung im Dialog
-
-**Hinweise**:
-  - Aufgaben sind eigenständige Objekte mit eigenen Berechtigungen (`tasks:member` zum Erstellen/Bearbeiten)
-  - OPEX-Manager-Zugriff gewährt nicht automatisch Aufgabenbearbeitungsrechte; prüfen Sie mit Ihrem Admin, wenn Sie keine Aufgaben erstellen können
-  - Aufgaben können auch unter **Portfolio > Aufgaben** angezeigt und verwaltet werden, wo alle Aufgaben Ihrer gesamten Organisation dargestellt werden
-
-**Tipp**: Verwenden Sie Aufgaben, um Handlungspunkte während Budget-Reviews oder Vertragsverlängerungen festzuhalten. Setzen Sie Fälligkeitsdaten, um anstehende Fristen zu verfolgen.
+**Tipp**: Verwenden Sie für die meisten Positionen Mitarbeiterzahl (Standard) -- das ist am einfachsten und aktualisiert sich automatisch. Reservieren Sie manuelle Methoden für Ausgaben, die nur bestimmten Unternehmen oder Abteilungen zugutekommen.
 
 ---
 
 ### Verknüpfungen
 
-Der Verknüpfungen-Tab verbindet diese OPEX-Position mit verwandten Objekten: Projekten, Anwendungen, Verträgen, Kontakten, relevanten Websites und Anhängen.
+Der Tab Verknüpfungen verbindet diese OPEX-Position mit zugehörigen Objekten: Projekte, Anwendungen, Verträge, Kontakte, Relevante Websites und Anhänge. Alles in diesem Tab wird automatisch gespeichert.
 
 **Projekte**:
-  - Verwenden Sie die Autovervollständigung, um ein oder mehrere Projekte aus Ihrem Portfolio zu verknüpfen
-  - Dies hilft, Ausgaben nach Projekt in Berichten zu gruppieren und ermöglicht Projektbuchhaltung
-  - Entfernen Sie Projekte durch Klicken auf das X am Chip, dann speichern
+  - Verknüpfen Sie über die Autovervollständigung ein oder mehrere Projekte aus Ihrem Portfolio
+  - Das hilft, Ausgaben in Berichten nach Projekt zu gruppieren, und ermöglicht die Projektbuchhaltung
+  - Entfernen Sie ein Projekt mit dem X auf seinem Chip
 
 **Anwendungen**:
-  - Verwenden Sie die Autovervollständigung, um eine oder mehrere Anwendungen aus Ihrem IT-Katalog zu verknüpfen
-  - Verknüpfte Anwendungsnamen erscheinen als anklickbare Chips, die den Anwendungs-Arbeitsbereich öffnen
-  - Dies hilft, nachzuverfolgen, welche OPEX-Positionen welche Anwendungen oder Dienste finanzieren
+  - Verknüpfen Sie über die Autovervollständigung eine oder mehrere Anwendungen oder Services aus Ihrem IT-Katalog
+  - Das hilft nachzuverfolgen, welche OPEX-Positionen welche Anwendungen oder Services finanzieren
 
 **Verträge**:
-  - Verwenden Sie die Autovervollständigung, um einen oder mehrere Verträge zu verknüpfen
-  - Bei Verknüpfung erscheint der Vertragsname in der OPEX-Listen-Spalte **Vertrag** zur schnellen Referenz
-  - Verträge können mit mehreren OPEX-Positionen verknüpft werden (n:m-Beziehung)
-  - Entfernen Sie Verträge durch Klicken auf das X am Chip, dann speichern
+  - Verknüpfen Sie über die Autovervollständigung einen oder mehrere Verträge
+  - Verknüpfte Verträge erscheinen zur schnellen Orientierung in der Spalte **Vertrag** der OPEX-Liste
+  - Ein Vertrag kann mit mehreren OPEX-Positionen verknüpft sein (n:m-Beziehung)
+  - Entfernen Sie einen Vertrag mit dem X auf seinem Chip
 
 **Kontakte**:
-  - Fügen Sie Lieferantenkontakte im Zusammenhang mit dieser Ausgabenposition hinzu
-  - Jeder Kontakt hat eine **Rolle** (Kommerziell, Technisch, Support oder Sonstige)
-  - Kontakte können aus der Kontaktliste des Lieferanten stammen oder manuell hinzugefügt werden
-  - Nützlich, um nachzuverfolgen, wen Sie bei Verlängerungen, Supportfragen oder Verhandlungen kontaktieren
+  - Verknüpfen Sie Kontakte mit dieser Position: Wählen Sie einen Kontakt und dann seine Rolle (**Vertrieb**, **Technik**, **Support** oder **Sonstige**). Die Wahl der Rolle fügt den Kontakt hinzu
+  - Die Tabelle zeigt Rolle, Vorname, Nachname, Position, E-Mail und Mobilnummer. Fahren Sie mit der Maus über die Rolle, um zu sehen, ob der Kontakt vom Lieferanten stammt oder manuell hinzugefügt wurde
+  - Entfernen Sie einen Kontakt mit dem Entfernen-Symbol
+  - Nützlich, um zu wissen, wen Sie bei Verlängerungen, Supportfällen oder Verhandlungen ansprechen
 
 **Relevante Websites**:
-  - Fügen Sie URLs hinzu, die sich auf diese Ausgabenposition beziehen (z. B. Lieferantenportale, Dokumentation, Admin-Konsolen, interne Wikis)
-  - Jeder Link hat ein optionales **Beschreibung**-Feld für Kontext
-  - Klicken Sie auf **URL hinzufügen**, um weitere Links hinzuzufügen
+  - Klicken Sie auf **URL hinzufügen**, um einen Link hinzuzufügen (z. B. Lieferantenportale, Dokumentation, Admin-Konsolen, interne Wikis). Jeder Link hat einen **Namen** und eine **URL**
+  - Klicken Sie auf die Zeile eines Links, um ihn zu bearbeiten, oder entfernen Sie ihn mit dem Löschsymbol
 
 **Anhänge**:
-  - Laden Sie Dateien hoch, die sich auf diese Ausgabenposition beziehen (z. B. Verträge, Rechnungen, Angebote, SOWs, technische Spezifikationen)
-  - Ziehen Sie Dateien per Drag-and-Drop in den Anhangbereich oder klicken Sie auf **Dateien auswählen**
-  - Alle Dateien werden sicher gespeichert und können durch Klicken auf den Dateinamen heruntergeladen werden
-  - Löschen Sie Anhänge durch Klicken auf das X am Datei-Chip (erfordert `opex:manager`)
-  - Anhänge werden sofort beim Hochladen gespeichert (kein Klick auf **Speichern** nötig)
+  - Laden Sie Dateien zu dieser Position hoch (z. B. Verträge, Rechnungen, Angebote, Leistungsbeschreibungen, technische Spezifikationen)
+  - Ziehen Sie Dateien in den Anhangsbereich oder klicken Sie auf **Dateien auswählen**
+  - Klicken Sie auf den Chip einer Datei, um sie herunterzuladen
+  - Löschen Sie einen Anhang mit dem Löschsymbol auf seinem Chip (nach Bestätigung; erfordert `opex:manager`)
 
-**Speicherverhalten**:
-  - **Projekte**, **Anwendungen**, **Verträge**, **Relevante Websites**: Werden gespeichert, wenn Sie auf **Speichern** oben im Arbeitsbereich klicken
-  - **Kontakte**: Werden inline verwaltet (Hinzufügen/Entfernen-Aktionen speichern sofort)
-  - **Anhänge**: Werden sofort beim Hochladen gespeichert
-
-**Tipp**: Verknüpfen Sie Verträge, um Verlängerungen über mehrere OPEX-Positionen zu verfolgen. Fügen Sie Lieferantenportal-URLs für schnellen Zugriff hinzu. Laden Sie Angebote und Rechnungen als Anhänge hoch, um alle ausgabenbezogenen Dokumente zu zentralisieren.
+**Tipp**: Verknüpfen Sie Verträge, um Verlängerungen über mehrere OPEX-Positionen hinweg zu verfolgen. Fügen Sie URLs von Lieferantenportalen für den schnellen Zugriff hinzu. Laden Sie Angebote und Rechnungen als Anhänge hoch, um die gesamte ausgabenbezogene Dokumentation zu bündeln.
 
 ---
 
@@ -327,7 +298,7 @@ Sie können OPEX-Positionen per CSV massenimportieren, um die Ersteinrichtung zu
   - **Nur Neuanlage**: Der Importer erstellt nur neue Positionen; er aktualisiert keine bestehenden. Verwenden Sie die Benutzeroberfläche zum Bearbeiten bestehender Positionen
   - **Referenzen**: `supplier_name` muss einem Lieferanten namentlich entsprechen (Groß-/Kleinschreibung wird ignoriert). `account_number` muss einem Konto entsprechen. `owner_it_email` und `owner_business_email` müssen aktivierten Benutzern per E-Mail entsprechen
   - **Analysekategorie**: Existiert die Kategorie nicht, wird sie beim Import automatisch erstellt
-  - **Budgets**: Budgetspalten füllen J-1, J und J+1 Versionen. Beträge werden gleichmäßig auf 12 Monate verteilt (Pauschalmodus)
+  - **Budgets**: Budgetspalten füllen J-1, J und J+1 Versionen. Beträge werden gleichmäßig auf 12 Monate verteilt (Modus Jährlich)
 
 **Häufige Fehler**:
   - **„Lieferant nicht gefunden"**: Erstellen Sie den Lieferanten zuerst unter **Stammdaten > Lieferanten**, dann importieren Sie erneut
@@ -353,7 +324,7 @@ Jede OPEX-Position hat einen **Status** (Aktiviert oder Deaktiviert) und ein opt
 
 **Status setzen**:
   - Beim Anlegen der Position können Sie ihr **Ende der Gültigkeit** im Panel **Eigenschaften** festlegen
-  - Später verwenden Sie den **Aktiviert**-Umschalter oder ändern das **Ende der Gültigkeit** im Panel **Eigenschaften**
+  - Später ändern Sie den **Status** in der Metadatenleiste oder verwenden das Feld **Lebenszyklus** im Bereich **Eigenschaften** (Schalter **Aktiviert** und **Ende der Gültigkeit**). Wird eine Position ohne Datum deaktiviert, wird ihr Ende der Gültigkeit auf heute gesetzt
   - Sie können ein zukünftiges Ende der Gültigkeit planen (nützlich für geplante Vertragsenden)
 
 **Deaktivierte Positionen anzeigen**:
@@ -395,7 +366,7 @@ Jede OPEX-Position hat einen **Status** (Aktiviert oder Deaktiviert) und ein opt
 
 12. **Summenzeile überprüfen**: Bevor Sie Budgets finalisieren, prüfen Sie die angeheftete Summenzeile in der Liste, um sicherzustellen, dass Ihre Ausgaben wie erwartet aufgehen.
 
-13. **Deep Linking nutzen**: Klicken Sie direkt auf eine Budgetspalte in der Liste, um zum Budget-Tab für dieses Jahr zu springen. Klicken Sie auf die Aufgaben-Spalte, um zu Aufgaben zu springen. Das spart Navigationszeit.
+13. **Deep Linking nutzen**: Klicken Sie direkt auf eine Budgetspalte in der Liste, um zum Budget-Tab für dieses Jahr zu springen. Klicken Sie auf die Aufgaben-Spalte, um zu den Aufgaben der Position im Tab Übersicht zu springen. Das spart Navigationszeit.
 
 14. **Budgets nach Jahresabschluss einfrieren**: Verwenden Sie die Budget-Administration, um Vorjahresbudgets einzufrieren, sobald die Ist-Werte finalisiert sind, um versehentliche Bearbeitungen zu verhindern.
 

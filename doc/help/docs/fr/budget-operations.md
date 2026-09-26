@@ -68,9 +68,9 @@ Copiez les données budgétaires d'une année et colonne vers une autre, avec un
 | Champ | Description |
 |-------|-------------|
 | **Année source** | Année à copier (plage : année en cours moins un à année en cours plus cinq) |
-| **Colonne source** | Budget, Révision, Suivi ou Atterrissage |
+| **Colonne source** | Budget, Révision, Réalisé ou Atterrissage prévu |
 | **Année destination** | Année vers laquelle copier (même plage) |
-| **Colonne destination** | Budget, Révision, Suivi ou Atterrissage |
+| **Colonne destination** | Budget, Révision, Réalisé ou Atterrissage prévu |
 | **Augmentation en pourcentage** | Ajustement appliqué aux valeurs copiées (ex. : `3` = +3 %). Par défaut 0. Accepte les décimales. |
 | **Écraser les données existantes** | Bascule. Désactivé : les postes qui ont déjà une valeur dans la destination sont ignorés. Activé : toutes les valeurs destination sont remplacées. |
 
@@ -166,7 +166,7 @@ Effacez toutes les données d'une colonne budgétaire spécifique pour une anné
 | Champ | Description |
 |-------|-------------|
 | **Année** | L'année fiscale à nettoyer (plage : année en cours moins un à année en cours plus cinq) |
-| **Colonne budgétaire** | Budget, Révision, Suivi ou Atterrissage |
+| **Colonne budgétaire** | Budget, Révision, Réalisé ou Atterrissage prévu |
 
 ### Aperçu
 

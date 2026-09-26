@@ -1,4 +1,4 @@
-# Budget Management Overview
+# Budget management overview
 
 The Budget Management Dashboard is the first page you see after signing in. It gives you a high-level view of where your IT spend stands right now -- OPEX and CAPEX snapshots, upcoming deadlines, data quality indicators, and the items that deserve your attention most -- all in one place.
 
@@ -13,31 +13,31 @@ The dashboard is built from tiles arranged in a responsive grid: three columns o
 
 ## Tiles
 
-### OPEX Snapshot
+### OPEX snapshot
 
-A compact table covering three fiscal years: last year (Y-1), current year (Y), and next year (Y+1). Up to four value columns appear depending on whether data exists: **Budget**, **Revision**, **Follow Up**, and **Landing**. All amounts are rounded to the nearest thousand and displayed with a "k" suffix (for example, `7 846k`).
+A compact table covering three fiscal years: last year (Y-1), current year (Y), and next year (Y+1). Up to four value columns appear depending on whether data exists: **Budget**, **Revision**, **Actuals**, and **Expected landing**. All amounts are rounded to the nearest thousand and displayed with a "k" suffix (for example, `7 846k`).
 
 Click **View** to open the OPEX list.
 
-### CAPEX Snapshot
+### CAPEX snapshot
 
-Same layout and formatting as the OPEX Snapshot, but drawn from your capital expenditure data.
+Same layout and formatting as the OPEX snapshot, but drawn from your capital expenditure data.
 
 Click **View** to open the CAPEX list.
 
-### My Tasks
+### My tasks
 
 Displays the total number of open tasks assigned to you (tasks marked "done" are excluded), followed by the five tasks whose due dates are closest. Overdue tasks are highlighted in red. Tasks that have no due date set do not appear here.
 
 Click **View All** to open the Tasks page.
 
-### Next Renewals
+### Next renewals
 
 Lists the next five contract cancellation deadlines that are still in the future. Past deadlines are automatically filtered out so you only see what is coming up.
 
 Click **View All** to open the Contracts page.
 
-### Data Hygiene (OPEX)
+### Data hygiene (OPEX)
 
 Four indicator chips that help you spot incomplete OPEX records at a glance:
 
@@ -48,7 +48,7 @@ Four indicator chips that help you spot incomplete OPEX records at a glance:
 
 Chips turn orange (or red for CoA mismatches) when the count is above zero. Click any chip to jump to the OPEX list.
 
-### Quick Actions
+### Quick actions
 
 Shortcut buttons to create a new OPEX or CAPEX item directly from the dashboard. These buttons are only visible if your role grants you at least `opex:manager` or `capex:manager` permissions.
 
@@ -60,7 +60,7 @@ The five largest OPEX items for the current year, ranked by budget amount. Amoun
 
 Click **Open** to view the full Top OPEX report.
 
-### Top Increases (Y vs Y-1)
+### Top increases (Y vs Y-1)
 
 The five OPEX items with the largest budget increase compared to the previous year. Amounts are rounded to thousands with a "k" suffix.
 

@@ -81,7 +81,7 @@ Jeder Unter-Standort hat:
 - **Name**: Eine kurze Bezeichnung (z. B. „Gebäude A - Raum 1 - Rack 5")
 - **Beschreibung**: Optionale zusätzliche Details
 
-Unter-Standorte sind verfügbar, nachdem Sie den Standort zum ersten Mal gespeichert haben. Sie werden zusammen mit dem Übersichtsformular gespeichert, wenn Sie auf **Speichern** klicken.
+Unter-Standorte sind verfügbar, sobald der Standort existiert (nachdem Sie auf **Erstellen** geklickt haben). Jede Zeile wird einzeln gespeichert, wenn Sie das Feld verlassen, und das Löschen eines Unter-Standorts muss zuerst bestätigt werden.
 
 Assets können einem bestimmten Unter-Standort innerhalb eines Standorts zugewiesen werden, um genau zu verfolgen, wo Hardware steht. Wenn Unter-Standorte existieren, zeigt der Reiter Verknüpfungen, welchem Unter-Standort jedes Asset zugeordnet ist.
 
@@ -97,7 +97,7 @@ Dieser Reiter organisiert die Personen und Referenzen, die mit einem Standort ve
 
 **Relevante Websites**: Nützliche Links wie Anbieterportale, Einrichtungsdokumentation oder Statusseiten. Jede Zeile hat eine **Beschreibung** und eine **URL**.
 
-Klicken Sie auf **Speichern** in der Arbeitsbereich-Kopfzeile, um Änderungen in allen drei Abschnitten gleichzeitig zu speichern.
+Änderungen werden automatisch gespeichert. Ein hinzugefügter Kontakt oder Link wird sofort gespeichert, eine Rolle, Beschreibung oder URL beim Verlassen des Felds.
 
 ---
 

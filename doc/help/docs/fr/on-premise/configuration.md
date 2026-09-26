@@ -285,7 +285,7 @@ Ces connexions restent sur le serveur — loopback ou réseau bridge Docker uniq
 ## Tâches de fond
 
 Le backend exécute des tâches de fond planifiées pour les notifications email :
-- **Alertes d'expiration** : quotidiennement à 08h00 UTC — alerte les utilisateurs sur les contrats et postes OPEX expirant dans les 30 jours.
+- **Alertes d'expiration** : chaque jour à 08h00 UTC. Envoie un e-mail aux responsables des contrats et des postes OPEX 30, 14, 7 et 1 jour(s) avant la date limite de résiliation d'un contrat, la date de fin d'un contrat ou la fin de validité d'un poste OPEX. Seuls les utilisateurs qui ont activé les notifications budgétaires et les alertes d'expiration dans leurs paramètres de notification les reçoivent.
 - **Résumé hebdomadaire** : vérification toutes les heures — envoie des résumés hebdomadaires tenant compte des fuseaux horaires aux utilisateurs qui ont opté pour ce service.
 
 Une tâche planifiée supplémentaire s'exécute lorsque le SSO Entra est configuré :

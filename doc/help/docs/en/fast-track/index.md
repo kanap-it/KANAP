@@ -57,7 +57,7 @@ Fill in the minimum details to get started:
 
 Then use the **Purpose** document on **Summary** to explain the business need and expected outcome in plain language. If you already have a brief in Word, use the **Import** button on the Purpose editor to pull the `.docx` file in directly -- no copy-paste needed.
 
-Click **Save**. Your request enters the pipeline with status **Pending Review**.
+Click **Create**. Your request enters the pipeline with status **Pending Review**.
 
 !!! tip "Keep it lean"
     You can add deeper analysis, linked knowledge, and supporting evidence later. The goal right now is to get the request into the governed intake flow.

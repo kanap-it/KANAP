@@ -57,7 +57,7 @@ Remplissez les détails minimaux pour commencer :
 
 Puis utilisez le document **Objet** dans le **Résumé** pour expliquer le besoin métier et le résultat attendu en langage courant. Si vous avez déjà un brief dans Word, utilisez le bouton **Import** sur l'éditeur d'Objet pour importer le fichier `.docx` directement -- sans copier-coller.
 
-Cliquez sur **Enregistrer**. Votre demande entre dans le pipeline avec le statut **En attente de revue**.
+Cliquez sur **Créer**. Votre demande entre dans le pipeline avec le statut **En attente de revue**.
 
 !!! tip "Conseil : Restez léger"
     Vous pourrez ajouter une analyse plus approfondie, des documents de base de connaissances liés et des preuves de support plus tard. L'objectif maintenant est d'introduire la demande dans le flux d'intake gouverné.

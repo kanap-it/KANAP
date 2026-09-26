@@ -162,9 +162,9 @@ Der Rest dieses Leitfadens behandelt die praktischen Grundlagen. Für vollständ
 |---------|-----------------|--------------|
 | **Eigenständig** | Unabhängige Arbeit, mit nichts verknüpft | **Portfolio > Aufgaben > Neu** |
 | **Projekt** | Ergebnis innerhalb eines Projekts | Projekt-Arbeitsbereich **Aufgaben**-Tab, oder **Zeitstrahl**-Phasen-Verknüpfung |
-| **OPEX** | Aktion gebunden an eine OPEX-Position | OPEX-Arbeitsbereich **Aufgaben**-Tab |
+| **OPEX** | Aktion gebunden an eine OPEX-Position | OPEX-Arbeitsbereich, Bereich **Aufgaben** im Tab **Übersicht** |
 | **Vertrag** | Aktion gebunden an einen Vertrag | Vertrags-Arbeitsbereich **Aufgaben**-Tab |
-| **CAPEX** | Aktion gebunden an eine CAPEX-Position | CAPEX-Arbeitsbereich **Aufgaben**-Tab |
+| **CAPEX** | Aktion gebunden an eine CAPEX-Position | CAPEX-Arbeitsbereich, Bereich **Aufgaben** im Tab **Übersicht** |
 
 Alle Aufgaben erscheinen in der zentralen **Portfolio > Aufgaben**-Liste unabhängig vom Kontext, sodass Sie immer einen Ort haben, um alles zu sehen.
 

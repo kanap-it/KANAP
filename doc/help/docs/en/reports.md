@@ -36,7 +36,7 @@ View cost allocations across all companies with summary KPIs and intercompany fl
 ### Controls
 
 - **Year**: Previous, current, or next fiscal year
-- **Column**: Budget, Landing, Follow-up, or Revision
+- **Column**: Budget, Expected landing, Actuals, or Revision
 - **Company totals** (checkbox): Show or hide the company totals table and bar chart
 - **Detailed allocations** (checkbox): Show or hide the company-by-department breakdown
 - **Include KPIs** (checkbox): Show or hide the KPI table
@@ -100,7 +100,7 @@ Drill down into a single company's chargeback allocations across departments, bu
 
 - **Company**: Select which company to analyze
 - **Year**: Previous, current, or next fiscal year
-- **Column**: Budget, Landing, Follow-up, or Revision
+- **Column**: Budget, Expected landing, Actuals, or Revision
 - **Department totals** (checkbox): Show or hide department breakdown
 - **Chargeback items** (checkbox): Show or hide itemised allocations
 - **Chargeback KPIs** (checkbox): Show or hide the KPI comparison table
@@ -145,7 +145,7 @@ Identify your largest recurring OPEX costs for a given year.
 ### Controls
 
 - **Year**: Previous, current, or next year
-- **Metric**: Budget, Revision, Follow-up, or Landing
+- **Metric**: Budget, Revision, Actuals, or Expected landing
 - **Top count**: How many items to show (default: 10, minimum: 1)
 - **Chart type**: Pie chart or horizontal bar chart
 - **Exclude items**: Multi-select autocomplete to exclude specific products
@@ -220,7 +220,7 @@ Compare OPEX metrics across multiple years on a single line chart.
 
 - **Start year**: Beginning of the range (current year minus 2 through plus 2)
 - **End year**: End of the range
-- **Metrics**: Multi-select from Budget, Follow-up, Landing, Revision (at least one required)
+- **Metrics**: Multi-select from Budget, Actuals, Expected landing, Revision (at least one required)
 
 ### What you'll see
 
@@ -258,7 +258,7 @@ Flexibly compare up to 10 year+column combinations for either OPEX or CAPEX.
 ### Controls
 
 - **Item type**: OPEX or CAPEX toggle
-- **Selections**: Each selection has a year picker and a column picker (Budget, Revision, Follow-up, Landing). Add selections with the **Add** button and remove with the delete icon. Maximum of 10 selections; minimum of 1.
+- **Selections**: Each selection has a year picker and a column picker (Budget, Revision, Actuals, Expected landing). Add selections with the **Add** button and remove with the delete icon. Maximum of 10 selections; minimum of 1.
 - **Year grouping** (checkbox): When enabled and at least two years share a metric, switches to a grouped line chart with one series per metric and years on the X axis. When disabled, shows a flat line chart with each selection as a data point.
 
 ### What you'll see
@@ -288,7 +288,7 @@ View OPEX budget data grouped by consolidation account, with chart type adapting
 ### Controls
 
 - **Start year** and **End year**: Previous, current, or next year
-- **Metric**: Budget, Follow-up, Landing, or Revision
+- **Metric**: Budget, Actuals, Expected landing, or Revision
 - **Chart type**: Pie chart or horizontal bar chart (only available when a single year is selected)
 - **Exclude accounts**: Multi-select autocomplete to exclude specific accounts
 
@@ -316,7 +316,7 @@ View OPEX budget data grouped by analytics category. The layout mirrors the Cons
 ### Controls
 
 - **Start year** and **End year**: Previous, current, or next year
-- **Metric**: Budget, Follow-up, Landing, or Revision
+- **Metric**: Budget, Actuals, Expected landing, or Revision
 - **Chart type**: Pie chart or horizontal bar chart (single-year only)
 - **Exclude analytics categories**: Multi-select autocomplete to exclude specific categories
 
@@ -353,8 +353,8 @@ All reports that offer a metric selector use the same four columns:
 |-----|-------|
 | `budget` | Budget |
 | `revision` | Revision |
-| `follow_up` | Follow-up |
-| `landing` | Landing |
+| `follow_up` | Actuals |
+| `landing` | Expected landing |
 
 ### Navigation
 
@@ -366,7 +366,7 @@ Every report shows a breadcrumb trail back to the **Reporting** hub, so you can 
 
 - **Start with Global Chargeback**: Get the big picture of allocations before drilling into a single company.
 - **Use Top OPEX for quick wins**: The largest cost items are your first candidates for optimization.
-- **Compare Budget vs Landing**: Use the Column Comparison report to measure forecast accuracy across years.
+- **Compare Budget vs Expected landing**: Use the Column Comparison report to measure forecast accuracy across years.
 - **Toggle sections on chargeback reports**: The checkbox controls let you focus on just the data you need -- departments, items, KPIs, or flows -- without visual clutter.
 - **Year grouping in Column Comparison**: When comparing the same metric across multiple years, enable year grouping for a cleaner line chart.
 - **Export for presentations**: Charts export as PNG and tables as CSV, both ready for slides or spreadsheets.

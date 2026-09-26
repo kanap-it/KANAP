@@ -59,7 +59,7 @@ La pestaña Visión general captura la identidad y estado del proveedor.
 **Qué puede editar**:
 - **Nombre**: Nombre del proveedor o vendedor (obligatorio)
 - **ID proveedor ERP**: ID de referencia de su sistema de compras o ERP
-- **Estado**: Habilitado o Deshabilitado, con una fecha de desactivación opcional
+- **Ciclo de vida**: el interruptor de estado, cuya etiqueta muestra el estado actual (**Activado** o **Desactivado**), y la fecha de **Fin de validez**. Deje la fecha en blanco para que el proveedor permanezca activo indefinidamente, o fije una fecha futura para programar su fin. Si cambia el proveedor a **Desactivado** sin fecha, el fin de validez se fija en hoy
 - **Notas**: Notas de texto libre sobre el proveedor
 
 La edición requiere el permiso `suppliers:manager`. Los usuarios de solo lectura ven los mismos campos pero no pueden realizar cambios.

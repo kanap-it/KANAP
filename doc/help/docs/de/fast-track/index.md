@@ -55,7 +55,7 @@ Füllen Sie die Mindestangaben zum Starten aus:
 
 Verwenden Sie dann das **Zweck**-Dokument auf der **Zusammenfassung**, um den Geschäftsbedarf und das erwartete Ergebnis in einfacher Sprache zu erklären. Wenn Sie bereits ein Briefing in Word haben, verwenden Sie die **Importieren**-Schaltfläche im Zweck-Editor, um die `.docx`-Datei direkt einzulesen -- kein Kopieren und Einfügen nötig.
 
-Klicken Sie auf **Speichern**. Ihre Anfrage geht mit dem Status **Prüfung ausstehend** in die Pipeline.
+Klicken Sie auf **Erstellen**. Ihre Anfrage geht mit dem Status **Prüfung ausstehend** in die Pipeline.
 
 !!! tip "Halten Sie es schlank"
     Sie können tiefere Analysen, verknüpfte Wissensdatenbank-Dokumente und Belege später hinzufügen. Das Ziel jetzt ist, die Anfrage in den gesteuerten Intake-Flow zu bekommen.

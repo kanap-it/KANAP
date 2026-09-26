@@ -25,7 +25,7 @@ Alles in KANAPs IT-Landschaft-Modul ist verbunden, um ein vollständiges Bild Ih
 | Objekt | Was es repräsentiert |
 |--------|---------------------|
 | **Anwendung** | Eine Geschäftsanwendung oder ein IT-Dienst, den Sie dokumentieren möchten |
-| **Umgebung** | Wo sie läuft -- Prod, QA, Dev usw. (in KANAP „Instanzen" genannt) |
+| **Umgebung** | Wo sie läuft -- Prod, QA, Dev usw. (in KANAP „Bereitstellungen" genannt) |
 | **Server (Asset)** | Die Infrastruktur, die sie hostet -- VMs, physische Server, Container |
 
 Die Kette ist einfach: **Anwendung → Umgebung → Server**. Am Ende dieses Leitfadens haben Sie diese Kette vollständig dokumentiert.
@@ -47,117 +47,122 @@ Füllen Sie das Wesentliche aus:
 |------|-------------|---------|
 | **Name** | Ein klarer, wiedererkennbarer Name | `Salesforce CRM` |
 | **Kategorie** | Der primäre Zweck | `Fachbereichsanwendung` |
-| **Anbieter** | Der Lieferant (aus Ihren Stammdaten) | `Salesforce Inc` |
-| **Kritikalität** | Geschäftliche Bedeutung | `Geschäftskritisch` |
+| **Lieferant** | Der Lieferant (aus Ihren Stammdaten) | `Salesforce Inc` |
+| **Geschäftskritikalität** | Geschäftliche Bedeutung | `Geschäftskritisch` |
 | **Lebenszyklus** | Aktueller Status | `Aktiv` |
 
-Klicken Sie auf **Speichern**. Ihre Anwendung ist jetzt im Register, und der vollständige Arbeitsbereich öffnet sich mit neun Tabs für die detaillierte Dokumentation.
+Klicken Sie auf **Erstellen**. Ihre Anwendung ist jetzt im Register, und der vollständige Arbeitsbereich öffnet sich mit sechs Tabs für die detaillierte Dokumentation: **Übersicht**, **Bereitstellungen**, **Schnittstellen**, **Betrieb**, **Compliance** und **Beziehungen**.
 
 !!! tip "Beginnen Sie mit dem, was Sie wissen"
     Beschreibung, Herausgeber, Version, Lizenzierung -- alles nützlich, aber in diesem Stadium optional. Sie können später anreichern. Das Ziel ist, die App ins System zu bekommen.
 
 ---
 
-## Schritt 2: Eine Umgebung hinzufügen (Instanz)
+## Schritt 2: Eine Umgebung hinzufügen (Bereitstellung)
 
-Jede Anwendung läuft irgendwo. Der **Instanzen**-Tab dokumentiert Ihre Umgebungen.
+Jede Anwendung läuft irgendwo. Der Tab **Bereitstellungen** dokumentiert Ihre Umgebungen.
 
-Öffnen Sie Ihre Anwendung und gehen Sie zum **Instanzen**-Tab. Klicken Sie auf **Hinzufügen** und wählen Sie den Umgebungstyp (Prod, Pre-prod, QA, Test, Dev oder Sandbox).
+Öffnen Sie Ihre Anwendung und gehen Sie zum Tab **Bereitstellungen**. Klicken Sie auf **Bereitstellung hinzufügen** und wählen Sie die Umgebung (PROD, PRE-PROD, QA, TEST, DEV oder SANDBOX).
 
-Für jede Instanz können Sie erfassen:
+Für jede Bereitstellung können Sie erfassen:
 
 | Feld | Was es bewirkt | Beispiel |
-|------|---------------|---------|
-| **Umgebung** | Der Umgebungstyp | `Prod` |
+|-------|-------------|---------|
+| **Umgebung** | Der Umgebungstyp | `PROD` |
+| **Lebenszyklus** | Status dieser Bereitstellung | `Aktiv` |
 | **Basis-URL** | Die Zugriffs-URL | `https://mycompany.salesforce.com` |
-| **Lebenszyklus** | Instanz-spezifischer Status | `Aktiv` |
 | **SSO aktiviert** | Ist Single Sign-On aktiv? | `Ja` |
 | **MFA unterstützt** | Wird Multi-Faktor-Authentifizierung unterstützt? | `Ja` |
 | **Notizen** | Zusätzlicher Kontext | `Primäre EU-Instanz` |
 
-!!! tip "Von Prod kopieren"
-    Sobald Ihre Produktionsinstanz eingerichtet ist, verwenden Sie die Schaltfläche **Von Prod kopieren**, um schnell QA-, Dev- und andere Umgebungen mit ähnlichen Einstellungen zu erstellen.
+Jede Bereitstellung erscheint als Karte, darunter ihre Server (siehe Schritt 8). Mit dem Stiftsymbol bearbeiten Sie eine Bereitstellung, mit dem Löschsymbol entfernen Sie sie.
 
-Instanzänderungen werden sofort gespeichert -- kein Klick auf die Hauptspeicher-Schaltfläche nötig.
+Änderungen an einer Bereitstellung werden gespeichert, sobald Sie den Dialog bestätigen.
 
 ---
 
 ## Schritt 3: Verantwortliche zuweisen
 
-Gehen Sie zum Tab **Eigentümer & Zielgruppe**. Hier dokumentieren Sie, wer verantwortlich ist.
+Die Verantwortlichen befinden sich im Bereich **Eigenschaften** rechts im Anwendungs-Arbeitsbereich.
 
 ### Fachbereichsverantwortliche
 
-Die Fachbereichs-Stakeholder, die für die Anwendung rechenschaftspflichtig sind. Fügen Sie eine oder mehrere Personen hinzu -- deren Berufsbezeichnung erscheint automatisch.
+Die fachlichen Stakeholder, die für die Anwendung verantwortlich sind. Fügen Sie eine oder mehrere Personen hinzu.
 
 ### IT-Verantwortliche
 
-Die IT-Teammitglieder, die für den technischen Betrieb und Support verantwortlich sind. Gleicher Mechanismus -- Personen hinzufügen, Rollen erscheinen.
+Die Mitglieder des IT-Teams, die für den technischen Betrieb und den Support zuständig sind. Gleicher Mechanismus: Fügen Sie die Personen hinzu.
 
 ### Zielgruppe (Optional)
 
-Wählen Sie aus, welche **Unternehmen** und **Abteilungen** diese Anwendung nutzen. KANAP berechnet automatisch die Benutzeranzahl basierend auf Ihren Stammdaten.
+Wählen Sie unter **Zielgruppe** das **Unternehmen** und die **Abteilungen**, die diese Anwendung nutzen. KANAP berechnet die Anzahl der Benutzer aus Ihren Stammdaten, oder Sie stellen die Berechnung auf manuell um und geben die Zahl selbst ein.
 
 !!! warning "Warum Verantwortliche wichtig sind"
-    Verantwortlichkeit erleichtert es, **die richtigen Personen zu erreichen**, wenn es darauf ankommt -- geplante Wartung, Dienstunterbrechungen, Upgrade-Entscheidungen, Lizenzverlängerungen. Sie steuert auch die Bereichsfilter **Meine Apps** und **Apps meines Teams** in der Hauptliste. Ohne Verantwortliche ist die App nur in der „Alle Apps"-Ansicht sichtbar -- was bedeutet, dass sich niemand verantwortlich fühlt und niemand benachrichtigt wird.
+    Verantwortlichkeit macht es einfach, **die richtigen Personen zu erreichen**, wenn es darauf ankommt -- geplante Wartung, Serviceunterbrechungen, Upgrade-Entscheidungen, Lizenzverlängerungen. Sie steuert auch die Filter **Meine Apps** und **Apps meines Teams** in der Hauptliste. Ohne Verantwortliche ist die App nur in der Ansicht „Alle Apps" sichtbar -- das heißt, niemand fühlt sich zuständig und niemand wird benachrichtigt.
 
 ---
 
 ## Schritt 4: Zugriffsmethoden festlegen
 
-Gehen Sie zum Tab **Technik & Support**. Unter **Zugriffsmethoden** wählen Sie, wie Benutzer auf diese Anwendung zugreifen:
+Gehen Sie zum Tab **Betrieb**. Wählen Sie unter **Zugriffsmethoden**, wie Benutzer diese Anwendung erreichen:
 
-- **Web** -- browserbasierter Zugriff
+- **Web** -- Zugriff über den Browser
 - **Lokal installierte Anwendung** -- Desktop-Client
-- **Mobile Anwendung** -- Telefon-/Tablet-App
+- **Mobile Anwendung** -- App für Telefon/Tablet
 - **VDI / Remote Desktop** -- virtueller Desktop
-- **Terminal / CLI** -- Kommandozeilenoberfläche
-- **Proprietäre HMI** -- industrielle Oberfläche
+- **Terminal / CLI** -- Befehlszeilenschnittstelle
+- **Proprietäre HMI** -- industrielle Schnittstelle
 - **Kiosk** -- dediziertes Terminal
 
-Zugriffsmethoden sind in den [IT-Landschaft-Einstellungen](../it-ops-settings.md#zugriffsmethoden) konfigurierbar, Ihre Liste kann also zusätzliche Optionen enthalten.
+Zugriffsmethoden sind in den [IT-Landschaft-Einstellungen](../it-ops-settings.md#zugriffsmethoden) konfigurierbar, Ihre Liste kann also weitere Optionen enthalten.
 
-Setzen Sie außerdem:
+Legen Sie außerdem fest:
 
-| Feld | Was es bedeutet |
-|------|----------------|
+| Feld | Bedeutung |
+|-------|--------------|
 | **Extern zugänglich** | Ist diese App aus dem Internet erreichbar? |
-| **Datenintegration / ETL** | Nimmt diese App an Datenpipelines teil? |
+| **Datenintegration / ETL** | Ist diese App an Datenpipelines beteiligt? |
+
+Derselbe Tab enthält die **Support**-Kontakte (über **Kontakt hinzufügen**, jeweils mit einer Rolle) und freie **Support-Notizen**.
 
 ---
 
-## Schritt 5: Mit anderen Objekten verknüpfen (Verknüpfungen)
+## Schritt 5: Mit anderen Objekten verknüpfen (Beziehungen)
 
-Gehen Sie zum **Verknüpfungen**-Tab, um Ihre Anwendung mit dem Rest Ihrer IT-Verwaltungsdaten zu verbinden.
+Gehen Sie zum Tab **Beziehungen**, um Ihre Anwendung mit Ihren übrigen IT-Managementdaten zu verbinden.
 
 | Verknüpfungstyp | Was Sie verbinden | Warum |
-|-----------------|-------------------|-------|
+|-----------|----------------------|-----|
 | **OPEX-Positionen** | Wiederkehrende Kosten (Lizenzen, SaaS-Gebühren) | Das vollständige Kostenbild sehen |
 | **CAPEX-Positionen** | Investitionsprojekte | Investitionen verfolgen |
-| **Verträge** | Lieferantenvereinbarungen | Wissen, wann Verlängerungen fällig sind |
-| **Projekte** | Portfolio-Projekte | Verbindung zu Ihrem Projektportfolio |
-| **Relevante Websites** | Dokumentation, Wikis, Runbooks | Schnellzugriff auf externe Ressourcen |
-| **Anhänge** | Dateien (Drag-and-Drop oder Dateiauswahl) | Spezifikationen und Dokumente neben der App aufbewahren |
+| **Verträge** | Lieferantenverträge | Wissen, wann Verlängerungen fällig sind |
+| **Projekte** | Portfolio-Projekte | Mit Ihrem Projektportfolio verbinden |
+| **Relevante Websites** | Dokumentation, Wikis, Runbooks | Schneller Zugriff auf externe Ressourcen |
+| **Anhänge** | Dateien (Drag-and-drop oder Dateiauswahl) | Spezifikationen und Dokumente bei der App halten |
 
-!!! tip "Das können Sie auch später tun"
-    Verknüpfungen sind mächtig, aber nicht blockierend. Erstellen Sie sie, wenn Sie die Daten haben -- die App ist ohne sie voll funktionsfähig.
+Der Tab verknüpft auch **Aufgaben**, und Suiten listen dort ihre **Komponenten**.
+
+!!! tip "Das geht auch später"
+    Verknüpfungen sind nützlich, aber nicht blockierend. Legen Sie sie an, wenn Sie die Daten haben -- die App funktioniert auch ohne sie vollständig.
 
 ---
 
 ## Schritt 6: Compliance-Informationen hinzufügen
 
-Gehen Sie zum **Compliance**-Tab. Dies wird zunehmend wichtig für Audits und regulatorische Anforderungen.
+Gehen Sie zum Tab **Compliance**. Das wird für Audits und regulatorische Anforderungen immer wichtiger.
 
 | Feld | Was eingeben | Beispiel |
-|------|-------------|---------|
-| **Datenklasse** | Sensibilitätsstufe | `Vertraulich` |
-| **Enthält PII** | Speichert personenbezogene Daten? | `Ja` |
-| **Datenresidenz** | Länder, in denen Daten gespeichert werden | `Frankreich, Deutschland` |
-| **Letzter DR-Test** | Datum des letzten Disaster-Recovery-Tests | `2025-11-15` |
+|-------|--------------|---------|
+| **Geschäftskritikalität** / **Cyberkritikalität** | Wie kritisch die App ist | `Geschäftskritisch` |
+| **Datenvertraulichkeit** | Sensibilitätsstufe | `Vertraulich` |
+| **Enthält personenbezogene Daten** | Speichert personenbezogene Daten? | `Ja` |
+| **Datenresidenz** | Länder, in denen die Daten gespeichert sind | `Frankreich, Deutschland` |
+| **Letzter Wiederanlauftest** | Datum des letzten Notfallwiederherstellungstests | `2025-11-15` |
 
-!!! info "Datenklassen sind konfigurierbar"
-    Die Standardklassen (Öffentlich, Intern, Vertraulich, Eingeschränkt) können unter **IT-Landschaft > Einstellungen** an die Datenklassifizierungsrichtlinie Ihrer Organisation angepasst werden.
+Der Tab enthält außerdem die **Wiederanlaufwelle**, die Wiederherstellungsziele (RTO und RPO) und eine **Begründung**. Wenn Sie fertig sind, markieren Sie die Klassifizierung als geprüft.
 
+!!! info "Klassifizierungsstufen sind konfigurierbar"
+    Die Standard-Datenklassen (Öffentlich, Intern, Vertraulich, Eingeschränkt) und die Kritikalitätsstufen können unter **IT-Landschaft > Einstellungen** an die Klassifizierungsrichtlinie Ihrer Organisation angepasst werden.
 ---
 
 ## Schritt 7: Ihren Server erstellen (Asset)
@@ -169,17 +174,14 @@ Gehen Sie zu **IT-Landschaft > Assets** und klicken Sie auf **Asset hinzufügen*
 Füllen Sie die Kernfelder aus:
 
 | Feld | Was eingeben | Beispiel |
-|------|-------------|---------|
+|-------|--------------|---------|
 | **Name** | Hostname oder Kennung | `PROD-WEB-01` |
-| **Asset-Typ** | Der Servertyp (Dropdown) | `Virtuelle Maschine` |
-| **Ist Cluster** | Umschalter, ob es ein Cluster ist | `Nein` |
-| **Standort** | Wo es gehostet wird (Pflicht) | `Paris Rechenzentrum` |
-| **Lebenszyklus** | Aktueller Status | `Aktiv` |
-| **Inbetriebnahmedatum** | Wann es in Betrieb ging | `2025-01-15` |
-| **End-of-Life-Datum** | Geplante Außerbetriebnahme | -- |
-| **Notizen** | Zusätzlicher Kontext | -- |
+| **Asset-Typ** | Der Servertyp (Auswahlliste) | `Virtuelle Maschine` |
+| **Standort** | Wo er gehostet wird (Pflichtfeld) | `Rechenzentrum Paris` |
+| **Umgebung** | Welche Umgebung er bedient | `Prod` |
+| **Beschreibung** | Zusätzlicher Kontext | -- |
 
-Sobald ein Standort ausgewählt ist, werden mehrere **schreibgeschützte Felder** automatisch abgeleitet:
+Der Bereich **Eigenschaften** rechts enthält den Rest: **Unter-Standort**, **Lebenszyklus**, **Go-live** und **End of Life**. Sobald ein Standort ausgewählt ist, werden mehrere **schreibgeschützte Felder** automatisch abgeleitet:
 
 - **Hosting-Typ** (On-Premises, Cloud, Colocation usw.)
 - **Cloud-Anbieter / Betreiberunternehmen** (z. B. AWS, Azure oder das Unternehmen, das die Einrichtung betreibt)
@@ -187,62 +189,60 @@ Sobald ein Standort ausgewählt ist, werden mehrere **schreibgeschützte Felder*
 - **Stadt**
 
 !!! info "Der Standort ist der Schlüssel"
-    Der Standort steuert viele Attribute Ihres Assets automatisch. Standorte werden unter **IT-Landschaft > Standorte** verwaltet -- richten Sie sie einmal ein und jedes zugewiesene Asset erbt Hosting-Typ, Anbieter, Land und Stadt. Sie müssen diese nicht manuell eingeben.
+    Der Standort bestimmt viele Attribute Ihres Assets automatisch. Standorte werden unter **IT-Landschaft > Standorte** verwaltet -- richten Sie sie einmal ein, und jedes zugeordnete Asset erbt Hosting-Typ, Anbieter, Land und Stadt. Sie müssen diese nicht manuell ausfüllen.
 
-Klicken Sie auf **Speichern**, um den vollständigen Arbeitsbereich freizuschalten. Für physische Asset-Typen werden zusätzliche **Hardware**- und **Support**-Tabs verfügbar, um Seriennummern, Herstellerdetails und Lieferanten-Supportverträge zu erfassen.
+Klicken Sie auf **Erstellen**, um den vollständigen Arbeitsbereich freizuschalten. Für physische Asset-Typen werden zusätzliche **Hardware**- und **Support**-Tabs verfügbar, um Seriennummern, Herstellerdetails und Lieferanten-Supportverträge zu erfassen.
 
 ### Technik-Tab
 
-Gehen Sie zum **Technik**-Tab, um hinzuzufügen:
+Gehen Sie zum Tab **Technik**, um Folgendes hinzuzufügen:
 
 | Abschnitt | Felder | Details |
-|-----------|--------|---------|
-| **Umgebung** | Umgebungs-Dropdown | `Produktion`, `QA`, `Dev` usw. |
-| **Identität** | Hostname, Domain, FQDN, Aliasse, OS | FQDN wird automatisch aus Hostname + Domain berechnet |
-| **IP-Adressen** | Typ, IP, Subnetz | Netzwerkzone und VLAN werden aus dem Subnetz abgeleitet |
+|---------|--------|---------|
+| **Cluster-Verwaltung** | Cluster-Schalter | Schalten Sie ihn ein, wenn dieses Asset ein Cluster ist, und fügen Sie dann seine Mitgliedsserver hinzu |
+| **Identität** | Hostname, Domäne, FQDN, Aliase, Betriebssystem | Der FQDN wird automatisch aus Hostname und Domäne berechnet |
+| **IP-Adressen** | Typ, IP-Adresse, Subnetz | Netzwerkzone und VLAN werden aus dem Subnetz abgeleitet |
 
 !!! info "Mehrere IP-Adressen"
-    Ein Server kann mehrere IP-Adressen haben -- fügen Sie so viele hinzu wie nötig (z. B. Management-Interface, Produktions-VLAN, Backup-Netzwerk). Jeder Eintrag kann seinen eigenen Typ und sein eigenes Subnetz haben, und Netzwerkzone und VLAN werden automatisch abgeleitet.
+    Ein Server kann mehrere IP-Adressen haben -- fügen Sie so viele wie nötig hinzu (z. B. Management-Schnittstelle, Produktions-VLAN, Backup-Netz). Jeder Eintrag kann seinen eigenen Typ und sein eigenes Subnetz haben, Netzwerkzone und VLAN werden automatisch abgeleitet.
 
 ---
 
 ## Schritt 8: Den Server mit Ihrer Anwendung verknüpfen
 
-Dies ist die letzte Verbindung -- Ihr Server wird der Anwendungsumgebung zugeordnet, die er unterstützt.
+Das ist die letzte Verbindung -- Ihr Server wird mit der Anwendungsumgebung verknüpft, die er unterstützt.
 
-Es gibt **zwei Wege**, um diese Zuordnung zu erstellen:
+Es gibt **zwei Wege**, diese Zuordnung zu erstellen:
 
 ### Von der Anwendungsseite
 
 1. Öffnen Sie Ihre Anwendung
-2. Gehen Sie zum **Server**-Tab
-3. Wählen Sie die **Produktions**-Umgebung
-4. Klicken Sie auf **Zuordnung hinzufügen**
-5. Wählen Sie Ihr Asset (`PROD-WEB-01`)
-6. Legen Sie die **Rolle** fest (Web, Datenbank, Anwendung usw.)
+2. Gehen Sie zum Tab **Bereitstellungen**
+3. Klicken Sie auf der Karte der Bereitstellung **PROD** auf **Server hinzufügen**
+4. Wählen Sie Ihr Asset (`PROD-WEB-01`)
+5. Legen Sie die **Rolle** fest (Web, Datenbank, Anwendung usw.) und optional das Datum **Seit** und **Notizen**
 
 ### Von der Asset-Seite
 
 1. Öffnen Sie Ihr Asset
-2. Gehen Sie zum **Zuordnungen**-Tab
+2. Suchen Sie im Tab **Übersicht** den Abschnitt **Zuordnungen**
 3. Klicken Sie auf **Zuordnung hinzufügen**
-4. Füllen Sie die Zuordnungsfelder aus:
+4. Füllen Sie die Felder der Zuordnung aus:
 
 | Feld | Was eingeben | Beispiel |
-|------|-------------|---------|
+|-------|--------------|---------|
 | **Anwendung** | Die zu verknüpfende Anwendung | `Salesforce CRM` |
-| **Umgebung / Instanz** | Welche Instanz | `Produktion` |
+| **Umgebung** | Welche Bereitstellung | `PROD` |
 | **Rolle** | Serverrolle für diese App | `Web` |
-| **Seit-Datum** | Wann die Zuordnung begann | `2025-01-15` |
+| **Seit** | Wann die Zuordnung begann | `2025-01-15` |
 | **Notizen** | Kontext | -- |
 
-!!! success "Die Kette ist komplett"
+!!! success "Die Kette ist vollständig"
     Sie haben jetzt den vollständigen Pfad dokumentiert:
 
-    **Salesforce CRM** → **Produktionsinstanz** → **PROD-WEB-01**
+    **Salesforce CRM** → **Bereitstellung PROD** → **PROD-WEB-01**
 
-    Jeder kann in Sekunden von „Welche App?" zu „Welcher Server?" zu „Wo steht er?" nachverfolgen.
-
+    Jeder kann in Sekunden von „welche App?" über „welcher Server?" zu „wo steht er?" gelangen.
 ---
 
 ## Wie alles zusammenhängt
@@ -255,7 +255,7 @@ Ihre Anwendungsliste wird zu einem Live-Register, das jede Anwendung mit ihren U
 
 ### Infrastruktur-Mapping
 
-Assets, die mit Anwendungsinstanzen verknüpft sind, ermöglichen es Ihnen, Fragen zu beantworten wie:
+Assets, die mit Anwendungsbereitstellungen verknüpft sind, ermöglichen es Ihnen, Fragen zu beantworten wie:
 
 - „Welche Server unterstützen diese geschäftskritische App?"
 - „Welche Anwendungen sind betroffen, wenn dieser Server ausfällt?"
@@ -267,7 +267,7 @@ Datenklassifizierung, PII-Kennzeichnungen und Datenresidenz fließen in Complian
 
 ### Wissensdatenbank
 
-Sowohl Anwendungen als auch Assets haben einen **Wissensdatenbank**-Tab, in dem Sie Runbooks, Architekturentscheidungen, Betriebsverfahren und interne Dokumentation verknüpfen können. Diese Referenzen an den richtigen Datensätzen zu haben bedeutet, dass Ihr Team bei Vorfällen findet, was es braucht, ohne Wikis zu durchsuchen.
+Sowohl Anwendungen als auch Assets haben im Tab **Übersicht** einen Abschnitt **Wissensdatenbank**, in dem Sie Runbooks, Architekturentscheidungen, Betriebsverfahren und interne Dokumentation verknüpfen können. Diese Referenzen an den richtigen Datensätzen zu haben bedeutet, dass Ihr Team bei Vorfällen findet, was es braucht, ohne Wikis zu durchsuchen.
 
 ### Verbindungskarte
 
@@ -275,7 +275,7 @@ Sobald Assets dokumentiert sind, können Sie **Verbindungen** (Server-zu-Server 
 
 ### Schnittstellen & Schnittstellenkarte
 
-Gehen Sie einen Schritt weiter: Dokumentieren Sie **Schnittstellen** zwischen Anwendungen, um Datenflüsse, Integrationspunkte und Geschäftskontext zu erfassen. Jede Schnittstelle hat sechs Tabs für gründliche Dokumentation -- Übersicht, Eigentümer & Kritikalität, Funktionale Definition, Technische Definition, Bindungen & Verbindungen und Daten & Compliance.
+Gehen Sie einen Schritt weiter: Dokumentieren Sie **Schnittstellen** zwischen Anwendungen, um Datenflüsse, Integrationspunkte und Geschäftskontext zu erfassen. Jede Schnittstelle hat fünf Tabs für gründliche Dokumentation: Übersicht, Fluss, Umgebungen, Datenmapping und Beziehungen.
 
 Verwenden Sie dann die [Schnittstellenkarte](../interface-map.md), um den vollständigen Anwendungsfluss zu visualisieren. In der Standard-Geschäftsansicht sehen Sie saubere Quelle-zu-Ziel-Beziehungen. Wechseln Sie zur technischen Ansicht, um Middleware-Plattformen als rautenförmige Knoten anzuzeigen, die den tatsächlichen Datenpfad zeigen. Der Tiefenfilter zählt nur primäre Anwendungsknoten -- Middleware ist transparent, sodass die Auswahl einer App mit Tiefe 2 Ihnen zwei echte Sprünge zeigt, unabhängig davon, wie viele Middleware-Plattformen dazwischenliegen.
 
@@ -286,16 +286,16 @@ Verwenden Sie dann die [Schnittstellenkarte](../interface-map.md), um den vollst
 | Ich möchte... | Gehe zu... |
 |---------------|------------|
 | Eine Anwendung erstellen | IT-Landschaft > Anwendungen > Neue App / Neuer Dienst |
-| Umgebungen hinzufügen | App öffnen > Instanzen-Tab |
-| Verantwortliche zuweisen | App öffnen > Tab Eigentümer & Zielgruppe |
-| Zugriffsmethoden festlegen | App öffnen > Tab Technik & Support |
-| Budgets/Verträge verknüpfen | App öffnen > Verknüpfungen-Tab |
-| Wissensdatenbank-Dokumente anhängen | App öffnen > Wissensdatenbank-Tab |
+| Umgebungen hinzufügen | App öffnen > Tab Bereitstellungen > Bereitstellung hinzufügen |
+| Verantwortliche zuweisen | App öffnen > Bereich Eigenschaften |
+| Zugriffsmethoden festlegen | App öffnen > Tab Betrieb |
+| Budgets/Verträge verknüpfen | App öffnen > Tab Beziehungen |
+| Wissensdatenbank-Dokumente anhängen | App öffnen > Tab Übersicht > Wissensdatenbank |
 | Compliance-Infos hinzufügen | App öffnen > Compliance-Tab |
 | Einen Server erstellen | IT-Landschaft > Assets > Asset hinzufügen |
-| Server mit App verknüpfen (von App) | App öffnen > Server-Tab > Zuordnung hinzufügen |
-| Server mit App verknüpfen (von Asset) | Asset öffnen > Zuordnungen-Tab > Zuordnung hinzufügen |
-| Server-Verbindungen anzeigen | Asset öffnen > Verbindungen-Tab |
+| Server mit App verknüpfen (von App) | App öffnen > Tab Bereitstellungen > Server hinzufügen |
+| Server mit App verknüpfen (von Asset) | Asset öffnen > Tab Übersicht > Zuordnungen > Zuordnung hinzufügen |
+| Server-Verbindungen anzeigen | Asset öffnen > Tab Übersicht > Verbindungen |
 | Verbindungskarte anzeigen | IT-Landschaft > Verbindungskarte |
 | Schnittstellenkarte anzeigen | IT-Landschaft > Schnittstellenkarte |
 | Dropdowns konfigurieren | IT-Landschaft > Einstellungen |
