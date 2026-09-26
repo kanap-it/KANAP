@@ -16,7 +16,7 @@ export const CreateSpendItemSchema = z.object({
   /** Effective start date (YYYY-MM-DD) */
   effective_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
 
-  /** Effective end date (optional, YYYY-MM-DD) */
+  /** @deprecated Alias of disabled_at for one release: fills an empty end of validity (YYYY-MM-DD), never stored. */
   effective_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').nullable().optional(),
 
   /** Paying company ID (optional) */
@@ -45,6 +45,9 @@ export const CreateSpendItemSchema = z.object({
 
   /** Notes (optional) */
   notes: z.string().nullable().optional(),
+
+  /** End of validity (optional, ISO date or datetime): the last day the item is in service */
+  disabled_at: z.string().nullable().optional(),
 });
 
 export type CreateSpendItemInput = z.input<typeof CreateSpendItemSchema>;

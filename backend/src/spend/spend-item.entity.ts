@@ -35,9 +35,6 @@ export class SpendItem {
   @Column('date')
   effective_start!: string; // YYYY-MM-DD
 
-  @Column('date', { nullable: true })
-  effective_end!: string | null;
-
   @Column({
     type: 'enum',
     enum: StatusState,

@@ -25,7 +25,7 @@ Navigate to **Budget Management > CAPEX** to see your list. Click **New** to cre
 
 **Optional but useful**:
 
-- **Effective End**: When this asset's useful life ends or project completes (leave blank for ongoing assets)
+- **End of validity**: The date this investment stops, for example when the asset's useful life ends or the project completes. Leave it blank if there is no end. After it, the item is disabled and later years no longer count in the budget views
 - **Notes**: Free-form internal notes about the investment
 
 Once you save, the workspace unlocks all tabs: **Overview**, **Budget**, **Allocations**, **Tasks**, and **Relations**.
@@ -83,7 +83,7 @@ These columns are hidden by default. Show them from the column chooser (hamburge
 | **Y-1 Landing** | Prior-year final actual capital expenditure |
 | **Currency** | Item-level currency code |
 | **Start** | Effective start date |
-| **End** | Effective end date |
+| **End of validity** | Date the item stops (blank means no end) |
 | **Notes** | Free-form notes |
 | **Task** | Title of the most recent task linked to this item |
 | **Enabled** | Status (enabled or disabled) |
@@ -150,13 +150,13 @@ This tab shows all the general information about the CAPEX item.
 - **Investment Type**: Replacement, Capacity, Productivity, Security, Conformity, Business Growth, or Other
 - **Priority**: Mandatory, High, Medium, or Low
 - **Currency**: Defaults to workspace CAPEX currency; shows only allowed currencies
-- **Effective Start** and **Effective End**: Date fields in DD/MM/YYYY format
+- **Effective Start**: Date field in DD/MM/YYYY format
 - **Notes**: Free-form internal notes
 
 **Status and lifecycle**:
 
-- Use the **Enabled** toggle or set a **Disabled date** to control when the item appears in reports and selection lists
-- Disabled items are excluded from reports for years strictly after the disabled date
+- Use the **Enabled** toggle or set an **End of validity** to control when the item appears in reports and selection lists
+- Disabled items are excluded from reports for years strictly after the end of validity
 - Historical data remains intact; you will still see disabled items in reports covering years when they were active
 
 **Save and Reset**:
@@ -380,7 +380,9 @@ You can bulk-load CAPEX items via CSV to speed up initial setup or sync with ext
 
 - Delimiter: semicolon `;` (not comma)
 - Encoding: UTF-8 (save as "CSV UTF-8" in Excel)
-- Headers: `description;ppe_type;investment_type;priority;currency;effective_start;effective_end;status;disabled_at;notes;company_name;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget`
+- Headers: `item_number;description;ppe_type;investment_type;priority;currency;effective_start;status;disabled_at;notes;company_name;owner_it_email;owner_business_email;analytics_category;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget;y_plus1_revision;y_plus2_budget`
+- `disabled_at` is the end of validity: the date the item stops. Use a date (`2026-12-31`) or a full date and time. Leave it empty if there is no end
+- Older files with an `effective_end` column still import: its date fills the end of validity when `disabled_at` is empty
 
 **Import**:
 
@@ -419,21 +421,22 @@ You can bulk-load CAPEX items via CSV to speed up initial setup or sync with ext
 
 ## Status and lifecycle
 
-Every CAPEX item has a **status** (Enabled or Disabled) and an optional **Disabled date** that controls when it appears in reports and selection lists.
+Every CAPEX item has a **status** (Enabled or Disabled) and an optional **End of validity** that controls when it appears in reports and selection lists. It is the only end date of an item.
 
 **How it works**:
 
 - **Enabled**: The item is active and appears everywhere (lists, reports, allocations)
-- **Disabled date**: When set, the item is disabled at the end of that day
-- After the disabled date:
+- **End of validity**: The date the item stops. Leave it blank if there is no end
+- After the end of validity:
   - The item no longer appears in selection lists for new contracts or allocations
-  - It is excluded from reports for years strictly after the disabled date
+  - It is excluded from reports for years strictly after the end of validity
   - Historical data remains intact; the item still appears in reports covering years when it was active
 
 **Setting status**:
 
-- In the **Overview** tab, use the **Enabled** toggle or set a **Disabled date**
-- You can schedule a future disabled date (useful for planned asset disposals or end-of-life dates)
+- When you create the item, you can set its **End of validity** in the **Properties** panel
+- Later, use the **Enabled** toggle or change the **End of validity** in the **Properties** panel
+- You can schedule a future end of validity (useful for planned asset disposals or end-of-life dates)
 
 **Viewing disabled items**:
 
@@ -446,7 +449,7 @@ Every CAPEX item has a **status** (Enabled or Disabled) and an optional **Disabl
 - **Delete only if**: The item was created by mistake and has no budgets, allocations, or tasks
 - Deletion is guarded: you cannot delete an item that has budget data, allocations, tasks, or is referenced by contracts
 
-**Tip**: Use the Disabled date to mark assets that have been fully depreciated, disposed of, or projects that have completed. Do not delete unless it is a true mistake.
+**Tip**: Use the End of validity to mark assets that have been fully depreciated, disposed of, or projects that have completed. Do not delete unless it is a true mistake.
 
 ---
 

@@ -25,7 +25,7 @@ Navigieren Sie zu **Budgetverwaltung > CAPEX**, um Ihre Liste zu sehen. Klicken 
 
 **Optional aber nützlich**:
 
-- **Gültig bis**: Wann die Nutzungsdauer dieses Vermögenswerts endet oder das Projekt abgeschlossen ist (leer lassen für laufende Vermögenswerte)
+- **Ende der Gültigkeit**: Das Datum, an dem diese Investition endet, zum Beispiel wenn die Nutzungsdauer des Vermögenswerts endet oder das Projekt abgeschlossen ist. Lassen Sie es leer, wenn es kein Ende gibt. Danach ist die Position deaktiviert und spätere Jahre zählen in den Budgetansichten nicht mehr
 - **Notizen**: Freitext-Notizen zur Investition
 
 Nach dem Speichern werden alle Tabs freigeschaltet: **Übersicht**, **Budget**, **Zuordnungen**, **Aufgaben** und **Verknüpfungen**.
@@ -83,7 +83,7 @@ Diese Spalten sind standardmäßig ausgeblendet. Zeigen Sie sie über die Spalte
 | **J-1 Endwert** | Tatsächliche Investitionsausgaben des Vorjahres |
 | **Währung** | Währungscode der Position |
 | **Start** | Gültig-ab-Datum |
-| **Ende** | Gültig-bis-Datum |
+| **Ende der Gültigkeit** | Datum, an dem die Position endet (leer bedeutet kein Ende) |
 | **Notizen** | Freitext-Notizen |
 | **Aufgabe** | Titel der neuesten mit dieser Position verknüpften Aufgabe |
 | **Aktiviert** | Status (aktiviert oder deaktiviert) |
@@ -150,13 +150,13 @@ Dieser Tab zeigt alle allgemeinen Informationen zur CAPEX-Position.
 - **Investitionsart**: Ersatz, Kapazität, Produktivität, Sicherheit, Konformität, Geschäftswachstum oder Sonstige
 - **Priorität**: Obligatorisch, Hoch, Mittel oder Niedrig
 - **Währung**: Standard ist die Arbeitsbereich-CAPEX-Währung; zeigt nur zugelassene Währungen
-- **Gültig ab** und **Gültig bis**: Datumsfelder im Format TT/MM/JJJJ
+- **Gültig ab**: Datumsfeld im Format TT/MM/JJJJ
 - **Notizen**: Freitext-Notizen
 
 **Status und Lebenszyklus**:
 
-- Verwenden Sie den **Aktiviert**-Umschalter oder setzen Sie ein **Deaktivierungsdatum**, um zu steuern, wann die Position in Berichten und Auswahllisten erscheint
-- Deaktivierte Positionen werden aus Berichten für Jahre ausgeschlossen, die strikt nach dem Deaktivierungsdatum liegen
+- Verwenden Sie den **Aktiviert**-Umschalter oder setzen Sie ein **Ende der Gültigkeit**, um zu steuern, wann die Position in Berichten und Auswahllisten erscheint
+- Deaktivierte Positionen werden aus Berichten für Jahre ausgeschlossen, die strikt nach dem Ende der Gültigkeit liegen
 - Historische Daten bleiben erhalten; Sie sehen deaktivierte Positionen weiterhin in Berichten, die Jahre abdecken, in denen sie aktiv waren
 
 **Speichern und Zurücksetzen**:
@@ -380,7 +380,9 @@ Sie können CAPEX-Positionen per CSV massenimportieren, um die Ersteinrichtung z
 
 - Trennzeichen: Semikolon `;` (kein Komma)
 - Kodierung: UTF-8 (in Excel als „CSV UTF-8" speichern)
-- Kopfzeilen: `description;ppe_type;investment_type;priority;currency;effective_start;effective_end;status;disabled_at;notes;company_name;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget`
+- Kopfzeilen: `item_number;description;ppe_type;investment_type;priority;currency;effective_start;status;disabled_at;notes;company_name;owner_it_email;owner_business_email;analytics_category;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget;y_plus1_revision;y_plus2_budget`
+- `disabled_at` ist das Ende der Gültigkeit: das Datum, an dem die Position endet. Verwenden Sie ein Datum (`2026-12-31`) oder ein vollständiges Datum mit Uhrzeit. Lassen Sie das Feld leer, wenn es kein Ende gibt
+- Ältere Dateien mit einer Spalte `effective_end` werden weiterhin importiert: Das Datum dieser Spalte füllt das Ende der Gültigkeit, wenn `disabled_at` leer ist
 
 **Import**:
 
@@ -419,21 +421,22 @@ Sie können CAPEX-Positionen per CSV massenimportieren, um die Ersteinrichtung z
 
 ## Status und Lebenszyklus
 
-Jede CAPEX-Position hat einen **Status** (Aktiviert oder Deaktiviert) und ein optionales **Deaktivierungsdatum**, das steuert, wann sie in Berichten und Auswahllisten erscheint.
+Jede CAPEX-Position hat einen **Status** (Aktiviert oder Deaktiviert) und ein optionales **Ende der Gültigkeit**, das steuert, wann sie in Berichten und Auswahllisten erscheint. Es ist das einzige Enddatum einer Position.
 
 **Funktionsweise**:
 
 - **Aktiviert**: Die Position ist aktiv und erscheint überall (Listen, Berichte, Zuordnungen)
-- **Deaktivierungsdatum**: Wenn gesetzt, wird die Position am Ende dieses Tages deaktiviert
-- Nach dem Deaktivierungsdatum:
+- **Ende der Gültigkeit**: Das Datum, an dem die Position endet. Lassen Sie es leer, wenn es kein Ende gibt
+- Nach dem Ende der Gültigkeit:
   - Die Position erscheint nicht mehr in Auswahllisten für neue Verträge oder Zuordnungen
-  - Sie wird aus Berichten für Jahre ausgeschlossen, die strikt nach dem Deaktivierungsdatum liegen
+  - Sie wird aus Berichten für Jahre ausgeschlossen, die strikt nach dem Ende der Gültigkeit liegen
   - Historische Daten bleiben erhalten; die Position erscheint weiterhin in Berichten, die Jahre abdecken, in denen sie aktiv war
 
 **Status setzen**:
 
-- Im **Übersichts**-Tab verwenden Sie den **Aktiviert**-Umschalter oder setzen ein **Deaktivierungsdatum**
-- Sie können ein zukünftiges Deaktivierungsdatum planen (nützlich für geplante Anlagenveräußerungen oder End-of-Life-Termine)
+- Beim Anlegen der Position können Sie ihr **Ende der Gültigkeit** im Panel **Eigenschaften** festlegen
+- Später verwenden Sie den **Aktiviert**-Umschalter oder ändern das **Ende der Gültigkeit** im Panel **Eigenschaften**
+- Sie können ein zukünftiges Ende der Gültigkeit planen (nützlich für geplante Anlagenveräußerungen oder End-of-Life-Termine)
 
 **Deaktivierte Positionen anzeigen**:
 
@@ -446,7 +449,7 @@ Jede CAPEX-Position hat einen **Status** (Aktiviert oder Deaktiviert) und ein op
 - **Nur löschen, wenn**: Die Position versehentlich erstellt wurde und keine Budgets, Zuordnungen oder Aufgaben hat
 - Das Löschen ist geschützt: Sie können keine Position löschen, die Budgetdaten, Zuordnungen, Aufgaben hat oder von Verträgen referenziert wird
 
-**Tipp**: Verwenden Sie das Deaktivierungsdatum, um vollständig abgeschriebene, veräußerte Vermögenswerte oder abgeschlossene Projekte zu kennzeichnen. Löschen Sie nur bei echten Fehlern.
+**Tipp**: Verwenden Sie das Ende der Gültigkeit, um vollständig abgeschriebene, veräußerte Vermögenswerte oder abgeschlossene Projekte zu kennzeichnen. Löschen Sie nur bei echten Fehlern.
 
 ---
 

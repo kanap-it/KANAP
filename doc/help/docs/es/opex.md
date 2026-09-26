@@ -18,7 +18,7 @@ Navegue a **Gestión presupuestaria > OPEX** para ver su lista. Haga clic en **N
 
 **Opcionales pero útiles**:
   - **Descripción**: Contexto adicional o notas sobre el gasto
-  - **Fin efectivo**: Cuándo termina este gasto (deje en blanco para partidas continuas)
+  - **Fin de validez**: La fecha en que termina este gasto. Déjelo en blanco si no hay fin. Después de esa fecha, la partida se deshabilita y los años posteriores ya no cuentan en las vistas de presupuesto
   - **Responsable IT** / **Responsable de negocio**: Quién es responsable
   - **Categoría analítica**: Agrupación personalizada para informes (p. ej., "Infraestructura", "Apps de negocio"). Se pueden crear nuevas categorías sobre la marcha
   - **Notas**: Notas internas de texto libre
@@ -52,7 +52,8 @@ La lista OPEX (en **Gestión presupuestaria > OPEX**) es su vista principal para
   - **Habilitado**: Estado de la partida (habilitado o deshabilitado)
   - **Descripción**: Descripción de la partida
   - **Moneda**: Código de moneda ISO
-  - **Inicio efectivo / Fin efectivo**: Fechas de inicio y fin
+  - **Inicio efectivo**: Fecha de inicio
+  - **Fin de validez**: Fecha en que la partida termina (en blanco significa sin fin)
   - **Responsable IT / Responsable de negocio**: Usuarios responsables
   - **Analítica**: Nombre de la categoría analítica
   - **ID de proyecto**: Identificador del proyecto vinculado
@@ -111,14 +112,14 @@ Esta pestaña muestra toda la información general de la partida de gasto.
   - **Moneda** (se establece por defecto a la moneda del espacio de trabajo; muestra solo monedas permitidas)
   - **Empresa pagadora** (autocompletado desde sus Empresas; obligatorio)
   - **Cuenta** (filtrada por el plan de cuentas de la empresa pagadora; obligatorio)
-  - **Inicio efectivo** y **Fin efectivo** (campos de fecha)
+  - **Inicio efectivo** (campo de fecha)
   - **Responsable IT** y **Responsable de negocio** (autocompletado desde usuarios habilitados)
   - **Categoría analítica** (autocompletado; crea nuevas categorías sobre la marcha)
   - **Notas**
 
 **Estado y ciclo de vida**:
-  - Utilice el conmutador **Habilitado** o establezca una **Fecha de desactivación** para controlar cuándo aparece la partida en informes y listas de selección
-  - Las partidas deshabilitadas se excluyen de informes para años estrictamente posteriores a la fecha de desactivación
+  - Utilice el conmutador **Habilitado** o establezca un **Fin de validez** para controlar cuándo aparece la partida en informes y listas de selección
+  - Las partidas deshabilitadas se excluyen de informes para años estrictamente posteriores al fin de validez
   - Los datos históricos permanecen intactos; seguirá viendo partidas deshabilitadas en informes que cubren años cuando estaban activas
 
 **Guardar y Restablecer**:
@@ -306,7 +307,9 @@ Puede cargar masivamente partidas OPEX vía CSV para acelerar la configuración 
 **Estructura del CSV**:
   - Delimitador: punto y coma `;` (no coma)
   - Codificación: UTF-8 (guarde como "CSV UTF-8" en Excel)
-  - Encabezados: `product_name;description;supplier_name;account_number;currency;effective_start;effective_end;disabled_at;status;owner_it_email;owner_business_email;analytics_category;notes;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget`
+  - Encabezados: `product_name;description;supplier_name;company_name;account_number;currency;effective_start;status;disabled_at;owner_it_email;owner_business_email;analytics_category;notes;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget;y_plus1_revision`
+  - `disabled_at` es el fin de validez: la fecha en que la partida termina. Utilice una fecha (`2026-12-31`) o una fecha y hora completas. Déjelo vacío si no hay fin
+  - Los archivos antiguos con una columna `effective_end` se siguen importando: su fecha rellena el fin de validez cuando `disabled_at` está vacío
 
 **Importar**:
   1. Haga clic en **Importar CSV** en la lista OPEX
@@ -338,19 +341,20 @@ Puede cargar masivamente partidas OPEX vía CSV para acelerar la configuración 
 
 ## Estado y ciclo de vida
 
-Cada partida OPEX tiene un **estado** (Habilitado o Deshabilitado) y una **Fecha de desactivación** opcional que controla cuándo aparece en informes y listas de selección.
+Cada partida OPEX tiene un **estado** (Habilitado o Deshabilitado) y un **Fin de validez** opcional que controla cuándo aparece en informes y listas de selección. Es la única fecha de fin de una partida.
 
 **Cómo funciona**:
   - **Habilitado**: La partida está activa y aparece en todas partes (listas, informes, asignaciones)
-  - **Fecha de desactivación**: Cuando se establece, la partida se desactiva al final de ese día
-  - Después de la fecha de desactivación:
+  - **Fin de validez**: La fecha en que la partida termina. Déjelo en blanco si no hay fin
+  - Después del fin de validez:
     - La partida ya no aparece en listas de selección para nuevos contratos o asignaciones
-    - Se excluye de informes para años estrictamente posteriores a la fecha de desactivación
+    - Se excluye de informes para años estrictamente posteriores al fin de validez
     - Los datos históricos permanecen intactos; la partida sigue apareciendo en informes que cubren años cuando estaba activa
 
 **Establecer estado**:
-  - En la pestaña **Visión general**, utilice el conmutador **Habilitado** o establezca una **Fecha de desactivación**
-  - Puede programar una fecha de desactivación futura (útil para partidas con fin de contrato planificado)
+  - Al crear la partida, puede establecer su **Fin de validez** en el panel **Propiedades**
+  - Más adelante, utilice el conmutador **Habilitado** o cambie el **Fin de validez** en el panel **Propiedades**
+  - Puede programar un fin de validez futuro (útil para partidas con fin de contrato planificado)
 
 **Ver partidas deshabilitadas**:
   - Por defecto, la lista OPEX muestra solo partidas **Habilitadas**
@@ -361,7 +365,7 @@ Cada partida OPEX tiene un **estado** (Habilitado o Deshabilitado) y una **Fecha
   - **Elimine solo si**: La partida se creó por error y no tiene presupuestos, asignaciones ni tareas
   - La eliminación está protegida: no puede eliminar una partida que está referenciada por contratos, tareas o tiene datos presupuestarios
 
-**Consejo**: Utilice la Fecha de desactivación para retirar partidas OPEX cuando los contratos terminen o los servicios se discontinúen. No elimine a menos que sea un verdadero error.
+**Consejo**: Utilice el Fin de validez para retirar partidas OPEX cuando los contratos terminen o los servicios se discontinúen. No elimine a menos que sea un verdadero error.
 
 ---
 

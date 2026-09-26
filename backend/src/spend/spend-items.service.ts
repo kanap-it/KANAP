@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, ILike, In, Raw, Repository } from 'typeorm';
+import { EntityManager, ILike, In, Repository } from 'typeorm';
 import { SpendItem } from './spend-item.entity';
 import { Account } from '../accounts/account.entity';
 import { Company } from '../companies/company.entity';
@@ -23,7 +23,7 @@ import { SpendBudgetOperationsService } from './spend-budget-operations.service'
 import { formatAllocationMethodLabel } from './allocation-utils';
 import { FxRateService } from '../currency/fx-rate.service';
 import { extractStatusFilterFromAgModel } from '../common/status-filter';
-import { resolveLifecycleState, StatusState } from '../common/status';
+import { applyDisabledAtWhere, LifecycleScope, summaryScope, resolveEndOfValidityAlias, resolveLifecycleState, StatusState } from '../common/status';
 import { SpendItemUpsertDto } from './dto/spend-item.dto';
 import { SpendLink } from './spend-link.entity';
 import { SpendAttachment } from './spend-attachment.entity';
@@ -41,11 +41,6 @@ import { validateUploadedFile } from '../common/upload-validation';
 import { fixMulterFilename } from '../common/upload';
 import { ItemNumberService } from '../common/item-number.service';
 import { ShareItemDto } from '../notifications/dto/share-item.dto';
-
-const activeDisabledAtCondition = () => Raw((alias) => `${alias} IS NULL OR ${alias} > NOW()`);
-const inactiveDisabledAtCondition = () => Raw((alias) => `${alias} IS NOT NULL AND ${alias} <= NOW()`);
-const activeSinceCondition = (date: Date) =>
-  Raw((alias) => `${alias} IS NULL OR ${alias} >= :period_start`, { period_start: date });
 
 @Injectable()
 export class SpendItemsService {
@@ -71,6 +66,15 @@ export class SpendItemsService {
     const tenantId = Array.isArray(rows) && rows.length > 0 ? (rows[0]?.tenant_id as string | null) : null;
     if (!tenantId) throw new BadRequestException('Tenant context is required');
     return tenantId;
+  }
+
+  /** `disabled_at`, or the deprecated `effective_end` when no end of validity is given (bare date at 12:00 UTC). */
+  private endOfValidityInput(disabledAt: string | null | undefined, effectiveEnd: unknown) {
+    try {
+      return resolveEndOfValidityAlias(disabledAt, effectiveEnd);
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
+    }
   }
 
   private formatAllocationMethodLabel(method?: string | null): string {
@@ -102,7 +106,7 @@ export class SpendItemsService {
     const filtersToApply = sanitizedFilters ?? filters;
     // Only allow filtering/sorting by real columns on SpendItem
     const allowedFields = [
-      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'disabled_at',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'contract_id', 'created_at', 'updated_at',
     ];
     const where: any = {};
@@ -113,10 +117,8 @@ export class SpendItemsService {
       String(query.includeDisabled ?? '').toLowerCase() === '1' ||
       String(query.includeDisabled ?? '').toLowerCase() === 'true';
     const lifecycleStatus = status ?? statusFromAg ?? StatusState.ENABLED;
-    if (!includeDisabled) {
-      where.disabled_at =
-        lifecycleStatus === StatusState.DISABLED ? inactiveDisabledAtCondition() : activeDisabledAtCondition();
-    }
+    const scope: LifecycleScope = includeDisabled ? null : lifecycleStatus === StatusState.DISABLED ? 'inactive' : 'active';
+    applyDisabledAtWhere(where, scope, filtersToApply);
     if (q) where.product_name = ILike(`%${q}%`);
     const safeSortField = allowedFields.includes(sort.field) ? sort.field : 'created_at';
     const [itemsRaw, total] = await repo.findAndCount({ where, order: { [safeSortField]: sort.direction as any }, skip, take: limit });
@@ -256,7 +258,8 @@ export class SpendItemsService {
   async create(body: SpendItemUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
     const repo = mg.getRepository(SpendItem);
-    const { status: statusInput, disabled_at, ...rest } = body ?? {};
+    const { status: statusInput, disabled_at: disabledAtInput, effective_end: effectiveEnd, ...rest } = body ?? {};
+    const disabled_at = this.endOfValidityInput(disabledAtInput, effectiveEnd);
     // Require paying company (soft requirement -> throw clear error)
     if (!rest.paying_company_id) {
       throw new BadRequestException('paying_company_id is required');
@@ -296,7 +299,8 @@ export class SpendItemsService {
     const repo = mg.getRepository(SpendItem);
     const existing = await this.get(id, { manager: mg });
     const before = { ...existing };
-    const { status: statusInput, disabled_at, ...rest } = body ?? {};
+    const { status: statusInput, disabled_at: disabledAtInput, effective_end: effectiveEnd, ...rest } = body ?? {};
+    const disabled_at = this.endOfValidityInput(disabledAtInput, effectiveEnd);
     Object.assign(existing, rest);
     // Require paying company on update if missing on record and not provided in body
     const payingCompanyId = (rest.paying_company_id ?? (existing as any).paying_company_id) as string | null;
@@ -380,7 +384,7 @@ export class SpendItemsService {
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedDbFields = [
-      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'disabled_at',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'contract_id', 'created_at', 'updated_at',
     ];
     const where: any = {};
@@ -393,15 +397,7 @@ export class SpendItemsService {
     const includeDisabled =
       String(query.includeDisabled ?? '').toLowerCase() === '1' ||
       String(query.includeDisabled ?? '').toLowerCase() === 'true';
-    if (!includeDisabled) {
-      if (lifecycleStatus === StatusState.DISABLED) {
-        where.disabled_at = inactiveDisabledAtCondition();
-      } else if (lifecycleStatus === StatusState.ENABLED) {
-        where.disabled_at = activeDisabledAtCondition();
-      } else {
-        where.disabled_at = activeSinceCondition(periodStart);
-      }
-    }
+    applyDisabledAtWhere(where, summaryScope(includeDisabled, lifecycleStatus, periodStart), filtersToApply);
 
     const filterKeys = Object.keys((filtersToApply as any) || {});
     const hasDerivedFilters = filterKeys.some((k) => !allowedDbFields.includes(k));
@@ -499,7 +495,7 @@ export class SpendItemsService {
     const minYear = Math.min(...years);
     const periodStart = new Date(`${String(minYear).padStart(4, '0')}-01-01T00:00:00.000Z`);
     const allowedDbFields = [
-      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'disabled_at',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'contract_id', 'created_at', 'updated_at',
     ];
 
@@ -508,15 +504,7 @@ export class SpendItemsService {
       if (fieldFilters && Object.keys(fieldFilters).length > 0) {
         Object.assign(where, buildWhereFromAgFilters(fieldFilters, allowedDbFields));
       }
-      if (!includeDisabled) {
-        if (lifecycleStatus === StatusState.DISABLED) {
-          where.disabled_at = inactiveDisabledAtCondition();
-        } else if (lifecycleStatus === StatusState.ENABLED) {
-          where.disabled_at = activeDisabledAtCondition();
-        } else {
-          where.disabled_at = activeSinceCondition(periodStart);
-        }
-      }
+      applyDisabledAtWhere(where, summaryScope(includeDisabled, lifecycleStatus, periodStart), fieldFilters);
       const items = await mg.getRepository(SpendItem).find({
         where,
         order: { created_at: 'DESC' as any },
@@ -587,7 +575,7 @@ export class SpendItemsService {
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedDbFields = [
-      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'product_name', 'description', 'supplier_id', 'account_id', 'currency', 'effective_start', 'disabled_at',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'contract_id', 'created_at', 'updated_at',
     ];
     const where: any = {};
@@ -598,10 +586,8 @@ export class SpendItemsService {
       String(query.includeDisabled ?? '').toLowerCase() === '1' ||
       String(query.includeDisabled ?? '').toLowerCase() === 'true';
     const lifecycleStatus = status ?? statusFromAg ?? StatusState.ENABLED;
-    if (!includeDisabled) {
-      where.disabled_at =
-        lifecycleStatus === StatusState.DISABLED ? inactiveDisabledAtCondition() : activeDisabledAtCondition();
-    }
+    const scope: LifecycleScope = includeDisabled ? null : lifecycleStatus === StatusState.DISABLED ? 'inactive' : 'active';
+    applyDisabledAtWhere(where, scope, filtersToApply);
 
     const filterKeys = Object.keys((filtersToApply as any) || {});
     const hasDerivedFilters = filterKeys.some((k) => !allowedDbFields.includes(k));

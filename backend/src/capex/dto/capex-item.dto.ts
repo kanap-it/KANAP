@@ -40,6 +40,7 @@ export class CapexItemUpsertDto extends StatusLifecycleDto {
   @IsISO8601()
   effective_start?: string | null;
 
+  /** @deprecated Alias of disabled_at for one release: fills an empty end of validity, never stored. */
   @IsOptional()
   @IsISO8601()
   effective_end?: string | null;

@@ -25,7 +25,7 @@ Rendez-vous dans **Gestion budgétaire > CAPEX** pour voir votre liste. Cliquez 
 
 **Optionnel mais utile** :
 
-- **Fin effective** : Quand la durée de vie utile de cet actif se termine ou le projet est achevé (laisser vide pour les actifs permanents)
+- **Fin de validité** : La date à laquelle cet investissement s'arrête, par exemple à la fin de la durée de vie utile de l'actif ou à l'achèvement du projet. Laissez-la vide s'il n'y a pas de fin. Après cette date, le poste est désactivé et les années suivantes ne comptent plus dans les vues budgétaires
 - **Notes** : Notes internes libres sur l'investissement
 
 Une fois enregistré, l'espace de travail déverrouille tous les onglets : **Vue d'ensemble**, **Budget**, **Ventilations**, **Tâches** et **Relations**.
@@ -83,7 +83,7 @@ Ces colonnes sont masquées par défaut. Affichez-les depuis le sélecteur de co
 | **Atterrissage A-1** | Dépense d'investissement réelle finale de l'année précédente |
 | **Devise** | Code de devise du poste |
 | **Début** | Date de début effective |
-| **Fin** | Date de fin effective |
+| **Fin de validité** | Date à laquelle le poste s'arrête (vide signifie sans fin) |
 | **Notes** | Notes libres |
 | **Tâche** | Titre de la tâche la plus récente liée à ce poste |
 | **Activé** | Statut (activé ou désactivé) |
@@ -130,13 +130,13 @@ Cet onglet affiche toutes les informations générales sur le poste CAPEX.
 - **Type d'investissement** : Remplacement, Capacité, Productivité, Sécurité, Conformité, Croissance métier ou Autre
 - **Priorité** : Obligatoire, Haute, Moyenne ou Basse
 - **Devise** : Par défaut la devise CAPEX de l'espace de travail ; affiche uniquement les devises autorisées
-- **Début effectif** et **Fin effective** : Champs de date au format JJ/MM/AAAA
+- **Début effectif** : Champ de date au format JJ/MM/AAAA
 - **Notes** : Notes internes libres
 
 **Statut et cycle de vie** :
 
-- Utilisez la bascule **Activé** ou définissez une **Date de désactivation** pour contrôler quand le poste apparaît dans les rapports et listes de sélection
-- Les postes désactivés sont exclus des rapports pour les années strictement postérieures à la date de désactivation
+- Utilisez la bascule **Activé** ou définissez une **Fin de validité** pour contrôler quand le poste apparaît dans les rapports et listes de sélection
+- Les postes désactivés sont exclus des rapports pour les années strictement postérieures à la fin de validité
 - Les données historiques restent intactes
 
 ---

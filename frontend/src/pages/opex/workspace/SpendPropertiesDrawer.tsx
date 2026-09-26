@@ -13,6 +13,7 @@ import { CURRENCY_OPTIONS, CurrencyOption } from '../../../constants/isoOptions'
 import useCurrencySettings from '../../../hooks/useCurrencySettings';
 import { STATUS_ENABLED, StatusValue } from '../../../constants/status';
 import { formatShortDate } from '../../../lib/dateFormat';
+import { isoToLocalDateInput, localDateInputToEndOfDayIso } from '../../../lib/datetime';
 import { useLocale } from '../../../i18n/useLocale';
 
 type Props = {
@@ -23,7 +24,6 @@ type Props = {
   currency: string;
   analyticsCategoryId: string;
   effectiveStart: string;
-  effectiveEnd: string;
   status?: StatusValue;
   disabledAt?: string | null;
   createdAt?: string | null;
@@ -37,7 +37,6 @@ type Props = {
   onCurrencyChange: (next: string) => void;
   onAnalyticsCategoryChange: (next: string) => void;
   onEffectiveStartChange: (next: string) => void;
-  onEffectiveEndChange: (next: string) => void;
   onStatusChange?: (next: StatusValue) => void;
   onDisabledAtChange?: (next: string | null) => void;
   onOwnerItChange?: (next: string) => void;
@@ -59,7 +58,6 @@ export default function SpendPropertiesDrawer({
   currency,
   analyticsCategoryId,
   effectiveStart,
-  effectiveEnd,
   status = STATUS_ENABLED,
   disabledAt = null,
   createdAt = null,
@@ -73,7 +71,6 @@ export default function SpendPropertiesDrawer({
   onCurrencyChange,
   onAnalyticsCategoryChange,
   onEffectiveStartChange,
-  onEffectiveEndChange,
   onStatusChange,
   onDisabledAtChange,
   onOwnerItChange,
@@ -144,11 +141,18 @@ export default function SpendPropertiesDrawer({
             <DateEUField label="" valueYmd={effectiveStart || ''} onChangeYmd={onEffectiveStartChange} disabled={disabled} required />
           </Box>
         </PropertyRow>
-        <PropertyRow label={t('opex.fields.effectiveEnd')}>
-          <Box sx={hideInnerLabelSx}>
-            <DateEUField label="" valueYmd={effectiveEnd || ''} onChangeYmd={onEffectiveEndChange} disabled={disabled} />
-          </Box>
-        </PropertyRow>
+        {mode === 'create' && onDisabledAtChange && (
+          <PropertyRow label={t('opex.fields.endOfValidity')} helperText={t('opex.fields.endOfValidityHint')}>
+            <Box sx={hideInnerLabelSx}>
+              <DateEUField
+                label=""
+                valueYmd={isoToLocalDateInput(disabledAt)}
+                onChangeYmd={(ymd) => onDisabledAtChange(localDateInputToEndOfDayIso(ymd))}
+                disabled={disabled}
+              />
+            </Box>
+          </PropertyRow>
+        )}
       </PropertyGroup>
 
       {mode === 'create' && (onOwnerItChange || onOwnerBusinessChange) && (

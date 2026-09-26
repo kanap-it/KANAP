@@ -41,9 +41,6 @@ export class CapexItem {
   @Column('date')
   effective_start!: string;
 
-  @Column('date', { nullable: true })
-  effective_end!: string | null;
-
   @Column({
     type: 'enum',
     enum: StatusState,

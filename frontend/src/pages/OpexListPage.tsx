@@ -32,7 +32,7 @@ type SummaryRow = {
   account?: { id: string; account_number: number; account_name: string } | null;
   currency: string;
   effective_start: string;
-  effective_end?: string | null;
+  disabled_at?: string | null;
   status: string;
   owner_it_id?: string | null;
   owner_business_id?: string | null;
@@ -715,16 +715,18 @@ export default function OpexListPage() {
       ),
     },
     {
-      field: 'effective_end',
-      headerName: t('opex.columns.effectiveEnd'),
+      field: 'disabled_at',
+      headerName: t('opex.columns.endOfValidity'),
       width: 150,
       defaultHidden: true,
-      valueFormatter: (p) => formatShortDate(p.value as string | null, locale),
+      filter: 'agDateColumnFilter',
+      // A timestamp: shown as the calendar day in the viewer's time zone, like the drawer.
+      valueFormatter: (p) => formatShortDate(p.value ? new Date(p.value as string) : null, locale),
       cellRenderer: (params: any) => (
         <LinkCellRenderer
           {...params}
           linkType="internal"
-          getHref={(row) => getOpexHref(row, 'effective_end')}
+          getHref={(row) => getOpexHref(row, 'disabled_at')}
           onNavigate={(href) => navigate(href)}
         />
       ),

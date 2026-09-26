@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeepPartial, EntityManager, ILike, In, Raw, Repository } from 'typeorm';
+import { DeepPartial, EntityManager, ILike, In, Repository } from 'typeorm';
 import { CapexItem } from './capex-item.entity';
 import { CapexVersion } from './capex-version.entity';
 import { CapexAmount } from './capex-amount.entity';
@@ -24,7 +24,7 @@ import { addCents, formatCents, toCents } from '../common/amount';
 import { FreezeService } from '../freeze/freeze.service';
 import { formatAllocationMethodLabel } from '../spend/allocation-utils';
 import { FxRateService, FxLookupKey, FxResolvedRate } from '../currency/fx-rate.service';
-import { resolveLifecycleState, StatusState } from '../common/status';
+import { applyDisabledAtWhere, LifecycleScope, summaryScope, parseEndOfValidityInput, resolveEndOfValidityAlias, resolveLifecycleState, StatusState } from '../common/status';
 import { extractStatusFilterFromAgModel } from '../common/status-filter';
 import { normalizeAgFilterModel } from '../common/ag-grid-filtering';
 import { CapexItemUpsertDto } from './dto/capex-item.dto';
@@ -42,10 +42,8 @@ import { ShareItemDto } from '../notifications/dto/share-item.dto';
 import { resolveToUuid } from '../common/resolve-item-id';
 import { denormalizeCsvRow, neutralizeCsvRow } from '../common/csv/csv-export.service';
 
-const activeDisabledAtCondition = () => Raw((alias) => `${alias} IS NULL OR ${alias} > NOW()`);
-const inactiveDisabledAtCondition = () => Raw((alias) => `${alias} IS NOT NULL AND ${alias} <= NOW()`);
-const activeSinceCondition = (date: Date) =>
-  Raw((alias) => `${alias} IS NULL OR ${alias} >= :period_start`, { period_start: date });
+// Accepted on import for one release, never exported: the end of validity used to be split in two dates.
+const LEGACY_CSV_HEADERS = ['effective_end'];
 
 function getCapexSummaryFieldValue(row: any, field: string): any {
   if (!row) return null;
@@ -250,7 +248,7 @@ export class CapexItemsService {
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedFields = [
-      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'disabled_at',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'notes', 'created_at', 'updated_at',
     ];
     const where: any = {};
@@ -262,10 +260,8 @@ export class CapexItemsService {
     const includeDisabled =
       String(query.includeDisabled ?? '').toLowerCase() === '1' ||
       String(query.includeDisabled ?? '').toLowerCase() === 'true';
-    if (!includeDisabled) {
-      where.disabled_at =
-        lifecycleStatus === StatusState.DISABLED ? inactiveDisabledAtCondition() : activeDisabledAtCondition();
-    }
+    const scope: LifecycleScope = includeDisabled ? null : lifecycleStatus === StatusState.DISABLED ? 'inactive' : 'active';
+    applyDisabledAtWhere(where, scope, filtersToApply);
     if (q) where.description = ILike(`%${q}%`);
     const safeSortField = allowedFields.includes(sort.field) ? sort.field : 'created_at';
     const [itemsRaw, total] = await repo.findAndCount({ where, order: { [safeSortField]: sort.direction as any }, skip, take: limit });
@@ -356,6 +352,15 @@ export class CapexItemsService {
     return { success: true };
   }
 
+  /** `disabled_at`, or the deprecated `effective_end` when no end of validity is given (bare date at 12:00 UTC). */
+  private endOfValidityInput(disabledAt: string | Date | null | undefined, effectiveEnd: unknown) {
+    try {
+      return resolveEndOfValidityAlias(disabledAt, effectiveEnd);
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
+    }
+  }
+
   async create(body: CapexItemUpsertDto, userId?: string, opts?: { manager?: EntityManager }) {
     const mg = opts?.manager ?? this.repo.manager;
     // Map legacy field if present
@@ -382,7 +387,8 @@ export class CapexItemsService {
     }
     
     const repo = mg.getRepository(CapexItem);
-    const { status: statusInput, disabled_at, ...rest } = body ?? {};
+    const { status: statusInput, disabled_at: disabledAtInput, effective_end: effectiveEnd, ...rest } = body ?? {};
+    const disabled_at = this.endOfValidityInput(disabledAtInput, effectiveEnd);
     const lifecycle = resolveLifecycleState({ nextStatus: statusInput, nextDisabledAt: disabled_at });
     const tenantId = await this.resolveTenantId(mg);
     const item_number = await this.itemNumbers.nextItemNumber('capex', tenantId, mg);
@@ -444,7 +450,8 @@ export class CapexItemsService {
 
     const repo = mg.getRepository(CapexItem);
     const before = { ...existing };
-    const { status: statusInput, disabled_at, ...rest } = body ?? {};
+    const { status: statusInput, disabled_at: disabledAtInput, effective_end: effectiveEnd, ...rest } = body ?? {};
+    const disabled_at = this.endOfValidityInput(disabledAtInput, effectiveEnd);
     Object.assign(existing, rest);
     if (body.account_id !== undefined) {
       (existing as any).account_id = body.account_id;
@@ -498,7 +505,7 @@ export class CapexItemsService {
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedDbFields = [
-      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'disabled_at',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'notes', 'created_at', 'updated_at',
     ];
     const where: any = {};
@@ -513,15 +520,7 @@ export class CapexItemsService {
     const includeDisabled =
       String(query.includeDisabled ?? '').toLowerCase() === '1' ||
       String(query.includeDisabled ?? '').toLowerCase() === 'true';
-    if (!includeDisabled) {
-      if (lifecycleStatus === StatusState.DISABLED) {
-        where.disabled_at = inactiveDisabledAtCondition();
-      } else if (lifecycleStatus === StatusState.ENABLED) {
-        where.disabled_at = activeDisabledAtCondition();
-      } else {
-        where.disabled_at = activeSinceCondition(periodStart);
-      }
-    }
+    applyDisabledAtWhere(where, summaryScope(includeDisabled, lifecycleStatus, periodStart), filtersToApply);
 
     // Fetch base items (limit to 10k to avoid runaway)
     const baseItems = await mg.getRepository(CapexItem).find({
@@ -777,6 +776,8 @@ export class CapexItemsService {
       const aU = av == null; const bU = bv == null;
       if (aU && bU) return 0; if (aU) return 1 * dir; if (bU) return -1 * dir;
       if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      // disabled_at comes as a Date: its string form starts with the weekday.
+      if (av instanceof Date && bv instanceof Date) return (av.getTime() - bv.getTime()) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
     const start = skip;
@@ -813,7 +814,7 @@ export class CapexItemsService {
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters ?? {};
     const allowedDbFields = [
-      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'disabled_at',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'notes', 'created_at', 'updated_at',
     ];
 
@@ -829,15 +830,7 @@ export class CapexItemsService {
       if (fieldFilters && Object.keys(fieldFilters).length > 0) {
         Object.assign(where, buildWhereFromAgFilters(fieldFilters, allowedDbFields));
       }
-      if (!includeDisabled) {
-        if (lifecycleStatus === StatusState.DISABLED) {
-          where.disabled_at = inactiveDisabledAtCondition();
-        } else if (lifecycleStatus === StatusState.ENABLED) {
-          where.disabled_at = activeDisabledAtCondition();
-        } else {
-          where.disabled_at = activeSinceCondition(periodStart);
-        }
-      }
+      applyDisabledAtWhere(where, summaryScope(includeDisabled, lifecycleStatus, periodStart), fieldFilters);
       const baseItems = await mg.getRepository(CapexItem).find({
         where,
         order: { created_at: 'DESC' as any },
@@ -1162,7 +1155,7 @@ export class CapexItemsService {
 
   csvHeaders() {
     return [
-      'item_number','description','ppe_type','investment_type','priority','currency','effective_start','effective_end','status','disabled_at','notes','company_name',
+      'item_number','description','ppe_type','investment_type','priority','currency','effective_start','status','disabled_at','notes','company_name',
       'owner_it_email','owner_business_email','analytics_category',
       'y_minus1_budget','y_minus1_landing','y_budget','y_follow_up','y_landing','y_revision','y_plus1_budget','y_plus1_revision','y_plus2_budget'
     ];
@@ -1231,7 +1224,6 @@ export class CapexItemsService {
           priority: (it as any).priority ?? '',
           currency: (it as any).currency ?? '',
           effective_start: toIsoDate((it as any).effective_start),
-          effective_end: toIsoDate((it as any).effective_end),
           status: (it as any).status ?? 'enabled',
           disabled_at: (it as any).disabled_at ? toIsoDate((it as any).disabled_at) : '',
           notes: (it as any).notes ?? '',
@@ -1274,7 +1266,7 @@ export class CapexItemsService {
       parseString(content, { headers: true, delimiter, ignoreEmpty: true, trim: true })
         .on('headers', (headers: string[]) => {
           const missing = expectedHeaders.filter((h) => !headers.includes(h));
-          const extras = headers.filter((h) => !expectedHeaders.includes(h));
+          const extras = headers.filter((h) => !expectedHeaders.includes(h) && !LEGACY_CSV_HEADERS.includes(h));
           headerOk = missing.length === 0 && extras.length === 0;
           if (!headerOk) errors.push({ row: 0, message: `Header mismatch. Missing: ${missing.join(', ') || '-'}, Extra: ${extras.join(', ') || '-'}` });
         })
@@ -1325,7 +1317,7 @@ export class CapexItemsService {
 
     const normalized: Array<{
       item_number: number | null;
-      description: string; ppe_type: string; investment_type: string; priority: string; currency: string; effective_start: string; effective_end: string | null; status: StatusState; disabled_at: Date | null; notes: string | null;
+      description: string; ppe_type: string; investment_type: string; priority: string; currency: string; effective_start: string; status: StatusState; disabled_at: Date | null; notes: string | null;
       paying_company_id: string | null;
       owner_it_id: string | null;
       owner_business_id: string | null;
@@ -1341,7 +1333,6 @@ export class CapexItemsService {
       const priority = (r['priority'] ?? '').toString().trim().toLowerCase();
       const currency = (r['currency'] ?? '').toString().trim().toUpperCase();
       const effective_start = normalizeDateField(r['effective_start'], { fallback: `${Y}-01-01`, field: 'effective_start', line });
-      const effective_end = normalizeDateField(r['effective_end'], { fallback: null, field: 'effective_end', line });
       const statusRaw = (r['status'] ?? 'enabled').toString().trim().toLowerCase();
       if (statusRaw && statusRaw !== 'enabled' && statusRaw !== 'disabled') {
         errors.push({ row: line, message: `Invalid status '${statusRaw}'. Use 'enabled' or 'disabled'.` });
@@ -1349,12 +1340,20 @@ export class CapexItemsService {
       const status = statusRaw === 'disabled' ? StatusState.DISABLED : StatusState.ENABLED;
       const disabledAtRaw = (r['disabled_at'] ?? '').toString().trim();
       let disabled_at: Date | null = null;
-      if (disabledAtRaw) {
-        const parsed = new Date(disabledAtRaw);
-        if (Number.isNaN(parsed.getTime())) {
-          errors.push({ row: line, message: `Invalid disabled_at '${disabledAtRaw}'. Use ISO date format.` });
-        } else {
-          disabled_at = parsed;
+      try {
+        disabled_at = parseEndOfValidityInput(disabledAtRaw);
+      } catch {
+        errors.push({ row: line, message: `Invalid disabled_at '${disabledAtRaw}'. Use ISO date format.` });
+      }
+      // Files from before the single end date carry effective_end: it fills an empty end of validity.
+      if (!disabledAtRaw) {
+        const legacyEnd = normalizeDateField(r['effective_end'], { fallback: null, field: 'effective_end', line });
+        if (legacyEnd) {
+          try {
+            disabled_at = parseEndOfValidityInput(legacyEnd);
+          } catch {
+            errors.push({ row: line, message: 'effective_end must be a valid date in YYYY-MM-DD format' });
+          }
         }
       }
       const notes = ((r['notes'] ?? '').toString().trim()) || null;
@@ -1431,7 +1430,6 @@ export class CapexItemsService {
         priority,
         currency,
         effective_start,
-        effective_end,
         status,
         disabled_at,
         notes,
@@ -1500,7 +1498,6 @@ export class CapexItemsService {
         priority: item.priority as any,
         currency: item.currency,
         effective_start: item.effective_start,
-        effective_end: item.effective_end ?? null,
         status: item.status,
         disabled_at: item.disabled_at,
         notes: item.notes ?? null,
@@ -1552,7 +1549,7 @@ export class CapexItemsService {
     const { status: statusFromAg, sanitizedFilters } = extractStatusFilterFromAgModel(filters);
     const filtersToApply = sanitizedFilters ?? filters;
     const allowedDbFields = [
-      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'effective_end',
+      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'disabled_at',
       'status', 'owner_it_id', 'owner_business_id', 'analytics_category_id', 'project_id', 'notes', 'created_at', 'updated_at',
     ];
 
@@ -1564,10 +1561,8 @@ export class CapexItemsService {
     const includeDisabled =
       String(query.includeDisabled ?? '').toLowerCase() === '1' ||
       String(query.includeDisabled ?? '').toLowerCase() === 'true';
-    if (!includeDisabled) {
-      where.disabled_at =
-        lifecycleStatus === StatusState.DISABLED ? inactiveDisabledAtCondition() : activeDisabledAtCondition();
-    }
+    const scope: LifecycleScope = includeDisabled ? null : lifecycleStatus === StatusState.DISABLED ? 'inactive' : 'active';
+    applyDisabledAtWhere(where, scope, filtersToApply);
 
     const baseItems = await mg.getRepository(CapexItem).find({
       where,
@@ -1680,6 +1675,8 @@ export class CapexItemsService {
       const aU = av == null; const bU = bv == null;
       if (aU && bU) return 0; if (aU) return 1 * dir; if (bU) return -1 * dir;
       if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      // disabled_at comes as a Date: its string form starts with the weekday.
+      if (av instanceof Date && bv instanceof Date) return (av.getTime() - bv.getTime()) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
 

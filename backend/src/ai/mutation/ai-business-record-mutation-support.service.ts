@@ -17,6 +17,7 @@ import { ClassificationCatalog, resolveClassificationOption } from '../../it-ops
 import { PortfolioRequestsService } from '../../portfolio/portfolio-requests.service';
 import { PortfolioProjectsService } from '../../portfolio/services';
 import { SpendItemsService } from '../../spend/spend-items.service';
+import { parseEndOfValidityInput } from '../../common/status';
 import { AiMutationPreview } from '../ai-mutation-preview.entity';
 import { AiExecutionContextWithManager, AiMutationPreviewChangeDto } from '../ai.types';
 import { buildAiMutationAudit } from './ai-mutation-audit.util';
@@ -353,14 +354,15 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
       account_id: { label: 'Account', kind: 'relation', nullable: true, relationTarget: 'accounts', aliases: ['account'] },
       currency: { label: 'Currency', kind: 'upper3', requiredOnCreate: true },
       effective_start: { label: 'Effective Start', kind: 'date', requiredOnCreate: true },
-      effective_end: { label: 'Effective End', kind: 'date', nullable: true },
+      // Deprecated alias of disabled_at for one release: fills an empty end of validity, never clears it.
+      effective_end: { label: 'End of validity', kind: 'date', nullable: true },
       owner_it_id: { label: 'IT Owner', kind: 'relation', nullable: true, relationTarget: 'users', aliases: ['it_owner'] },
       owner_business_id: { label: 'Business Owner', kind: 'relation', nullable: true, relationTarget: 'users', aliases: ['business_owner'] },
       analytics_category_id: { label: 'Analytics Category', kind: 'relation', nullable: true, relationTarget: 'analytics_categories', aliases: ['analytics_category'] },
       project_id: { label: 'Project', kind: 'relation', nullable: true, relationTarget: 'projects', aliases: ['project'] },
       contract_id: { label: 'Contract', kind: 'relation', nullable: true, relationTarget: 'contracts', aliases: ['contract'] },
       status: { label: 'Status', kind: 'enum', enumValues: STATUS_STATES },
-      disabled_at: { label: 'Disabled At', kind: 'date', nullable: true },
+      disabled_at: { label: 'End of validity', kind: 'date', nullable: true, aliases: ['end_of_validity'] },
       notes: { label: 'Notes', kind: 'text', nullable: true },
     },
   },
@@ -379,10 +381,11 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
       account_id: { label: 'Account', kind: 'relation', nullable: true, relationTarget: 'accounts', aliases: ['account'] },
       currency: { label: 'Currency', kind: 'upper3', requiredOnCreate: true },
       effective_start: { label: 'Effective Start', kind: 'date', requiredOnCreate: true },
-      effective_end: { label: 'Effective End', kind: 'date', nullable: true },
+      // Deprecated alias of disabled_at for one release: fills an empty end of validity, never clears it.
+      effective_end: { label: 'End of validity', kind: 'date', nullable: true },
       project_id: { label: 'Project', kind: 'relation', nullable: true, relationTarget: 'projects', aliases: ['project'] },
       status: { label: 'Status', kind: 'enum', enumValues: STATUS_STATES },
-      disabled_at: { label: 'Disabled At', kind: 'date', nullable: true },
+      disabled_at: { label: 'End of validity', kind: 'date', nullable: true, aliases: ['end_of_validity'] },
       notes: { label: 'Notes', kind: 'text', nullable: true },
     },
   },
@@ -399,6 +402,9 @@ export function getAiBusinessRecordBusinessResource(entityType: unknown): string
   }
   return ENTITY_CONFIG[normalized].businessResource;
 }
+
+// Budget items whose disabled_at is their end of validity (effective_end is its deprecated alias).
+const END_OF_VALIDITY_ENTITIES = new Set<AiBusinessRecordEntityType>(['spend_items', 'capex_items']);
 
 function coerceRecord(value: unknown, fieldName: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -565,6 +571,17 @@ export class AiBusinessRecordMutationSupportService {
       if (field.kind === 'percent' && parsed > 100) throw new BadRequestException(`${field.label} must be between 0 and 100.`);
       return { value: parsed, displayValue: String(parsed) };
     }
+    if (field.kind === 'date' && END_OF_VALIDITY_ENTITIES.has(entityType) && (fieldName === 'disabled_at' || fieldName === 'effective_end')) {
+      // A bare day is stored at 12:00 UTC, like the CSV import, so it reads the same day everywhere.
+      let parsed: Date | null;
+      try {
+        parsed = parseEndOfValidityInput(rawValue);
+      } catch {
+        throw new BadRequestException(`${field.label} must be a valid date (YYYY-MM-DD) or datetime.`);
+      }
+      const value = parsed ? parsed.toISOString() : null;
+      return { value, displayValue: value ? value.slice(0, 10) : null };
+    }
     if (field.kind === 'date') {
       const text = String(rawValue).trim();
       const parsed = new Date(text);
@@ -659,6 +676,20 @@ export class AiBusinessRecordMutationSupportService {
       fields[resolved.name] = normalized.value;
       displayValues[resolved.name] = normalized.displayValue;
       fieldLabels[resolved.name] = resolved.config.label;
+    }
+
+    if (END_OF_VALIDITY_ENTITIES.has(entityType) && Object.prototype.hasOwnProperty.call(fields, 'effective_end')) {
+      // Deprecated alias: fills an empty end of validity, never overrides a given one, never clears it.
+      const legacyValue = fields.effective_end;
+      const legacyDisplay = displayValues.effective_end;
+      delete fields.effective_end;
+      delete displayValues.effective_end;
+      delete fieldLabels.effective_end;
+      if (legacyValue != null && (fields.disabled_at == null || fields.disabled_at === '')) {
+        fields.disabled_at = legacyValue;
+        displayValues.disabled_at = legacyDisplay;
+        fieldLabels.disabled_at = config.fields.disabled_at.label;
+      }
     }
 
     if (Object.keys(fields).length === 0) {

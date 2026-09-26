@@ -43,7 +43,6 @@ type CapexForm = {
   investment_type: CapexInvestmentType;
   priority: CapexPriority;
   effective_start: string;
-  effective_end: string;
   status: StatusValue;
   disabled_at: string | null;
   owner_it_id: string;
@@ -57,7 +56,7 @@ type CapexForm = {
 const EMPTY_FORM: CapexForm = {
   description: '', supplier_id: '', currency: 'EUR', account_id: '', paying_company_id: '',
   ppe_type: 'hardware', investment_type: 'replacement', priority: 'medium',
-  effective_start: '', effective_end: '', status: 'enabled', disabled_at: null,
+  effective_start: '', status: 'enabled', disabled_at: null,
   owner_it_id: '', owner_business_id: '', analytics_category_id: '', notes: '',
   created_at: null, updated_at: null,
 };
@@ -82,7 +81,6 @@ const NULLABLE_PATCH_FIELDS = new Set([
   'supplier_id',
   'account_id',
   'paying_company_id',
-  'effective_end',
   'owner_it_id',
   'owner_business_id',
   'analytics_category_id',
@@ -110,7 +108,6 @@ function toForm(data: any): CapexForm {
     investment_type: (data?.investment_type || 'replacement') as CapexInvestmentType,
     priority: (data?.priority || 'medium') as CapexPriority,
     effective_start: data?.effective_start ? String(data.effective_start).slice(0, 10) : '',
-    effective_end: data?.effective_end ? String(data.effective_end).slice(0, 10) : '',
     status: deriveStatusFromDisabledAt(normalizedDisabledAt),
     disabled_at: normalizedDisabledAt,
     owner_it_id: data?.owner_it_id || '',
@@ -389,7 +386,9 @@ export default function CapexItemPage() {
         priority: createForm.priority,
         currency: createForm.currency.toUpperCase(),
         effective_start: createForm.effective_start,
-        effective_end: toNull(createForm.effective_end),
+        ...(createForm.disabled_at
+          ? { disabled_at: createForm.disabled_at, status: deriveStatusFromDisabledAt(createForm.disabled_at) }
+          : {}),
         notes: toNull(createForm.notes),
         paying_company_id: createForm.paying_company_id,
         account_id: toNull(createForm.account_id),
@@ -528,7 +527,7 @@ export default function CapexItemPage() {
             priority={createForm.priority}
             analyticsCategoryId={createForm.analytics_category_id}
             effectiveStart={createForm.effective_start}
-            effectiveEnd={createForm.effective_end}
+            disabledAt={createForm.disabled_at}
             ownerItId={createForm.owner_it_id}
             ownerBusinessId={createForm.owner_business_id}
             disabled={createSubmitting}
@@ -544,7 +543,7 @@ export default function CapexItemPage() {
             onPriorityChange={(v) => updateCreateForm({ priority: v })}
             onAnalyticsCategoryChange={(v) => updateCreateForm({ analytics_category_id: v })}
             onEffectiveStartChange={(v) => updateCreateForm({ effective_start: v })}
-            onEffectiveEndChange={(v) => updateCreateForm({ effective_end: v })}
+            onDisabledAtChange={(v) => updateCreateForm({ disabled_at: v, status: deriveStatusFromDisabledAt(v) })}
             onOwnerItChange={(v) => updateCreateForm({ owner_it_id: v })}
             onOwnerBusinessChange={(v) => updateCreateForm({ owner_business_id: v })}
           />
@@ -560,7 +559,6 @@ export default function CapexItemPage() {
             priority={form.priority}
             analyticsCategoryId={form.analytics_category_id}
             effectiveStart={form.effective_start}
-            effectiveEnd={form.effective_end}
             status={form.status}
             disabledAt={form.disabled_at}
             createdAt={form.created_at}
@@ -574,7 +572,6 @@ export default function CapexItemPage() {
             // priority is edited via the metadata bar in edit mode; the drawer renders it in create mode only
             onAnalyticsCategoryChange={(v) => void patchNow({ analytics_category_id: v })}
             onEffectiveStartChange={(v) => void patchNow({ effective_start: v })}
-            onEffectiveEndChange={(v) => void patchNow({ effective_end: v })}
             onStatusChange={handleStatusChange}
             onDisabledAtChange={handleDisabledAtChange}
           />

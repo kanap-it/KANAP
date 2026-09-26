@@ -164,8 +164,10 @@ export class ScheduledNotificationsService implements OnModuleInit {
         u.email as owner_email,
         u.locale as owner_locale
       FROM contracts c
-      LEFT JOIN users u ON u.id = c.owner_user_id AND u.status = 'enabled'
-      WHERE c.status = 'ENABLED'
+      LEFT JOIN users u ON u.id = c.owner_user_id AND u.tenant_id = c.tenant_id AND u.status = 'enabled'
+      WHERE c.tenant_id = $1
+        -- Active as the contract lists define it: no end of validity, or a future one.
+        AND (c.disabled_at IS NULL OR c.disabled_at > now())
         AND c.owner_user_id IS NOT NULL
         AND (
           -- End date within 30 days
@@ -176,7 +178,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
           ((c.start_date + (c.duration_months || ' months')::interval - '1 day'::interval) - (c.notice_period_months || ' months')::interval)::date
             BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
         )
-    `);
+    `, [tenantId]);
 
     for (const contract of contracts) {
       if (!contract.owner_email) continue;
@@ -222,13 +224,14 @@ export class ScheduledNotificationsService implements OnModuleInit {
   }
 
   private async checkOpexExpirationsForTenant(mg: any, tenantId: string): Promise<number> {
-    // Find OPEX items expiring within 30 days
+    // OPEX items whose end of validity falls within 30 days. A future
+    // disabled_at means the item is still enabled, so no status predicate.
     const opexItems = await mg.query(`
       SELECT
         s.id,
         s.product_name,
         s.tenant_id,
-        s.effective_end,
+        s.disabled_at,
         s.owner_it_id,
         s.owner_business_id,
         it_user.id as it_owner_id,
@@ -238,17 +241,19 @@ export class ScheduledNotificationsService implements OnModuleInit {
         biz_user.email as biz_owner_email,
         biz_user.locale as biz_owner_locale
       FROM spend_items s
-      LEFT JOIN users it_user ON it_user.id = s.owner_it_id AND it_user.status = 'enabled'
-      LEFT JOIN users biz_user ON biz_user.id = s.owner_business_id AND biz_user.status = 'enabled'
-      WHERE s.status = 'ENABLED'
-        AND s.effective_end IS NOT NULL
-        AND s.effective_end BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+      LEFT JOIN users it_user ON it_user.id = s.owner_it_id AND it_user.tenant_id = s.tenant_id AND it_user.status = 'enabled'
+      LEFT JOIN users biz_user ON biz_user.id = s.owner_business_id AND biz_user.tenant_id = s.tenant_id AND biz_user.status = 'enabled'
+      WHERE s.tenant_id = $1
+        AND s.disabled_at IS NOT NULL
+        AND s.disabled_at > now()
+        AND s.disabled_at <= now() + INTERVAL '30 days'
         AND (s.owner_it_id IS NOT NULL OR s.owner_business_id IS NOT NULL)
-    `);
+    `, [tenantId]);
 
     for (const item of opexItems) {
-      const expirationDate = dayjs(item.effective_end);
-      const daysRemaining = expirationDate.diff(dayjs(), 'day');
+      // The last service day is the UTC calendar day of the end of validity.
+      const expirationDate = dayjs.utc(item.disabled_at).startOf('day');
+      const daysRemaining = expirationDate.diff(dayjs.utc().startOf('day'), 'day');
 
       const recipients = [];
       if (item.it_owner_email) {
