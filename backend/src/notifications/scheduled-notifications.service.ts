@@ -16,6 +16,7 @@ import { StorageService } from '../common/storage/storage.service';
 import { type EmailBranding, resolveEmailBranding, getDefaultEmailBranding } from '../email/email-branding';
 import { ScheduledTasksService } from '../admin/scheduled-tasks/scheduled-tasks.service';
 import { resolveEmailLocale } from '../i18n/email-i18n';
+import { calendarDaysUntil, isExpiryReminderDay, utcDateYmd } from './expiry-reminder-schedule';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -99,7 +100,11 @@ export class ScheduledNotificationsService implements OnModuleInit {
   // EXPIRATION WARNINGS - Daily at 8 AM UTC
   // ============================================
 
-  async checkExpirations(): Promise<Record<string, any>> {
+  /**
+   * Warns owners when a deadline is 30, 14, 7 or 1 calendar day(s) away (UTC dates, see
+   * expiry-reminder-schedule.ts). `now` is the run's clock; the scheduler uses the real time.
+   */
+  async checkExpirations(now: Date = new Date()): Promise<Record<string, any>> {
     this.logger.log('[Expirations] Running expiration warnings check...');
 
     const summary = { tenantsProcessed: 0, contractWarnings: 0, opexWarnings: 0, errors: [] as string[] };
@@ -118,8 +123,8 @@ export class ScheduledNotificationsService implements OnModuleInit {
       try {
         await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenant.id]);
 
-        const contractCount = await this.checkContractExpirationsForTenant(runner.manager, tenant.id);
-        const opexCount = await this.checkOpexExpirationsForTenant(runner.manager, tenant.id);
+        const contractCount = await this.checkContractExpirationsForTenant(runner.manager, tenant.id, now);
+        const opexCount = await this.checkOpexExpirationsForTenant(runner.manager, tenant.id, now);
 
         summary.contractWarnings += contractCount;
         summary.opexWarnings += opexCount;
@@ -146,9 +151,10 @@ export class ScheduledNotificationsService implements OnModuleInit {
     return summary;
   }
 
-  private async checkContractExpirationsForTenant(mg: any, tenantId: string): Promise<number> {
-    // Find contracts expiring within 30 days
-    // Contract end_date is calculated as start_date + duration_months
+  private async checkContractExpirationsForTenant(mg: any, tenantId: string, now: Date = new Date()): Promise<number> {
+    // Candidates: contracts whose end date or cancellation deadline falls within 30 days.
+    // End date = start_date + duration_months - 1 day; deadline = end date - notice period.
+    // Both dates come back as YYYY-MM-DD text, free of any time zone conversion.
     const contracts = await mg.query(`
       SELECT
         c.id,
@@ -158,8 +164,8 @@ export class ScheduledNotificationsService implements OnModuleInit {
         c.start_date,
         c.duration_months,
         c.notice_period_months,
-        (c.start_date + (c.duration_months || ' months')::interval - '1 day'::interval)::date as end_date,
-        ((c.start_date + (c.duration_months || ' months')::interval - '1 day'::interval) - (c.notice_period_months || ' months')::interval)::date as cancellation_deadline,
+        to_char(c.start_date + (c.duration_months || ' months')::interval - '1 day'::interval, 'YYYY-MM-DD') as end_date,
+        to_char((c.start_date + (c.duration_months || ' months')::interval - '1 day'::interval) - (c.notice_period_months || ' months')::interval, 'YYYY-MM-DD') as cancellation_deadline,
         u.id as owner_id,
         u.email as owner_email,
         u.locale as owner_locale
@@ -172,47 +178,33 @@ export class ScheduledNotificationsService implements OnModuleInit {
         AND (
           -- End date within 30 days
           (c.start_date + (c.duration_months || ' months')::interval - '1 day'::interval)::date
-            BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+            BETWEEN $2::date AND $2::date + 30
           OR
           -- Cancellation deadline within 30 days
           ((c.start_date + (c.duration_months || ' months')::interval - '1 day'::interval) - (c.notice_period_months || ' months')::interval)::date
-            BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+            BETWEEN $2::date AND $2::date + 30
         )
-    `, [tenantId]);
+    `, [tenantId, utcDateYmd(now)]);
 
     for (const contract of contracts) {
       if (!contract.owner_email) continue;
 
-      const endDate = dayjs(contract.end_date);
-      const cancellationDeadline = dayjs(contract.cancellation_deadline);
-      const today = dayjs();
-
-      // Check cancellation deadline first (more urgent)
-      if (cancellationDeadline.isAfter(today) && cancellationDeadline.diff(today, 'day') <= 30) {
-        const daysRemaining = cancellationDeadline.diff(today, 'day');
+      // The cancellation deadline and the end date each follow the schedule on their own.
+      const deadlines: Array<['cancellation_deadline' | 'expiration', string | null]> = [
+        ['cancellation_deadline', contract.cancellation_deadline],
+        ['expiration', contract.end_date],
+      ];
+      for (const [warningType, deadline] of deadlines) {
+        if (!deadline) continue;
+        const daysRemaining = calendarDaysUntil(deadline, now);
+        if (!isExpiryReminderDay(daysRemaining)) continue;
         await this.notificationsService.notifyExpirationWarning({
           itemType: 'contract',
           itemId: contract.id,
           itemName: contract.name,
-          expirationDate: cancellationDeadline.format('YYYY-MM-DD'),
+          expirationDate: deadline,
           daysRemaining,
-          warningType: 'cancellation_deadline',
-          recipients: [{ userId: contract.owner_id, email: contract.owner_email, locale: contract.owner_locale }],
-          tenantId: contract.tenant_id,
-          manager: mg,
-        });
-      }
-
-      // Check expiration
-      if (endDate.isAfter(today) && endDate.diff(today, 'day') <= 30) {
-        const daysRemaining = endDate.diff(today, 'day');
-        await this.notificationsService.notifyExpirationWarning({
-          itemType: 'contract',
-          itemId: contract.id,
-          itemName: contract.name,
-          expirationDate: endDate.format('YYYY-MM-DD'),
-          daysRemaining,
-          warningType: 'expiration',
+          warningType,
           recipients: [{ userId: contract.owner_id, email: contract.owner_email, locale: contract.owner_locale }],
           tenantId: contract.tenant_id,
           manager: mg,
@@ -223,9 +215,10 @@ export class ScheduledNotificationsService implements OnModuleInit {
     return contracts.length;
   }
 
-  private async checkOpexExpirationsForTenant(mg: any, tenantId: string): Promise<number> {
-    // OPEX items whose end of validity falls within 30 days. A future
-    // disabled_at means the item is still enabled, so no status predicate.
+  private async checkOpexExpirationsForTenant(mg: any, tenantId: string, now: Date = new Date()): Promise<number> {
+    // Candidates: OPEX items whose end of validity falls within 30 calendar days (UTC dates,
+    // so that an end 30 days away at any time of day is included). A future disabled_at
+    // means the item is still enabled, so no status predicate.
     const opexItems = await mg.query(`
       SELECT
         s.id,
@@ -245,15 +238,15 @@ export class ScheduledNotificationsService implements OnModuleInit {
       LEFT JOIN users biz_user ON biz_user.id = s.owner_business_id AND biz_user.tenant_id = s.tenant_id AND biz_user.status = 'enabled'
       WHERE s.tenant_id = $1
         AND s.disabled_at IS NOT NULL
-        AND s.disabled_at > now()
-        AND s.disabled_at <= now() + INTERVAL '30 days'
+        AND (s.disabled_at AT TIME ZONE 'UTC')::date BETWEEN $2::date AND $2::date + 30
         AND (s.owner_it_id IS NOT NULL OR s.owner_business_id IS NOT NULL)
-    `, [tenantId]);
+    `, [tenantId, utcDateYmd(now)]);
 
     for (const item of opexItems) {
       // The last service day is the UTC calendar day of the end of validity.
-      const expirationDate = dayjs.utc(item.disabled_at).startOf('day');
-      const daysRemaining = expirationDate.diff(dayjs.utc().startOf('day'), 'day');
+      const expirationDate = dayjs.utc(item.disabled_at).format('YYYY-MM-DD');
+      const daysRemaining = calendarDaysUntil(expirationDate, now);
+      if (!isExpiryReminderDay(daysRemaining)) continue;
 
       const recipients = [];
       if (item.it_owner_email) {
@@ -268,7 +261,7 @@ export class ScheduledNotificationsService implements OnModuleInit {
           itemType: 'opex',
           itemId: item.id,
           itemName: item.product_name,
-          expirationDate: expirationDate.format('YYYY-MM-DD'),
+          expirationDate,
           daysRemaining,
           warningType: 'expiration',
           recipients,
