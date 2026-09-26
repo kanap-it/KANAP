@@ -8,22 +8,23 @@ The OPEX workspace helps you manage each spend item from initial budgeting throu
 
 Navigate to **Budget Management > OPEX** to see your list. Click **New** to create your first item.
 
+The workspace opens in creation mode, with the **Properties** panel open on the right. Type the product name in the title at the top, fill in the properties, then click **Create**.
+
 **Required fields**:
-  - **Product Name**: What you are spending on (e.g., "Salesforce Licenses", "AWS Compute")
+  - **Product name** (the title): What you are spending on (e.g., "Salesforce Licenses", "AWS Compute")
   - **Supplier**: Who you are paying. Links to your Suppliers master data
-  - **Currency**: ISO code (e.g., USD, EUR). Defaults to your workspace currency; you can override per item
-  - **Paying Company**: Which company is paying the supplier (required for accounting)
+  - **Paying company**: Which company is paying the supplier (required for accounting)
   - **Account**: The general ledger account for this spend. Only accounts from the paying company's Chart of Accounts will appear
-  - **Effective Start**: When this spend begins (DD/MM/YYYY)
+  - **Currency**: ISO code (e.g., USD, EUR). Defaults to your workspace currency; you can override per item
+  - **Effective start**: When this spend begins (DD/MM/YYYY)
 
 **Optional but useful**:
-  - **Description**: Additional context or notes about the spend
+  - **Analytics category**: Custom grouping for reporting (e.g., "Infrastructure", "Business Apps"). New categories can be created on the fly
   - **End of validity**: The date this spend stops. Leave it blank if there is no end. After it, the item is disabled and later years no longer count in the budget views
-  - **IT Owner** / **Business Owner**: Who is responsible
-  - **Analytics Category**: Custom grouping for reporting (e.g., "Infrastructure", "Business Apps"). New categories can be created on the fly
-  - **Notes**: Free-form internal notes
+  - **IT owner** / **Business owner**: Who is responsible
+  - **Description** and **Notes**: Free text on the Overview tab
 
-Once you save, the workspace unlocks all tabs: **Overview**, **Budget**, **Allocations**, **Tasks**, and **Relations**.
+Once the item is created, the workspace unlocks all four tabs: **Overview**, **Budget**, **Allocations**, and **Relations**.
 
 **Tip**: You can create items quickly and fill in budgets and allocations later. Start with the essentials and iterate.
 
@@ -42,7 +43,7 @@ The OPEX list (at **Budget Management > OPEX**) is your main view for browsing, 
   - **Allocation**: The allocation method label for the current year (links to the Allocations tab)
   - **Y Budget**: Current-year budget amount (links to the Budget tab for this year)
   - **Y expected landing**: Current-year expected landing amount (links to the Budget tab for this year)
-  - **Task**: The latest task title (links to the Tasks tab)
+  - **Task**: The latest task title (links to the Overview tab, where the Tasks panel sits)
 
 **Additional columns** (hidden by default, toggle via the column chooser):
   - **Y-1 Budget / Y-1 expected landing**: Prior-year figures
@@ -79,7 +80,7 @@ The OPEX list (at **Budget Management > OPEX**) is your main view for browsing, 
     - **Product Name**, **Supplier**, **Paying Company**, **Account**, and other general columns: Opens the **Overview** tab
     - **Budget columns** (Y Budget, Y expected landing, Y-1 Budget, etc.): Opens the **Budget** tab pre-set to that year
     - **Allocation**: Opens the **Allocations** tab for the current year
-    - **Task**: Opens the **Tasks** tab
+    - **Task**: Opens the **Overview** tab, where the Tasks panel sits
     - **Contract**: Opens the linked Contract workspace directly (not the OPEX workspace)
 
 **Actions**:
@@ -91,6 +92,7 @@ The OPEX list (at **Budget Management > OPEX**) is your main view for browsing, 
 **Prev/Next navigation**:
   - When you open an item, the workspace shows **Prev** and **Next** buttons
   - These navigate through the list in the current sort order, respecting filters and search
+  - Moving to another item saves your pending edits first
   - Your list context (sort, filters, search) is preserved when you close the workspace
 
 **Tip**: Use column filters + quick search to build focused views (e.g., "All cloud spend over 10k"), then navigate item-by-item with Prev/Next to review budgets.
@@ -99,35 +101,40 @@ The OPEX list (at **Budget Management > OPEX**) is your main view for browsing, 
 
 ## The OPEX workspace
 
-Click any row in the list to open the workspace. It has five tabs arranged vertically on the left, each focused on a specific aspect of the spend item.
+Click any row in the list to open the workspace. It has four parts:
+
+  - **Header**: the item reference (e.g., `OPX-12`) with a copy button, the product name (click it to rename the item), **Prev** / **Next**, **Send link**, and the close button
+  - **Metadata bar** under the title: **Status**, **IT owner**, and **Business owner**, each editable in place
+  - **Four tabs**: **Overview**, **Budget**, **Allocations**, and **Relations** (the Relations tab shows how many links the item has)
+  - **Properties panel** on the right: the item's main fields. Open or close it with the properties button; the workspace remembers your choice
+
+**Autosave**:
+  - Every change saves automatically. A **Saving...** / **Saved** hint shows in the header
+  - Switching tabs, moving to the previous or next item, or closing the workspace saves pending edits first. If a save fails, you stay where you are and an error explains why, so no edit is lost silently
+  - **Ctrl+S** (**Cmd+S** on Mac) saves immediately
 
 ### Overview
 
-This tab shows all the general information about the spend item.
+The Overview tab holds the free-text fields and the tasks of the item.
 
 **What you can edit**:
-  - **Product Name** (required)
-  - **Description**
-  - **Supplier** (autocomplete from your Suppliers master data; required)
-  - **Currency** (defaults to workspace currency; shows only allowed currencies)
-  - **Paying Company** (autocomplete from your Companies; required)
-  - **Account** (filtered by the paying company's Chart of Accounts; required)
-  - **Effective Start** (date field)
-  - **IT Owner** and **Business Owner** (autocomplete from enabled users)
-  - **Analytics Category** (autocomplete; creates new categories on the fly)
-  - **Notes**
+  - **Description**: What the spend covers
+  - **Notes**: Free-form internal notes
 
-**Status and lifecycle**:
-  - Use the **Enabled** toggle or set an **End of validity** to control when the item appears in reports and selection lists
-  - Disabled items are excluded from reports for years strictly after the end of validity
-  - Historical data remains intact; you will still see disabled items in reports covering years when they were active
+**Tasks panel**:
+  - Lists every task linked to this OPEX item, with **Title**, **Status**, **Priority**, **Due date**, and **Actions** columns. The panel title shows the number of tasks
+  - **Status** filter: All (default), Active (not done), Open, In progress, Pending, In testing, Done, or Cancelled. The clear button resets it
+  - Click **Add task** to open a new task already linked to this item. Fill in the title, description, priority, assignee, and due date in the task workspace
+  - Use the open icon to go to a task, and the delete icon to delete it (you confirm first)
+  - Tasks have their own permissions (`tasks:member` to create and edit). OPEX manager access does not grant task editing rights on its own; check with your admin if you cannot create tasks
+  - Tasks can also be viewed and managed from **Portfolio > Tasks**, which shows all tasks across your organization
 
-**Save and Reset**:
-  - Changes are **not** saved automatically
-  - Click **Save** to persist your edits, or **Reset** to discard them
-  - If you try to navigate away or switch tabs with unsaved changes, you will be prompted to save or discard
+**Properties panel**:
+  - **Supplier**, **Paying company**, **Account** (filtered by the paying company's Chart of Accounts), **Currency** (only the currencies allowed in your workspace), **Analytics category**, and **Effective start**
+  - **Lifecycle**: the **Enabled** switch and the **End of validity** date. See [Status and Lifecycle](#status-and-lifecycle)
+  - **Created** and **Updated** dates (read only)
 
-**Tip**: If you see an "Obsolete account" warning, it means the selected account does not belong to the paying company's Chart of Accounts. Choose a different account to resolve the warning.
+**Tip**: When you create an item, an "Obsolete account" warning means the selected account does not belong to the paying company's Chart of Accounts. Choose a different account to resolve the warning.
 
 ---
 
@@ -180,119 +187,79 @@ The Allocations tab distributes the spend across your companies and departments.
 **Year selection**:
   - Works the same as Budget: use year tabs to switch between Y-2, Y-1, Y, Y+1, Y+2
   - Each year can have a different allocation method
+  - The **Year budget** of the selected year shows on the right, and the table shows each share as a percentage and as an amount
 
 **Allocation methods**:
 
 | Method | How it works |
 |---|---|
-| **Headcount (Default)** | Splits spend proportionally by each company's headcount for the selected year. No manual selection required -- percentages are computed automatically from company metrics. This is the standard default. |
-| **IT Users** | Splits spend proportionally by each company's IT user count for the selected year. |
+| **Headcount (default)** | Splits spend proportionally by each company's headcount for the selected year. No manual selection required -- percentages are computed automatically from company metrics. This is the standard default. |
+| **IT users** | Splits spend proportionally by each company's IT user count for the selected year. |
 | **Turnover** | Splits spend proportionally by each company's turnover (revenue) for the selected year. |
-| **Manual by Company** | You select which companies receive this spend and choose a driver (Headcount, IT Users, or Turnover) to calculate percentages among the selected companies only. |
-| **Manual by Department** | You select specific company/department pairs. Percentages are calculated from each department's headcount. Useful when a spend item benefits only certain departments (e.g., a CRM used by Sales). |
+| **Manual by company** | You select which companies receive this spend and choose a driver in **Allocate by** (Headcount, IT users, or Turnover) to calculate percentages among the selected companies only. |
+| **Manual by department** | You select specific company/department pairs. Percentages are calculated from each department's headcount. Useful when a spend item benefits only certain departments (e.g., a CRM used by Sales). |
+| **Manual percentages** | You pick the companies and type each percentage yourself. The percentages must add up to 100%. |
 
 **Default vs pinned methods**:
   - The **default** entry -- shown as *Headcount (default)* until your organisation configures another method -- follows the setting in **Budget Management > Administration > Default Allocation Method**. Every item left on the default is re-driven when an admin changes that setting
   - That setting can also restrict the default to a **selection of companies** (for example the entity that carries the IT budget): the driver then applies to those companies only, and the option reads *Default (n companies)*
-  - **Headcount**, **IT Users** and **Turnover** pin that method on the item: a pinned method keeps working even if the organisation default changes later
+  - **Headcount**, **IT users** and **Turnover** pin that method on the item: a pinned method keeps working even if the organisation default changes later
   - Items with a manual allocation are never affected by the default setting
 
 **How percentages work**:
-  - For **automatic methods** (Headcount, IT Users, Turnover): percentages are computed from the latest company metrics on every page load. You do not edit them directly
-  - For **manual methods**: you pick the companies or departments, and the system calculates percentages based on your chosen driver and the current metrics
-  - Percentages reflect live data. If you update a company's headcount, allocations recalculate immediately
-  - The total percentage indicator shows a running total. For auto methods the remainder is auto-distributed; for manual methods the preview uses live metrics
+  - For **automatic methods** (Headcount, IT users, Turnover): percentages are computed from the latest company metrics across your enabled companies. You do not edit them directly
+  - For **Manual by company** and **Manual by department**: you pick the companies or departments, and the system calculates percentages from your chosen driver and the current metrics
+  - For **Manual percentages**: typing a percentage pins that row, and the remaining rows share what is left. **Split equally** gives every row the same share; **Clear manual pins** releases the pinned rows
+  - Percentages reflect live data. If you update a company's headcount, allocations recalculate
 
 **How to use it**:
   1. Select the year
-  2. Choose an allocation method from the dropdown
-  3. If using Manual by Company, pick an allocation driver (Headcount, IT Users, or Turnover) and select companies
-  4. If using Manual by Department, select company/department pairs
-  5. Click **Save** to persist the method and selection
+  2. Choose an allocation method in **Method**
+  3. For a manual method, use **Add row** to add companies (or company/department pairs) and the remove icon to drop one. For **Manual by company**, pick a driver in **Allocate by**
+  4. Changes save automatically
 
 **Common issues**:
-  - **"Missing metrics" error**: One or more companies have zero or missing headcount/IT users/turnover for the selected year. Fill in the metrics in **Master Data > Companies** (Details tab)
-  - **"Total is not 100%"**: Usually caused by missing metrics. Fix the company data and reload allocations
+  - **Missing metrics**: One or more companies have zero or missing headcount/IT users/turnover for the selected year. Fill in the metrics in **Master Data > Companies** (Details tab)
+  - **"Manual percentages must sum to 100%."**: Adjust the rows, or click **Split equally**
 
-**Tip**: Use Headcount (Default) for most items -- it is the simplest and updates automatically. Reserve manual methods for spend that benefits specific companies or departments only.
-
----
-
-### Tasks
-
-The Tasks tab helps you track to-dos and follow-ups related to this OPEX item (e.g., "Renew license by Q3", "Review usage metrics").
-
-**Task list**:
-  - Shows all tasks linked to this OPEX item
-  - Columns: **Title**, **Status**, **Priority**, **Due Date**, **Actions**
-  - Click a task title to open the full task workspace
-  - Default filter shows active tasks (hides done and cancelled)
-
-**Filtering**:
-  - Click the filter icon to show/hide filter controls
-  - **Status filter**: All, Active (hides done/cancelled), Open, In Progress, Pending, In Testing, Done, or Cancelled
-  - Click the clear button to reset filters
-
-**Creating a task**:
-  - Click **Add Task** to open the task creation workspace
-  - The task is automatically linked to this OPEX item
-  - Fill in the title, description, priority, assignee, and due date in the task workspace
-
-**Deleting a task**:
-  - Click the delete icon in the Actions column
-  - Confirm the deletion in the dialog
-
-**Notes**:
-  - Tasks are independent objects with their own permissions (`tasks:member` to create/edit)
-  - Having OPEX manager access does not automatically grant task editing rights; check with your admin if you cannot create tasks
-  - Tasks can also be viewed and managed from **Portfolio > Tasks**, which shows all tasks across your organization
-
-**Tip**: Use tasks to capture action items during budget reviews or contract renewals. Set due dates to track upcoming deadlines.
+**Tip**: Use Headcount (default) for most items -- it is the simplest and updates automatically. Reserve manual methods for spend that benefits specific companies or departments only.
 
 ---
 
 ### Relations
 
-The Relations tab links this OPEX item to related objects: Projects, Applications, Contracts, Contacts, Relevant Websites, and Attachments.
+The Relations tab links this OPEX item to related objects: Projects, Applications, Contracts, Contacts, Relevant websites, and Attachments. Everything on this tab saves automatically.
 
 **Projects**:
   - Use the autocomplete to link one or more projects from your Portfolio
   - This helps group spend by project in reports and enables project accounting
-  - Remove projects by clicking the X on the chip, then save
+  - Remove a project by clicking the X on its chip
 
 **Applications**:
-  - Use the autocomplete to link one or more applications from your IT catalogue
-  - Linked application names appear as clickable chips that open the Application workspace
+  - Use the autocomplete to link one or more applications or services from your IT catalogue
   - This helps track which OPEX items fund which applications or services
 
 **Contracts**:
   - Use the autocomplete to link one or more contracts
   - When linked, the contract name appears in the OPEX list **Contract** column for quick reference
   - Contracts can link to multiple OPEX items (many-to-many relationship)
-  - Remove contracts by clicking the X on the chip, then save
+  - Remove a contract by clicking the X on its chip
 
 **Contacts**:
-  - Add supplier contacts related to this spend item
-  - Each contact has a **Role** (Commercial, Technical, Support, or Other)
-  - Contacts can come from the supplier's contact list or be added manually
+  - Link contacts to this spend item: pick a contact, then pick its role (**Commercial**, **Technical**, **Support**, or **Other**). Choosing the role adds the contact
+  - The table shows the role, first name, last name, job title, email, and mobile. Hover the role to see whether the contact comes from the supplier or was added manually
+  - Remove a contact with the remove icon
   - Useful for tracking who to reach out to for renewals, support issues, or negotiations
 
 **Relevant websites**:
-  - Add URLs related to this spend item (e.g., vendor portals, documentation, admin consoles, internal wikis)
-  - Each link has an optional **Description** field for context
-  - Click **Add URL** to add more links
+  - Click **Add URL** to add a link (e.g., vendor portals, documentation, admin consoles, internal wikis). Each link has a **Name** and a **URL**
+  - Click a link row to edit it, or use the delete icon to remove it
 
 **Attachments**:
   - Upload files related to this spend item (e.g., contracts, invoices, quotes, SOWs, technical specs)
   - Drag and drop files into the attachment area, or click **Select files** to browse
-  - All files are stored securely and can be downloaded by clicking the file name
-  - Delete attachments by clicking the X on the file chip (requires `opex:manager`)
-  - Attachments are saved immediately upon upload (no need to click **Save**)
-
-**Save behavior**:
-  - **Projects**, **Applications**, **Contracts**, **Relevant Websites**: Saved when you click **Save** at the top of the workspace
-  - **Contacts**: Managed inline (add/remove actions save immediately)
-  - **Attachments**: Saved immediately upon upload
+  - Click a file chip to download the file
+  - Delete an attachment with the delete icon on its chip (you confirm first; requires `opex:manager`)
 
 **Tip**: Link contracts to track renewals across multiple OPEX items. Add vendor portal URLs for quick access. Upload quotes and invoices as attachments to centralize all spend-related documentation.
 
@@ -357,7 +324,7 @@ Every OPEX item has a **status** (Enabled or Disabled) and an optional **End of 
 
 **Setting status**:
   - When you create the item, you can set its **End of validity** in the **Properties** panel
-  - Later, use the **Enabled** toggle or change the **End of validity** in the **Properties** panel
+  - Later, change the **Status** in the metadata bar, or use the **Lifecycle** field in the **Properties** panel (**Enabled** switch and **End of validity**). Switching an item to Disabled without a date sets its end of validity to today
   - You can schedule a future end of validity (useful for planned end-of-contract items)
 
 **Viewing disabled items**:
@@ -399,7 +366,7 @@ Every OPEX item has a **status** (Enabled or Disabled) and an optional **End of 
 
 12. **Review the totals row**: Before finalizing budgets, check the pinned totals row in the list to ensure your spend adds up as expected.
 
-13. **Use deep linking**: Click directly on a budget column in the list to jump to the Budget tab for that year. Click the Task column to jump to Tasks. This saves navigation time.
+13. **Use deep linking**: Click directly on a budget column in the list to jump to the Budget tab for that year. Click the Task column to jump to the item's tasks on the Overview tab. This saves navigation time.
 
 14. **Freeze budgets after year-end close**: Use Budget Administration to freeze prior-year budgets once actuals are finalized, preventing accidental edits.
 

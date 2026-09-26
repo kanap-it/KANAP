@@ -8,24 +8,25 @@ El espacio de trabajo OPEX le ayuda a gestionar cada partida de gasto desde la p
 
 Navegue a **Gestión presupuestaria > OPEX** para ver su lista. Haga clic en **Nuevo** para crear su primera partida.
 
+El espacio de trabajo se abre en modo de creación, con el panel **Propiedades** abierto a la derecha. Escriba el nombre del producto en el título de arriba, complete las propiedades y haga clic en **Crear**.
+
 **Campos obligatorios**:
-  - **Nombre del producto**: En qué está gastando (p. ej., "Licencias Salesforce", "AWS Compute")
-  - **Proveedor**: A quién paga. Se vincula a sus datos maestros de Proveedores
-  - **Moneda**: Código ISO (p. ej., USD, EUR). Se establece por defecto a la moneda de su espacio de trabajo; puede sobrescribirla por partida
+  - **Nombre del producto** (el título): En qué gasta (p. ej., "Licencias Salesforce", "AWS Compute")
+  - **Proveedor**: A quién paga. Vinculado a sus datos maestros de Proveedores
   - **Empresa pagadora**: Qué empresa paga al proveedor (obligatorio para contabilidad)
-  - **Cuenta**: La cuenta contable para este gasto. Solo aparecen cuentas del plan de cuentas de la empresa pagadora
-  - **Inicio efectivo**: Cuándo comienza este gasto (DD/MM/AAAA)
+  - **Cuenta**: La cuenta contable de este gasto. Solo aparecen las cuentas del plan de cuentas de la empresa pagadora
+  - **Moneda**: Código ISO (p. ej., USD, EUR). Por defecto la moneda de su espacio de trabajo; puede cambiarla por partida
+  - **Inicio de vigencia**: Cuándo comienza este gasto (DD/MM/AAAA)
 
-**Opcionales pero útiles**:
-  - **Descripción**: Contexto adicional o notas sobre el gasto
-  - **Fin de validez**: La fecha en que termina este gasto. Déjelo en blanco si no hay fin. Después de esa fecha, la partida se deshabilita y los años posteriores ya no cuentan en las vistas de presupuesto
-  - **Responsable IT** / **Responsable de negocio**: Quién es responsable
-  - **Categoría analítica**: Agrupación personalizada para informes (p. ej., "Infraestructura", "Apps de negocio"). Se pueden crear nuevas categorías sobre la marcha
-  - **Notas**: Notas internas de texto libre
+**Opcional pero útil**:
+  - **Categoría analítica**: Agrupación personalizada para informes (p. ej., "Infraestructura", "Apps de negocio"). Se pueden crear categorías nuevas sobre la marcha
+  - **Fin de validez**: La fecha en que termina este gasto. Déjela en blanco si no hay fin. Después de esa fecha, la partida queda desactivada y los años posteriores dejan de contar en las vistas presupuestarias
+  - **Responsable de TI** / **Responsable de negocio**: Quién es responsable
+  - **Descripción** y **Notas**: Texto libre en la pestaña Vista general
 
-Una vez que guarde, el espacio de trabajo desbloquea todas las pestañas: **Visión general**, **Presupuesto**, **Asignaciones**, **Tareas** y **Relaciones**.
+Una vez creada la partida, el espacio de trabajo desbloquea las cuatro pestañas: **Vista general**, **Presupuesto**, **Asignaciones** y **Relaciones**.
 
-**Consejo**: Puede crear partidas rápidamente y completar presupuestos y asignaciones más tarde. Comience con lo esencial e itere.
+**Consejo**: Puede crear partidas rápidamente y completar presupuestos y asignaciones más tarde. Empiece por lo esencial y vaya iterando.
 
 ---
 
@@ -34,7 +35,7 @@ Una vez que guarde, el espacio de trabajo desbloquea todas las pestañas: **Visi
 La lista OPEX (en **Gestión presupuestaria > OPEX**) es su vista principal para navegar, filtrar y explorar partidas de gasto.
 
 **Columnas predeterminadas**:
-  - **Nombre del producto**: El nombre de la partida (enlaza a la pestaña Visión general)
+  - **Nombre del producto**: El nombre de la partida (enlaza a la pestaña Vista general)
   - **Proveedor**: El nombre del proveedor
   - **Empresa pagadora**: Qué empresa paga esta partida
   - **Contrato**: El nombre del último contrato vinculado (enlaza al espacio de trabajo del Contrato)
@@ -42,7 +43,7 @@ La lista OPEX (en **Gestión presupuestaria > OPEX**) es su vista principal para
   - **Asignación**: La etiqueta del método de asignación del año actual (enlaza a la pestaña Asignaciones)
   - **Presupuesto A**: Importe del presupuesto del año actual (enlaza a la pestaña Presupuesto de este año)
   - **Aterrizaje previsto A**: Importe del aterrizaje previsto del año actual (enlaza a la pestaña Presupuesto de este año)
-  - **Tarea**: El título de la última tarea (enlaza a la pestaña Tareas)
+  - **Tarea**: El título de la última tarea (enlaza a la pestaña Vista general, donde está el panel de tareas)
 
 **Columnas adicionales** (ocultas por defecto, habilítelas mediante el selector de columnas):
   - **Presupuesto A-1 / Aterrizaje previsto A-1**: Cifras del año anterior
@@ -76,10 +77,10 @@ La lista OPEX (en **Gestión presupuestaria > OPEX**) es su vista principal para
 
 **Enlace directo**:
   - Hacer clic en cualquier celda abre el espacio de trabajo en la pestaña más relevante:
-    - **Nombre del producto**, **Proveedor**, **Empresa pagadora**, **Cuenta** y otras columnas generales: Abre la pestaña **Visión general**
+    - **Nombre del producto**, **Proveedor**, **Empresa pagadora**, **Cuenta** y otras columnas generales: Abre la pestaña **Vista general**
     - **Columnas presupuestarias** (Presupuesto A, Aterrizaje previsto A, Presupuesto A-1, etc.): Abre la pestaña **Presupuesto** preconfigurada en ese año
     - **Asignación**: Abre la pestaña **Asignaciones** para el año actual
-    - **Tarea**: Abre la pestaña **Tareas**
+    - **Tarea**: Abre la pestaña **Vista general**, donde está el panel de tareas
     - **Contrato**: Abre directamente el espacio de trabajo del Contrato vinculado (no el espacio de trabajo OPEX)
 
 **Acciones**:
@@ -89,45 +90,51 @@ La lista OPEX (en **Gestión presupuestaria > OPEX**) es su vista principal para
   - **Eliminar seleccionadas**: Eliminación masiva de partidas seleccionadas (requiere `opex:admin`; seleccione filas mediante casillas de verificación)
 
 **Navegación Anterior/Siguiente**:
-  - Cuando abre una partida, el espacio de trabajo muestra botones **Anterior** y **Siguiente**
+  - Cuando abre una partida, el espacio de trabajo muestra botones **Ant.** y **Sig.**
   - Estos navegan por la lista en el orden actual, respetando filtros y búsqueda
+  - Pasar a otra partida guarda primero sus cambios pendientes
   - Su contexto de lista (ordenación, filtros, búsqueda) se preserva cuando cierra el espacio de trabajo
 
-**Consejo**: Utilice filtros de columna + búsqueda rápida para construir vistas enfocadas (p. ej., "Todo el gasto en nube superior a 10k"), luego navegue partida por partida con Anterior/Siguiente para revisar presupuestos.
+**Consejo**: Utilice filtros de columna + búsqueda rápida para construir vistas enfocadas (p. ej., "Todo el gasto en nube superior a 10k"), luego navegue partida por partida con Ant./Sig. para revisar presupuestos.
 
 ---
 
 ## El espacio de trabajo OPEX
 
-Haga clic en cualquier fila de la lista para abrir el espacio de trabajo. Tiene cinco pestañas dispuestas verticalmente a la izquierda, cada una enfocada en un aspecto específico de la partida de gasto.
+Haga clic en cualquier fila de la lista para abrir el espacio de trabajo. Tiene cuatro partes:
 
-### Visión general
+  - **Cabecera**: la referencia de la partida (p. ej., `OPX-12`) con un botón para copiarla, el nombre del producto (haga clic en él para cambiar el nombre de la partida), **Ant.** / **Sig.**, **Enviar enlace** y el botón de cierre
+  - **Barra de metadatos** bajo el título: **Estado**, **Responsable de TI** y **Responsable de negocio**, editables en el sitio
+  - **Cuatro pestañas**: **Vista general**, **Presupuesto**, **Asignaciones** y **Relaciones** (la pestaña Relaciones muestra cuántos vínculos tiene la partida)
+  - **Panel Propiedades** a la derecha: los campos principales de la partida. Ábralo o ciérrelo con el botón de propiedades; el espacio de trabajo recuerda su elección
 
-Esta pestaña muestra toda la información general de la partida de gasto.
+**Guardado automático**:
+  - Cada cambio se guarda automáticamente. La indicación **Guardando...** / **Guardado** aparece en la cabecera
+  - Cambiar de pestaña, pasar a la partida anterior o siguiente, o cerrar el espacio de trabajo guarda primero los cambios pendientes. Si un guardado falla, usted se queda donde está y un mensaje explica el motivo, de modo que ningún cambio se pierde sin que lo sepa
+  - **Ctrl+S** (**Cmd+S** en Mac) guarda de inmediato
+
+### Vista general
+
+La pestaña Vista general contiene los campos de texto libre y las tareas de la partida.
 
 **Qué puede editar**:
-  - **Nombre del producto** (obligatorio)
-  - **Descripción**
-  - **Proveedor** (autocompletado desde sus datos maestros de Proveedores; obligatorio)
-  - **Moneda** (se establece por defecto a la moneda del espacio de trabajo; muestra solo monedas permitidas)
-  - **Empresa pagadora** (autocompletado desde sus Empresas; obligatorio)
-  - **Cuenta** (filtrada por el plan de cuentas de la empresa pagadora; obligatorio)
-  - **Inicio efectivo** (campo de fecha)
-  - **Responsable IT** y **Responsable de negocio** (autocompletado desde usuarios habilitados)
-  - **Categoría analítica** (autocompletado; crea nuevas categorías sobre la marcha)
-  - **Notas**
+  - **Descripción**: Qué cubre el gasto
+  - **Notas**: Notas internas de texto libre
 
-**Estado y ciclo de vida**:
-  - Utilice el conmutador **Habilitado** o establezca un **Fin de validez** para controlar cuándo aparece la partida en informes y listas de selección
-  - Las partidas deshabilitadas se excluyen de informes para años estrictamente posteriores al fin de validez
-  - Los datos históricos permanecen intactos; seguirá viendo partidas deshabilitadas en informes que cubren años cuando estaban activas
+**Panel de tareas**:
+  - Muestra todas las tareas vinculadas a esta partida OPEX, con las columnas **Título**, **Estado**, **Prioridad**, **Fecha de vencimiento** y **Acciones**. El título del panel indica el número de tareas
+  - Filtro **Estado**: Todos (por defecto), Activas (no completadas), Abierta, En curso, Pendiente, En pruebas, Completada o Cancelada. El botón de borrar lo restablece
+  - Haga clic en **Agregar tarea** para abrir una tarea nueva ya vinculada a esta partida. Complete el título, la descripción, la prioridad, el responsable y la fecha de vencimiento en el espacio de trabajo de la tarea
+  - Use el icono de abrir para ir a una tarea y el icono de eliminar para borrarla (tras confirmar)
+  - Las tareas tienen sus propios permisos (`tasks:member` para crear y editar). El acceso de manager de OPEX no da por sí solo derechos de edición de tareas; consulte a su administrador si no puede crear tareas
+  - Las tareas también se pueden ver y gestionar desde **Portafolio > Tareas**, que muestra todas las tareas de su organización
 
-**Guardar y Restablecer**:
-  - Los cambios **no** se guardan automáticamente
-  - Haga clic en **Guardar** para persistir sus ediciones, o **Restablecer** para descartarlas
-  - Si intenta navegar fuera o cambiar de pestaña con cambios sin guardar, se le solicitará que guarde o descarte
+**Panel Propiedades**:
+  - **Proveedor**, **Empresa pagadora**, **Cuenta** (filtrada por el plan de cuentas de la empresa pagadora), **Moneda** (solo las monedas permitidas en su espacio de trabajo), **Categoría analítica** e **Inicio de vigencia**
+  - **Ciclo de vida**: el interruptor **Activado** y la fecha de **Fin de validez**. Consulte [Estado y ciclo de vida](#estado-y-ciclo-de-vida)
+  - Fechas **Creado** y **Actualizado** (solo lectura)
 
-**Consejo**: Si ve una advertencia de "Cuenta obsoleta", significa que la cuenta seleccionada no pertenece al plan de cuentas de la empresa pagadora. Elija una cuenta diferente para resolver la advertencia.
+**Consejo**: Al crear una partida, una advertencia de "Cuenta obsoleta" significa que la cuenta seleccionada no pertenece al plan de cuentas de la empresa pagadora. Elija otra cuenta para resolver la advertencia.
 
 ---
 
@@ -178,123 +185,83 @@ La pestaña Presupuesto es donde introduce datos financieros por año. Admite va
 La pestaña Asignaciones distribuye el gasto entre sus empresas y departamentos. Esto alimenta los informes de contracargo y los KPI de coste por usuario.
 
 **Selección de año**:
-  - Funciona igual que Presupuesto: utilice las pestañas de año para alternar entre Y-2, Y-1, Y, Y+1, Y+2
+  - Funciona igual que Presupuesto: use las pestañas de año para alternar entre A-2, A-1, A, A+1, A+2
   - Cada año puede tener un método de asignación diferente
+  - El **Presupuesto del año** seleccionado aparece a la derecha, y la tabla muestra cada parte como porcentaje y como importe
 
 **Métodos de asignación**:
 
 | Método | Cómo funciona |
-|--------|---------------|
-| **Plantilla (Predeterminado)** | Divide el gasto proporcionalmente según la plantilla de cada empresa para el año seleccionado. No requiere selección manual -- los porcentajes se calculan automáticamente desde las métricas de la empresa. Este es el método estándar. |
-| **Usuarios IT** | Divide el gasto proporcionalmente según el conteo de usuarios IT de cada empresa para el año seleccionado. |
-| **Facturación** | Divide el gasto proporcionalmente según la facturación (ingresos) de cada empresa para el año seleccionado. |
-| **Manual por empresa** | Usted selecciona qué empresas reciben este gasto y elige un factor (Plantilla, Usuarios IT o Facturación) para calcular porcentajes solo entre las empresas seleccionadas. |
-| **Manual por departamento** | Usted selecciona pares específicos de empresa/departamento. Los porcentajes se calculan según la plantilla de cada departamento. Útil cuando una partida de gasto beneficia solo a ciertos departamentos (p. ej., un CRM usado por Ventas). |
+|---|---|
+| **Plantilla (por defecto)** | Reparte el gasto proporcionalmente según la plantilla de cada empresa para el año seleccionado. No requiere selección manual -- los porcentajes se calculan automáticamente a partir de las métricas de las empresas. Es el método estándar. |
+| **Usuarios IT** | Reparte el gasto proporcionalmente según el número de usuarios IT de cada empresa para el año seleccionado. |
+| **Facturación** | Reparte el gasto proporcionalmente según la facturación de cada empresa para el año seleccionado. |
+| **Manual por empresa** | Usted selecciona qué empresas reciben este gasto y elige un inductor en **Asignar por** (Plantilla, Usuarios IT o Facturación) para calcular los porcentajes solo entre las empresas seleccionadas. |
+| **Manual por departamento** | Usted selecciona pares empresa/departamento concretos. Los porcentajes se calculan a partir de la plantilla de cada departamento. Útil cuando una partida solo beneficia a ciertos departamentos (p. ej., un CRM usado por Ventas). |
+| **Porcentajes manuales** | Usted elige las empresas y escribe cada porcentaje. El total debe sumar 100 %. |
 
 **Métodos por defecto y fijados**:
   - La opción **por defecto** -- mostrada como *Plantilla (por defecto)* hasta que su organización configure otro método -- sigue la configuración de **Gestión presupuestaria > Administración > Método de asignación por defecto**. Cada partida que se deje en el valor por defecto se recalcula cuando un administrador cambia esa configuración
-  - Esa configuración también puede restringir el valor por defecto a una **selección de sociedades** (por ejemplo, la entidad que asume el presupuesto de IT): el generador se aplica entonces únicamente a esas sociedades, y la opción aparece como *Por defecto (n sociedades)*
-  - **Plantilla**, **Usuarios IT** y **Facturación** fijan ese método en la partida: un método fijado sigue funcionando aunque el valor por defecto de la organización cambie después
-  - Las partidas con una asignación manual nunca se ven afectadas por el método por defecto
+  - Esa configuración también puede restringir el valor por defecto a una **selección de empresas** (por ejemplo la entidad que lleva el presupuesto IT): el inductor se aplica entonces solo a esas empresas, y la opción muestra *Por defecto (n sociedades)*
+  - **Plantilla**, **Usuarios IT** y **Facturación** fijan ese método en la partida: un método fijado sigue funcionando aunque el valor por defecto de la organización cambie más adelante
+  - Las partidas con una asignación manual nunca se ven afectadas por la configuración por defecto
 
 **Cómo funcionan los porcentajes**:
-  - Para **métodos automáticos** (Plantilla, Usuarios IT, Facturación): los porcentajes se calculan desde las métricas más recientes de la empresa en cada carga de página. No los edita directamente
-  - Para **métodos manuales**: usted selecciona las empresas o departamentos, y el sistema calcula porcentajes basándose en el factor elegido y las métricas actuales
-  - Los porcentajes reflejan datos en vivo. Si actualiza la plantilla de una empresa, las asignaciones se recalculan inmediatamente
-  - El indicador de porcentaje total muestra un total acumulado. Para métodos automáticos el resto se auto-distribuye; para métodos manuales la vista previa usa métricas en vivo
+  - En los **métodos automáticos** (Plantilla, Usuarios IT, Facturación): los porcentajes se calculan a partir de las métricas más recientes de sus empresas activas. No se editan directamente
+  - En **Manual por empresa** y **Manual por departamento**: usted elige las empresas o departamentos y el sistema calcula los porcentajes según el inductor elegido y las métricas actuales
+  - En **Porcentajes manuales**: escribir un porcentaje fija esa fila y las demás filas se reparten el resto. **Repartir equitativamente** da la misma parte a cada fila; **Borrar fijaciones manuales** libera las filas fijadas
+  - Los porcentajes reflejan datos en tiempo real. Si actualiza la plantilla de una empresa, las asignaciones se recalculan
 
 **Cómo usarlo**:
   1. Seleccione el año
-  2. Elija un método de asignación del desplegable
-  3. Si usa Manual por empresa, seleccione un factor de asignación (Plantilla, Usuarios IT o Facturación) y seleccione empresas
-  4. Si usa Manual por departamento, seleccione pares empresa/departamento
-  5. Haga clic en **Guardar** para persistir el método y la selección
+  2. Elija un método de asignación en **Método**
+  3. Para un método manual, use **Agregar fila** para añadir empresas (o pares empresa/departamento) y el icono de quitar para eliminar una. Para **Manual por empresa**, elija un inductor en **Asignar por**
+  4. Los cambios se guardan automáticamente
 
 **Problemas comunes**:
-  - **Error "Métricas faltantes"**: Una o más empresas tienen plantilla/usuarios IT/facturación cero o faltantes para el año seleccionado. Complete las métricas en **Datos maestros > Empresas** (pestaña Detalles)
-  - **"El total no es 100%"**: Generalmente causado por métricas faltantes. Corrija los datos de la empresa y recargue asignaciones
+  - **Métricas faltantes**: Una o más empresas tienen la plantilla, los usuarios IT o la facturación en cero o sin informar para el año seleccionado. Complete las métricas en **Datos maestros > Empresas** (pestaña Detalles)
+  - **"Los porcentajes manuales deben sumar 100 %."**: Ajuste las filas o haga clic en **Repartir equitativamente**
 
-**Consejo**: Utilice Plantilla (Predeterminado) para la mayoría de partidas -- es lo más simple y se actualiza automáticamente. Reserve métodos manuales para gasto que beneficia solo a empresas o departamentos específicos.
-
----
-
-### Tareas
-
-La pestaña Tareas le ayuda a hacer seguimiento de pendientes y seguimientos relacionados con esta partida OPEX (p. ej., "Renovar licencia antes de T3", "Revisar métricas de uso").
-
-**Lista de tareas**:
-  - Muestra todas las tareas vinculadas a esta partida OPEX
-  - Columnas: **Título**, **Estado**, **Prioridad**, **Fecha de vencimiento**, **Acciones**
-  - Haga clic en el título de una tarea para abrir el espacio de trabajo completo de tareas
-  - El filtro predeterminado muestra tareas activas (oculta completadas y canceladas)
-
-**Filtrado**:
-  - Haga clic en el icono de filtro para mostrar/ocultar controles de filtro
-  - **Filtro de estado**: Todos, Activos (oculta completados/cancelados), Abierto, En progreso, Pendiente, En pruebas, Completado o Cancelado
-  - Haga clic en el botón de limpiar para restablecer filtros
-
-**Crear una tarea**:
-  - Haga clic en **Añadir tarea** para abrir el espacio de trabajo de creación de tareas
-  - La tarea se vincula automáticamente a esta partida OPEX
-  - Complete el título, descripción, prioridad, asignado y fecha de vencimiento en el espacio de trabajo de tareas
-
-**Eliminar una tarea**:
-  - Haga clic en el icono de eliminar en la columna de Acciones
-  - Confirme la eliminación en el diálogo
-
-**Notas**:
-  - Las tareas son objetos independientes con sus propios permisos (`tasks:member` para crear/editar)
-  - Tener acceso de gestor OPEX no otorga automáticamente derechos de edición de tareas; consulte con su administrador si no puede crear tareas
-  - Las tareas también se pueden ver y gestionar desde **Portafolio > Tareas**, que muestra todas las tareas de su organización
-
-**Consejo**: Utilice tareas para capturar elementos de acción durante revisiones de presupuesto o renovaciones de contratos. Establezca fechas de vencimiento para hacer seguimiento de plazos próximos.
+**Consejo**: Use Plantilla (por defecto) para la mayoría de partidas -- es lo más sencillo y se actualiza automáticamente. Reserve los métodos manuales para gastos que solo benefician a empresas o departamentos concretos.
 
 ---
 
 ### Relaciones
 
-La pestaña Relaciones vincula esta partida OPEX a objetos relacionados: Proyectos, Aplicaciones, Contratos, Contactos, Sitios web relevantes y Adjuntos.
+La pestaña Relaciones vincula esta partida OPEX con objetos relacionados: Proyectos, Aplicaciones, Contratos, Contactos, Sitios web relevantes y Adjuntos. Todo lo de esta pestaña se guarda automáticamente.
 
 **Proyectos**:
-  - Utilice el autocompletado para vincular uno o más proyectos de su Portafolio
-  - Esto ayuda a agrupar gasto por proyecto en informes y permite la contabilidad de proyectos
-  - Elimine proyectos haciendo clic en la X del chip, luego guarde
+  - Use el autocompletado para vincular uno o más proyectos de su Portafolio
+  - Esto ayuda a agrupar el gasto por proyecto en los informes y permite la contabilidad de proyectos
+  - Quite un proyecto haciendo clic en la X de su chip
 
 **Aplicaciones**:
-  - Utilice el autocompletado para vincular una o más aplicaciones de su catálogo IT
-  - Los nombres de aplicaciones vinculadas aparecen como chips clicables que abren el espacio de trabajo de la Aplicación
-  - Esto ayuda a hacer seguimiento de qué partidas OPEX financian qué aplicaciones o servicios
+  - Use el autocompletado para vincular una o más aplicaciones o servicios de su catálogo IT
+  - Esto ayuda a saber qué partidas OPEX financian qué aplicaciones o servicios
 
 **Contratos**:
-  - Utilice el autocompletado para vincular uno o más contratos
-  - Cuando están vinculados, el nombre del contrato aparece en la columna **Contrato** de la lista OPEX como referencia rápida
-  - Los contratos pueden vincularse a múltiples partidas OPEX (relación de muchos a muchos)
-  - Elimine contratos haciendo clic en la X del chip, luego guarde
+  - Use el autocompletado para vincular uno o más contratos
+  - Una vez vinculado, el nombre del contrato aparece en la columna **Contrato** de la lista OPEX como referencia rápida
+  - Un contrato puede vincularse a varias partidas OPEX (relación de muchos a muchos)
+  - Quite un contrato haciendo clic en la X de su chip
 
 **Contactos**:
-  - Añada contactos del proveedor relacionados con esta partida de gasto
-  - Cada contacto tiene un **Rol** (Comercial, Técnico, Soporte u Otro)
-  - Los contactos pueden provenir de la lista de contactos del proveedor o añadirse manualmente
-  - Útil para hacer seguimiento de a quién contactar para renovaciones, problemas de soporte o negociaciones
+  - Vincule contactos a esta partida: elija un contacto y luego su rol (**Comercial**, **Técnico**, **Soporte** u **Otro**). Al elegir el rol se añade el contacto
+  - La tabla muestra el rol, el nombre, el apellido, el cargo, el correo y el móvil. Pase el ratón sobre el rol para ver si el contacto viene del proveedor o se añadió manualmente
+  - Quite un contacto con el icono de quitar
+  - Útil para saber a quién dirigirse para renovaciones, incidencias de soporte o negociaciones
 
 **Sitios web relevantes**:
-  - Añada URLs relacionadas con esta partida de gasto (p. ej., portales de proveedores, documentación, consolas de administración, wikis internas)
-  - Cada enlace tiene un campo de **Descripción** opcional para contexto
-  - Haga clic en **Añadir URL** para añadir más enlaces
+  - Haga clic en **Agregar URL** para añadir un enlace (p. ej., portales de proveedores, documentación, consolas de administración, wikis internos). Cada enlace tiene un **Nombre** y una **URL**
+  - Haga clic en la fila de un enlace para editarlo, o use el icono de eliminar para quitarlo
 
 **Adjuntos**:
-  - Suba archivos relacionados con esta partida de gasto (p. ej., contratos, facturas, presupuestos, SOW, especificaciones técnicas)
-  - Arrastre y suelte archivos en el área de adjuntos, o haga clic en **Seleccionar archivos** para navegar
-  - Todos los archivos se almacenan de forma segura y pueden descargarse haciendo clic en el nombre del archivo
-  - Elimine adjuntos haciendo clic en la X del chip del archivo (requiere `opex:manager`)
-  - Los adjuntos se guardan inmediatamente al subirlos (no es necesario hacer clic en **Guardar**)
+  - Suba archivos relacionados con esta partida (p. ej., contratos, facturas, presupuestos, pliegos, especificaciones técnicas)
+  - Arrastre y suelte archivos en la zona de adjuntos, o haga clic en **Seleccionar archivos** para buscarlos
+  - Haga clic en el chip de un archivo para descargarlo
+  - Elimine un adjunto con el icono de eliminar de su chip (tras confirmar; requiere `opex:manager`)
 
-**Comportamiento de guardado**:
-  - **Proyectos**, **Aplicaciones**, **Contratos**, **Sitios web relevantes**: Se guardan cuando hace clic en **Guardar** en la parte superior del espacio de trabajo
-  - **Contactos**: Gestionados en línea (las acciones de añadir/eliminar se guardan inmediatamente)
-  - **Adjuntos**: Se guardan inmediatamente al subirlos
-
-**Consejo**: Vincule contratos para hacer seguimiento de renovaciones en múltiples partidas OPEX. Añada URLs de portales de proveedores para acceso rápido. Suba presupuestos y facturas como adjuntos para centralizar toda la documentación relacionada con el gasto.
+**Consejo**: Vincule contratos para seguir las renovaciones en varias partidas OPEX. Añada las URL de los portales de proveedores para un acceso rápido. Suba presupuestos y facturas como adjuntos para centralizar toda la documentación del gasto.
 
 ---
 
@@ -357,7 +324,7 @@ Cada partida OPEX tiene un **estado** (Habilitado o Deshabilitado) y un **Fin de
 
 **Establecer estado**:
   - Al crear la partida, puede establecer su **Fin de validez** en el panel **Propiedades**
-  - Más adelante, utilice el conmutador **Habilitado** o cambie el **Fin de validez** en el panel **Propiedades**
+  - Más adelante, cambie el **Estado** en la barra de metadatos, o use el campo **Ciclo de vida** del panel **Propiedades** (interruptor **Activado** y **Fin de validez**). Desactivar una partida sin fecha fija su fin de validez en el día de hoy
   - Puede programar un fin de validez futuro (útil para partidas con fin de contrato planificado)
 
 **Ver partidas deshabilitadas**:
@@ -399,7 +366,7 @@ Cada partida OPEX tiene un **estado** (Habilitado o Deshabilitado) y un **Fin de
 
 12. **Revise la fila de totales**: Antes de finalizar presupuestos, verifique la fila de totales fijada en la lista para asegurar que su gasto suma como se espera.
 
-13. **Use enlace directo**: Haga clic directamente en una columna de presupuesto en la lista para ir a la pestaña Presupuesto de ese año. Haga clic en la columna Tarea para ir a Tareas. Esto ahorra tiempo de navegación.
+13. **Use enlace directo**: Haga clic directamente en una columna de presupuesto en la lista para ir a la pestaña Presupuesto de ese año. Haga clic en la columna Tarea para ir a las tareas de la partida en la pestaña Vista general. Esto ahorra tiempo de navegación.
 
 14. **Congele presupuestos después del cierre de año**: Utilice Administración presupuestaria para congelar los presupuestos del año anterior una vez que el realizado esté finalizado, previniendo ediciones accidentales.
 

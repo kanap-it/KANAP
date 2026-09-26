@@ -8,27 +8,31 @@ L'espace de travail CAPEX vous aide à gérer chaque poste d'investissement de l
 
 Rendez-vous dans **Gestion budgétaire > CAPEX** pour voir votre liste. Cliquez sur **Nouveau** pour créer votre premier poste.
 
+L'espace de travail s'ouvre en mode création, avec le panneau **Propriétés** ouvert à droite. Saisissez le nom de l'investissement dans le titre en haut, remplissez les propriétés, puis cliquez sur **Créer**.
+
 **Champs obligatoires** :
 
-- **Description** : Ce dans quoi vous investissez (ex. : « Nouvelle infrastructure serveur », « Licence logiciel ERP »)
+- **Titre** : Ce dans quoi vous investissez (ex. : « Nouvelle infrastructure serveur », « Licence logiciel ERP »). C'est la description du poste, affichée dans la colonne **Description** de la liste
+- **Société payeuse** : Quelle société réalise l'investissement (obligatoire pour la comptabilité)
+- **Devise** : Code ISO (ex. : USD, EUR). Par défaut la devise CAPEX de votre espace de travail ; modifiable par poste
 - **Type d'immobilisation** : Classification des immobilisations corporelles -- Matériel ou Logiciel
 - **Type d'investissement** : Objectif de l'investissement (voir les options ci-dessous)
 - **Priorité** : Niveau de priorité métier (voir les options ci-dessous)
-- **Devise** : Code ISO (ex. : USD, EUR). Par défaut la devise CAPEX de votre espace de travail ; modifiable par poste
 - **Début d'effet** : Quand cet investissement commence (JJ/MM/AAAA)
-- **Société payeuse** : Quelle société réalise l'investissement (obligatoire pour la comptabilité)
 
 **Fortement recommandé** :
 
 - **Compte** : Le compte du grand livre pour cette dépense d'investissement. Seuls les comptes du plan comptable de la société payeuse apparaissent
-- **Fournisseur** : Le vendeur ou fournisseur pour cet investissement. Sélectionnez depuis vos données de référence fournisseurs
+- **Fournisseur** : Le vendeur ou fournisseur de cet investissement. Sélectionnez-le dans vos données de référence fournisseurs
 
 **Optionnel mais utile** :
 
+- **Catégorie analytique** : Regroupement personnalisé pour le reporting
 - **Fin de validité** : La date à laquelle cet investissement s'arrête, par exemple à la fin de la durée de vie utile de l'actif ou à l'achèvement du projet. Laissez-la vide s'il n'y a pas de fin. Après cette date, le poste est désactivé et les années suivantes ne comptent plus dans les vues budgétaires
-- **Notes** : Notes internes libres sur l'investissement
+- **Responsable IT** / **Responsable métier** : Qui est en charge
+- **Description** (onglet Vue d'ensemble) : Détails libres sur l'investissement
 
-Une fois enregistré, l'espace de travail déverrouille tous les onglets : **Vue d'ensemble**, **Budget**, **Ventilations**, **Tâches** et **Relations**.
+Une fois le poste créé, l'espace de travail déverrouille les quatre onglets : **Vue d'ensemble**, **Budget**, **Ventilations** et **Relations**.
 
 **Conseil** : Vous pouvez créer des postes rapidement et remplir les budgets et ventilations plus tard. Commencez par l'essentiel et itérez.
 
@@ -114,7 +118,7 @@ Cliquez sur n'importe quelle cellule d'une ligne pour ouvrir l'espace de travail
 - **Budget A+1** : Ouvre l'onglet **Budget** pour l'année suivante
 - **Ventilation A** : Ouvre l'onglet **Ventilations** pour l'année en cours
 - **Ventilation A+1** : Ouvre l'onglet **Ventilations** pour l'année suivante
-- **Tâche** : Ouvre l'onglet **Tâches**
+- **Tâche** : Ouvre l'onglet **Vue d'ensemble**, où se trouve le panneau des tâches
 
 ### Filtre de statut
 
@@ -126,7 +130,7 @@ Votre contexte de liste (ordre de tri, texte de recherche et filtres actifs) est
 
 ### Navigation Préc./Suiv.
 
-Lorsque vous ouvrez un poste, l'espace de travail affiche les boutons **Préc.** et **Suiv.**. Ils parcourent la liste dans l'ordre de tri actuel, en respectant les filtres et la recherche. Le compteur (ex. : « Poste 3 sur 47 ») indique votre position dans la liste filtrée.
+Lorsque vous ouvrez un poste, l'espace de travail affiche les boutons **Préc.** et **Suiv.**. Ils parcourent la liste dans l'ordre de tri actuel, en respectant les filtres et la recherche, et enregistrent d'abord vos modifications en attente. Le compteur (ex. : « Poste 3 sur 47 ») indique votre position dans la liste filtrée.
 
 **Conseil** : Utilisez les filtres de colonnes et la recherche rapide pour construire des vues ciblées (ex. : « Tous les investissements matériel de priorité haute »), puis naviguez poste par poste avec **Préc.**/**Suiv.** pour revoir les budgets.
 
@@ -134,38 +138,45 @@ Lorsque vous ouvrez un poste, l'espace de travail affiche les boutons **Préc.**
 
 ## L'espace de travail CAPEX
 
-Cliquez sur n'importe quelle ligne de la liste pour ouvrir l'espace de travail. Il comporte cinq onglets, chacun consacré à un aspect du poste d'investissement.
+Cliquez sur n'importe quelle ligne de la liste pour ouvrir l'espace de travail. Il comporte quatre parties :
+
+- **En-tête** : la référence du poste (ex. : `CPX-7`) avec un bouton de copie, le nom de l'investissement (cliquez dessus pour renommer le poste), **Préc.** / **Suiv.**, **Envoyer le lien** et le bouton de fermeture
+- **Barre de métadonnées** sous le titre : **Statut**, **Priorité**, **Responsable IT** et **Responsable métier**, modifiables sur place
+- **Quatre onglets** : **Vue d'ensemble**, **Budget**, **Ventilations** et **Relations** (l'onglet Relations indique le nombre de liens du poste)
+- **Panneau Propriétés** à droite : les champs principaux du poste. Ouvrez-le ou fermez-le avec le bouton des propriétés ; l'espace de travail mémorise votre choix
+
+**Enregistrement automatique** :
+
+- Chaque modification s'enregistre automatiquement. L'indication **Enregistrement...** / **Enregistré** apparaît dans l'en-tête
+- Changer d'onglet, passer au poste précédent ou suivant, ou fermer l'espace de travail enregistre d'abord les modifications en attente. Si un enregistrement échoue, vous restez sur place et un message en donne la raison : aucune modification n'est perdue sans que vous le sachiez
+- **Ctrl+S** (**Cmd+S** sur Mac) enregistre immédiatement
 
 ### Vue d'ensemble
 
-Cet onglet affiche toutes les informations générales sur le poste CAPEX.
+L'onglet Vue d'ensemble contient les détails de l'investissement et ses tâches.
 
 **Ce que vous pouvez modifier** :
 
-- **Description** : Ce dans quoi vous investissez (texte multiligne)
-- **Société payeuse** : Autocomplétion depuis vos Sociétés
-- **Compte** : Filtré par le plan comptable de la société payeuse
-- **Fournisseur** : Autocomplétion depuis vos données de référence fournisseurs
-- **Type d'immobilisation** : Matériel ou Logiciel
-- **Type d'investissement** : Remplacement, Capacité, Productivité, Sécurité, Conformité, Croissance métier ou Autre
-- **Priorité** : Obligatoire, Haute, Moyenne ou Basse
-- **Devise** : Par défaut la devise CAPEX de l'espace de travail ; affiche uniquement les devises autorisées
-- **Début d'effet** : Champ de date au format JJ/MM/AAAA
-- **Notes** : Notes internes libres
+- **Description** : Détails libres sur l'investissement (exportés sous `notes` dans le CSV). Le nom de l'investissement est le titre en haut
 
-**Statut et cycle de vie** :
+**Panneau des tâches** :
 
-- Utilisez la bascule **Activé** ou définissez une **Fin de validité** pour contrôler quand le poste apparaît dans les rapports et listes de sélection
-- Les postes désactivés sont exclus des rapports pour les années strictement postérieures à la fin de validité
-- Les données historiques restent intactes ; vous verrez toujours les postes désactivés dans les rapports couvrant les années où ils étaient actifs
+- Liste toutes les tâches liées à ce poste CAPEX, avec les colonnes **Titre**, **Statut**, **Priorité**, **Échéance** et **Actions**. Le titre du panneau indique le nombre de tâches
+- Filtre **Statut** : Tous (par défaut), Actifs (non terminés) ou un statut précis. Le bouton de réinitialisation l'efface
+- Cliquez sur **Ajouter une tâche** pour ouvrir une nouvelle tâche déjà liée à ce poste. Remplissez le titre, la description, la priorité, le responsable et l'échéance dans l'espace de travail de la tâche
+- Utilisez l'icône d'ouverture pour aller sur une tâche, et l'icône de suppression pour la supprimer (après confirmation)
+- Les tâches ont leurs propres autorisations (`tasks:member` pour créer et modifier). L'accès manager CAPEX ne donne pas à lui seul le droit de modifier les tâches ; vérifiez avec votre admin si vous ne pouvez pas créer de tâches
+- Les tâches peuvent aussi être consultées et gérées depuis **Portefeuille > Tâches**, qui affiche toutes les tâches de votre organisation
+- Le titre de la dernière tâche apparaît aussi dans la colonne **Tâche** de la liste (masquée par défaut)
 
-**Enregistrer et Réinitialiser** :
+**Panneau Propriétés** :
 
-- Les modifications ne sont **pas** enregistrées automatiquement
-- Cliquez sur **Enregistrer** pour conserver vos modifications, ou **Réinitialiser** pour les annuler
-- Si vous tentez de quitter la page avec des modifications non enregistrées, vous serez invité à enregistrer ou annuler
+- **Fournisseur**, **Société payeuse**, **Compte** (filtré par le plan comptable de la société payeuse), **Devise** (seulement les devises autorisées dans votre espace de travail), **Type d'immobilisation**, **Type d'investissement**, **Catégorie analytique** et **Début d'effet**
+- **Cycle de vie** : l'interrupteur **Activé** et la date de **Fin de validité**. Voir [Statut et cycle de vie](#statut-et-cycle-de-vie)
+- Dates **Créé** et **Mis à jour** (lecture seule)
+- La **Priorité** se règle dans le panneau Propriétés à la création du poste, puis dans la barre de métadonnées
 
-**Conseil** : Si vous voyez un avertissement « compte obsolète », cela signifie que le compte sélectionné n'appartient pas au plan comptable de la société payeuse. Choisissez un autre compte pour résoudre l'avertissement.
+**Conseil** : Lors de la création d'un poste, un avertissement « compte obsolète » signifie que le compte sélectionné n'appartient pas au plan comptable de la société payeuse. Choisissez un autre compte pour résoudre l'avertissement.
 
 ---
 
@@ -228,18 +239,21 @@ L'onglet Ventilations répartit la dépense d'investissement entre vos société
 
 - Fonctionne comme le Budget : utilisez les onglets d'année pour basculer entre A-2, A-1, A, A+1, A+2
 - Chaque année peut avoir une méthode de ventilation différente
+- Le **Budget de l'année** sélectionnée s'affiche à droite
 
 **Méthodes de ventilation** :
 
-1. **Effectif (Par défaut)** : Répartit la dépense d'investissement proportionnellement à l'effectif de chaque société pour l'année sélectionnée. Les pourcentages se mettent à jour automatiquement lorsque vous modifiez les métriques des sociétés. C'est la méthode standard.
+1. **Effectif (par défaut)** : Répartit la dépense d'investissement proportionnellement à l'effectif de chaque société pour l'année sélectionnée. Les pourcentages se mettent à jour automatiquement lorsque vous modifiez les métriques des sociétés. C'est la méthode standard.
 
 2. **Utilisateurs IT** : Répartit la dépense proportionnellement au nombre d'utilisateurs IT de chaque société pour l'année sélectionnée. Utile pour les investissements d'infrastructure IT qui évoluent avec le personnel IT.
 
 3. **Chiffre d'affaires** : Répartit la dépense proportionnellement au chiffre d'affaires de chaque société pour l'année sélectionnée. Utile pour les plateformes ou infrastructures à l'échelle de l'entreprise.
 
-4. **Manuel par société** : Vous sélectionnez les sociétés qui bénéficient de cet investissement. Choisissez un inducteur (Effectif, Utilisateurs IT ou Chiffre d'affaires) pour calculer les pourcentages entre les sociétés sélectionnées. Seules les sociétés sélectionnées entrent dans la répartition. À la première utilisation, le système présélectionne toutes les sociétés actives ; retirez celles qui ne bénéficient pas de cet investissement.
+4. **Manuel par société** : Vous sélectionnez les sociétés qui bénéficient de cet investissement. Choisissez un inducteur dans **Ventiler par** (Effectif, Utilisateurs IT ou Chiffre d'affaires) pour calculer les pourcentages entre les sociétés sélectionnées. Seules les sociétés sélectionnées entrent dans la répartition.
 
-5. **Manuel par département** : Vous sélectionnez des paires société/département spécifiques. Les pourcentages sont calculés à partir de l'effectif de chaque département. Utile lorsqu'un investissement ne bénéficie qu'à certains départements (ex. : équipement de production).
+5. **Manuel par département** : Vous sélectionnez des paires société/département. Les pourcentages sont calculés à partir de l'effectif de chaque département. Utile lorsqu'un investissement ne bénéficie qu'à certains départements (ex. : équipement de production).
+
+6. **Pourcentages manuels** : Vous choisissez les sociétés et saisissez vous-même chaque pourcentage. Le total doit faire 100 %.
 
 **Méthodes par défaut et méthodes épinglées** :
 
@@ -250,109 +264,66 @@ L'onglet Ventilations répartit la dépense d'investissement entre vos société
 
 **Comment fonctionnent les pourcentages** :
 
-- Pour les **méthodes automatiques** (Effectif, Utilisateurs IT, Chiffre d'affaires) : les pourcentages sont calculés à chaque chargement de page à partir des dernières métriques des sociétés. Vous ne les modifiez pas directement.
-- Pour les **méthodes manuelles** : vous choisissez les sociétés ou départements, et le système calcule les pourcentages selon l'inducteur choisi et les métriques actuelles.
-- Les pourcentages reflètent les données en temps réel. Si vous mettez à jour l'effectif d'une société, les ventilations se recalculent immédiatement.
+- Pour les **méthodes automatiques** (Effectif, Utilisateurs IT, Chiffre d'affaires) : les pourcentages sont calculés depuis les dernières métriques de vos sociétés actives. Vous ne les modifiez pas directement.
+- Pour **Manuel par société** et **Manuel par département** : vous choisissez les sociétés ou départements, et le système calcule les pourcentages selon l'inducteur choisi et les métriques actuelles.
+- Pour **Pourcentages manuels** : saisir un pourcentage fixe cette ligne, et les autres lignes se partagent le reste. **Répartir équitablement** donne la même part à chaque ligne ; **Réinitialiser les valeurs fixées** libère les lignes fixées.
+- Les pourcentages reflètent les données en temps réel. Si vous mettez à jour l'effectif d'une société, les ventilations se recalculent.
 
 **Consulter les ventilations** :
 
-- La grille affiche : Société, Département (le cas échéant), Pourcentage
-- Le pourcentage total doit être égal à 100 % ; des avertissements apparaissent si des métriques manquent ou si leur somme est nulle
+- Le tableau affiche la société (ou société / département), la valeur de l'inducteur, le pourcentage et le montant, avec une ligne de total
+- Le pourcentage total doit être égal à 100 % ; pour les Pourcentages manuels, un avertissement s'affiche tant que ce n'est pas le cas
 
 **Comment l'utiliser** :
 
 1. Sélectionnez l'année
-2. Choisissez une méthode de ventilation dans le menu déroulant
-3. Si vous utilisez une méthode manuelle, sélectionnez les sociétés ou départements (retirez ceux qui ne bénéficient pas de cet investissement)
-4. Cliquez sur **Enregistrer** pour conserver la méthode et la sélection
+2. Choisissez une méthode de ventilation dans **Méthode**
+3. Pour une méthode manuelle, utilisez **Ajouter une ligne** pour ajouter des sociétés (ou des paires société/département) et l'icône de retrait pour enlever celles qui ne bénéficient pas de cet investissement
+4. Les modifications s'enregistrent automatiquement
 
 **Problèmes courants** :
 
-- **Erreur « Métriques manquantes »** : Une ou plusieurs sociétés ont un effectif, un nombre d'utilisateurs IT ou un chiffre d'affaires nul ou manquant pour l'année sélectionnée. Renseignez les métriques dans **Données de référence > Sociétés** (onglet Détails).
-- **« Le total n'est pas 100 % »** : Généralement causé par des métriques manquantes. Corrigez les données des sociétés et rechargez les ventilations.
+- **Métriques manquantes** : Une ou plusieurs sociétés ont un effectif, un nombre d'utilisateurs IT ou un chiffre d'affaires nul ou manquant pour l'année sélectionnée. Renseignez les métriques dans **Données de référence > Sociétés** (onglet Détails).
+- **« Les pourcentages manuels doivent totaliser 100 %. »** : Ajustez les lignes, ou cliquez sur **Répartir équitablement**.
 
 **Conseil** : Utilisez Effectif pour la plupart des postes (c'est le plus simple et il se met à jour automatiquement). Réservez Manuel par société aux investissements qui ne bénéficient qu'à des entités précises (ex. : un datacenter régional). Utilisez Manuel par département pour les investissements très ciblés.
 
 ---
 
-### Tâches
-
-L'onglet Tâches vous aide à suivre les actions et relances liées à ce poste CAPEX (ex. : « Sélection fournisseur d'ici le T2 », « Terminer l'installation d'ici juin », « Obtenir l'approbation du conseil »).
-
-**Liste des tâches** :
-
-- Affiche toutes les tâches liées à ce poste CAPEX
-- Colonnes : Titre, Statut, Priorité, Date d'échéance, Actions
-- Cliquez sur un titre de tâche pour ouvrir l'espace de travail complet de la tâche
-- Le filtre par défaut affiche les tâches actives (masque terminées et annulées)
-
-**Filtrage** :
-
-- Cliquez sur l'icône de filtre pour afficher ou masquer les contrôles de filtre
-- **Filtre de statut** : Tous, Actifs (masque terminées/annulées) ou un statut précis
-- Cliquez sur le bouton de réinitialisation pour effacer les filtres
-
-**Création d'une tâche** :
-
-- Cliquez sur **Ajouter une tâche** pour ouvrir l'espace de travail de création de tâche
-- La tâche est automatiquement liée à ce poste CAPEX
-- Remplissez le titre, la description, la priorité, le responsable et la date d'échéance dans l'espace de travail de la tâche
-
-**Suppression d'une tâche** :
-
-- Cliquez sur l'icône de suppression dans la colonne Actions
-- Confirmez la suppression dans la boîte de dialogue
-
-**Remarques** :
-
-- Les tâches sont des objets indépendants avec leurs propres autorisations (`tasks:member` pour créer/modifier)
-- Avoir l'accès manager CAPEX ne donne pas automatiquement les droits de modification de tâches ; vérifiez avec votre admin si vous ne pouvez pas créer de tâches
-- Les tâches peuvent aussi être consultées et gérées depuis **Portefeuille > Tâches**, qui affiche toutes les tâches de votre organisation
-- Le titre de la dernière tâche apparaît aussi dans la colonne **Tâche** de la liste (masquée par défaut)
-
-**Conseil** : Utilisez les tâches pour capturer les actions identifiées lors de la planification des investissements ou des cycles d'approbation. Définissez des dates d'échéance pour suivre les jalons d'achat et les délais de mise en œuvre.
-
----
-
 ### Relations
 
-L'onglet Relations lie ce poste CAPEX aux objets associés : Projets, Contrats, Contacts, Sites web pertinents et Pièces jointes.
+L'onglet Relations lie ce poste CAPEX aux objets associés : Projets, Contrats, Contacts, Sites web pertinents et Pièces jointes. Tout ce qui se trouve dans cet onglet s'enregistre automatiquement.
 
 **Projets** :
 
 - Utilisez l'autocomplétion pour lier un ou plusieurs projets
 - Cela aide à regrouper les dépenses d'investissement par projet dans les rapports et permet la comptabilité projet
-- Retirez un projet en cliquant sur le X de sa puce, puis enregistrez
+- Retirez un projet en cliquant sur le X de sa puce
 
 **Contrats** :
 
 - Utilisez l'autocomplétion pour lier un ou plusieurs contrats
 - Une fois lié, le nom du contrat apparaît pour référence rapide
 - Un contrat peut aussi être lié à plusieurs postes CAPEX (relation plusieurs-à-plusieurs)
-- Retirez un contrat en cliquant sur le X de sa puce, puis enregistrez
+- Retirez un contrat en cliquant sur le X de sa puce
 
 **Contacts** :
 
-- Liez des contacts à ce poste CAPEX avec un rôle : **Commercial**, **Technique**, **Support** ou **Autre**
-- Cliquez sur **Ajouter** pour sélectionner un contact dans vos données de référence et lui attribuer un rôle
-- Les contacts hérités du fournisseur apparaissent avec une puce pleine ; les contacts ajoutés manuellement avec une puce en contour
-- Cliquez sur la ligne d'un contact pour ouvrir l'espace de travail du contact
-- Retirez un contact en cliquant sur l'icône de suppression dans la colonne Actions
+- Liez des contacts à ce poste CAPEX : choisissez un contact, puis son rôle (**Commercial**, **Technique**, **Support** ou **Autre**). Le choix du rôle ajoute le contact
+- Le tableau affiche le rôle, le prénom, le nom, la fonction, l'e-mail et le mobile. Survolez le rôle pour savoir si le contact vient du fournisseur ou a été ajouté manuellement
+- Retirez un contact avec l'icône de retrait
 
 **Sites web pertinents** :
 
-- Ajoutez des URL liées à cet investissement (ex. : pages produit du fournisseur, documentation technique, wikis internes)
-- Chaque lien a un champ **Description** optionnel pour le contexte
-- Cliquez sur **Ajouter une URL** pour ajouter d'autres liens
-- Les liens sont enregistrés lorsque vous cliquez sur **Enregistrer** en haut de l'espace de travail
+- Cliquez sur **Ajouter une URL** pour ajouter un lien (ex. : pages produit du fournisseur, documentation technique, wikis internes). Chaque lien a un **Nom** et une **URL**
+- Cliquez sur la ligne d'un lien pour le modifier, ou utilisez l'icône de suppression pour le retirer
 
 **Pièces jointes** :
 
 - Téléversez des fichiers liés à ce poste (ex. : devis, propositions fournisseur, spécifications techniques, notes d'approbation)
 - Glissez-déposez des fichiers dans la zone de pièces jointes, ou cliquez sur **Sélectionner des fichiers** pour parcourir
-- Tous les fichiers sont stockés de manière sécurisée et se téléchargent en cliquant sur leur nom
-- Supprimez une pièce jointe en cliquant sur le X de sa puce (nécessite l'autorisation `capex:manager`)
-- Les pièces jointes sont enregistrées immédiatement lors du téléversement (pas besoin de cliquer sur Enregistrer)
+- Cliquez sur la puce d'un fichier pour le télécharger
+- Supprimez une pièce jointe avec l'icône de suppression de sa puce (après confirmation ; nécessite l'autorisation `capex:manager`)
 
 **Pourquoi lier ?** :
 
@@ -435,7 +406,7 @@ Chaque poste CAPEX a un **statut** (Activé ou Désactivé) et une **Fin de vali
 **Définir le statut** :
 
 - À la création du poste, vous pouvez définir sa **Fin de validité** dans le panneau **Propriétés**
-- Ensuite, utilisez la bascule **Activé** ou modifiez la **Fin de validité** dans le panneau **Propriétés**
+- Ensuite, modifiez le **Statut** dans la barre de métadonnées, ou utilisez le champ **Cycle de vie** du panneau **Propriétés** (interrupteur **Activé** et **Fin de validité**). Désactiver un poste sans date fixe sa fin de validité à aujourd'hui
 - Vous pouvez programmer une fin de validité future (utile pour les cessions d'actifs planifiées ou les dates de fin de vie)
 
 **Afficher les postes désactivés** :

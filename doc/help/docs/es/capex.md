@@ -8,29 +8,33 @@ El espacio de trabajo CAPEX le ayuda a gestionar cada partida de capital desde l
 
 Navegue a **Gestión presupuestaria > CAPEX** para ver su lista. Haga clic en **Nuevo** para crear su primera partida.
 
+El espacio de trabajo se abre en modo de creación, con el panel **Propiedades** abierto a la derecha. Escriba el nombre de la inversión en el título de arriba, complete las propiedades y haga clic en **Crear**.
+
 **Campos obligatorios**:
 
-- **Descripción**: En qué está invirtiendo (p. ej., "Nueva infraestructura de servidores", "Licencia de software ERP")
-- **Tipo de activo fijo**: Clasificación de Propiedad, Planta y Equipamiento -- Hardware o Software
-- **Tipo de inversión**: Propósito de la inversión (ver opciones a continuación)
-- **Prioridad**: Nivel de prioridad de negocio (ver opciones a continuación)
-- **Moneda**: Código ISO (p. ej., USD, EUR). Se establece por defecto a la moneda CAPEX de su espacio de trabajo; puede sobrescribirla por partida
-- **Inicio efectivo**: Cuándo comienza esta inversión (DD/MM/AAAA)
+- **Título**: En qué invierte (p. ej., "Nueva infraestructura de servidores", "Licencia de software ERP"). Es la descripción de la partida, que aparece en la columna **Descripción** de la lista
 - **Empresa pagadora**: Qué empresa realiza la inversión (obligatorio para contabilidad)
+- **Moneda**: Código ISO (p. ej., USD, EUR). Por defecto la moneda CAPEX de su espacio de trabajo; puede cambiarla por partida
+- **Tipo de activo fijo**: Clasificación de propiedad, planta y equipo -- Hardware o Software
+- **Tipo de inversión**: Propósito de la inversión (vea las opciones más abajo)
+- **Prioridad**: Nivel de prioridad de negocio (vea las opciones más abajo)
+- **Inicio de vigencia**: Cuándo comienza esta inversión (DD/MM/AAAA)
 
-**Muy recomendados**:
+**Muy recomendado**:
 
-- **Cuenta**: La cuenta contable para este gasto de capital. Solo aparecen cuentas del plan de cuentas de la empresa pagadora
-- **Proveedor**: El proveedor de esta inversión. Seleccione de sus proveedores de datos maestros
+- **Cuenta**: La cuenta contable de este gasto de capital. Solo aparecen las cuentas del plan de cuentas de la empresa pagadora
+- **Proveedor**: El proveedor de esta inversión. Selecciónelo en sus datos maestros de proveedores
 
-**Opcionales pero útiles**:
+**Opcional pero útil**:
 
-- **Fin de validez**: La fecha en que termina esta inversión, por ejemplo cuando acaba la vida útil del activo o se completa el proyecto. Déjelo en blanco si no hay fin. Después de esa fecha, la partida se deshabilita y los años posteriores ya no cuentan en las vistas de presupuesto
-- **Notas**: Notas internas de texto libre sobre la inversión
+- **Categoría analítica**: Agrupación personalizada para informes
+- **Fin de validez**: La fecha en que termina esta inversión, por ejemplo al final de la vida útil del activo o al completarse el proyecto. Déjela en blanco si no hay fin. Después de esa fecha, la partida queda desactivada y los años posteriores dejan de contar en las vistas presupuestarias
+- **Responsable de TI** / **Responsable de negocio**: Quién es responsable
+- **Descripción** (pestaña Vista general): Detalles en texto libre sobre la inversión
 
-Una vez que guarde, el espacio de trabajo desbloquea todas las pestañas: **Visión general**, **Presupuesto**, **Asignaciones**, **Tareas** y **Relaciones**.
+Una vez creada la partida, el espacio de trabajo desbloquea las cuatro pestañas: **Vista general**, **Presupuesto**, **Asignaciones** y **Relaciones**.
 
-**Consejo**: Puede crear partidas rápidamente y completar presupuestos y asignaciones más tarde. Comience con lo esencial e itere.
+**Consejo**: Puede crear partidas rápidamente y completar presupuestos y asignaciones más tarde. Empiece por lo esencial y vaya iterando.
 
 ---
 
@@ -108,13 +112,13 @@ La fila fijada en la parte inferior muestra totales para todas las columnas pres
 
 Haga clic en cualquier celda de una fila para abrir el espacio de trabajo en la pestaña más relevante para esa columna:
 
-- **Descripción**, **Empresa**, **Tipo de activo fijo**, **Tipo de inversión**, **Prioridad**: Abre **Visión general**
+- **Descripción**, **Empresa**, **Tipo de activo fijo**, **Tipo de inversión**, **Prioridad**: Abre **Vista general**
 - **Presupuesto A**, **Aterrizaje previsto A**: Abre la pestaña **Presupuesto** para el año actual
 - **Aterrizaje previsto A-1**: Abre la pestaña **Presupuesto** para el año anterior
 - **Presupuesto A+1**: Abre la pestaña **Presupuesto** para el año siguiente
 - **Asignación A**: Abre la pestaña **Asignaciones** para el año actual
 - **Asignación A+1**: Abre la pestaña **Asignaciones** para el año siguiente
-- **Tarea**: Abre la pestaña **Tareas**
+- **Tarea**: Abre la pestaña **Vista general**, donde está el panel de tareas
 
 ### Filtro de estado
 
@@ -126,46 +130,53 @@ Su contexto de lista -- orden de clasificación, texto de búsqueda y filtros ac
 
 ### Navegación Anterior/Siguiente
 
-Cuando abre una partida, el espacio de trabajo muestra botones **Anterior** y **Siguiente**. Estos navegan por la lista en el orden actual, respetando filtros y búsqueda. El contador (p. ej., "Partida 3 de 47") muestra su posición en la lista filtrada.
+Cuando abre una partida, el espacio de trabajo muestra botones **Ant.** y **Sig.**. Estos navegan por la lista en el orden actual, respetando filtros y búsqueda, y guardan primero sus cambios pendientes. El contador (p. ej., "Partida 3 de 47") muestra su posición en la lista filtrada.
 
-**Consejo**: Utilice filtros de columna y búsqueda rápida para construir vistas enfocadas (p. ej., "Todas las inversiones en hardware con prioridad alta"), luego navegue partida por partida con **Anterior**/**Siguiente** para revisar presupuestos.
+**Consejo**: Utilice filtros de columna y búsqueda rápida para construir vistas enfocadas (p. ej., "Todas las inversiones en hardware con prioridad alta"), luego navegue partida por partida con **Ant.**/**Sig.** para revisar presupuestos.
 
 ---
 
 ## El espacio de trabajo CAPEX
 
-Haga clic en cualquier fila de la lista para abrir el espacio de trabajo. Tiene cinco pestañas, cada una enfocada en un aspecto específico de la partida de capital.
+Haga clic en cualquier fila de la lista para abrir el espacio de trabajo. Tiene cuatro partes:
 
-### Visión general
+- **Cabecera**: la referencia de la partida (p. ej., `CPX-7`) con un botón para copiarla, el nombre de la inversión (haga clic en él para cambiar el nombre de la partida), **Ant.** / **Sig.**, **Enviar enlace** y el botón de cierre
+- **Barra de metadatos** bajo el título: **Estado**, **Prioridad**, **Responsable de TI** y **Responsable de negocio**, editables en el sitio
+- **Cuatro pestañas**: **Vista general**, **Presupuesto**, **Asignaciones** y **Relaciones** (la pestaña Relaciones muestra cuántos vínculos tiene la partida)
+- **Panel Propiedades** a la derecha: los campos principales de la partida. Ábralo o ciérrelo con el botón de propiedades; el espacio de trabajo recuerda su elección
 
-Esta pestaña muestra toda la información general de la partida CAPEX.
+**Guardado automático**:
+
+- Cada cambio se guarda automáticamente. La indicación **Guardando...** / **Guardado** aparece en la cabecera
+- Cambiar de pestaña, pasar a la partida anterior o siguiente, o cerrar el espacio de trabajo guarda primero los cambios pendientes. Si un guardado falla, usted se queda donde está y un mensaje explica el motivo, de modo que ningún cambio se pierde sin que lo sepa
+- **Ctrl+S** (**Cmd+S** en Mac) guarda de inmediato
+
+### Vista general
+
+La pestaña Vista general contiene los detalles de la inversión y sus tareas.
 
 **Qué puede editar**:
 
-- **Descripción**: En qué está invirtiendo (texto multilínea)
-- **Empresa pagadora**: Autocompletado desde sus Empresas
-- **Cuenta**: Filtrada por el plan de cuentas de la empresa pagadora
-- **Proveedor**: Autocompletado desde sus proveedores de datos maestros
-- **Tipo de activo fijo**: Hardware o Software
-- **Tipo de inversión**: Reemplazo, Capacidad, Productividad, Seguridad, Conformidad, Crecimiento de negocio u Otro
-- **Prioridad**: Obligatorio, Alto, Medio o Bajo
-- **Moneda**: Se establece por defecto a la moneda CAPEX del espacio de trabajo; muestra solo monedas permitidas
-- **Inicio efectivo**: Campo de fecha en formato DD/MM/AAAA
-- **Notas**: Notas internas de texto libre
+- **Descripción**: Detalles en texto libre sobre la inversión (se exportan como `notes` en el CSV). El nombre de la inversión es el título de arriba
 
-**Estado y ciclo de vida**:
+**Panel de tareas**:
 
-- Utilice el conmutador **Habilitado** o establezca un **Fin de validez** para controlar cuándo aparece la partida en informes y listas de selección
-- Las partidas deshabilitadas se excluyen de informes para años estrictamente posteriores al fin de validez
-- Los datos históricos permanecen intactos; seguirá viendo partidas deshabilitadas en informes que cubren años cuando estaban activas
+- Muestra todas las tareas vinculadas a esta partida CAPEX, con las columnas **Título**, **Estado**, **Prioridad**, **Fecha de vencimiento** y **Acciones**. El título del panel indica el número de tareas
+- Filtro **Estado**: Todos (por defecto), Activas (no completadas) o un estado concreto. El botón de borrar lo restablece
+- Haga clic en **Agregar tarea** para abrir una tarea nueva ya vinculada a esta partida. Complete el título, la descripción, la prioridad, el responsable y la fecha de vencimiento en el espacio de trabajo de la tarea
+- Use el icono de abrir para ir a una tarea y el icono de eliminar para borrarla (tras confirmar)
+- Las tareas tienen sus propios permisos (`tasks:member` para crear y editar). El acceso de manager de CAPEX no da por sí solo derechos de edición de tareas; consulte a su administrador si no puede crear tareas
+- Las tareas también se pueden ver y gestionar desde **Portafolio > Tareas**, que muestra todas las tareas de su organización
+- El título de la última tarea también aparece en la columna **Tarea** de la lista (oculta por defecto)
 
-**Guardar y Restablecer**:
+**Panel Propiedades**:
 
-- Los cambios **no** se guardan automáticamente
-- Haga clic en **Guardar** para persistir sus ediciones, o **Restablecer** para descartarlas
-- Si intenta navegar fuera con cambios sin guardar, se le solicitará que guarde o descarte
+- **Proveedor**, **Empresa pagadora**, **Cuenta** (filtrada por el plan de cuentas de la empresa pagadora), **Moneda** (solo las monedas permitidas en su espacio de trabajo), **Tipo de activo fijo**, **Tipo de inversión**, **Categoría analítica** e **Inicio de vigencia**
+- **Ciclo de vida**: el interruptor **Activado** y la fecha de **Fin de validez**. Consulte [Estado y ciclo de vida](#estado-y-ciclo-de-vida)
+- Fechas **Creado** y **Actualizado** (solo lectura)
+- La **Prioridad** se define en el panel Propiedades al crear la partida y después en la barra de metadatos
 
-**Consejo**: Si ve una advertencia de "cuenta obsoleta", significa que la cuenta seleccionada no pertenece al plan de cuentas de la empresa pagadora. Elija una cuenta diferente para resolver la advertencia.
+**Consejo**: Al crear una partida, una advertencia de "cuenta obsoleta" significa que la cuenta seleccionada no pertenece al plan de cuentas de la empresa pagadora. Elija otra cuenta para resolver la advertencia.
 
 ---
 
@@ -226,142 +237,102 @@ La pestaña Asignaciones distribuye el gasto de capital entre sus empresas y dep
 
 **Selección de año**:
 
-- Funciona igual que Presupuesto: utilice las pestañas de año para alternar entre Y-2, Y-1, Y, Y+1, Y+2
+- Funciona igual que Presupuesto: use las pestañas de año para alternar entre A-2, A-1, A, A+1, A+2
 - Cada año puede tener un método de asignación diferente
+- El **Presupuesto del año** seleccionado aparece a la derecha
 
 **Métodos de asignación**:
 
-1. **Plantilla (Predeterminado)**: Divide el gasto de capital proporcionalmente según la plantilla de cada empresa para el año seleccionado. Los porcentajes se actualizan automáticamente al editar las métricas de la empresa. Este es el método estándar.
+1. **Plantilla (por defecto)**: Reparte el gasto de capital proporcionalmente según la plantilla de cada empresa para el año seleccionado. Los porcentajes se actualizan automáticamente cuando edita las métricas de las empresas. Es el método estándar.
 
-2. **Usuarios IT**: Divide el gasto proporcionalmente según el conteo de usuarios IT de cada empresa para el año seleccionado. Útil para inversiones en infraestructura IT que escalan con el personal IT.
+2. **Usuarios IT**: Reparte el gasto proporcionalmente según el número de usuarios IT de cada empresa para el año seleccionado. Útil para inversiones de infraestructura IT que crecen con el personal IT.
 
-3. **Facturación**: Divide el gasto proporcionalmente según la facturación (ingresos) de cada empresa para el año seleccionado. Útil para plataformas de negocio amplias o infraestructura.
+3. **Facturación**: Reparte el gasto proporcionalmente según la facturación de cada empresa para el año seleccionado. Útil para plataformas o infraestructuras de toda la empresa.
 
-4. **Manual por empresa**: Usted selecciona qué empresas reciben esta inversión de capital. Elija un factor (Plantilla, Usuarios IT o Facturación) para calcular porcentajes entre las empresas seleccionadas. Solo las empresas seleccionadas se incluyen en la distribución. El sistema prerellena automáticamente todas las empresas habilitadas en el primer uso; elimine las empresas que no se benefician de esta inversión.
+4. **Manual por empresa**: Usted selecciona qué empresas reciben esta inversión. Elija un inductor en **Asignar por** (Plantilla, Usuarios IT o Facturación) para calcular los porcentajes entre las empresas seleccionadas. Solo las empresas seleccionadas entran en el reparto.
 
-5. **Manual por departamento**: Usted selecciona pares específicos de empresa/departamento. Los porcentajes se calculan según la plantilla de cada departamento. Útil cuando una inversión de capital beneficia solo a ciertos departamentos (p. ej., equipamiento de fabricación).
+5. **Manual por departamento**: Usted selecciona pares empresa/departamento concretos. Los porcentajes se calculan a partir de la plantilla de cada departamento. Útil cuando una inversión solo beneficia a ciertos departamentos (p. ej., equipos de fabricación).
+
+6. **Porcentajes manuales**: Usted elige las empresas y escribe cada porcentaje. El total debe sumar 100 %.
 
 **Métodos por defecto y fijados**:
 
 - La opción **por defecto** -- mostrada como *Plantilla (por defecto)* hasta que su organización configure otro método -- sigue la configuración de **Gestión presupuestaria > Administración > Método de asignación por defecto**. Cada inversión que se deje en el valor por defecto se recalcula cuando un administrador cambia esa configuración.
-- Esa configuración también puede restringir el valor por defecto a una **selección de sociedades** (por ejemplo, la entidad que asume el presupuesto de IT): el generador se aplica entonces únicamente a esas sociedades, y la opción aparece como *Por defecto (n sociedades)*.
-- **Plantilla**, **Usuarios IT** y **Facturación** fijan ese método en la inversión: un método fijado sigue funcionando aunque el valor por defecto de la organización cambie después.
-- Las inversiones con una asignación manual nunca se ven afectadas por el método por defecto.
+- Esa configuración también puede restringir el valor por defecto a una **selección de empresas** (por ejemplo la entidad que lleva el presupuesto IT): el inductor se aplica entonces solo a esas empresas, y la opción muestra *Por defecto (n sociedades)*.
+- **Plantilla**, **Usuarios IT** y **Facturación** fijan ese método en la inversión: un método fijado sigue funcionando aunque el valor por defecto de la organización cambie más adelante.
+- Las inversiones con una asignación manual nunca se ven afectadas por la configuración por defecto.
 
 **Cómo funcionan los porcentajes**:
 
-- Para **métodos automáticos** (Plantilla, Usuarios IT, Facturación): los porcentajes se calculan en cada carga de página desde las métricas más recientes de la empresa. No los edita directamente.
-- Para **métodos manuales**: usted selecciona las empresas o departamentos, y el sistema calcula porcentajes basándose en el factor elegido y las métricas actuales.
-- Los porcentajes reflejan datos en vivo. Si actualiza la plantilla de una empresa, las asignaciones se recalculan inmediatamente.
+- En los **métodos automáticos** (Plantilla, Usuarios IT, Facturación): los porcentajes se calculan a partir de las métricas más recientes de sus empresas activas. No se editan directamente.
+- En **Manual por empresa** y **Manual por departamento**: usted elige las empresas o departamentos y el sistema calcula los porcentajes según el inductor elegido y las métricas actuales.
+- En **Porcentajes manuales**: escribir un porcentaje fija esa fila y las demás filas se reparten el resto. **Repartir equitativamente** da la misma parte a cada fila; **Borrar fijaciones manuales** libera las filas fijadas.
+- Los porcentajes reflejan datos en tiempo real. Si actualiza la plantilla de una empresa, las asignaciones se recalculan.
 
-**Ver asignaciones**:
+**Ver las asignaciones**:
 
-- La cuadrícula muestra: Empresa, Departamento (si aplica), Porcentaje
-- El porcentaje total debe ser 100%; aparecen advertencias si faltan métricas o la suma es cero
+- La tabla muestra la empresa (o empresa / departamento), el valor del inductor, el porcentaje y el importe, con una fila de total
+- El porcentaje total debe ser igual a 100 %; en Porcentajes manuales aparece una advertencia mientras no lo sea
 
 **Cómo usarlo**:
 
 1. Seleccione el año
-2. Elija un método de asignación del desplegable
-3. Si usa un método manual, seleccione las empresas o departamentos (elimine los que no se benefician de esta inversión)
-4. Haga clic en **Guardar** para persistir el método y la selección
+2. Elija un método de asignación en **Método**
+3. Para un método manual, use **Agregar fila** para añadir empresas (o pares empresa/departamento) y el icono de quitar para eliminar las que no se benefician de esta inversión
+4. Los cambios se guardan automáticamente
 
 **Problemas comunes**:
 
-- **Error "Métricas faltantes"**: Una o más empresas tienen plantilla/usuarios IT/facturación cero o faltantes para el año seleccionado. Complete las métricas en **Datos maestros > Empresas** (pestaña Detalles).
-- **"El total no es 100%"**: Generalmente causado por métricas faltantes. Corrija los datos de la empresa y recargue las asignaciones.
+- **Métricas faltantes**: Una o más empresas tienen la plantilla, los usuarios IT o la facturación en cero o sin informar para el año seleccionado. Complete las métricas en **Datos maestros > Empresas** (pestaña Detalles).
+- **"Los porcentajes manuales deben sumar 100 %."**: Ajuste las filas o haga clic en **Repartir equitativamente**.
 
-**Consejo**: Utilice Plantilla para la mayoría de partidas (es lo más simple y se actualiza automáticamente). Reserve Manual por empresa para inversiones que benefician solo a entidades específicas (p. ej., centro de datos regional). Utilice Manual por departamento para inversiones muy dirigidas.
-
----
-
-### Tareas
-
-La pestaña Tareas le ayuda a hacer seguimiento de pendientes y seguimientos relacionados con esta partida CAPEX (p. ej., "Selección de proveedor antes de T2", "Completar instalación en junio", "Obtener aprobación del consejo").
-
-**Lista de tareas**:
-
-- Muestra todas las tareas vinculadas a esta partida CAPEX
-- Columnas: Título, Estado, Prioridad, Fecha de vencimiento, Acciones
-- Haga clic en el título de una tarea para abrir el espacio de trabajo completo de tareas
-- El filtro predeterminado muestra tareas activas (oculta completadas y canceladas)
-
-**Filtrado**:
-
-- Haga clic en el icono de filtro para mostrar/ocultar controles de filtro
-- **Filtro de estado**: Todos, Activos (oculta completados/cancelados), o un estado específico
-- Haga clic en el botón de limpiar para restablecer filtros
-
-**Crear una tarea**:
-
-- Haga clic en **Añadir tarea** para abrir el espacio de trabajo de creación de tareas
-- La tarea se vincula automáticamente a esta partida CAPEX
-- Complete el título, descripción, prioridad, asignado y fecha de vencimiento en el espacio de trabajo de tareas
-
-**Eliminar una tarea**:
-
-- Haga clic en el icono de eliminar en la columna de Acciones
-- Confirme la eliminación en el diálogo
-
-**Notas**:
-
-- Las tareas son objetos independientes con sus propios permisos (`tasks:member` para crear/editar)
-- Tener acceso de gestor CAPEX no otorga automáticamente derechos de edición de tareas; consulte con su administrador si no puede crear tareas
-- Las tareas también se pueden ver y gestionar desde **Portafolio > Tareas**, que muestra todas las tareas de su organización
-- El título de la última tarea también se muestra en la columna **Tarea** de la vista de lista (oculta por defecto)
-
-**Consejo**: Utilice tareas para capturar elementos de acción durante la planificación de capital o los ciclos de aprobación. Establezca fechas de vencimiento para hacer seguimiento de los hitos de adquisición y plazos de implementación.
+**Consejo**: Use Plantilla para la mayoría de partidas (es lo más sencillo y se actualiza automáticamente). Reserve Manual por empresa para inversiones que solo benefician a entidades concretas (p. ej., un centro de datos regional). Use Manual por departamento para inversiones muy específicas.
 
 ---
 
 ### Relaciones
 
-La pestaña Relaciones vincula esta partida CAPEX a objetos relacionados: Proyectos, Contratos, Contactos, Sitios web relevantes y Adjuntos.
+La pestaña Relaciones vincula esta partida CAPEX con objetos relacionados: Proyectos, Contratos, Contactos, Sitios web relevantes y Adjuntos. Todo lo de esta pestaña se guarda automáticamente.
 
 **Proyectos**:
 
-- Utilice el autocompletado para vincular uno o más proyectos
-- Esto ayuda a agrupar el gasto de capital por proyecto en informes y permite la contabilidad de proyectos
-- Elimine un proyecto haciendo clic en la X de su chip, luego guarde
+- Use el autocompletado para vincular uno o más proyectos
+- Esto ayuda a agrupar el gasto de capital por proyecto en los informes y permite la contabilidad de proyectos
+- Quite un proyecto haciendo clic en la X de su chip
 
 **Contratos**:
 
-- Utilice el autocompletado para vincular uno o más contratos
-- Cuando están vinculados, el nombre del contrato aparece como referencia rápida
-- Los contratos también pueden vincularse a múltiples partidas CAPEX (relación de muchos a muchos)
-- Elimine contratos haciendo clic en la X del chip, luego guarde
+- Use el autocompletado para vincular uno o más contratos
+- Una vez vinculado, el nombre del contrato aparece como referencia rápida
+- Un contrato también puede vincularse a varias partidas CAPEX (relación de muchos a muchos)
+- Quite un contrato haciendo clic en la X de su chip
 
 **Contactos**:
 
-- Vincule contactos a esta partida CAPEX con un rol: **Comercial**, **Técnico**, **Soporte** u **Otro**
-- Haga clic en **Añadir** para seleccionar un contacto de sus datos maestros y asignar un rol
-- Los contactos heredados del proveedor se muestran con un chip relleno; los contactos añadidos manualmente muestran un chip delineado
-- Haga clic en una fila de contacto para abrir el espacio de trabajo del contacto
-- Elimine un contacto haciendo clic en el icono de eliminar en la columna de Acciones
+- Vincule contactos a esta partida CAPEX: elija un contacto y luego su rol (**Comercial**, **Técnico**, **Soporte** u **Otro**). Al elegir el rol se añade el contacto
+- La tabla muestra el rol, el nombre, el apellido, el cargo, el correo y el móvil. Pase el ratón sobre el rol para ver si el contacto viene del proveedor o se añadió manualmente
+- Quite un contacto con el icono de quitar
 
 **Sitios web relevantes**:
 
-- Añada URLs relacionadas con esta inversión (p. ej., páginas de producto del proveedor, documentación técnica, wikis internas)
-- Cada enlace tiene un campo de **Descripción** opcional para contexto
-- Haga clic en **Añadir URL** para añadir más enlaces
-- Los enlaces se guardan cuando hace clic en **Guardar** en la parte superior del espacio de trabajo
+- Haga clic en **Agregar URL** para añadir un enlace (p. ej., páginas de producto del proveedor, documentación técnica, wikis internos). Cada enlace tiene un **Nombre** y una **URL**
+- Haga clic en la fila de un enlace para editarlo, o use el icono de eliminar para quitarlo
 
 **Adjuntos**:
 
 - Suba archivos relacionados con esta partida de capital (p. ej., presupuestos, propuestas de proveedores, especificaciones técnicas, memorandos de aprobación)
-- Arrastre y suelte archivos en el área de adjuntos, o haga clic en **Seleccionar archivos** para navegar
-- Todos los archivos se almacenan de forma segura y pueden descargarse haciendo clic en el nombre del archivo
-- Elimine adjuntos haciendo clic en la X del chip del archivo (requiere permiso `capex:manager`)
-- Los adjuntos se guardan inmediatamente al subirlos (no es necesario hacer clic en Guardar)
+- Arrastre y suelte archivos en la zona de adjuntos, o haga clic en **Seleccionar archivos** para buscarlos
+- Haga clic en el chip de un archivo para descargarlo
+- Elimine un adjunto con el icono de eliminar de su chip (tras confirmar; requiere el permiso `capex:manager`)
 
 **¿Por qué vincular?**:
 
-- **Proyectos**: Acumule gasto de capital por proyecto para contabilidad de proyectos e informes
-- **Contratos**: Haga seguimiento de qué partidas de capital están cubiertas por acuerdos de compra o contratos de servicio
-- **Contactos**: Mantenga los datos de contacto de proveedores y partes interesadas asociados a la inversión
-- **Sitios web y adjuntos**: Centralice toda la documentación e referencias relacionadas con la inversión para fácil acceso
+- **Proyectos**: Consolidar el gasto de capital por proyecto para la contabilidad y los informes de proyectos
+- **Contratos**: Saber qué partidas de capital están cubiertas por acuerdos de compra o contratos de servicio
+- **Contactos**: Mantener los datos de contacto de proveedores y partes interesadas asociados a la inversión
+- **Sitios web y adjuntos**: Centralizar toda la documentación y las referencias de la inversión para acceder fácilmente
 
-**Consejo**: Suba presupuestos de proveedores, memorandos de aprobación y especificaciones técnicas como adjuntos. Vincule contratos para el seguimiento de adquisiciones. Utilice contactos para mantener a los representantes de proveedores asociados con cada partida de capital.
+**Consejo**: Suba presupuestos de proveedores, memorandos de aprobación y especificaciones técnicas como adjuntos. Vincule contratos para seguir las compras. Use los contactos para asociar los interlocutores del proveedor a cada partida de capital.
 
 ---
 
@@ -435,7 +406,7 @@ Cada partida CAPEX tiene un **estado** (Habilitado o Deshabilitado) y un **Fin d
 **Establecer estado**:
 
 - Al crear la partida, puede establecer su **Fin de validez** en el panel **Propiedades**
-- Más adelante, utilice el conmutador **Habilitado** o cambie el **Fin de validez** en el panel **Propiedades**
+- Más adelante, cambie el **Estado** en la barra de metadatos, o use el campo **Ciclo de vida** del panel **Propiedades** (interruptor **Activado** y **Fin de validez**). Desactivar una partida sin fecha fija su fin de validez en el día de hoy
 - Puede programar un fin de validez futuro (útil para disposiciones de activos planificadas o fechas de fin de vida)
 
 **Ver partidas deshabilitadas**:

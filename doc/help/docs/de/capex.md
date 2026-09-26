@@ -8,27 +8,31 @@ Der CAPEX-Arbeitsbereich unterstützt Sie bei der Verwaltung jeder Investitionsp
 
 Navigieren Sie zu **Budgetverwaltung > CAPEX**, um Ihre Liste zu sehen. Klicken Sie auf **Neu**, um Ihre erste Position zu erstellen.
 
+Der Arbeitsbereich öffnet sich im Erstellungsmodus, mit geöffnetem Bereich **Eigenschaften** rechts. Geben Sie den Namen der Investition oben im Titel ein, füllen Sie die Eigenschaften aus und klicken Sie dann auf **Erstellen**.
+
 **Pflichtfelder**:
 
-- **Beschreibung**: Was Sie investieren (z. B. „Neue Server-Infrastruktur", „ERP-Softwarelizenz")
+- **Titel**: Was Sie investieren (z. B. „Neue Server-Infrastruktur", „ERP-Softwarelizenz"). Das ist die Beschreibung der Position, die in der Spalte **Beschreibung** der Liste erscheint
+- **Zahlendes Unternehmen**: Welches Unternehmen die Investition tätigt (erforderlich für die Buchhaltung)
+- **Währung**: ISO-Code (z. B. USD, EUR). Standardmäßig Ihre Arbeitsbereich-CAPEX-Währung; kann pro Position überschrieben werden
 - **Anlagentyp**: Sachanlagen-Klassifizierung -- Hardware oder Software
 - **Investitionsart**: Zweck der Investition (siehe Optionen unten)
 - **Priorität**: Geschäftliche Prioritätsstufe (siehe Optionen unten)
-- **Währung**: ISO-Code (z. B. USD, EUR). Standardmäßig Ihre Arbeitsbereich-CAPEX-Währung; kann pro Position überschrieben werden
-- **Gültig ab**: Wann diese Investition beginnt (TT/MM/JJJJ)
-- **Zahlendes Unternehmen**: Welches Unternehmen die Investition tätigt (erforderlich für die Buchhaltung)
+- **Beginn der Gültigkeit**: Wann diese Investition beginnt (TT/MM/JJJJ)
 
 **Dringend empfohlen**:
 
 - **Konto**: Das Sachkonto für diese Investitionsausgabe. Es erscheinen nur Konten aus dem Kontenplan des zahlenden Unternehmens
-- **Lieferant**: Der Anbieter oder Lieferant für diese Investition. Auswahl aus Ihren Stammdaten-Lieferanten
+- **Lieferant**: Der Anbieter oder Lieferant dieser Investition. Wählen Sie ihn aus Ihren Stammdaten-Lieferanten
 
 **Optional aber nützlich**:
 
-- **Ende der Gültigkeit**: Das Datum, an dem diese Investition endet, zum Beispiel wenn die Nutzungsdauer des Vermögenswerts endet oder das Projekt abgeschlossen ist. Lassen Sie es leer, wenn es kein Ende gibt. Danach ist die Position deaktiviert und spätere Jahre zählen in den Budgetansichten nicht mehr
-- **Notizen**: Freitext-Notizen zur Investition
+- **Analysekategorie**: Benutzerdefinierte Gruppierung für Berichte
+- **Ende der Gültigkeit**: Das Datum, an dem diese Investition endet, zum Beispiel am Ende der Nutzungsdauer des Assets oder beim Projektabschluss. Lassen Sie es leer, wenn es kein Ende gibt. Danach ist die Position deaktiviert und spätere Jahre zählen in den Budgetansichten nicht mehr
+- **IT-Verantwortlicher** / **Fachverantwortlicher**: Wer verantwortlich ist
+- **Beschreibung** (Tab Übersicht): Freitext-Details zur Investition
 
-Nach dem Speichern werden alle Tabs freigeschaltet: **Übersicht**, **Budget**, **Zuordnungen**, **Aufgaben** und **Verknüpfungen**.
+Sobald die Position erstellt ist, schaltet der Arbeitsbereich alle vier Tabs frei: **Übersicht**, **Budget**, **Zuordnungen** und **Verknüpfungen**.
 
 **Tipp**: Sie können Positionen schnell erstellen und Budgets und Zuordnungen später ergänzen. Beginnen Sie mit dem Wesentlichen und verfeinern Sie iterativ.
 
@@ -114,7 +118,7 @@ Klicken Sie auf eine beliebige Zelle in einer Zeile, um den Arbeitsbereich auf d
 - **J+1 Budget**: Öffnet den **Budget**-Tab für das nächste Jahr
 - **J Zuordnung**: Öffnet den **Zuordnungen**-Tab für das aktuelle Jahr
 - **J+1 Zuordnung**: Öffnet den **Zuordnungen**-Tab für das nächste Jahr
-- **Aufgabe**: Öffnet den **Aufgaben**-Tab
+- **Aufgabe**: Öffnet den Tab **Übersicht**, in dem sich der Aufgabenbereich befindet
 
 ### Statusfilter
 
@@ -126,7 +130,7 @@ Ihr Listenkontext -- Sortierreihenfolge, Suchtext und aktive Filter -- wird beib
 
 ### Zurück/Weiter-Navigation
 
-Wenn Sie eine Position öffnen, zeigt der Arbeitsbereich die Schaltflächen **Zurück** und **Weiter**. Diese navigieren durch die Liste in der aktuellen Sortierreihenfolge unter Berücksichtigung von Filtern und Suche. Der Zähler (z. B. „Position 3 von 47") zeigt Ihre Position in der gefilterten Liste.
+Wenn Sie eine Position öffnen, zeigt der Arbeitsbereich die Schaltflächen **Zurück** und **Weiter**. Diese navigieren durch die Liste in der aktuellen Sortierreihenfolge unter Berücksichtigung von Filtern und Suche und speichern zuerst Ihre ausstehenden Änderungen. Der Zähler (z. B. „Position 3 von 47") zeigt Ihre Position in der gefilterten Liste.
 
 **Tipp**: Verwenden Sie Spaltenfilter und Schnellsuche, um fokussierte Ansichten zu erstellen (z. B. „Alle Hardware-Investitionen mit hoher Priorität"), und navigieren Sie dann mit **Zurück**/**Weiter** von Position zu Position, um Budgets zu überprüfen.
 
@@ -134,38 +138,45 @@ Wenn Sie eine Position öffnen, zeigt der Arbeitsbereich die Schaltflächen **Zu
 
 ## Der CAPEX-Arbeitsbereich
 
-Klicken Sie auf eine beliebige Zeile in der Liste, um den Arbeitsbereich zu öffnen. Er hat fünf Tabs, die jeweils auf einen bestimmten Aspekt der Investitionsposition fokussiert sind.
+Klicken Sie auf eine beliebige Zeile der Liste, um den Arbeitsbereich zu öffnen. Er besteht aus vier Teilen:
+
+- **Kopfzeile**: die Referenz der Position (z. B. `CPX-7`) mit einer Kopierschaltfläche, der Name der Investition (anklicken, um die Position umzubenennen), **Zurück** / **Weiter**, **Link senden** und die Schaltfläche zum Schließen
+- **Metadatenleiste** unter dem Titel: **Status**, **Priorität**, **IT-Verantwortlicher** und **Fachverantwortlicher**, direkt bearbeitbar
+- **Vier Tabs**: **Übersicht**, **Budget**, **Zuordnungen** und **Verknüpfungen** (der Tab Verknüpfungen zeigt die Anzahl der Verknüpfungen der Position)
+- **Bereich Eigenschaften** rechts: die Hauptfelder der Position. Öffnen oder schließen Sie ihn mit der Eigenschaften-Schaltfläche; der Arbeitsbereich merkt sich Ihre Wahl
+
+**Automatisches Speichern**:
+
+- Jede Änderung wird automatisch gespeichert. In der Kopfzeile erscheint der Hinweis **Wird gespeichert...** / **Gespeichert**
+- Beim Wechsel des Tabs, beim Wechsel zur vorherigen oder nächsten Position oder beim Schließen des Arbeitsbereichs werden ausstehende Änderungen zuerst gespeichert. Schlägt ein Speichervorgang fehl, bleiben Sie an Ort und Stelle und eine Meldung nennt den Grund, sodass keine Änderung unbemerkt verloren geht
+- **Strg+S** (**Cmd+S** auf dem Mac) speichert sofort
 
 ### Übersicht
 
-Dieser Tab zeigt alle allgemeinen Informationen zur CAPEX-Position.
+Der Tab Übersicht enthält die Details der Investition und ihre Aufgaben.
 
 **Was Sie bearbeiten können**:
 
-- **Beschreibung**: Was Sie investieren (mehrzeiliger Text)
-- **Zahlendes Unternehmen**: Autovervollständigung aus Ihren Unternehmen
-- **Konto**: Gefiltert nach dem Kontenplan des zahlenden Unternehmens
-- **Lieferant**: Autovervollständigung aus Ihren Stammdaten-Lieferanten
-- **Anlagentyp**: Hardware oder Software
-- **Investitionsart**: Ersatz, Kapazität, Produktivität, Sicherheit, Konformität, Geschäftswachstum oder Sonstige
-- **Priorität**: Obligatorisch, Hoch, Mittel oder Niedrig
-- **Währung**: Standard ist die Arbeitsbereich-CAPEX-Währung; zeigt nur zugelassene Währungen
-- **Gültig ab**: Datumsfeld im Format TT/MM/JJJJ
-- **Notizen**: Freitext-Notizen
+- **Beschreibung**: Freitext-Details zur Investition (im CSV als `notes` exportiert). Der Name der Investition selbst ist der Titel oben
 
-**Status und Lebenszyklus**:
+**Aufgabenbereich**:
 
-- Verwenden Sie den **Aktiviert**-Umschalter oder setzen Sie ein **Ende der Gültigkeit**, um zu steuern, wann die Position in Berichten und Auswahllisten erscheint
-- Deaktivierte Positionen werden aus Berichten für Jahre ausgeschlossen, die strikt nach dem Ende der Gültigkeit liegen
-- Historische Daten bleiben erhalten; Sie sehen deaktivierte Positionen weiterhin in Berichten, die Jahre abdecken, in denen sie aktiv waren
+- Listet alle mit dieser CAPEX-Position verknüpften Aufgaben mit den Spalten **Titel**, **Status**, **Priorität**, **Fälligkeitsdatum** und **Aktionen**. Der Titel des Bereichs zeigt die Anzahl der Aufgaben
+- Filter **Status**: Alle (Standard), Aktiv (nicht erledigt) oder ein bestimmter Status. Die Zurücksetzen-Schaltfläche löscht ihn
+- Klicken Sie auf **Aufgabe hinzufügen**, um eine neue, bereits mit dieser Position verknüpfte Aufgabe zu öffnen. Titel, Beschreibung, Priorität, Zuständigen und Fälligkeitsdatum füllen Sie im Aufgaben-Arbeitsbereich aus
+- Mit dem Öffnen-Symbol gehen Sie zu einer Aufgabe, mit dem Löschsymbol löschen Sie sie (nach Bestätigung)
+- Aufgaben haben eigene Berechtigungen (`tasks:member` zum Erstellen und Bearbeiten). CAPEX-Manager-Zugriff allein berechtigt nicht zum Bearbeiten von Aufgaben; wenden Sie sich an Ihren Administrator, wenn Sie keine Aufgaben erstellen können
+- Aufgaben können auch unter **Portfolio > Aufgaben** angezeigt und verwaltet werden, wo alle Aufgaben Ihrer Organisation erscheinen
+- Der Titel der neuesten Aufgabe erscheint auch in der Spalte **Aufgabe** der Liste (standardmäßig ausgeblendet)
 
-**Speichern und Zurücksetzen**:
+**Bereich Eigenschaften**:
 
-- Änderungen werden **nicht** automatisch gespeichert
-- Klicken Sie auf **Speichern**, um Ihre Bearbeitungen zu sichern, oder **Zurücksetzen**, um sie zu verwerfen
-- Wenn Sie mit nicht gespeicherten Änderungen navigieren, werden Sie aufgefordert, zu speichern oder zu verwerfen
+- **Lieferant**, **Zahlendes Unternehmen**, **Konto** (gefiltert nach dem Kontenplan des zahlenden Unternehmens), **Währung** (nur die in Ihrem Arbeitsbereich erlaubten Währungen), **Anlagentyp**, **Investitionsart**, **Analysekategorie** und **Beginn der Gültigkeit**
+- **Lebenszyklus**: der Schalter **Aktiviert** und das Datum **Ende der Gültigkeit**. Siehe [Status und Lebenszyklus](#status-und-lebenszyklus)
+- Die Daten **Erstellt** und **Aktualisiert** (schreibgeschützt)
+- Die **Priorität** stellen Sie beim Erstellen im Bereich Eigenschaften ein, danach in der Metadatenleiste
 
-**Tipp**: Wenn Sie eine Warnung „Veraltetes Konto" sehen, bedeutet dies, dass das ausgewählte Konto nicht zum Kontenplan des zahlenden Unternehmens gehört. Wählen Sie ein anderes Konto, um die Warnung zu beheben.
+**Tipp**: Beim Erstellen einer Position bedeutet die Warnung „veraltetes Konto", dass das ausgewählte Konto nicht zum Kontenplan des zahlenden Unternehmens gehört. Wählen Sie ein anderes Konto, um die Warnung zu beheben.
 
 ---
 
@@ -222,24 +233,27 @@ Im Budget-Tab geben Sie Finanzdaten pro Jahr ein. Er unterstützt mehrere Budget
 
 ### Zuordnungen
 
-Der Zuordnungen-Tab verteilt die Investitionsausgaben auf Ihre Unternehmen und Abteilungen. Dies steuert Leistungsverrechnungsberichte und hilft bei der Zuordnung von Vermögenskosten.
+Der Tab Zuordnungen verteilt die Investitionsausgabe auf Ihre Unternehmen und Abteilungen. Das speist Leistungsverrechnungsberichte und hilft, Anlagekosten zuzuordnen.
 
-**Jahrauswahl**:
+**Jahresauswahl**:
 
-- Funktioniert wie beim Budget: verwenden Sie Jahrreiter zum Wechseln zwischen J-2, J-1, J, J+1, J+2
+- Funktioniert wie beim Budget: Wechseln Sie mit den Jahres-Tabs zwischen J-2, J-1, J, J+1, J+2
 - Jedes Jahr kann eine andere Zuordnungsmethode haben
+- Das **Jahresbudget** des ausgewählten Jahres erscheint rechts
 
 **Zuordnungsmethoden**:
 
-1. **Mitarbeiterzahl (Standard)**: Teilt Investitionsausgaben proportional nach der Mitarbeiterzahl jedes Unternehmens für das ausgewählte Jahr. Prozentsätze aktualisieren sich automatisch, wenn Sie Unternehmenskennzahlen bearbeiten. Dies ist die Standardmethode.
+1. **Mitarbeiterzahl (Standard)**: Teilt Investitionsausgaben proportional nach der Mitarbeiterzahl jedes Unternehmens für das ausgewählte Jahr. Die Prozentsätze aktualisieren sich automatisch, wenn Sie Unternehmenskennzahlen bearbeiten. Das ist der Standard.
 
-2. **IT-Benutzer**: Teilt Ausgaben proportional nach der IT-Benutzerzahl jedes Unternehmens für das ausgewählte Jahr. Nützlich für IT-Infrastrukturinvestitionen, die mit dem IT-Personal skalieren.
+2. **IT-Benutzer**: Teilt Ausgaben proportional nach der Anzahl der IT-Benutzer jedes Unternehmens für das ausgewählte Jahr. Nützlich für IT-Infrastrukturinvestitionen, die mit dem IT-Personal skalieren.
 
 3. **Umsatz**: Teilt Ausgaben proportional nach dem Umsatz jedes Unternehmens für das ausgewählte Jahr. Nützlich für unternehmensweite Plattformen oder Infrastruktur.
 
-4. **Manuell nach Unternehmen**: Sie wählen aus, welche Unternehmen diese Investition erhalten. Wählen Sie einen Treiber (Mitarbeiterzahl, IT-Benutzer oder Umsatz), um die Prozentsätze unter den ausgewählten Unternehmen zu berechnen. Nur die ausgewählten Unternehmen sind in der Aufteilung enthalten. Das System füllt bei der ersten Verwendung automatisch alle aktivierten Unternehmen vor; entfernen Sie Unternehmen, die nicht von dieser Investition profitieren.
+4. **Manuell nach Unternehmen**: Sie wählen aus, welche Unternehmen diese Investition erhalten. Wählen Sie unter **Zuordnen nach** einen Treiber (Mitarbeiterzahl, IT-Benutzer oder Umsatz), um die Prozentsätze unter den ausgewählten Unternehmen zu berechnen. Nur die ausgewählten Unternehmen werden bei der Aufteilung berücksichtigt.
 
-5. **Manuell nach Abteilung**: Sie wählen bestimmte Unternehmen/Abteilungs-Paare aus. Prozentsätze werden aus der Mitarbeiterzahl jeder Abteilung berechnet. Nützlich, wenn eine Investition nur bestimmten Abteilungen zugutekommt (z. B. Fertigungsausrüstung).
+5. **Manuell nach Abteilung**: Sie wählen bestimmte Unternehmen/Abteilungs-Paare aus. Die Prozentsätze werden aus der Mitarbeiterzahl jeder Abteilung berechnet. Nützlich, wenn eine Investition nur bestimmten Abteilungen zugutekommt (z. B. Fertigungsanlagen).
+
+6. **Manuelle Prozentsätze**: Sie wählen die Unternehmen und geben jeden Prozentsatz selbst ein. Die Summe muss 100 % ergeben.
 
 **Standard- und fixierte Methoden**:
 
@@ -250,118 +264,75 @@ Der Zuordnungen-Tab verteilt die Investitionsausgaben auf Ihre Unternehmen und A
 
 **Wie Prozentsätze funktionieren**:
 
-- Für **automatische Methoden** (Mitarbeiterzahl, IT-Benutzer, Umsatz): Prozentsätze werden bei jedem Laden der Seite aus den aktuellen Unternehmenskennzahlen berechnet. Sie bearbeiten sie nicht direkt.
-- Für **manuelle Methoden**: Sie wählen die Unternehmen oder Abteilungen aus, und das System berechnet Prozentsätze basierend auf Ihrem gewählten Treiber und den aktuellen Kennzahlen.
-- Prozentsätze spiegeln Live-Daten wider. Wenn Sie die Mitarbeiterzahl eines Unternehmens aktualisieren, werden die Zuordnungen sofort neu berechnet.
+- Bei **automatischen Methoden** (Mitarbeiterzahl, IT-Benutzer, Umsatz): Die Prozentsätze werden aus den aktuellen Kennzahlen Ihrer aktiven Unternehmen berechnet. Sie bearbeiten sie nicht direkt.
+- Bei **Manuell nach Unternehmen** und **Manuell nach Abteilung**: Sie wählen die Unternehmen oder Abteilungen, und das System berechnet die Prozentsätze aus dem gewählten Treiber und den aktuellen Kennzahlen.
+- Bei **Manuelle Prozentsätze**: Die Eingabe eines Prozentsatzes fixiert diese Zeile, und die übrigen Zeilen teilen sich den Rest. **Gleichmäßig aufteilen** gibt jeder Zeile denselben Anteil; **Manuelle Fixierungen löschen** hebt die Fixierungen auf.
+- Die Prozentsätze spiegeln Live-Daten wider. Wenn Sie die Mitarbeiterzahl eines Unternehmens aktualisieren, werden die Zuordnungen neu berechnet.
 
-**Zuordnungen anzeigen**:
+**Zuordnungen ansehen**:
 
-- Das Grid zeigt: Unternehmen, Abteilung (falls zutreffend), Prozentsatz
-- Der Gesamtprozentsatz sollte 100 % ergeben; Warnungen erscheinen, wenn Kennzahlen fehlen oder die Summe Null ergibt
+- Die Tabelle zeigt das Unternehmen (oder Unternehmen / Abteilung), den Treiberwert, den Prozentsatz und den Betrag, mit einer Summenzeile
+- Der Gesamtprozentsatz sollte 100 % ergeben; bei Manuelle Prozentsätze erscheint eine Warnung, bis das der Fall ist
 
-**Vorgehensweise**:
+**So verwenden Sie ihn**:
 
 1. Wählen Sie das Jahr
-2. Wählen Sie eine Zuordnungsmethode aus dem Dropdown
-3. Bei manueller Methode wählen Sie die Unternehmen oder Abteilungen aus (entfernen Sie alle, die nicht von dieser Investition profitieren)
-4. Klicken Sie auf **Speichern**, um Methode und Auswahl zu sichern
+2. Wählen Sie unter **Methode** eine Zuordnungsmethode
+3. Bei einer manuellen Methode fügen Sie mit **Zeile hinzufügen** Unternehmen (oder Unternehmen/Abteilungs-Paare) hinzu und entfernen mit dem Entfernen-Symbol diejenigen, die von dieser Investition nicht profitieren
+4. Änderungen werden automatisch gespeichert
 
 **Häufige Probleme**:
 
-- **Fehler „Fehlende Kennzahlen"**: Ein oder mehrere Unternehmen haben für das ausgewählte Jahr keine oder eine Mitarbeiterzahl/IT-Benutzer/Umsatz von Null. Füllen Sie die Kennzahlen unter **Stammdaten > Unternehmen** (Details-Tab) aus.
-- **„Summe ist nicht 100 %"**: Meist durch fehlende Kennzahlen verursacht. Korrigieren Sie die Unternehmensdaten und laden Sie die Zuordnungen neu.
+- **Fehlende Kennzahlen**: Für ein oder mehrere Unternehmen fehlen Mitarbeiterzahl, IT-Benutzer oder Umsatz für das ausgewählte Jahr, oder der Wert ist null. Tragen Sie die Kennzahlen unter **Stammdaten > Unternehmen** (Details-Tab) ein.
+- **„Manuelle Prozentsätze müssen in Summe 100 % ergeben."**: Passen Sie die Zeilen an oder klicken Sie auf **Gleichmäßig aufteilen**.
 
-**Tipp**: Verwenden Sie Mitarbeiterzahl für die meisten Positionen (es ist am einfachsten und aktualisiert sich automatisch). Reservieren Sie Manuell nach Unternehmen für Investitionen, die nur bestimmten Einheiten zugutekommen (z. B. regionales Rechenzentrum). Verwenden Sie Manuell nach Abteilung für sehr gezielte Investitionen.
-
----
-
-### Aufgaben
-
-Der Aufgaben-Tab hilft Ihnen, Aufgaben und Nachverfolgungen im Zusammenhang mit dieser CAPEX-Position zu verfolgen (z. B. „Lieferantenauswahl bis Q2", „Installation bis Juni abschließen", „Vorstandsgenehmigung einholen").
-
-**Aufgabenliste**:
-
-- Zeigt alle mit dieser CAPEX-Position verknüpften Aufgaben
-- Spalten: Titel, Status, Priorität, Fälligkeitsdatum, Aktionen
-- Klicken Sie auf einen Aufgabentitel, um den vollständigen Aufgaben-Arbeitsbereich zu öffnen
-- Standardfilter zeigt aktive Aufgaben (blendet erledigte und abgebrochene aus)
-
-**Filtern**:
-
-- Klicken Sie auf das Filtersymbol, um Filtersteuerungen ein-/auszublenden
-- **Statusfilter**: Alle, Aktiv (blendet erledigte/abgebrochene aus) oder ein bestimmter Status
-- Klicken Sie auf die Löschen-Schaltfläche, um Filter zurückzusetzen
-
-**Aufgabe erstellen**:
-
-- Klicken Sie auf **Aufgabe hinzufügen**, um den Aufgaben-Erstellungsarbeitsbereich zu öffnen
-- Die Aufgabe wird automatisch mit dieser CAPEX-Position verknüpft
-- Füllen Sie im Aufgaben-Arbeitsbereich Titel, Beschreibung, Priorität, Beauftragten und Fälligkeitsdatum aus
-
-**Aufgabe löschen**:
-
-- Klicken Sie auf das Löschsymbol in der Aktionen-Spalte
-- Bestätigen Sie die Löschung im Dialog
-
-**Hinweise**:
-
-- Aufgaben sind eigenständige Objekte mit eigenen Berechtigungen (`tasks:member` zum Erstellen/Bearbeiten)
-- CAPEX-Manager-Zugriff gewährt nicht automatisch Aufgabenbearbeitungsrechte; prüfen Sie mit Ihrem Admin, wenn Sie keine Aufgaben erstellen können
-- Aufgaben können auch unter **Portfolio > Aufgaben** angezeigt und verwaltet werden, wo alle Aufgaben Ihrer gesamten Organisation dargestellt werden
-- Der neueste Aufgabentitel wird auch in der **Aufgabe**-Spalte der Listenansicht angezeigt (standardmäßig ausgeblendet)
-
-**Tipp**: Verwenden Sie Aufgaben, um Handlungspunkte während der Investitionsplanung oder Genehmigungszyklen festzuhalten. Setzen Sie Fälligkeitsdaten, um Beschaffungsmeilensteine und Implementierungsfristen zu verfolgen.
+**Tipp**: Verwenden Sie für die meisten Positionen Mitarbeiterzahl (am einfachsten, aktualisiert sich automatisch). Reservieren Sie Manuell nach Unternehmen für Investitionen, die nur bestimmten Einheiten zugutekommen (z. B. ein regionales Rechenzentrum). Verwenden Sie Manuell nach Abteilung für sehr gezielte Investitionen.
 
 ---
 
 ### Verknüpfungen
 
-Der Verknüpfungen-Tab verbindet diese CAPEX-Position mit verwandten Objekten: Projekten, Verträgen, Kontakten, relevanten Websites und Anhängen.
+Der Tab Verknüpfungen verbindet diese CAPEX-Position mit zugehörigen Objekten: Projekte, Verträge, Kontakte, Relevante Websites und Anhänge. Alles in diesem Tab wird automatisch gespeichert.
 
 **Projekte**:
 
-- Verwenden Sie die Autovervollständigung, um ein oder mehrere Projekte zu verknüpfen
-- Dies hilft, Investitionsausgaben nach Projekt in Berichten zu gruppieren und ermöglicht Projektbuchhaltung
-- Entfernen Sie ein Projekt durch Klicken auf das X an seinem Chip, dann speichern
+- Verknüpfen Sie über die Autovervollständigung ein oder mehrere Projekte
+- Das hilft, Investitionsausgaben in Berichten nach Projekt zu gruppieren, und ermöglicht die Projektbuchhaltung
+- Entfernen Sie ein Projekt mit dem X auf seinem Chip
 
 **Verträge**:
 
-- Verwenden Sie die Autovervollständigung, um einen oder mehrere Verträge zu verknüpfen
-- Bei Verknüpfung erscheint der Vertragsname zur schnellen Referenz
-- Verträge können auch mit mehreren CAPEX-Positionen verknüpft werden (n:m-Beziehung)
-- Entfernen Sie Verträge durch Klicken auf das X am Chip, dann speichern
+- Verknüpfen Sie über die Autovervollständigung einen oder mehrere Verträge
+- Verknüpfte Verträge erscheinen mit ihrem Namen zur schnellen Orientierung
+- Ein Vertrag kann auch mit mehreren CAPEX-Positionen verknüpft sein (n:m-Beziehung)
+- Entfernen Sie einen Vertrag mit dem X auf seinem Chip
 
 **Kontakte**:
 
-- Verknüpfen Sie Kontakte mit dieser CAPEX-Position mit einer Rolle: **Kommerziell**, **Technisch**, **Support** oder **Sonstige**
-- Klicken Sie auf **Hinzufügen**, um einen Kontakt aus Ihren Stammdaten auszuwählen und eine Rolle zuzuweisen
-- Vom Lieferanten übernommene Kontakte werden mit einem ausgefüllten Chip angezeigt; manuell hinzugefügte Kontakte zeigen einen umrandeten Chip
-- Klicken Sie auf eine Kontaktzeile, um den Kontakt-Arbeitsbereich zu öffnen
-- Entfernen Sie einen Kontakt durch Klicken auf das Löschsymbol in der Aktionen-Spalte
+- Verknüpfen Sie Kontakte mit dieser CAPEX-Position: Wählen Sie einen Kontakt und dann seine Rolle (**Vertrieb**, **Technik**, **Support** oder **Sonstige**). Die Wahl der Rolle fügt den Kontakt hinzu
+- Die Tabelle zeigt Rolle, Vorname, Nachname, Position, E-Mail und Mobilnummer. Fahren Sie mit der Maus über die Rolle, um zu sehen, ob der Kontakt vom Lieferanten stammt oder manuell hinzugefügt wurde
+- Entfernen Sie einen Kontakt mit dem Entfernen-Symbol
 
 **Relevante Websites**:
 
-- Fügen Sie URLs hinzu, die sich auf diese Investition beziehen (z. B. Lieferanten-Produktseiten, technische Dokumentation, interne Wikis)
-- Jeder Link hat ein optionales **Beschreibung**-Feld für Kontext
-- Klicken Sie auf **URL hinzufügen**, um weitere Links hinzuzufügen
-- Links werden gespeichert, wenn Sie auf **Speichern** oben im Arbeitsbereich klicken
+- Klicken Sie auf **URL hinzufügen**, um einen Link hinzuzufügen (z. B. Produktseiten des Anbieters, technische Dokumentation, interne Wikis). Jeder Link hat einen **Namen** und eine **URL**
+- Klicken Sie auf die Zeile eines Links, um ihn zu bearbeiten, oder entfernen Sie ihn mit dem Löschsymbol
 
 **Anhänge**:
 
-- Laden Sie Dateien hoch, die sich auf diese Investitionsposition beziehen (z. B. Angebote, Lieferantenvorschläge, technische Spezifikationen, Genehmigungsvermerke)
-- Ziehen Sie Dateien per Drag-and-Drop in den Anhangbereich oder klicken Sie auf **Dateien auswählen**
-- Alle Dateien werden sicher gespeichert und können durch Klicken auf den Dateinamen heruntergeladen werden
-- Löschen Sie Anhänge durch Klicken auf das X am Datei-Chip (erfordert `capex:manager`-Berechtigung)
-- Anhänge werden sofort beim Hochladen gespeichert (kein Klick auf Speichern nötig)
+- Laden Sie Dateien zu dieser Position hoch (z. B. Angebote, Lieferantenvorschläge, technische Spezifikationen, Genehmigungsvermerke)
+- Ziehen Sie Dateien in den Anhangsbereich oder klicken Sie auf **Dateien auswählen**
+- Klicken Sie auf den Chip einer Datei, um sie herunterzuladen
+- Löschen Sie einen Anhang mit dem Löschsymbol auf seinem Chip (nach Bestätigung; erfordert die Berechtigung `capex:manager`)
 
 **Warum verknüpfen?**:
 
-- **Projekte**: Investitionsausgaben nach Projekt für Projektbuchhaltung und Berichte zusammenführen
-- **Verträge**: Nachverfolgen, welche Investitionspositionen durch Kaufverträge oder Serviceverträge abgedeckt sind
-- **Kontakte**: Lieferanten- und Stakeholder-Kontaktdetails mit der Investition verknüpfen
-- **Websites & Anhänge**: Alle investitionsbezogenen Dokumentationen und Referenzen an einem Ort zentralisieren
+- **Projekte**: Investitionsausgaben nach Projekt für Projektbuchhaltung und Berichte zusammenfassen
+- **Verträge**: Nachverfolgen, welche Investitionen durch Kauf- oder Serviceverträge abgedeckt sind
+- **Kontakte**: Kontaktdaten von Lieferanten und Beteiligten mit der Investition verbunden halten
+- **Websites und Anhänge**: Alle Unterlagen und Referenzen zur Investition an einem Ort bündeln
 
-**Tipp**: Laden Sie Lieferantenangebote, Genehmigungsvermerke und technische Spezifikationen als Anhänge hoch. Verknüpfen Sie Verträge für die Beschaffungsverfolgung. Verwenden Sie Kontakte, um Lieferantenvertreter jeder Investitionsposition zuzuordnen.
+**Tipp**: Laden Sie Lieferantenangebote, Genehmigungsvermerke und technische Spezifikationen als Anhänge hoch. Verknüpfen Sie Verträge, um Beschaffungen nachzuverfolgen. Nutzen Sie Kontakte, um die Ansprechpartner des Lieferanten jeder Investition zuzuordnen.
 
 ---
 
@@ -435,7 +406,7 @@ Jede CAPEX-Position hat einen **Status** (Aktiviert oder Deaktiviert) und ein op
 **Status setzen**:
 
 - Beim Anlegen der Position können Sie ihr **Ende der Gültigkeit** im Panel **Eigenschaften** festlegen
-- Später verwenden Sie den **Aktiviert**-Umschalter oder ändern das **Ende der Gültigkeit** im Panel **Eigenschaften**
+- Später ändern Sie den **Status** in der Metadatenleiste oder verwenden das Feld **Lebenszyklus** im Bereich **Eigenschaften** (Schalter **Aktiviert** und **Ende der Gültigkeit**). Wird eine Position ohne Datum deaktiviert, wird ihr Ende der Gültigkeit auf heute gesetzt
 - Sie können ein zukünftiges Ende der Gültigkeit planen (nützlich für geplante Anlagenveräußerungen oder End-of-Life-Termine)
 
 **Deaktivierte Positionen anzeigen**:

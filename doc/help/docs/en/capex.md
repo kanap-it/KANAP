@@ -8,15 +8,17 @@ The CAPEX workspace helps you manage each capital item from initial budgeting th
 
 Navigate to **Budget Management > CAPEX** to see your list. Click **New** to create your first item.
 
+The workspace opens in creation mode, with the **Properties** panel open on the right. Type the investment's name in the title at the top, fill in the properties, then click **Create**.
+
 **Required fields**:
 
-- **Description**: What you are investing in (e.g., "New Server Infrastructure", "ERP Software License")
-- **PP&E Type**: Property, Plant & Equipment classification -- Hardware or Software
-- **Investment Type**: Purpose of the investment (see options below)
-- **Priority**: Business priority level (see options below)
+- **Title**: What you are investing in (e.g., "New Server Infrastructure", "ERP Software License"). This is the item's description, shown in the **Description** column of the list
+- **Paying company**: Which company is making the investment (required for accounting)
 - **Currency**: ISO code (e.g., USD, EUR). Defaults to your workspace CAPEX currency; you can override per item
-- **Effective Start**: When this investment begins (DD/MM/YYYY)
-- **Paying Company**: Which company is making the investment (required for accounting)
+- **PP&E type**: Property, Plant & Equipment classification -- Hardware or Software
+- **Investment type**: Purpose of the investment (see options below)
+- **Priority**: Business priority level (see options below)
+- **Effective start**: When this investment begins (DD/MM/YYYY)
 
 **Strongly recommended**:
 
@@ -25,10 +27,12 @@ Navigate to **Budget Management > CAPEX** to see your list. Click **New** to cre
 
 **Optional but useful**:
 
+- **Analytics category**: Custom grouping for reporting
 - **End of validity**: The date this investment stops, for example when the asset's useful life ends or the project completes. Leave it blank if there is no end. After it, the item is disabled and later years no longer count in the budget views
-- **Notes**: Free-form internal notes about the investment
+- **IT owner** / **Business owner**: Who is responsible
+- **Description** (Overview tab): Free-form details about the investment
 
-Once you save, the workspace unlocks all tabs: **Overview**, **Budget**, **Allocations**, **Tasks**, and **Relations**.
+Once the item is created, the workspace unlocks all four tabs: **Overview**, **Budget**, **Allocations**, and **Relations**.
 
 **Tip**: You can create items quickly and fill in budgets and allocations later. Start with the essentials and iterate.
 
@@ -114,7 +118,7 @@ Click any cell in a row to open the workspace on the tab most relevant to that c
 - **Y+1 Budget**: Opens **Budget** tab for next year
 - **Y Allocation**: Opens **Allocations** tab for the current year
 - **Y+1 Allocation**: Opens **Allocations** tab for next year
-- **Task**: Opens the **Tasks** tab
+- **Task**: Opens the **Overview** tab, where the Tasks panel sits
 
 ### Status filter
 
@@ -126,7 +130,7 @@ Your list context -- sort order, search text, and active filters -- is preserved
 
 ### Prev/Next navigation
 
-When you open an item, the workspace shows **Prev** and **Next** buttons. These navigate through the list in the current sort order, respecting filters and search. The counter (e.g., "Item 3 of 47") shows your position in the filtered list.
+When you open an item, the workspace shows **Prev** and **Next** buttons. These navigate through the list in the current sort order, respecting filters and search, and save your pending edits first. The counter (e.g., "Item 3 of 47") shows your position in the filtered list.
 
 **Tip**: Use column filters and quick search to build focused views (e.g., "All hardware investments with high priority"), then navigate item-by-item with **Prev**/**Next** to review budgets.
 
@@ -134,38 +138,45 @@ When you open an item, the workspace shows **Prev** and **Next** buttons. These 
 
 ## The CAPEX workspace
 
-Click any row in the list to open the workspace. It has five tabs, each focused on a specific aspect of the capital item.
+Click any row in the list to open the workspace. It has four parts:
+
+- **Header**: the item reference (e.g., `CPX-7`) with a copy button, the investment's name (click it to rename the item), **Prev** / **Next**, **Send link**, and the close button
+- **Metadata bar** under the title: **Status**, **Priority**, **IT owner**, and **Business owner**, each editable in place
+- **Four tabs**: **Overview**, **Budget**, **Allocations**, and **Relations** (the Relations tab shows how many links the item has)
+- **Properties panel** on the right: the item's main fields. Open or close it with the properties button; the workspace remembers your choice
+
+**Autosave**:
+
+- Every change saves automatically. A **Saving...** / **Saved** hint shows in the header
+- Switching tabs, moving to the previous or next item, or closing the workspace saves pending edits first. If a save fails, you stay where you are and an error explains why, so no edit is lost silently
+- **Ctrl+S** (**Cmd+S** on Mac) saves immediately
 
 ### Overview
 
-This tab shows all the general information about the CAPEX item.
+The Overview tab holds the details of the investment and its tasks.
 
 **What you can edit**:
 
-- **Description**: What you are investing in (multiline text)
-- **Paying Company**: Autocomplete from your Companies
-- **Account**: Filtered by the paying company's Chart of Accounts
-- **Supplier**: Autocomplete from your master data suppliers
-- **PP&E Type**: Hardware or Software
-- **Investment Type**: Replacement, Capacity, Productivity, Security, Conformity, Business Growth, or Other
-- **Priority**: Mandatory, High, Medium, or Low
-- **Currency**: Defaults to workspace CAPEX currency; shows only allowed currencies
-- **Effective Start**: Date field in DD/MM/YYYY format
-- **Notes**: Free-form internal notes
+- **Description**: Free-form details about the investment (exported as `notes` in CSV). The investment's name itself is the title at the top
 
-**Status and lifecycle**:
+**Tasks panel**:
 
-- Use the **Enabled** toggle or set an **End of validity** to control when the item appears in reports and selection lists
-- Disabled items are excluded from reports for years strictly after the end of validity
-- Historical data remains intact; you will still see disabled items in reports covering years when they were active
+- Lists every task linked to this CAPEX item, with **Title**, **Status**, **Priority**, **Due date**, and **Actions** columns. The panel title shows the number of tasks
+- **Status** filter: All (default), Active (not done), or a specific status. The clear button resets it
+- Click **Add task** to open a new task already linked to this item. Fill in the title, description, priority, assignee, and due date in the task workspace
+- Use the open icon to go to a task, and the delete icon to delete it (you confirm first)
+- Tasks have their own permissions (`tasks:member` to create and edit). CAPEX manager access does not grant task editing rights on its own; check with your admin if you cannot create tasks
+- Tasks can also be viewed and managed from **Portfolio > Tasks**, which shows all tasks across your organization
+- The latest task title is also shown in the list view's **Task** column (hidden by default)
 
-**Save and Reset**:
+**Properties panel**:
 
-- Changes are **not** saved automatically
-- Click **Save** to persist your edits, or **Reset** to discard them
-- If you try to navigate away with unsaved changes, you will be prompted to save or discard
+- **Supplier**, **Paying company**, **Account** (filtered by the paying company's Chart of Accounts), **Currency** (only the currencies allowed in your workspace), **PP&E type**, **Investment type**, **Analytics category**, and **Effective start**
+- **Lifecycle**: the **Enabled** switch and the **End of validity** date. See [Status and lifecycle](#status-and-lifecycle)
+- **Created** and **Updated** dates (read only)
+- **Priority** is set in the Properties panel when you create the item, then in the metadata bar
 
-**Tip**: If you see an "obsolete account" warning, it means the selected account does not belong to the paying company's Chart of Accounts. Choose a different account to resolve the warning.
+**Tip**: When you create an item, an "obsolete account" warning means the selected account does not belong to the paying company's Chart of Accounts. Choose a different account to resolve the warning.
 
 ---
 
@@ -228,131 +239,91 @@ The Allocations tab distributes the capital expenditure across your companies an
 
 - Works the same as Budget: use year tabs to switch between Y-2, Y-1, Y, Y+1, Y+2
 - Each year can have a different allocation method
+- The **Year budget** of the selected year shows on the right
 
 **Allocation methods**:
 
-1. **Headcount (Default)**: Splits capital spend proportionally by each company's headcount for the selected year. Percentages update automatically when you edit company metrics. This is the standard default.
+1. **Headcount (default)**: Splits capital spend proportionally by each company's headcount for the selected year. Percentages update automatically when you edit company metrics. This is the standard default.
 
-2. **IT Users**: Splits spend proportionally by each company's IT user count for the selected year. Useful for IT infrastructure investments that scale with IT staff.
+2. **IT users**: Splits spend proportionally by each company's IT user count for the selected year. Useful for IT infrastructure investments that scale with IT staff.
 
 3. **Turnover**: Splits spend proportionally by each company's turnover (revenue) for the selected year. Useful for business-wide platforms or infrastructure.
 
-4. **Manual by Company**: You select which companies receive this capital investment. Choose a driver (Headcount, IT Users, or Turnover) to calculate percentages among the selected companies. Only the selected companies are included in the split. The system auto-prefills all enabled companies on first use; remove companies that do not benefit from this investment.
+4. **Manual by company**: You select which companies receive this capital investment. Choose a driver in **Allocate by** (Headcount, IT users, or Turnover) to calculate percentages among the selected companies. Only the selected companies are included in the split.
 
-5. **Manual by Department**: You select specific company/department pairs. Percentages are calculated from each department's headcount. Useful when a capital investment benefits only certain departments (e.g., manufacturing equipment).
+5. **Manual by department**: You select specific company/department pairs. Percentages are calculated from each department's headcount. Useful when a capital investment benefits only certain departments (e.g., manufacturing equipment).
+
+6. **Manual percentages**: You pick the companies and type each percentage yourself. The percentages must add up to 100%.
 
 **Default vs pinned methods**:
 
 - The **default** entry -- shown as *Headcount (default)* until your organisation configures another method -- follows the setting in **Budget Management > Administration > Default Allocation Method**. Every investment left on the default is re-driven when an admin changes that setting.
 - That setting can also restrict the default to a **selection of companies** (for example the entity that carries the IT budget): the driver then applies to those companies only, and the option reads *Default (n companies)*.
-- **Headcount**, **IT Users** and **Turnover** pin that method on the investment: a pinned method keeps working even if the organisation default changes later.
+- **Headcount**, **IT users** and **Turnover** pin that method on the investment: a pinned method keeps working even if the organisation default changes later.
 - Investments with a manual allocation are never affected by the default setting.
 
 **How percentages work**:
 
-- For **auto methods** (Headcount, IT Users, Turnover): percentages are computed on every page load from the latest company metrics. You do not edit them directly.
-- For **manual methods**: you pick the companies or departments, and the system calculates percentages based on your chosen driver and the current metrics.
-- Percentages reflect live data. If you update a company's headcount, allocations recalculate immediately.
+- For **auto methods** (Headcount, IT users, Turnover): percentages are computed from the latest company metrics across your enabled companies. You do not edit them directly.
+- For **Manual by company** and **Manual by department**: you pick the companies or departments, and the system calculates percentages from your chosen driver and the current metrics.
+- For **Manual percentages**: typing a percentage pins that row, and the remaining rows share what is left. **Split equally** gives every row the same share; **Clear manual pins** releases the pinned rows.
+- Percentages reflect live data. If you update a company's headcount, allocations recalculate.
 
 **Viewing allocations**:
 
-- The grid shows: Company, Department (if applicable), Percentage
-- The total percentage should equal 100%; warnings appear if metrics are missing or sum to zero
+- The table shows the company (or company / department), the driver value, the percentage, and the amount, with a total row
+- The total percentage should equal 100%; for Manual percentages a warning appears until it does
 
 **How to use it**:
 
 1. Select the year
-2. Choose an allocation method from the dropdown
-3. If using a manual method, select the companies or departments (remove any that do not benefit from this investment)
-4. Click **Save** to persist the method and selection
+2. Choose an allocation method in **Method**
+3. For a manual method, use **Add row** to add companies (or company/department pairs) and the remove icon to drop any that do not benefit from this investment
+4. Changes save automatically
 
 **Common issues**:
 
-- **"Missing metrics" error**: One or more companies have zero or missing headcount/IT users/turnover for the selected year. Fill in the metrics in **Master Data > Companies** (Details tab).
-- **"Total is not 100%"**: Usually caused by missing metrics. Fix the company data and reload allocations.
+- **Missing metrics**: One or more companies have zero or missing headcount/IT users/turnover for the selected year. Fill in the metrics in **Master Data > Companies** (Details tab).
+- **"Manual percentages must sum to 100%."**: Adjust the rows, or click **Split equally**.
 
-**Tip**: Use Headcount for most items (it is simplest and updates automatically). Reserve Manual by Company for investments that benefit only specific entities (e.g., regional data center). Use Manual by Department for highly targeted investments.
-
----
-
-### Tasks
-
-The Tasks tab helps you track to-dos and follow-ups related to this CAPEX item (e.g., "Vendor selection by Q2", "Complete installation by June", "Obtain board approval").
-
-**Task list**:
-
-- Shows all tasks linked to this CAPEX item
-- Columns: Title, Status, Priority, Due Date, Actions
-- Click a task title to open the full task workspace
-- Default filter shows active tasks (hides done and cancelled)
-
-**Filtering**:
-
-- Click the filter icon to show/hide filter controls
-- **Status filter**: All, Active (hides done/cancelled), or a specific status
-- Click the clear button to reset filters
-
-**Creating a task**:
-
-- Click **Add Task** to open the task creation workspace
-- The task is automatically linked to this CAPEX item
-- Fill in the title, description, priority, assignee, and due date in the task workspace
-
-**Deleting a task**:
-
-- Click the delete icon in the Actions column
-- Confirm the deletion in the dialog
-
-**Notes**:
-
-- Tasks are independent objects with their own permissions (`tasks:member` to create/edit)
-- Having CAPEX manager access does not automatically grant task editing rights; check with your admin if you cannot create tasks
-- Tasks can also be viewed and managed from **Portfolio > Tasks**, which shows all tasks across your organization
-- The latest task title is also shown in the list view's **Task** column (hidden by default)
-
-**Tip**: Use tasks to capture action items during capital planning or approval cycles. Set due dates to track procurement milestones and implementation deadlines.
+**Tip**: Use Headcount for most items (it is simplest and updates automatically). Reserve Manual by company for investments that benefit only specific entities (e.g., regional data center). Use Manual by department for highly targeted investments.
 
 ---
 
 ### Relations
 
-The Relations tab links this CAPEX item to related objects: Projects, Contracts, Contacts, Relevant Websites, and Attachments.
+The Relations tab links this CAPEX item to related objects: Projects, Contracts, Contacts, Relevant websites, and Attachments. Everything on this tab saves automatically.
 
 **Projects**:
 
 - Use the autocomplete to link one or more projects
 - This helps group capital spend by project in reports and enables project accounting
-- Remove a project by clicking the X on its chip, then save
+- Remove a project by clicking the X on its chip
 
 **Contracts**:
 
 - Use the autocomplete to link one or more contracts
 - When linked, the contract name appears for quick reference
 - Contracts can also link to multiple CAPEX items (many-to-many relationship)
-- Remove contracts by clicking the X on the chip, then save
+- Remove a contract by clicking the X on its chip
 
 **Contacts**:
 
-- Link contacts to this CAPEX item with a role: **Commercial**, **Technical**, **Support**, or **Other**
-- Click **Add** to select a contact from your master data and assign a role
-- Contacts inherited from the supplier are shown with a filled chip; manually added contacts show an outlined chip
-- Click a contact row to open the contact workspace
-- Remove a contact by clicking the delete icon in the Actions column
+- Link contacts to this CAPEX item: pick a contact, then pick its role (**Commercial**, **Technical**, **Support**, or **Other**). Choosing the role adds the contact
+- The table shows the role, first name, last name, job title, email, and mobile. Hover the role to see whether the contact comes from the supplier or was added manually
+- Remove a contact with the remove icon
 
 **Relevant websites**:
 
-- Add URLs related to this investment (e.g., vendor product pages, technical documentation, internal wikis)
-- Each link has an optional **Description** field for context
-- Click **Add URL** to add more links
-- Links are saved when you click **Save** at the top of the workspace
+- Click **Add URL** to add a link (e.g., vendor product pages, technical documentation, internal wikis). Each link has a **Name** and a **URL**
+- Click a link row to edit it, or use the delete icon to remove it
 
 **Attachments**:
 
 - Upload files related to this capital item (e.g., quotes, vendor proposals, technical specs, approval memos)
 - Drag and drop files into the attachment area, or click **Select files** to browse
-- All files are stored securely and can be downloaded by clicking the file name
-- Delete attachments by clicking the X on the file chip (requires `capex:manager` permission)
-- Attachments are saved immediately upon upload (no need to click Save)
+- Click a file chip to download the file
+- Delete an attachment with the delete icon on its chip (you confirm first; requires `capex:manager` permission)
 
 **Why link?**:
 
@@ -435,7 +406,7 @@ Every CAPEX item has a **status** (Enabled or Disabled) and an optional **End of
 **Setting status**:
 
 - When you create the item, you can set its **End of validity** in the **Properties** panel
-- Later, use the **Enabled** toggle or change the **End of validity** in the **Properties** panel
+- Later, change the **Status** in the metadata bar, or use the **Lifecycle** field in the **Properties** panel (**Enabled** switch and **End of validity**). Switching an item to Disabled without a date sets its end of validity to today
 - You can schedule a future end of validity (useful for planned asset disposals or end-of-life dates)
 
 **Viewing disabled items**:
