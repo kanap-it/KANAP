@@ -250,19 +250,6 @@ Kategorien, die den Hauptzweck jeder Anwendung oder jedes Service beschreiben.
 
 **Tipp**: Passen Sie die Kategorien an die Terminologie Ihrer Organisation an. Benennen Sie zum Beispiel „Line-of-Business“ in „Geschäftsanwendungen“ um, wenn Ihr Team sie so nennt.
 
-### Datenklassen
-
-Datenklassifizierungsstufen für Anwendungen und Schnittstellen. Sie bearbeiten sie im Editor **Einstufungen und Kontinuität** unter **Datenvertraulichkeit**.
-
-**Spalten**: Name, Beschreibung, Nicht mehr anbieten
-
-**Gesperrte Codes**: Die integrierten Stufen (Öffentlich, Intern, Vertraulich, Eingeschränkt) können weder gelöscht noch als veraltet markiert werden.
-
-**Verwendung**:
-- Anwendungen-Arbeitsbereich → Reiter Compliance → Feld **Datenklasse**
-- Schnittstellen-Arbeitsbereich → Reiter Übersicht → Feld **Datenklasse**
-- Anwendungsliste → Spalte **Datenklasse**
-
 ### Einstufungen und Kontinuität
 
 Dieser Editor konfiguriert die Stufen, mit denen Anwendungen klassifiziert werden. Er steht Benutzern mit `settings:admin` oben auf der Seite zur Verfügung und öffnet sich als einzelner Dialog mit einer Liste pro Katalog:
@@ -279,6 +266,15 @@ Dieser Editor konfiguriert die Stufen, mit denen Anwendungen klassifiziert werde
 Codes werden aus den Namen erzeugt und nie angezeigt; es gelten die oben beschriebenen Namensregeln.
 
 Die Business-Stufen liefern auch die operative Kritikalität für Schnittstellen und Verbindungen. Fehlende abgeleitete Eingaben werden als unvollständig gekennzeichnet; sie werden nicht als niedrigste Stufe behandelt.
+
+#### Datenvertraulichkeit
+
+Die Liste **Datenvertraulichkeit** enthält die Datenklassen, die Anwendungen und Schnittstellen verwenden. Die integrierten Stufen (Öffentlich, Intern, Vertraulich, Eingeschränkt) können weder gelöscht noch als veraltet markiert werden.
+
+**Verwendung**:
+- Anwendungen-Arbeitsbereich → Reiter Compliance → Feld **Datenklasse**
+- Schnittstellen-Arbeitsbereich → Reiter Übersicht → Feld **Datenklasse**
+- Anwendungsliste → Spalte **Datenklasse**
 
 ### Integrationsmuster
 
@@ -381,7 +377,6 @@ So können Sie Ihre Taxonomie im Laufe der Zeit weiterentwickeln, ohne bestehend
 | **Anwendungskategorien** | Anwendungen (Kategorie) |
 | **Cloud-Anbieter** | Assets (Anbieter), Standorte (Cloud-Anbieter) |
 | **Verbindungstypen** | Verbindungen (Verbindungstyp) |
-| **Datenklassen** | Anwendungen (Reiter Compliance), Schnittstellen (Übersicht), Anwendungsliste |
 | **Domänen** | Assets (Reiter Technik → Domäne, FQDN) |
 | **Entitäten** | Verbindungen (Quell-/Zielentität), Verbindungskarte (Platzierung nach Graph-Ebene) |
 | **Hosting-Typen** | Standorte (Übersicht) |

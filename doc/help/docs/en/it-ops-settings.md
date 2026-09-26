@@ -250,19 +250,6 @@ Categories that describe the primary purpose of each application or service.
 
 **Tip**: Customize categories to match your organization's terminology. For example, rename "Line-of-business" to "Business Applications" if that's how your team refers to them.
 
-### Data classes
-
-Data classification levels for Applications and Interfaces. You edit them in the **Classifications and continuity** editor, under **Data confidentiality**.
-
-**Columns**: Name, Description, No longer offered
-
-**Locked codes**: The built-in levels (Public, Internal, Confidential, Restricted) cannot be deleted or deprecated.
-
-**Where used**:
-- Applications workspace → Compliance tab → **Data Class** field
-- Interfaces workspace → Overview tab → **Data Class** field
-- Applications list → **Data Class** column
-
 ### Classifications and continuity
 
 This editor configures the levels used to classify applications. It is available to `settings:admin` users at the top of the page and opens as a single dialog with one list per catalog:
@@ -279,6 +266,15 @@ This editor configures the levels used to classify applications. It is available
 Codes are generated from names and never shown; the naming rules above apply.
 
 The business levels also power operational criticality on interfaces and connections. Missing derived inputs are marked incomplete; they are not treated as the lowest level.
+
+#### Data confidentiality
+
+The **Data confidentiality** list holds the data classes used by applications and interfaces. The built-in levels (Public, Internal, Confidential, Restricted) cannot be deleted or deprecated.
+
+**Where used**:
+- Applications workspace → Compliance tab → **Data Class** field
+- Interfaces workspace → Overview tab → **Data Class** field
+- Applications list → **Data Class** column
 
 ### Integration patterns
 
@@ -381,7 +377,6 @@ This approach lets you evolve your taxonomy over time without breaking existing 
 | **Application categories** | Applications (Category) |
 | **Cloud providers** | Assets (Provider), Locations (Cloud provider) |
 | **Connection types** | Connections (Connection Type) |
-| **Data classes** | Applications (Compliance tab), Interfaces (Overview), Applications list |
 | **Domains** | Assets (Technical tab → Domain, FQDN) |
 | **Entities** | Connections (Source/Target Entity), Connection Map (graph tier placement) |
 | **Hosting types** | Locations (Overview) |

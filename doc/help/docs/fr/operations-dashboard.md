@@ -1,6 +1,6 @@
 # Vue d'ensemble de la gestion budgétaire
 
-Le tableau de bord de la gestion budgétaire est la première page que vous voyez après la connexion. Il vous offre une vue d'ensemble de l'état de vos dépenses IT — instantanés OPEX et CAPEX, échéances à venir, indicateurs de qualité des données et les éléments qui méritent le plus votre attention — le tout en un seul endroit.
+Le tableau de bord de la gestion budgétaire est la première page que vous voyez après la connexion. Il vous offre une vue d'ensemble de l'état de vos dépenses IT — aperçus OPEX et CAPEX, échéances à venir, indicateurs de qualité des données et les éléments qui méritent le plus votre attention — le tout en un seul endroit.
 
 ## Où le trouver
 
@@ -13,15 +13,15 @@ Le tableau de bord est composé de tuiles disposées en grille responsive : troi
 
 ## Tuiles
 
-### Instantané OPEX
+### Aperçu OPEX
 
 Un tableau compact couvrant trois exercices fiscaux : l'année dernière (A-1), l'année en cours (A) et l'année prochaine (A+1). Jusqu'à quatre colonnes de valeurs apparaissent selon l'existence de données : **Budget**, **Révision**, **Réalisé** et **Atterrissage prévu**. Tous les montants sont arrondis au millier le plus proche et affichés avec un suffixe « k » (par exemple, `7 846k`).
 
 Cliquez sur **Voir** pour ouvrir la liste OPEX.
 
-### Instantané CAPEX
+### Aperçu CAPEX
 
-Même disposition et formatage que l'instantané OPEX, mais basé sur vos données de dépenses d'investissement.
+Même disposition et formatage que l'aperçu OPEX, mais basé sur vos données de dépenses d'investissement.
 
 Cliquez sur **Voir** pour ouvrir la liste CAPEX.
 
@@ -60,7 +60,7 @@ Les cinq postes OPEX les plus importants de l'année en cours, classés par mont
 
 Cliquez sur **Ouvrir** pour voir le rapport Top OPEX complet.
 
-### Top augmentations (A vs A-1)
+### Plus fortes hausses (A vs A-1)
 
 Les cinq postes OPEX avec la plus forte augmentation de budget par rapport à l'année précédente. Les montants sont arrondis au millier avec un suffixe « k ».
 

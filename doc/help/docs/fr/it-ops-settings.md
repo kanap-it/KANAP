@@ -250,19 +250,6 @@ Catégories qui décrivent la finalité principale de chaque application ou serv
 
 **Conseil** : Personnalisez les catégories pour correspondre à la terminologie de votre organisation. Par exemple, renommez « Métier » en « Applications métier » si c'est ainsi que votre équipe les désigne.
 
-### Classifications de données
-
-Niveaux de classification des données pour les Applications et Interfaces. Vous les modifiez dans l'éditeur **Classifications et continuité**, sous **Confidentialité des données**.
-
-**Colonnes** : Nom, Description, Ne plus proposer
-
-**Codes verrouillés** : Les niveaux intégrés (Public, Interne, Confidentiel, Restreint) ne peuvent pas être supprimés ni rendus obsolètes.
-
-**Où c'est utilisé** :
-- Espace de travail Applications > Onglet Conformité > Champ **Classification données**
-- Espace de travail Interfaces > Onglet Vue d'ensemble > Champ **Classification données**
-- Liste Applications > Colonne **Classification données**
-
 ### Classifications et continuité
 
 Cet éditeur configure les niveaux utilisés pour classifier les applications. Il est disponible aux utilisateurs `settings:admin` en haut de la page et s'ouvre dans une seule boîte de dialogue, avec une liste par catalogue :
@@ -279,6 +266,15 @@ Cet éditeur configure les niveaux utilisés pour classifier les applications. I
 Les codes sont générés à partir des noms et ne sont jamais affichés ; les règles de nommage ci-dessus s'appliquent.
 
 Les niveaux business alimentent aussi la criticité opérationnelle des interfaces et des connexions. Les dérivations incomplètes sont signalées comme telles ; elles ne sont pas traitées comme le niveau le plus faible.
+
+#### Confidentialité des données
+
+La liste **Confidentialité des données** contient les classes de données utilisées par les applications et les interfaces. Les niveaux intégrés (Public, Interne, Confidentiel, Restreint) ne peuvent pas être supprimés ni rendus obsolètes.
+
+**Où c'est utilisé** :
+- Espace de travail Applications > Onglet Conformité > Champ **Classification données**
+- Espace de travail Interfaces > Onglet Vue d'ensemble > Champ **Classification données**
+- Liste Applications > Colonne **Classification données**
 
 ### Modèles d'intégration
 
@@ -381,7 +377,6 @@ Cette approche vous permet de faire évoluer votre taxonomie au fil du temps san
 | **Catégories d'application** | Applications (Catégorie) |
 | **Fournisseurs cloud** | Actifs (Fournisseur), Sites (Fournisseur cloud) |
 | **Types de connexion** | Connexions (Type de connexion) |
-| **Classes de données** | Applications (Onglet Conformité), Interfaces (Vue d'ensemble), Liste Applications |
 | **Domaines** | Actifs (Onglet Technique > Domaine, FQDN) |
 | **Entités** | Connexions (Entité source/cible), Carte des connexions (placement par niveau du graphe) |
 | **Types d'hébergement** | Sites (Vue d'ensemble) |

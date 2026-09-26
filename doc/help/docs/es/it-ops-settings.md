@@ -250,19 +250,6 @@ Categorías que describen el propósito principal de cada aplicación o servicio
 
 **Consejo**: Personalice las categorías para que coincidan con la terminología de su organización. Por ejemplo, renombre "Línea de negocio" a "Aplicaciones de negocio" si así las denomina su equipo.
 
-### Clases de datos
-
-Niveles de clasificación de datos para Aplicaciones e Interfaces. Se editan en el editor **Clasificaciones y continuidad**, en **Confidencialidad de los datos**.
-
-**Columnas**: Nombre, Descripción, Dejar de proponer
-
-**Códigos bloqueados**: Los niveles integrados (Público, Interno, Confidencial, Restringido) no pueden eliminarse ni marcarse como obsoletos.
-
-**Dónde se usa**:
-- Espacio de trabajo de Aplicaciones → pestaña Conformidad → campo **Clase de datos**
-- Espacio de trabajo de Interfaces → pestaña Visión general → campo **Clase de datos**
-- Lista de Aplicaciones → columna **Clase de datos**
-
 ### Clasificaciones y continuidad
 
 Este editor configura los niveles utilizados para clasificar las aplicaciones. Está disponible para usuarios `settings:admin` en la parte superior de la página y se abre como un único cuadro de diálogo con una lista por catálogo:
@@ -279,6 +266,15 @@ Este editor configura los niveles utilizados para clasificar las aplicaciones. E
 Los códigos se generan a partir de los nombres y nunca se muestran; se aplican las reglas de nombres indicadas arriba.
 
 Los niveles de negocio también alimentan la criticidad operativa de interfaces y conexiones. Las derivaciones incompletas se señalan como tales; no se tratan como el nivel más bajo.
+
+#### Confidencialidad de los datos
+
+La lista **Confidencialidad de los datos** contiene las clases de datos que usan las aplicaciones y las interfaces. Los niveles integrados (Público, Interno, Confidencial, Restringido) no pueden eliminarse ni marcarse como obsoletos.
+
+**Dónde se usa**:
+- Espacio de trabajo de Aplicaciones → pestaña Conformidad → campo **Clase de datos**
+- Espacio de trabajo de Interfaces → pestaña Visión general → campo **Clase de datos**
+- Lista de Aplicaciones → columna **Clase de datos**
 
 ### Patrones de integración
 
@@ -381,7 +377,6 @@ Este enfoque le permite evolucionar su taxonomía con el tiempo sin romper los r
 | **Categorías de aplicación** | Aplicaciones (Categoría) |
 | **Proveedores cloud** | Activos (Proveedor), Ubicaciones (Proveedor cloud) |
 | **Tipos de conexión** | Conexiones (Tipo de conexión) |
-| **Clases de datos** | Aplicaciones (pestaña Conformidad), Interfaces (Visión general), Lista de aplicaciones |
 | **Dominios** | Activos (pestaña Técnico → Dominio, FQDN) |
 | **Entidades** | Conexiones (Entidad de origen/destino), Mapa de conexiones (ubicación por nivel del grafo) |
 | **Tipos de alojamiento** | Ubicaciones (Visión general) |
