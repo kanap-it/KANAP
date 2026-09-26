@@ -20,12 +20,14 @@ Die Startseite der Portfolio-Berichte listet verfügbare Portfolio-Berichte als 
 **Was passiert ist**
 - **Periodenrückblick**: Anfragen, Projekte und Aufgaben, die in einem Zeitraum erstellt, geändert und geschlossen wurden.
 - **Aktivität nach Person**: dieselbe Seite, geöffnet auf ihrer Sicht der Aufgaben nach Person.
+- **Erfasste Zeit**: wohin die erfassten Tage gehen, Monat für Monat: Projekte oder andere Arbeit, Team für Team.
 
 **Was gerade läuft**
 - **Fluss und Alter**: was Woche für Woche hinzukommt und abgeschlossen wird, wie alt die offene Arbeit ist und wie lange ein Abschluss dauert.
 - **Handlungsbedarf nach Mitwirkenden**: offene, überfällige und liegengebliebene Aufgaben, Team für Team und Person für Person.
 
 **Was als Nächstes kommt**
+- **Demnächst**: fällig werdende Aufgaben, geplante Projektenden und -starts, zu lange wartende Anfragen und gewünschte Liefertermine.
 - **Kapazitäts-Heatmap**: erwarteter Aufwand im Vergleich zur Kapazität, für Mitwirkende und Teams.
 
 ---
@@ -92,6 +94,33 @@ Ein fehlender Stream wird nur gezählt, wenn das Element bereits eine Kategorie 
 Jede Zahl über null ist ein Link. Ein Klick öffnet die passende Liste, bereits auf genau die Elemente hinter der Zahl gefiltert, über den gesamten Mandanten. Die Gesamtzahl der Liste entspricht der angeklickten Zahl. Nullen werden zur Einordnung angezeigt, sind aber nicht anklickbar.
 
 Fehlt nichts, zeigt der Streifen eine einzige Zeile, die bestätigt, dass alles Offene klassifiziert ist.
+
+---
+
+## Demnächst
+
+Mit diesem Bericht sehen Sie, was bald fällig ist und was schon zu lange wartet. Es ist der einzige Bericht, der nach vorne blickt: Der Periodenrückblick liest die Vergangenheit, der Flussbericht und die Handlungsbedarf-Blöcke lesen die Gegenwart.
+
+### Was der Bericht zeigt
+
+Die Seite hat fünf Abschnitte. Jeder zeigt, wie viele Elemente er enthält, eine nach Datum sortierte Tabelle und einen Zeitraum, den Sie rechts neben dem Titel ändern können.
+
+- **Geplante Projektenden**: offene Projekte, deren geplantes Ende zwischen heute und dem Ende des Zeitraums liegt. Zeitraum: 30 (Standard), 60 oder 90 Tage. Projekte, deren geplantes Ende bereits überschritten ist, bleiben im Flussbericht; eine Zeile nennt ihre Anzahl und öffnet ihn.
+- **Geplante Projektstarts**: Projekte, die noch auf Warteliste oder Geplant stehen und deren geplanter Start in denselben Zeitraum fällt.
+- **Anträge in Prüfung**: Anfragen, die noch im Status Prüfung ausstehend sind und vor mindestens 14, 30 (Standard) oder 60 Tagen erstellt wurden. Anfragen im Status Kandidat, Genehmigt und Pausiert wurden bereits entschieden und erscheinen daher hier nicht.
+- **Gewünschte Liefertermine**: offene Anfragen (Prüfung ausstehend, Kandidat, Genehmigt, Pausiert), deren gewünschtes Lieferdatum in den Projektzeitraum fällt.
+- **Fällige Aufgaben**: offene Aufgaben (Offen, In Bearbeitung, Ausstehend, Im Test), die zwischen heute und dem Ende des Zeitraums fällig sind, beide Tage eingeschlossen. Zeitraum: 7, 14 (Standard) oder 30 Tage. Wie in den anderen Berichten zählen nur eigenständige Aufgaben und Projektaufgaben. Eine Zeile unter dem Titel nennt die Anzahl der bereits überfälligen Aufgaben, mit einem Link dorthin.
+
+Der Projektzeitraum wird gemeinsam genutzt: Wenn Sie ihn in einem der drei Abschnitte ändern, die ihn verwenden, ändert er sich in allen dreien. Die Seite merkt sich Ihre Zeiträume und die eingeklappten Abschnitte.
+
+### Filter
+
+- **Projekt**: die Aufgaben dieser Projekte, die Projekte selbst und die mit ihnen verknüpften Anfragen.
+- **Team**: Aufgaben, die einem Mitglied des Teams zugewiesen sind, sowie Projekte und Anfragen, an denen ein Mitglied beteiligt ist.
+
+### Die Liste öffnen
+
+Jede Zahl über null ist ein Link. Sie öffnet die Aufgaben-, Projekt- oder Anfragenliste, gefiltert auf genau die Elemente des Abschnitts und mit denselben Projekt- und Teamfiltern, sodass die Summe der Liste der Zahl entspricht. Der Bericht hat keinen Export: Die Listen lassen sich bereits exportieren.
 
 ---
 
@@ -233,6 +262,37 @@ Die Geändert-Listen ergänzen am Ende die Spalte **Änderungen**.
 - **XLSX**: drei Blätter, Requests, Projects und Tasks. Die Zeilen laufen von den Erstellungen über die Änderungen zu den Abschlüssen, mit einer führenden Spalte **Event**, die angibt, aus welcher Liste eine Zeile stammt. Die Namenszelle verweist zurück auf das Element.
 
 Beide Exporte enthalten die Referenz, das Unternehmen, die Herkunft eines Projekts, die Änderungen einer geänderten Zeile und das Datum des Ereignisses. Die geschlossenen Zeilen tragen zusätzlich den Erstellungstag.
+
+## Erfasste Zeit
+
+Erfasste Tage Monat für Monat, für Projekte oder andere Arbeit, Team für Team und Person für Person. Der Bericht zeigt, wie sich die Arbeitslast verteilt, nicht wer am meisten erfasst: Teams behalten ihre konfigurierte Reihenfolge, und Personen sind alphabetisch sortiert.
+
+### Woher die Tage stammen
+
+Der Bericht liest jeden Zeiteintrag: die auf Aufgaben erfasste Zeit und die direkt auf einem Projekt erfasste Zeit. Ein Tag entspricht 8 Stunden, die Zahlen haben eine Nachkommastelle. Jeder Eintrag fällt in den Monat seines Datums, in Ihrer eigenen Zeitzone.
+
+- **Projekttage**: Zeit, die auf einer Aufgabe eines Projekts oder direkt auf einem Projekt erfasst wurde.
+- **Andere Tage**: alle übrige Zeit, etwa auf eigenständigen Aufgaben.
+
+Wählen Sie **6 Monate** oder **12 Monate**. Der aktuelle Monat ist immer der letzte. Die Seite merkt sich Ihre Wahl.
+
+### Was der Bericht zeigt
+
+- **Kacheln**: Projekttage, andere Tage, die Summe, der Projektanteil und die Anzahl der Mitwirkenden, die im Zeitraum nichts erfasst haben. Arbeit außerhalb von Projekten wird oft seltener erfasst als Projektarbeit, und diese letzte Kachel erinnert daran.
+- **Diagramm**: Projekttage und andere Tage gestapelt, Monat für Monat.
+- **Tabelle**: eine Zeile pro Team, eine Spalte pro Monat. Jede Zelle zeigt die erfassten Tage, darunter Projekttage / andere Tage. Klappen Sie ein Team auf, um seine Personen zu sehen. Ein Mitwirkender, der nichts erfasst hat, erscheint trotzdem, mit leeren Zellen. Personen ohne Team sind unter **Kein Team** gruppiert. Zeit ohne zugeordnete Person erscheint dort als **Unbekannter Benutzer**.
+
+Der Bericht zeigt nur Tage. Er zeigt nie die Notizen eines Eintrags.
+
+### Filter
+
+- **Team**: die Personen der ausgewählten Teams.
+- **Projekt**: nur die Zeit, die auf den ausgewählten Projekten erfasst wurde, auf ihren Aufgaben oder direkt. Andere Tage sind dann null.
+
+### Exporte
+
+- **CSV**: eine Zeile pro Person und Monat, mit dem Team, der Person, dem Monat, den Projekttagen, den anderen Tagen und der Summe.
+- **PNG**: das Diagramm.
 
 ## Tipps
 - **Mitwirkenden-Profile aktuell halten**: Die Kapazität basiert auf der Verfügbarkeit und den historischen Zeitstatistiken der Mitwirkenden.

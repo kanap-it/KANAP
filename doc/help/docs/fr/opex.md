@@ -14,7 +14,7 @@ Rendez-vous dans **Gestion budgétaire > OPEX** pour voir votre liste. Cliquez s
   - **Devise** : Code ISO (ex. : USD, EUR). Par défaut la devise de votre espace de travail ; modifiable par poste
   - **Société payeuse** : Quelle société paie le fournisseur (obligatoire pour la comptabilité)
   - **Compte** : Le compte du grand livre pour cette dépense. Seuls les comptes du plan comptable de la société payeuse apparaissent
-  - **Date de début effective** : Quand cette dépense commence (JJ/MM/AAAA)
+  - **Début d'effet** : Quand cette dépense commence (JJ/MM/AAAA)
 
 **Optionnel mais utile** :
   - **Description** : Contexte ou notes supplémentaires sur la dépense
@@ -112,7 +112,7 @@ Cet onglet affiche toutes les informations générales sur le poste de dépense.
   - **Devise** (par défaut la devise de l'espace de travail ; affiche uniquement les devises autorisées)
   - **Société payeuse** (autocomplétion depuis vos Sociétés ; obligatoire)
   - **Compte** (filtré par le plan comptable de la société payeuse ; obligatoire)
-  - **Début effectif** (champ de date)
+  - **Début d'effet** (champ de date)
   - **Responsable IT** et **Responsable métier** (autocomplétion depuis les utilisateurs actifs)
   - **Catégorie analytique** (autocomplétion ; crée de nouvelles catégories à la volée)
   - **Notes**
@@ -224,10 +224,19 @@ L'onglet Tâches vous aide à suivre les actions et relances liées à ce poste 
   - Cliquez sur un titre de tâche pour ouvrir l'espace de travail complet de la tâche
   - Le filtre par défaut affiche les tâches actives (masque terminées et annulées)
 
+**Filtrage** :
+  - Cliquez sur l'icône de filtre pour afficher ou masquer les contrôles de filtre
+  - **Filtre de statut** : Tous, Actifs (masque terminées/annulées), Ouvert, En cours, En attente, En test, Terminé ou Annulé
+  - Cliquez sur le bouton de réinitialisation pour effacer les filtres
+
 **Création d'une tâche** :
   - Cliquez sur **Ajouter une tâche** pour ouvrir l'espace de travail de création de tâche
   - La tâche est automatiquement liée à ce poste OPEX
   - Remplissez le titre, la description, la priorité, le responsable et la date d'échéance dans l'espace de travail de la tâche
+
+**Suppression d'une tâche** :
+  - Cliquez sur l'icône de suppression dans la colonne Actions
+  - Confirmez la suppression dans la boîte de dialogue
 
 **Remarques** :
   - Les tâches sont des objets indépendants avec leurs propres autorisations (`tasks:member` pour créer/modifier)
@@ -245,27 +254,41 @@ L'onglet Relations lie ce poste OPEX aux objets associés : Projets, Application
 **Projets** :
   - Utilisez l'autocomplétion pour lier un ou plusieurs projets depuis votre Portefeuille
   - Cela aide à regrouper les dépenses par projet dans les rapports et permet la comptabilité projet
+  - Retirez un projet en cliquant sur le X de sa puce, puis enregistrez
 
 **Applications** :
   - Utilisez l'autocomplétion pour lier une ou plusieurs applications depuis votre catalogue IT
+  - Les noms des applications liées apparaissent sous forme de puces cliquables qui ouvrent l'espace de travail de l'application
   - Cela aide à suivre quels postes OPEX financent quelles applications ou services
 
 **Contrats** :
   - Utilisez l'autocomplétion pour lier un ou plusieurs contrats
   - Lorsqu'ils sont liés, le nom du contrat apparaît dans la colonne **Contrat** de la liste OPEX pour référence rapide
+  - Un contrat peut être lié à plusieurs postes OPEX (relation plusieurs-à-plusieurs)
+  - Retirez un contrat en cliquant sur le X de sa puce, puis enregistrez
 
 **Contacts** :
   - Ajoutez des contacts fournisseurs liés à ce poste de dépense
   - Chaque contact a un **Rôle** (Commercial, Technique, Support ou Autre)
+  - Les contacts peuvent provenir de la liste de contacts du fournisseur ou être ajoutés manuellement
+  - Utile pour savoir qui contacter pour les renouvellements, les incidents de support ou les négociations
 
 **Sites web pertinents** :
-  - Ajoutez des URL liées à ce poste (ex. : portails fournisseurs, documentation, consoles d'administration)
-  - Chaque lien a un champ **Description** optionnel
+  - Ajoutez des URL liées à ce poste (ex. : portails fournisseurs, documentation, consoles d'administration, wikis internes)
+  - Chaque lien a un champ **Description** optionnel pour le contexte
+  - Cliquez sur **Ajouter une URL** pour ajouter d'autres liens
 
 **Pièces jointes** :
-  - Téléversez des fichiers liés à ce poste (ex. : contrats, factures, devis, cahiers des charges)
-  - Glissez-déposez ou cliquez sur **Sélectionner des fichiers**
+  - Téléversez des fichiers liés à ce poste (ex. : contrats, factures, devis, cahiers des charges, spécifications techniques)
+  - Glissez-déposez des fichiers dans la zone de pièces jointes, ou cliquez sur **Sélectionner des fichiers** pour parcourir
+  - Tous les fichiers sont stockés de manière sécurisée et se téléchargent en cliquant sur leur nom
+  - Supprimez une pièce jointe en cliquant sur le X de sa puce (nécessite `opex:manager`)
   - Les pièces jointes sont enregistrées immédiatement lors du téléversement (pas besoin de cliquer sur **Enregistrer**)
+
+**Enregistrement** :
+  - **Projets**, **Applications**, **Contrats**, **Sites web pertinents** : Enregistrés lorsque vous cliquez sur **Enregistrer** en haut de l'espace de travail
+  - **Contacts** : Gérés en ligne (l'ajout et le retrait s'enregistrent immédiatement)
+  - **Pièces jointes** : Enregistrées immédiatement lors du téléversement
 
 **Conseil** : Liez les contrats pour suivre les renouvellements à travers plusieurs postes OPEX. Ajoutez les URL de portails fournisseurs pour un accès rapide. Téléversez les devis et factures en pièces jointes pour centraliser toute la documentation liée aux dépenses.
 
@@ -281,19 +304,100 @@ Vous pouvez charger en masse les postes OPEX via CSV pour accélérer la configu
      - **Modèle** : En-têtes uniquement (utilisez-le pour créer un CSV vierge à remplir)
      - **Données** : Tous les postes OPEX actuels avec les budgets pour A-1, A et A+1
 
+**Structure du CSV** :
+  - Séparateur : point-virgule `;` (pas de virgule)
+  - Encodage : UTF-8 (enregistrez au format « CSV UTF-8 » dans Excel)
+  - En-têtes : `product_name;description;supplier_name;company_name;account_number;currency;effective_start;status;disabled_at;owner_it_email;owner_business_email;analytics_category;notes;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget;y_plus1_revision`
+  - `disabled_at` est la fin de validité : la date à laquelle le poste s'arrête. Indiquez une date (`2026-12-31`) ou une date avec heure. Laissez vide s'il n'y a pas de fin
+  - Les anciens fichiers avec une colonne `effective_end` s'importent toujours : sa date alimente la fin de validité lorsque `disabled_at` est vide
+
 **Import** :
   1. Cliquez sur **Import CSV** dans la liste OPEX
   2. Téléversez votre fichier CSV (glisser-déposer ou sélecteur de fichiers)
-  3. Cliquez sur **Vérification préalable** pour valider
-  4. Examinez le rapport de vérification
-  5. Si OK, cliquez sur **Charger** pour importer
+  3. Cliquez sur **Vérification** pour valider :
+     - Les en-têtes correspondent exactement
+     - Les fournisseurs, comptes et utilisateurs existent dans votre espace de travail
+     - Les champs obligatoires (product_name, currency, effective_start, paying_company) sont présents
+     - Aucune combinaison product_name + fournisseur en double
+  4. Examinez le rapport de vérification (il affiche les totaux et jusqu'à 5 exemples d'erreurs)
+  5. Si tout est correct, cliquez sur **Charger** pour importer
 
 **Remarques importantes** :
   - **Clé unique** : Les postes OPEX sont identifiés par `(product_name, supplier_name)`. Si une combinaison existe déjà, elle est **ignorée** (pas de mise à jour)
-  - **Insertion uniquement** : L'importateur ne crée que de nouveaux postes ; il ne mettra pas à jour les existants. Utilisez l'interface pour modifier les postes existants
+  - **Insertion uniquement** : L'importateur ne crée que de nouveaux postes ; il ne met pas à jour les existants. Utilisez l'interface pour modifier les postes existants
   - **Références** : `supplier_name` doit correspondre à un Fournisseur par nom (insensible à la casse). `account_number` doit correspondre à un Compte. `owner_it_email` et `owner_business_email` doivent correspondre à des utilisateurs actifs par e-mail
+  - **Catégorie analytique** : Si la catégorie n'existe pas, elle est créée automatiquement pendant l'import
+  - **Budgets** : Les colonnes budgétaires alimentent les versions A-1, A et A+1. Les montants sont répartis uniformément sur 12 mois (mode forfaitaire)
 
-**Conseil** : Commencez par l'export du modèle, remplissez quelques lignes, et lancez une vérification préalable pour attraper les erreurs tôt. Corrigez les erreurs dans le CSV et re-téléversez jusqu'à ce que la vérification passe, puis chargez.
+**Erreurs courantes** :
+  - **« Fournisseur introuvable »** : Créez d'abord le fournisseur dans **Données de référence > Fournisseurs**, puis relancez l'import
+  - **« Compte introuvable »** : Ajoutez le compte dans **Données de référence > Plans comptables**, puis relancez l'import
+  - **« Devise invalide »** : Utilisez des codes ISO à 3 lettres (USD, EUR, GBP) autorisés dans les paramètres de devise de votre espace de travail
+  - **« En-têtes non conformes »** : Téléchargez un modèle récent ; les en-têtes doivent correspondre exactement (ordre compris)
+
+**Conseil** : Commencez par l'export du modèle, remplissez quelques lignes et lancez une vérification pour détecter les erreurs tôt. Corrigez les erreurs dans le CSV et téléversez-le à nouveau jusqu'à ce que la vérification passe, puis chargez.
+
+---
+
+## Statut et cycle de vie
+
+Chaque poste OPEX a un **statut** (Activé ou Désactivé) et une **Fin de validité** optionnelle qui détermine quand il apparaît dans les rapports et les listes de sélection. C'est la seule date de fin d'un poste.
+
+**Fonctionnement** :
+  - **Activé** : Le poste est actif et apparaît partout (listes, rapports, ventilations)
+  - **Fin de validité** : La date à laquelle le poste s'arrête. Laissez-la vide s'il n'y a pas de fin
+  - Après la fin de validité :
+    - Le poste n'apparaît plus dans les listes de sélection pour de nouveaux contrats ou ventilations
+    - Il est exclu des rapports pour les années strictement postérieures à la fin de validité
+    - Les données historiques restent intactes ; le poste apparaît toujours dans les rapports couvrant les années où il était actif
+
+**Définir le statut** :
+  - À la création du poste, vous pouvez définir sa **Fin de validité** dans le panneau **Propriétés**
+  - Ensuite, utilisez la bascule **Activé** ou modifiez la **Fin de validité** dans le panneau **Propriétés**
+  - Vous pouvez programmer une fin de validité future (utile pour les postes dont le contrat arrive à échéance)
+
+**Afficher les postes désactivés** :
+  - Par défaut, la liste OPEX n'affiche que les postes **Activés**
+  - Utilisez la bascule **Afficher : Désactivé** ou **Afficher : Tous** pour voir les postes désactivés
+
+**Désactiver ou supprimer** :
+  - **Privilégiez la désactivation** : Elle préserve l'historique, garantit la cohérence des rapports et conserve la piste d'audit
+  - **Supprimez uniquement si** : Le poste a été créé par erreur et n'a ni budget, ni ventilation, ni tâche
+  - La suppression est protégée : vous ne pouvez pas supprimer un poste référencé par des contrats ou des tâches, ou qui a des données budgétaires
+
+**Conseil** : Utilisez la Fin de validité pour clore les postes OPEX lorsque les contrats se terminent ou que les services sont arrêtés. Ne supprimez qu'en cas de véritable erreur.
+
+---
+
+## Conseils et bonnes pratiques
+
+1. **Commencez simple** : Créez les postes avec juste l'essentiel (nom du produit, fournisseur, société payeuse, compte), puis ajoutez les budgets et ventilations au fur et à mesure que vous planifiez.
+
+2. **Utilisez la méthode de ventilation par défaut** : Pour la plupart des postes, Effectif (Par défaut) suffit. Réservez les ventilations manuelles aux dépenses qui ne bénéficient qu'à des sociétés ou départements spécifiques.
+
+3. **Liez les contrats** : Si vous gérez les dépenses via des contrats, liez-les dans l'onglet Relations. Cela facilite le suivi des renouvellements.
+
+4. **Liez les applications** : Associez les postes OPEX aux applications ou services qu'ils financent. Vous obtenez une correspondance claire entre coûts et applications.
+
+5. **Téléversez la documentation** : Utilisez les Pièces jointes pour stocker les contrats fournisseurs, devis, factures et cahiers des charges.
+
+6. **Ajoutez les liens des portails fournisseurs** : Utilisez les Sites web pertinents pour pointer vers les consoles d'administration, les portails de support et la documentation des fournisseurs.
+
+7. **Suivez les contacts** : Ajoutez les contacts fournisseurs avec leur rôle (Commercial, Technique, Support) pour que votre équipe sache qui appeler pour chaque poste de dépense.
+
+8. **Exploitez les catégories analytiques** : Classez les postes par catégorie (Infrastructure, Apps métier, Sécurité) pour regrouper les dépenses dans les rapports.
+
+9. **Maintenez les métriques des sociétés à jour** : Les ventilations dépendent de l'effectif, des utilisateurs IT et du chiffre d'affaires des sociétés. Des métriques obsolètes causent des erreurs de ventilation.
+
+10. **Utilisez le CSV pour la configuration en masse** : Si vous migrez depuis un autre système ou avez des centaines de postes, commencez par l'import CSV. Exportez un modèle, remplissez-le et lancez la vérification avant de charger.
+
+11. **Désactivez, ne supprimez pas** : Préservez l'historique en désactivant les postes lorsqu'ils ne sont plus actifs. Ne supprimez qu'en cas d'erreur.
+
+12. **Vérifiez la ligne de totaux** : Avant de finaliser les budgets, vérifiez la ligne de totaux épinglée dans la liste pour vous assurer que vos dépenses s'additionnent comme prévu.
+
+13. **Utilisez les liens profonds** : Cliquez directement sur une colonne budgétaire dans la liste pour accéder à l'onglet Budget de cette année. Cliquez sur la colonne Tâche pour accéder aux Tâches. Vous gagnez du temps de navigation.
+
+14. **Gelez les budgets après la clôture de fin d'année** : Utilisez l'Administration budgétaire pour geler les budgets de l'année précédente une fois le réalisé finalisé, ce qui empêche les modifications accidentelles.
 
 ---
 
@@ -309,20 +413,13 @@ De plus :
 - Les tâches ont des autorisations séparées (`tasks:member` pour créer/modifier des tâches sur les postes OPEX)
 - Les utilisateurs avec `tasks:reader` peuvent consulter les tâches mais ne peuvent pas les créer ou les modifier
 
-Si vous ne pouvez pas effectuer une action (ex. : le bouton **Import CSV** est manquant, impossible de téléverser des pièces jointes), vérifiez auprès de l'administrateur de votre espace de travail pour revoir les autorisations de votre rôle.
+Si vous ne pouvez pas effectuer une action (ex. : le bouton **Import CSV** est manquant, impossible de téléverser des pièces jointes), demandez à l'administrateur de votre espace de travail de revoir les autorisations de votre rôle.
 
 ---
 
-## Conseils et bonnes pratiques
+## Besoin d'aide ?
 
-1. **Commencez simple** : Créez les postes avec juste l'essentiel (nom du produit, fournisseur, société payeuse, compte), puis ajoutez les budgets et ventilations au fur et à mesure que vous planifiez.
-2. **Utilisez la méthode de ventilation par défaut** : Pour la plupart des postes, Effectif (Par défaut) suffit. Réservez les ventilations manuelles pour les dépenses ne bénéficiant qu'à des sociétés ou départements spécifiques.
-3. **Liez les contrats** : Si vous gérez les dépenses via des contrats, liez-les dans l'onglet Relations. Cela facilite le suivi des renouvellements.
-4. **Liez les applications** : Associez les postes OPEX aux applications ou services qu'ils financent. Cela fournit un mapping clair coût-vers-application.
-5. **Téléversez la documentation** : Utilisez la fonctionnalité Pièces jointes pour stocker les contrats fournisseurs, devis, factures et cahiers des charges.
-6. **Maintenez les métriques des sociétés à jour** : Les ventilations dépendent de l'effectif, des utilisateurs IT et du chiffre d'affaires des sociétés. Des métriques obsolètes causent des erreurs de ventilation.
-7. **Utilisez le CSV pour la configuration en masse** : Si vous migrez depuis un autre système ou avez des centaines de postes, commencez par l'import CSV.
-8. **Désactivez, ne supprimez pas** : Préservez l'historique en désactivant les postes lorsqu'ils ne sont plus actifs. Ne supprimez que s'il s'agit d'une erreur.
-9. **Vérifiez la ligne de totaux** : Avant de finaliser les budgets, vérifiez la ligne de totaux épinglée dans la liste pour vous assurer que vos dépenses s'additionnent comme prévu.
-10. **Utilisez les liens profonds** : Cliquez directement sur une colonne budgétaire dans la liste pour accéder à l'onglet Budget pour cette année. Cliquez sur la colonne Tâche pour accéder aux Tâches. Cela fait gagner du temps de navigation.
-11. **Gelez les budgets après la clôture de fin d'année** : Utilisez l'Administration budgétaire pour geler les budgets de l'année précédente une fois le réalisé finalisé, empêchant les modifications accidentelles.
+- **Problèmes de CSV** : Téléchargez un modèle récent, vérifiez l'encodage UTF-8 et lancez la vérification pour voir le détail des erreurs
+- **Erreurs de ventilation** : Vérifiez que toutes les sociétés ont les métriques requises (effectif, utilisateurs IT, chiffre d'affaires) pour l'année sélectionnée
+- **Avertissement de compte obsolète** : Le compte n'appartient pas au plan comptable de la société payeuse ; choisissez un autre compte
+- **Boutons ou onglets manquants** : Votre rôle n'a peut-être pas le niveau d'autorisation requis (manager ou admin). Contactez l'administrateur de votre espace de travail

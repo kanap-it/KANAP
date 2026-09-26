@@ -20,12 +20,14 @@ La página de Informes del portafolio lista los informes disponibles como tarjet
 **Lo que ha pasado**
 - **Balance del periodo**: solicitudes, proyectos y tareas creadas, modificadas y cerradas en un periodo.
 - **Actividad por persona**: la misma página, abierta en su lectura de las tareas por persona.
+- **Tiempo registrado**: a dónde van los días registrados, mes a mes: proyectos u otro trabajo, equipo por equipo.
 
 **Lo que está en curso**
 - **Flujo y antigüedad**: lo que entra y lo que se cierra semana tras semana, la antigüedad del trabajo abierto y el tiempo que lleva cerrar.
 - **Puntos de atención por colaborador**: las tareas abiertas, atrasadas y sin movimiento, equipo por equipo y persona por persona.
 
 **Lo que viene**
+- **Próximamente**: las tareas que vencen, los finales e inicios de proyecto previstos, las solicitudes que esperan revisión desde hace demasiado tiempo y las entregas solicitadas.
 - **Mapa de calor de capacidad**: el esfuerzo esperado frente a la capacidad, para colaboradores y equipos.
 
 ---
@@ -92,6 +94,33 @@ Una Línea ausente solo se cuenta cuando el elemento ya tiene una Categoría y e
 Cada cifra mayor que cero es un enlace. Al hacer clic se abre la lista correspondiente, ya filtrada exactamente por los elementos detrás de la cifra, en todo el espacio de trabajo. El total de la lista coincide con la cifra en la que hizo clic. Los ceros se muestran como contexto pero no son enlaces.
 
 Cuando no falta nada, la franja muestra una sola línea confirmando que todo lo abierto está clasificado.
+
+---
+
+## Próximamente
+
+Use este informe para ver lo que vence pronto y lo que lleva demasiado tiempo esperando. Es el único informe que mira hacia delante: el balance del periodo lee el pasado, el informe de flujo y los bloques de atención leen el presente.
+
+### Qué muestra
+
+La página tiene cinco secciones. Cada una indica cuántos elementos contiene, una tabla ordenada por fecha y un horizonte que puede cambiar a la derecha de su título.
+
+- **Finales de proyecto previstos**: proyectos abiertos cuyo fin previsto cae entre hoy y el final del horizonte. Horizonte: 30 (por defecto), 60 o 90 días. Los proyectos que ya superaron su fin previsto se quedan en el informe de flujo; una línea indica su número y lo abre.
+- **Inicios de proyecto previstos**: proyectos aún en Lista de espera o Planificado cuyo inicio previsto cae en el mismo horizonte.
+- **Solicitudes pendientes de revisión**: solicitudes aún en Pendiente de revisión, creadas hace al menos 14, 30 (por defecto) o 60 días. Las solicitudes Candidata, Aprobada y En pausa ya recibieron una decisión, por lo que no aparecen aquí.
+- **Entregas solicitadas**: solicitudes abiertas (Pendiente de revisión, Candidata, Aprobada, En pausa) cuya fecha de entrega solicitada cae en el horizonte de proyectos.
+- **Tareas que vencen**: tareas abiertas (Abierta, En curso, Pendiente, En pruebas) que vencen entre hoy y el final del horizonte, ambos días incluidos. Horizonte: 7, 14 (por defecto) o 30 días. Solo cuentan las tareas independientes y las tareas de proyecto, como en los demás informes. Una línea bajo el título indica el número de tareas ya vencidas, con un enlace a ellas.
+
+El horizonte de proyectos es compartido: cambiarlo en una de las tres secciones que lo usan lo cambia en las tres. La página recuerda sus horizontes y las secciones que ha plegado.
+
+### Filtros
+
+- **Proyecto**: las tareas de esos proyectos, los propios proyectos y las solicitudes vinculadas a ellos.
+- **Equipo**: las tareas asignadas a un miembro del equipo, y los proyectos y solicitudes en los que participa alguno.
+
+### Abrir la lista
+
+Cada cifra mayor que cero es un enlace. Abre la lista de tareas, proyectos o solicitudes filtrada exactamente en los elementos de la sección, con los mismos filtros de proyecto y equipo, de modo que el total de la lista coincide con la cifra. El informe no tiene exportación: las listas ya se exportan.
 
 ---
 
@@ -233,6 +262,37 @@ Las listas de modificaciones añaden la columna **Cambios** al final.
 - **XLSX**: tres hojas, Requests, Projects y Tasks. Las filas van de las creaciones a las modificaciones y después a los cierres, con una columna **Event** inicial que indica de qué lista procede cada fila. La celda del nombre enlaza con el elemento.
 
 Ambas exportaciones llevan la referencia, la empresa, la procedencia de un proyecto, los cambios de una fila modificada y la fecha del evento. Las filas de cierre llevan además el día de creación.
+
+## Tiempo registrado
+
+Días registrados mes a mes, en proyectos o en otro trabajo, equipo por equipo y persona por persona. Muestra cómo se reparte la carga de trabajo, no quién registra más: los equipos conservan su orden configurado y las personas aparecen por orden alfabético.
+
+### De dónde salen los días
+
+El informe lee todos los registros de tiempo: el tiempo registrado en tareas y el tiempo registrado directamente en un proyecto. Un día equivale a 8 horas, y las cifras llevan un decimal. Cada registro cae en el mes de su fecha, en su propia zona horaria.
+
+- **Días de proyecto**: tiempo registrado en una tarea que pertenece a un proyecto, o directamente en un proyecto.
+- **Otros días**: todo el resto del tiempo, por ejemplo las tareas independientes.
+
+Elija **6 meses** o **12 meses**. El mes en curso es siempre el último. La página recuerda su elección.
+
+### Qué muestra
+
+- **Mosaicos**: días de proyecto, otros días, el total, la parte de proyecto y el número de colaboradores que no registraron nada en el periodo. El trabajo fuera de proyectos suele registrarse menos que el trabajo de proyecto, y este último mosaico lo recuerda.
+- **Gráfico**: días de proyecto y otros días apilados, mes a mes.
+- **Tabla**: una fila por equipo, una columna por mes. Cada celda muestra los días registrados, con días de proyecto / otros días debajo. Despliegue un equipo para ver sus personas. Un colaborador que no registró nada aparece igualmente, con celdas vacías. Las personas sin equipo se agrupan en **Sin equipo**. El tiempo registrado sin persona aparece ahí como **Usuario desconocido**.
+
+El informe solo muestra días. Nunca muestra las notas de un registro.
+
+### Filtros
+
+- **Equipo**: las personas de los equipos seleccionados.
+- **Proyecto**: solo el tiempo registrado en los proyectos seleccionados, en sus tareas o directamente. Los otros días valen entonces cero.
+
+### Exportaciones
+
+- **CSV**: una línea por persona y mes, con el equipo, la persona, el mes, los días de proyecto, los otros días y el total.
+- **PNG**: el gráfico.
 
 ## Consejos
 - **Mantenga los perfiles de colaboradores actualizados**: La capacidad se basa en la disponibilidad de colaboradores y estadísticas históricas de tiempo.

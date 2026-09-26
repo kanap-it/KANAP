@@ -74,7 +74,7 @@ Das Grid zeigt nur Konten für den ausgewählten Kontenplan.
 - **Kons. Name**: Der Konsolidierungs-Kontoname.
 
 **Zusätzliche Spalten** (standardmäßig ausgeblendet, über Spaltenauswahl aktivierbar):
-- **Landesname**: Der Kontoname in der Landessprache.
+- **Lokaler Name**: Der Kontoname in der Landessprache.
 - **Beschreibung**: Kontobeschreibung.
 - **Kons. Beschreibung**: Konsolidierungs-Kontobeschreibung.
 - **Status**: Ob das Konto aktiviert oder deaktiviert ist.
@@ -107,7 +107,7 @@ Der Arbeitsbereich hat einen einzelnen **Übersichts**-Tab mit einem Formular zu
 - **Kontenplan**: Der Kontenplan, zu dem dieses Konto gehört (Dropdown aller Kontenpläne in Ihrem Arbeitsbereich).
 - **Kontonummer** (Pflicht): Die Kontonummer.
 - **Kontoname** (Pflicht): Der Kontoname auf Deutsch (oder Ihrer Hauptsprache).
-- **Landesname (Landessprache)**: Der Kontoname in der Landessprache.
+- **Lokaler Name (Landessprache)**: Der Kontoname in der Landessprache.
 - **Beschreibung**: Freitext-Beschreibung.
 - **Konsolidierungs-Kontonummer**: Die standardisierte Konsolidierungs-Kontonummer.
 - **Konsolidierungs-Kontoname**: Der standardisierte Konsolidierungsname.
@@ -167,7 +167,7 @@ Vorlagen sind Standard-Kontensets, die von Plattform-Administratoren verwaltet w
   - Das System zeigt einen Vorprüfungsbericht (wie viele Konten eingefügt/aktualisiert werden)
   - Bestätigen, um Konten in Ihren Kontenplan zu kopieren
 
-**Was kopiert wird**: Kontonummern, Namen, Landesnamen (Landessprache), Beschreibungen, Konsolidierungszuordnungen und Status. Die Konten werden zu Ihren eigenen, die Sie bearbeiten können -- Änderungen an der Plattform-Vorlage wirken sich nicht auf Ihren Kontenplan aus, es sei denn, Sie laden sie explizit neu.
+**Was kopiert wird**: Kontonummern, Namen, lokale Namen (Landessprache), Beschreibungen, Konsolidierungszuordnungen und Status. Die Konten werden zu Ihren eigenen, die Sie bearbeiten können -- Änderungen an der Plattform-Vorlage wirken sich nicht auf Ihren Kontenplan aus, es sei denn, Sie laden sie explizit neu.
 
 **Tipp**: Nach dem Laden einer Vorlage können Sie unternehmensspezifische Konten hinzufügen, Einträge umbenennen oder ungenutzte Konten deaktivieren. Vorlagen bieten einen Ausgangspunkt, keine gesperrte Struktur.
 
@@ -178,7 +178,7 @@ KANAP wird mit **20 vorkonfigurierten Vorlagen** ausgeliefert, die 10 Buchhaltun
 - **v1.0 (Einfach)**: Ein fokussiertes Set von ~20 IT-relevanten Konten -- Softwarelizenzen, Cloud-Hosting, Cybersicherheit, Telekommunikation, Beratung, Personalkosten, Schulung und mehr. Am besten für Organisationen, die einen schlanken Ausgangspunkt wünschen.
 - **v2.0 (Detailliert)**: Alles aus v1.0 plus zusätzliche granulare Unterkonten (~30 Konten). Fügt Aufschlüsselungen wie Gekaufte vs. Intern Entwickelte Software, Netzwerkausrüstung, SaaS vs. Dauerlizenzen, Mobilfunkkommunikation, IT-Boni, IT-Versicherung und mehr hinzu. Am besten für Organisationen, die eine feinere Kostenverfolgung benötigen.
 
-Beide Versionen verwenden **echte Kontonummern aus dem offiziellen Buchhaltungsstandard jedes Landes** und enthalten Landesnamen in der Landessprache.
+Beide Versionen verwenden **echte Kontonummern aus dem offiziellen Buchhaltungsstandard jedes Landes** und enthalten lokale Namen in der Landessprache.
 
 | Vorlagencode | Land | Standard | Konten (v1 / v2) |
 |--------------|------|----------|-------------------|
@@ -219,7 +219,7 @@ Alle Vorlagen -- unabhängig vom Land -- ordnen jedes Konto einem von **14 stand
 | 2800 | Reisen & Mobilität (IT-Projekte) | Projektbezogene Reisen |
 | 2900 | Sonstige IT-Betriebsausgaben | Verschiedene IT-Kosten, Cyber-Versicherung |
 
-**Beispiel**: Ihre französische Tochtergesellschaft lädt **FR-PCG v1.0** und Ihre deutsche Tochtergesellschaft lädt **DE-SKR03 v1.0**. Beide verwenden unterschiedliche lokale Kontonummern und Landesnamen, aber jedes Konto wird der gleichen IFRS-Konsolidierungsstruktur zugeordnet. Konzernberichte aggregieren nahtlos ohne manuelle Zuordnungsarbeit.
+**Beispiel**: Ihre französische Tochtergesellschaft lädt **FR-PCG v1.0** und Ihre deutsche Tochtergesellschaft lädt **DE-SKR03 v1.0**. Beide verwenden unterschiedliche lokale Kontonummern und lokale Namen, aber jedes Konto wird der gleichen IFRS-Konsolidierungsstruktur zugeordnet. Konzernberichte aggregieren nahtlos ohne manuelle Zuordnungsarbeit.
 
 ### Globaler Standard-Kontenplan (Bereitstellung)
 
@@ -258,19 +258,19 @@ Klicken Sie auf **Verwalten** in der Chip-Leiste, um das Administrations-Modal z
 ### Kontonummern
 
 Kontonummern werden als Text gespeichert, enthalten aber typischerweise numerische Werte. Beim Bearbeiten von Konten:
-  - Sie können Zahlen (z. B. `6011`) oder Text (z. B. `6011-REISE`) eingeben
+  - Sie können Zahlen (z. B. `6011`) oder Text (z. B. `6011-TRAVEL`) eingeben
   - Das System konvertiert numerische Eingaben automatisch in Zeichenketten
   - Innerhalb eines Kontenplans sollten Kontonummern eindeutig sein (nach Bereinigung erzwungen)
 
-### Landesnamen für Mehrsprachigkeitsunterstützung
+### Lokale Namen für Mehrsprachigkeit
 
-Einige Länder verlangen, dass Konten in der Landessprache erfasst werden. Verwenden Sie das Feld **Landesname**, um den Originalnamen zu speichern, während der englische Name im Hauptfeld **Kontoname** bleibt.
+Einige Länder verlangen, dass Konten in der Landessprache erfasst werden. Verwenden Sie das Feld **Lokaler Name**, um den Originalnamen zu speichern, während der englische Name im Hauptfeld **Kontoname** bleibt.
 
 **Beispiel**: Französisches Konto
-  - **Kontoname**: `Reisekosten` (Deutsch, für Berichte)
-  - **Landesname**: `Frais de deplacement` (Französisch, für rechtliche Compliance)
+  - **Kontoname**: `Travel expenses` (Englisch, für Berichte)
+  - **Lokaler Name**: `Frais de deplacement` (Französisch, für rechtliche Compliance)
 
-Der Landesname ist als ausgeblendete Spalte im Konten-Grid verfügbar. Aktivieren Sie ihn über die Spaltenauswahl, um beide Namen nebeneinander zu sehen.
+Der lokale Name ist als ausgeblendete Spalte im Konten-Grid verfügbar. Aktivieren Sie ihn über die Spaltenauswahl, um beide Namen nebeneinander zu sehen.
 
 ## Konsolidierungskonten (Konzernberichterstattung)
 
@@ -414,7 +414,7 @@ Der globale `/accounts`-CSV enthält eine `coa_code`-Spalte, um zu identifiziere
 
   - **Export**
       - **Vorlage**: Nur Kopfzeilen (verwenden Sie dies zur Importvorbereitung)
-      - **Daten**: Alle Konten mit ihren Kontenplan-Codes, Kontonummern, Namen, Landesnamen, Beschreibungen, Konsolidierungszuordnungen und Status
+      - **Daten**: Alle Konten mit ihren Kontenplan-Codes, Kontonummern, Namen, lokalen Namen, Beschreibungen, Konsolidierungszuordnungen und Status
   - **Import**
       - Beginnen Sie mit der **Vorprüfung** (validiert Struktur, Kodierung, Pflichtfelder, Duplikate)
       - Wenn die Vorprüfung OK ist, wendet **Laden** Neuanlagen/Aktualisierungen an
@@ -448,9 +448,9 @@ account_number;account_name;native_name;description;consolidation_account_number
 
 ## Tipps
 
-  - **Mit Vorlagen beginnen**: KANAP wird mit Vorlagen für 9 Länder plus IFRS ausgeliefert. Laden Sie eine, anstatt von Grund auf zu bauen -- Sie erhalten korrekte Kontonummern, Landesnamen und IFRS-Konsolidierungszuordnungen direkt. Beginnen Sie mit v1.0 (Einfach), wenn Sie unsicher sind; upgraden Sie auf v2.0 (Detailliert), wenn Sie mehr Granularität benötigen.
+  - **Mit Vorlagen beginnen**: KANAP wird mit Vorlagen für 9 Länder plus IFRS ausgeliefert. Laden Sie eine, anstatt von Grund auf zu bauen -- Sie erhalten korrekte Kontonummern, lokale Namen und IFRS-Konsolidierungszuordnungen direkt. Beginnen Sie mit v1.0 (Einfach), wenn Sie unsicher sind; upgraden Sie auf v2.0 (Detailliert), wenn Sie mehr Granularität benötigen.
   - **Ein Standard pro Land**: Setzen Sie einen Standard-Kontenplan für jedes Land, damit neue Unternehmen automatisch der richtigen Kontenstruktur zugewiesen werden.
-  - **Landesnamen für Compliance**: Verwenden Sie das Feld Landesname, wenn lokale Vorschriften Konten in der Landessprache erfordern. Aktivieren Sie die **Landesname**-Spalte im Grid, um beide Namen auf einen Blick zu sehen.
+  - **Lokale Namen für Compliance**: Verwenden Sie das Feld Lokaler Name, wenn lokale Vorschriften Konten in der Landessprache erfordern. Aktivieren Sie die Spalte **Lokaler Name** im Grid, um beide Namen auf einen Blick zu sehen.
   - **Schrittweise migrieren**: Sie müssen nicht alles auf einmal umstellen. Unternehmen ohne Kontenpläne arbeiten weiterhin mit Legacy-Konten.
   - **Veraltete Konten beheben**: Wenn Sie Warnungen sehen, aktualisieren Sie das Konto, damit es zum aktuellen Kontenplan des Unternehmens passt. Dies hält Ihre Daten für Berichte sauber.
   - **Deaktivieren statt löschen**: Das Deaktivieren von Konten bewahrt die Historie. Löschen Sie nur Konten, die versehentlich erstellt wurden und nie verwendet wurden.
@@ -458,6 +458,67 @@ account_number;account_name;native_name;description;consolidation_account_number
   - **Konsolidierungskonten sind der Schlüssel für Konzerne**: Wenn Sie in mehreren Ländern tätig sind, richten Sie Konsolidierungszuordnungen von Anfang an ein. Dies macht die Konzernberichterstattung mühelos und lässt lokale Benutzer mit vertrauten Konten arbeiten.
   - **IFRS als Konsolidierungsstandard**: Die meisten europäischen Konzerne verwenden IFRS für die Konsolidierung. Alle integrierten Vorlagen ordnen bereits den gleichen 14 IFRS-Konsolidierungskonten zu, sodass die Konzernberichterstattung ohne zusätzlichen Aufwand länderübergreifend funktioniert.
   - **Deep Linking**: Die URL bewahrt Ihren ausgewählten Kontenplan, die Sortierreihenfolge, den Suchtext und die Filter. Teilen oder setzen Sie ein Lesezeichen auf einen Link, um genau die gleiche Ansicht wiederherzustellen.
+
+## Häufige Szenarien
+
+### Szenario 1: Organisation mit mehreren Ländern
+
+Sie haben Tochtergesellschaften in Frankreich, im Vereinigten Königreich und in Deutschland, die jeweils lokale Rechnungslegungsstandards anwenden.
+
+**Einrichtung**:
+  1. Laden Sie drei Vorlagen: **FR-PCG v1.0**, **GB-UKGAAP v1.0**, **DE-SKR03 v1.0** (oder v2.0 für mehr Granularität)
+  2. Legen Sie jede als Standard für ihr Land fest
+  3. Weisen Sie die Unternehmen ihren jeweiligen Kontenplänen zu
+  4. Neue Unternehmen erhalten automatisch den richtigen Kontenplan; die Kontoauswahl wird entsprechend gefiltert
+  5. Die Konsolidierungszuordnungen sind bereits vorhanden, Konzernberichte funktionieren sofort
+
+### Szenario 2: Migration von Legacy-Konten zu einem Kontenplan
+
+Sie haben 50 Konten und 5 Unternehmen, die alle eingerichtet wurden, bevor es Kontenpläne gab.
+
+**Migrationsschritte**:
+  1. Erstellen Sie einen Kontenplan (z. B. `US-GAAP`)
+  2. Exportieren Sie Ihre Konten als CSV
+  3. Fügen Sie allen Zeilen eine Spalte `coa_code` hinzu (z. B. `US-GAAP`)
+  4. Importieren Sie die aktualisierte CSV (die Konten gehören nun zum Kontenplan)
+  5. Weisen Sie den Kontenplan Ihren Unternehmen zu
+  6. Bearbeiten Sie alle OPEX/CAPEX-Positionen, die Warnungen zu veralteten Konten anzeigen
+
+### Szenario 3: Ein Unternehmen auf einen neuen Kontenplan umstellen
+
+Ihre britische Tochtergesellschaft stellt von UK GAAP auf IFRS um.
+
+**Schritte**:
+  1. Erstellen Sie einen neuen Kontenplan: `UK-IFRS` (oder laden Sie ihn aus einer Vorlage)
+  2. Ändern Sie im Übersicht-Tab des Unternehmens den Kontenplan auf `UK-IFRS`
+  3. Ab sofort können Benutzer nur noch Konten aus `UK-IFRS` auswählen
+  4. Bestehende OPEX/CAPEX-Positionen behalten ihre alten Konten, zeigen aber Warnungen an
+  5. Aktualisieren Sie die Positionen nach Bedarf (oder lassen Sie historische Daten unverändert, wenn die Berichterstattung es zulässt)
+
+### Szenario 4: Konzernkonsolidierung einrichten (mehrere Länder)
+
+Ihr Konzern hat Tochtergesellschaften in Frankreich, im Vereinigten Königreich und in Deutschland. Jedes Land verwendet seinen lokalen Rechnungslegungsstandard, Sie benötigen aber eine konsolidierte IFRS-Berichterstattung.
+
+**Einrichtung**:
+  1. Laden Sie Ländervorlagen mit integrierter IFRS-Konsolidierung:
+      - **FR-PCG v1.0**: Französischer Plan Comptable General (20 Konten)
+      - **GB-UKGAAP v1.0**: UK GAAP (20 Konten)
+      - **DE-SKR03 v1.0**: Standardkontenrahmen 03 (20 Konten)
+
+  2. Jedes Konto dieser Vorlagen ist bereits einem der 14 IFRS-Konsolidierungskonten zugeordnet. Zum Beispiel:
+      - FR-PCG `205000` (Logiciels informatiques) -> IFRS `1100` (Immaterielle Vermögenswerte)
+      - GB-UKGAAP `510` (Capitalized Software) -> IFRS `1100` (Immaterielle Vermögenswerte)
+      - DE-SKR03 `27` (EDV-Software) -> IFRS `1100` (Immaterielle Vermögenswerte)
+
+  3. Legen Sie jeden Kontenplan als Standard für sein Land fest und weisen Sie die Unternehmen zu
+
+**Ergebnis**:
+  - Französische Benutzer arbeiten im Alltag mit Konten des französischen PCG und französischen lokalen Namen
+  - Britische Benutzer arbeiten mit UK-GAAP-Konten
+  - Deutsche Benutzer arbeiten mit SKR03-Konten und deutschen lokalen Namen
+  - Die Konzernfinanzabteilung erstellt Berichte nach Konsolidierungskonto und sieht die Gesamtausgaben in IFRS-Kategorien
+  - Keine manuelle Zuordnungsarbeit nötig, die Vorlagen erledigen alles
+  - Lokale gesetzliche Berichterstattung und IFRS-Konzernberichterstattung funktionieren nahtlos aus denselben Daten
 
 ## Häufig gestellte Fragen
 
