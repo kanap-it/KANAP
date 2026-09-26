@@ -162,9 +162,9 @@ El resto de esta guía cubre lo esencial práctico. Para el detalle completo, co
 |----------|---------------|-------------|
 | **Independiente** | Trabajo independiente, no vinculado a nada | **Portafolio > Tareas > Nuevo** |
 | **Proyecto** | Entregable dentro de un proyecto | Espacio de trabajo del Proyecto pestaña **Tareas**, o atajo de fase en **Cronograma** |
-| **OPEX** | Acción vinculada a una partida OPEX | Espacio de trabajo OPEX pestaña **Tareas** |
+| **OPEX** | Acción vinculada a una partida OPEX | Espacio de trabajo OPEX, panel **Tareas** de la pestaña **Vista general** |
 | **Contrato** | Acción vinculada a un contrato | Espacio de trabajo del Contrato pestaña **Tareas** |
-| **CAPEX** | Acción vinculada a una partida CAPEX | Espacio de trabajo CAPEX pestaña **Tareas** |
+| **CAPEX** | Acción vinculada a una partida CAPEX | Espacio de trabajo CAPEX, panel **Tareas** de la pestaña **Vista general** |
 
 Todas las tareas aparecen en la lista central **Portafolio > Tareas** independientemente del contexto, para que siempre tenga un lugar donde ver todo.
 

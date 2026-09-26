@@ -55,7 +55,7 @@ Complete los detalles mínimos para empezar:
 
 Luego use el documento de **Propósito** en **Resumen** para explicar la necesidad de negocio y el resultado esperado en lenguaje llano. Si ya tiene un resumen en Word, use el botón **Importar** en el editor de Propósito para incorporar el archivo `.docx` directamente -- sin necesidad de copiar y pegar.
 
-Haga clic en **Guardar**. Su solicitud entra en el flujo con estado **Pendiente de revisión**.
+Haga clic en **Crear**. Su solicitud entra en el flujo con estado **Pendiente de revisión**.
 
 !!! tip "Consejo"
     Puede añadir análisis más profundo, conocimiento vinculado y evidencia de soporte después. El objetivo ahora es que la solicitud entre en el flujo de recepción gobernado.

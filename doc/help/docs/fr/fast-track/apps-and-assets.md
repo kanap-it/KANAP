@@ -51,7 +51,7 @@ Remplissez l'essentiel :
 | **Criticité** | Importance métier | `Critique métier` |
 | **Cycle de vie** | Statut actuel | `Actif` |
 
-Cliquez sur **Enregistrer**. Votre application est maintenant dans le registre, et l'espace de travail complet s'ouvre avec neuf onglets pour une documentation détaillée.
+Cliquez sur **Créer**. Votre application est maintenant dans le registre, et l'espace de travail complet s'ouvre avec six onglets pour une documentation détaillée : **Vue d'ensemble**, **Déploiements**, **Interfaces**, **Exploitation**, **Conformité** et **Relations**.
 
 !!! tip "Conseil : Commencez avec ce que vous savez"
     Description, éditeur, version, licences -- tout est utile, mais optionnel à ce stade. Vous pourrez enrichir plus tard. L'objectif est d'enregistrer l'app dans le système.
@@ -189,7 +189,7 @@ Une fois un site sélectionné, plusieurs **champs en lecture seule** sont autom
 !!! info "Information : Le site est la clé"
     Le site détermine automatiquement de nombreux attributs de votre actif. Les sites sont gérés dans **Cartographie SI > Sites** -- configurez-les une fois et chaque actif qui leur est assigné hérite du type d'hébergement, du fournisseur, du pays et de la ville. Vous n'avez pas besoin de les remplir manuellement.
 
-Cliquez sur **Enregistrer** pour déverrouiller l'espace de travail complet. Pour les types d'actifs physiques, des onglets supplémentaires **Matériel** et **Support** deviennent disponibles pour suivre les numéros de série, les détails du fabricant et les contrats de support fournisseur.
+Cliquez sur **Créer** pour déverrouiller l'espace de travail complet. Pour les types d'actifs physiques, des onglets supplémentaires **Matériel** et **Support** deviennent disponibles pour suivre les numéros de série, les détails du fabricant et les contrats de support fournisseur.
 
 ### Onglet Technique
 

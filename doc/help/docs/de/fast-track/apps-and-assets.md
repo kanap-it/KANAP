@@ -51,7 +51,7 @@ Füllen Sie das Wesentliche aus:
 | **Kritikalität** | Geschäftliche Bedeutung | `Geschäftskritisch` |
 | **Lebenszyklus** | Aktueller Status | `Aktiv` |
 
-Klicken Sie auf **Speichern**. Ihre Anwendung ist jetzt im Register, und der vollständige Arbeitsbereich öffnet sich mit neun Tabs für die detaillierte Dokumentation.
+Klicken Sie auf **Erstellen**. Ihre Anwendung ist jetzt im Register, und der vollständige Arbeitsbereich öffnet sich mit sechs Tabs für die detaillierte Dokumentation: **Übersicht**, **Bereitstellungen**, **Schnittstellen**, **Betrieb**, **Compliance** und **Beziehungen**.
 
 !!! tip "Beginnen Sie mit dem, was Sie wissen"
     Beschreibung, Herausgeber, Version, Lizenzierung -- alles nützlich, aber in diesem Stadium optional. Sie können später anreichern. Das Ziel ist, die App ins System zu bekommen.
@@ -189,7 +189,7 @@ Sobald ein Standort ausgewählt ist, werden mehrere **schreibgeschützte Felder*
 !!! info "Der Standort ist der Schlüssel"
     Der Standort steuert viele Attribute Ihres Assets automatisch. Standorte werden unter **IT-Landschaft > Standorte** verwaltet -- richten Sie sie einmal ein und jedes zugewiesene Asset erbt Hosting-Typ, Anbieter, Land und Stadt. Sie müssen diese nicht manuell eingeben.
 
-Klicken Sie auf **Speichern**, um den vollständigen Arbeitsbereich freizuschalten. Für physische Asset-Typen werden zusätzliche **Hardware**- und **Support**-Tabs verfügbar, um Seriennummern, Herstellerdetails und Lieferanten-Supportverträge zu erfassen.
+Klicken Sie auf **Erstellen**, um den vollständigen Arbeitsbereich freizuschalten. Für physische Asset-Typen werden zusätzliche **Hardware**- und **Support**-Tabs verfügbar, um Seriennummern, Herstellerdetails und Lieferanten-Supportverträge zu erfassen.
 
 ### Technik-Tab
 

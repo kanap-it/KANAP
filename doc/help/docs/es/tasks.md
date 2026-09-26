@@ -282,7 +282,7 @@ El campo de descripción admite importación y exportación de documentos para q
 3. Seleccione un archivo `.docx` de su ordenador
 4. Si la descripción ya tiene contenido, confirme que desea reemplazarlo
 5. El documento se convierte a markdown y se carga en el editor
-6. Revise el resultado y haga clic en **Guardar** para conservar los cambios
+6. Revise el resultado. La descripción importada se guarda al momento, y los cambios que haga después se guardan automáticamente
 
 Las imágenes incrustadas en el documento se suben al almacenamiento automáticamente. Si algún contenido no puede convertirse correctamente, aparece una advertencia en la parte inferior de la pantalla.
 
@@ -365,7 +365,7 @@ En el espacio de trabajo del Proyecto, use la pestaña **Tareas** para gestionar
 **Consejo**: En la pestaña Cronograma, haga clic en el botón **[+]** junto a una fase para crear una tarea pre-vinculada a esa fase.
 
 ### Desde partidas OPEX
-En el espacio de trabajo OPEX, use la pestaña **Tareas** para crear tareas como:
+En el espacio de trabajo OPEX, use el panel **Tareas** de la pestaña **Vista general** para crear tareas como:
 - "Revisar precios del proveedor para 2026"
 - "Negociar descuento por volumen"
 

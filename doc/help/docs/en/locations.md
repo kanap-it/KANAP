@@ -81,7 +81,7 @@ Each sub-location has:
 - **Name**: A short label (e.g., "Building A - Room 1 - Rack 5")
 - **Description**: Optional additional detail
 
-Sub-locations are available after you save the location for the first time. They are saved together with the Overview form when you click **Save**.
+Sub-locations are available once the location exists (after you click **Create**). Each row saves on its own when you leave the field, and deleting a sub-location asks for confirmation first.
 
 Assets can be assigned to a specific sub-location within a location, which lets you track exactly where hardware sits. When sub-locations exist, the Relations tab shows which sub-location each asset belongs to.
 
@@ -97,7 +97,7 @@ This tab organises the people and references associated with a location into thr
 
 **Relevant websites**: Useful links such as provider portals, facility documentation, or status pages. Each row has a **Description** and a **URL**.
 
-Click **Save** in the workspace header to persist changes across all three sections at once.
+Changes save automatically. Adding a contact or a link saves it at once, and a role, description or URL saves when you leave the field.
 
 ---
 

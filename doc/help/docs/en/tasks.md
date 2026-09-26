@@ -282,7 +282,7 @@ The description field supports importing and exporting documents so you can work
 3. Select a `.docx` file from your computer
 4. If the description already has content, confirm that you want to replace it
 5. The document is converted to markdown and loaded into the editor
-6. Review the result and click **Save** to keep the changes
+6. Review the result. The imported description is saved right away, and any edits you make afterwards save automatically
 
 Images embedded in the document are uploaded to storage automatically. If any content cannot be converted cleanly, a warning appears at the bottom of the screen.
 
@@ -365,7 +365,7 @@ In the Project workspace, use the **Tasks** tab to manage project deliverables:
 **Tip**: In the Timeline tab, click the **[+]** button next to a phase to create a task pre-linked to that phase.
 
 ### From OPEX items
-In the OPEX workspace, use the **Tasks** tab to create tasks like:
+In the OPEX workspace, use the **Tasks** panel on the **Overview** tab to create tasks like:
 - "Review vendor pricing for 2026"
 - "Negotiate volume discount"
 

@@ -51,7 +51,7 @@ Fill in the essentials:
 | **Criticality** | Business importance | `Business critical` |
 | **Lifecycle** | Current status | `Active` |
 
-Click **Save**. Your application is now in the registry, and the full workspace opens with nine tabs for detailed documentation.
+Click **Create**. Your application is now in the registry, and the full workspace opens with six tabs for detailed documentation: **Overview**, **Deployments**, **Interfaces**, **Operations**, **Compliance**, and **Relations**.
 
 !!! tip "Start with what you know"
     Description, publisher, version, licensing -- all useful, but optional at this stage. You can enrich later. The goal is to get the app into the system.
@@ -189,7 +189,7 @@ Once a Location is selected, several **read-only fields** are automatically deri
 !!! info "Location is the key"
     The Location drives many attributes of your asset automatically. Locations are managed in **IT Landscape → Locations** -- set them up once and every asset assigned to them inherits hosting type, provider, country, and city. You don't need to fill these in manually.
 
-Click **Save** to unlock the full workspace. For physical asset types, additional **Hardware** and **Support** tabs become available to track serial numbers, manufacturer details, and vendor support contracts.
+Click **Create** to unlock the full workspace. For physical asset types, additional **Hardware** and **Support** tabs become available to track serial numbers, manufacturer details, and vendor support contracts.
 
 ### Technical tab
 

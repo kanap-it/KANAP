@@ -282,7 +282,7 @@ Le champ description prend en charge l'import et l'export de documents afin que 
 3. Sélectionnez un fichier `.docx` depuis votre ordinateur
 4. Si la description a déjà du contenu, confirmez que vous voulez le remplacer
 5. Le document est converti en markdown et chargé dans l'éditeur
-6. Examinez le résultat et cliquez sur **Enregistrer** pour conserver les modifications
+6. Examinez le résultat. La description importée est enregistrée immédiatement, et les modifications que vous faites ensuite s'enregistrent automatiquement
 
 Les images intégrées dans le document sont téléversées vers le stockage automatiquement. Si du contenu ne peut pas être converti proprement, un avertissement apparaît en bas de l'écran.
 
@@ -365,7 +365,7 @@ Dans l'espace de travail du Projet, utilisez l'onglet **Tâches** pour gérer le
 **Conseil** : Dans l'onglet Planning, cliquez sur le bouton **[+]** à côté d'une phase pour créer une tâche pré-liée à cette phase.
 
 ### Depuis les postes OPEX
-Dans l'espace de travail OPEX, utilisez l'onglet **Tâches** pour créer des tâches comme :
+Dans l'espace de travail OPEX, utilisez le panneau **Tâches** de l'onglet **Vue d'ensemble** pour créer des tâches comme :
 - « Revoir la tarification fournisseur pour 2026 »
 - « Négocier une remise sur volume »
 

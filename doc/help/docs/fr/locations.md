@@ -81,7 +81,7 @@ Chaque sous-site possède :
 - **Nom** : Un libellé court (par ex., « Bâtiment A - Salle 1 - Rack 5 »)
 - **Description** : Détail supplémentaire optionnel
 
-Les sous-sites sont disponibles après avoir enregistré le site pour la première fois. Ils sont enregistrés ensemble avec le formulaire Vue d'ensemble lorsque vous cliquez sur **Enregistrer**.
+Les sous-sites sont disponibles dès que le site existe (après avoir cliqué sur **Créer**). Chaque ligne s'enregistre seule lorsque vous quittez le champ, et la suppression d'un sous-site demande d'abord une confirmation.
 
 Les actifs peuvent être assignés à un sous-site spécifique au sein d'un site, ce qui vous permet de suivre exactement où se trouve le matériel. Lorsque des sous-sites existent, l'onglet Relations montre à quel sous-site chaque actif appartient.
 
@@ -97,7 +97,7 @@ Cet onglet organise les personnes et références associées à un site en trois
 
 **Sites web pertinents** : Liens utiles comme les portails fournisseur, la documentation des installations ou les pages de statut. Chaque ligne a une **Description** et une **URL**.
 
-Cliquez sur **Enregistrer** dans l'en-tête de l'espace de travail pour persister les changements des trois sections en une fois.
+Les modifications s'enregistrent automatiquement. L'ajout d'un contact ou d'un lien est enregistré immédiatement, et un rôle, une description ou une URL s'enregistre lorsque vous quittez le champ.
 
 ---
 

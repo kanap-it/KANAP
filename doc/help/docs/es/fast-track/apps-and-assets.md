@@ -51,7 +51,7 @@ Complete lo esencial:
 | **Criticidad** | Importancia para el negocio | `Crítica para el negocio` |
 | **Ciclo de vida** | Estado actual | `Activo` |
 
-Haga clic en **Guardar**. Su aplicación está ahora en el registro, y el espacio de trabajo completo se abre con nueve pestañas para documentación detallada.
+Haga clic en **Crear**. Su aplicación está ahora en el registro, y el espacio de trabajo completo se abre con seis pestañas para documentación detallada: **Vista general**, **Despliegues**, **Interfaces**, **Operaciones**, **Conformidad** y **Relaciones**.
 
 !!! tip "Empiece con lo que sabe"
     Descripción, editor, versión, licencia -- todo útil, pero opcional en esta etapa. Puede enriquecer más tarde. El objetivo es tener la app en el sistema.
@@ -189,7 +189,7 @@ Una vez seleccionada una Ubicación, varios **campos de solo lectura** se deriva
 !!! info "La ubicación es la clave"
     La Ubicación determina muchos atributos de su activo automáticamente. Las Ubicaciones se gestionan en **Panorama IT > Ubicaciones** -- configúrelas una vez y cada activo asignado a ellas hereda el tipo de alojamiento, proveedor, país y ciudad. No necesita completarlos manualmente.
 
-Haga clic en **Guardar** para desbloquear el espacio de trabajo completo. Para tipos de activos físicos, pestañas adicionales de **Hardware** y **Soporte** se hacen disponibles para hacer seguimiento de números de serie, detalles del fabricante y contratos de soporte del proveedor.
+Haga clic en **Crear** para desbloquear el espacio de trabajo completo. Para tipos de activos físicos, pestañas adicionales de **Hardware** y **Soporte** se hacen disponibles para hacer seguimiento de números de serie, detalles del fabricante y contratos de soporte del proveedor.
 
 ### Pestaña Técnico
 

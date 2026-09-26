@@ -162,9 +162,9 @@ Le reste de ce guide couvre l'essentiel pratique. Pour tous les détails, consul
 |----------|---------------------|----------|
 | **Autonome** | Travail indépendant, non lié à quoi que ce soit | **Portefeuille > Tâches > Nouveau** |
 | **Projet** | Livrable au sein d'un projet | Espace de travail Projet onglet **Tâches**, ou raccourci phase **Chronologie** |
-| **OPEX** | Action liée à un poste OPEX | Espace de travail OPEX onglet **Tâches** |
+| **OPEX** | Action liée à un poste OPEX | Espace de travail OPEX, panneau **Tâches** de l'onglet **Vue d'ensemble** |
 | **Contrat** | Action liée à un contrat | Espace de travail Contrat onglet **Tâches** |
-| **CAPEX** | Action liée à un poste CAPEX | Espace de travail CAPEX onglet **Tâches** |
+| **CAPEX** | Action liée à un poste CAPEX | Espace de travail CAPEX, panneau **Tâches** de l'onglet **Vue d'ensemble** |
 
 Toutes les tâches apparaissent dans la liste centrale **Portefeuille > Tâches** quel que soit le contexte, vous avez donc toujours un endroit unique pour tout voir.
 
