@@ -38,7 +38,7 @@ const StatusLifecycleField: React.FC<StatusLifecycleFieldProps> = ({
   statusName,
   statusError,
   statusHelperText,
-  disabledAtLabel = 'Disabled At',
+  disabledAtLabel,
   disabledAtName,
   disabledAtError,
   disabledAtHelperText,
@@ -151,7 +151,7 @@ const StatusLifecycleField: React.FC<StatusLifecycleFieldProps> = ({
             onChange={onNativeChange}
           />
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <FieldLabel>{disabledAtLabel}</FieldLabel>
+            <FieldLabel>{disabledAtLabel ?? t('lifecycleField.endOfValidity')}</FieldLabel>
             <TextField
             placeholder="dd/mm/yyyy"
             value={inputText}
@@ -160,15 +160,12 @@ const StatusLifecycleField: React.FC<StatusLifecycleFieldProps> = ({
             disabled={disabled}
             name={disabledAtName}
             error={disabledAtError}
-            helperText={
-              disabledAtHelperText
-                ?? 'You can type dd/mm/yyyy or use the calendar. Blank keeps it active indefinitely.'
-            }
+            helperText={disabledAtHelperText ?? t('lifecycleField.endOfValidityHint')}
             inputProps={{ inputMode: 'numeric' }}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton size="small" onClick={openNativePicker} aria-label="Open calendar" tabIndex={-1}>
+                  <IconButton size="small" onClick={openNativePicker} aria-label={t('labels.openCalendar')} tabIndex={-1}>
                     <EventIcon fontSize="small" />
                   </IconButton>
                 </InputAdornment>

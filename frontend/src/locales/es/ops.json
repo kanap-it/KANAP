@@ -889,7 +889,8 @@
       "subtitle": "Mayores partidas OPEX por año seleccionado ({{metric}})",
       "topTotal": "Total top {{count}}",
       "totalMetric": "Total {{metric}}",
-      "ofFilteredMetric": "{{pct}} % del {{metric}} filtrado"
+      "ofFilteredMetric": "{{pct}} % del {{metric}} filtrado",
+      "shareSubtitle": "Participación en el total anual ({{metric}})"
     },
     "opexDelta": {
       "title": "Top aumento / disminución OPEX",

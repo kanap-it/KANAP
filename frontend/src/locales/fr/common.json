@@ -93,7 +93,8 @@
     "unknown": "Inconnu",
     "readOnly": "Lecture seule",
     "managedDoc": "Document géré",
-    "recommended": "Recommandé"
+    "recommended": "Recommandé",
+    "openCalendar": "Ouvrir le calendrier"
   },
   "delete": {
     "confirmTitle": "Confirmer la suppression",
@@ -500,7 +501,38 @@
     "baseDescription": "Description",
     "description": "Description",
     "translationsHelp": "Laissez un champ vide pour utiliser la traduction automatique quand elle existe, sinon le texte de base.",
-    "shownAs": "Affiché : {{value}}"
+    "shownAs": "Affiché : {{value}}",
+    "hostingTypes": {
+      "title": "Types d'hébergement",
+      "description": "Modèles d'hébergement proposés à la création d'un site (ex. : sur site, colocation, cloud public, SaaS).",
+      "add": "Ajouter un type d'hébergement",
+      "empty": "Aucun type d'hébergement défini."
+    },
+    "assetTypes": {
+      "title": "Types d'actif",
+      "description": "Types logiques des serveurs et des actifs d'infrastructure. Les actifs physiques peuvent suivre les informations matérielles et de support.",
+      "add": "Ajouter un type d'actif",
+      "empty": "Aucun type d'actif défini."
+    },
+    "serverRoles": {
+      "title": "Rôles de serveur",
+      "description": "Rôles attribués aux serveurs lors de la liaison avec les instances d'application. Le niveau du graphe fixe leur position sur la carte des connexions.",
+      "add": "Ajouter un rôle de serveur",
+      "empty": "Aucun rôle de serveur défini."
+    },
+    "entities": {
+      "title": "Entités",
+      "description": "Endpoints utilisés dans les connexions et les cartes. Le niveau du graphe fixe leur position par défaut sur la carte.",
+      "add": "Ajouter une entité",
+      "empty": "Aucune entité définie."
+    },
+    "graphTiers": {
+      "top": "Haut",
+      "upper": "Intermédiaire haut",
+      "center": "Centre",
+      "lower": "Intermédiaire bas",
+      "bottom": "Bas"
+    }
   },
   "settingsSection": {
     "addItem": "Ajouter un élément",
@@ -556,5 +588,9 @@
     "title": "Accès refusé",
     "message": "Vous n'avez pas la permission de voir cette page. Si vous pensez qu'il s'agit d'une erreur, contactez un administrateur.",
     "cta": "Aller au tableau de bord"
+  },
+  "lifecycleField": {
+    "endOfValidity": "Fin de validité",
+    "endOfValidityHint": "Laisser vide pour rester actif indéfiniment."
   }
 }

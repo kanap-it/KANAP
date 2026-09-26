@@ -206,6 +206,135 @@
           "title": "Vorfälle",
           "subtitle": "Listen für das Vorfallsregister."
         }
+      },
+      "lists": {
+        "accessMethods": {
+          "title": "Zugriffsmethoden",
+          "description": "Methoden, mit denen Benutzer auf Anwendungen zugreifen (z. B. Web, mobil, VDI).",
+          "usage": "Anwendungen / Auswahl der Zugriffsmethode"
+        },
+        "applicationCategories": {
+          "title": "Anwendungskategorien",
+          "description": "Kategorien, die den Hauptzweck jeder Anwendung oder jedes Service beschreiben.",
+          "usage": "Anwendungen / Kategorieauswahl"
+        },
+        "networkSegments": {
+          "title": "Netzwerkzonen",
+          "description": "Netzwerkzonen zur Einordnung von Subnetzen und zur Beschreibung der Konnektivität.",
+          "usage": "Subnetze / Auswahl der Netzwerkzone"
+        },
+        "entities": {
+          "title": "Entitäten",
+          "usage": "Verbindungen / Endpunkte"
+        },
+        "ipAddressTypes": {
+          "title": "IP-Adresstypen",
+          "description": "Typen von IP-Adressen für Assets.",
+          "usage": "Assets / IP-Adressen"
+        },
+        "serverKinds": {
+          "title": "Asset-Typen",
+          "usage": "Server / Übersicht und Erstellung"
+        },
+        "serverRoles": {
+          "title": "Serverrollen",
+          "usage": "Server / Anwendungsverknüpfung"
+        },
+        "hostingTypes": {
+          "title": "Hosting-Typen",
+          "usage": "Standorte / Erstellen und Bearbeiten"
+        },
+        "serverProviders": {
+          "title": "Cloud-Anbieter",
+          "description": "Cloud-Anbieter, die von Servern und Standorten verwendet werden.",
+          "usage": "Standorte / Erstellen und Bearbeiten"
+        },
+        "lifecycleStates": {
+          "title": "Lebenszyklus-Status",
+          "description": "Gemeinsame Lebenszyklus-Optionen für Anwendungen, Anwendungsinstanzen, Schnittstellen, Schnittstellen-Bindungen und Server.",
+          "usage": "Anwendungen, Schnittstellen und Server / Status"
+        },
+        "interfaceProtocols": {
+          "title": "Schnittstellenprotokolle",
+          "description": "Unterstützte Protokolle für Schnittstellen-Bindungen zwischen Anwendungen.",
+          "usage": "Schnittstellen-Bindungen / Transport"
+        },
+        "interfaceDataCategories": {
+          "title": "Datenkategorien für Schnittstellen",
+          "description": "Geschäftsdatenkategorien für Schnittstellen.",
+          "usage": "Schnittstellen / Datenprofil"
+        },
+        "interfaceTriggerTypes": {
+          "title": "Auslösertypen für Schnittstellen",
+          "description": "Auslösertypen für Schnittstellenabschnitte.",
+          "usage": "Schnittstellenabschnitte / Auslöser"
+        },
+        "interfacePatterns": {
+          "title": "Integrationsmuster",
+          "description": "Integrationsmuster, die von Schnittstellenabschnitten verwendet werden.",
+          "usage": "Schnittstellenabschnitte / Muster"
+        },
+        "interfaceFormats": {
+          "title": "Datenformate für Schnittstellen",
+          "description": "Datenformate für Schnittstellenabschnitte.",
+          "usage": "Schnittstellenabschnitte / Datenformat"
+        },
+        "interfaceAuthModes": {
+          "title": "Authentifizierungsmodi für Schnittstellen",
+          "description": "Authentifizierungsmodi für Schnittstellenabschnitte und -bindungen.",
+          "usage": "Schnittstellen-Bindungen / Authentifizierung"
+        },
+        "incidentCategories": {
+          "title": "Vorfallkategorien",
+          "description": "Kategorien zur Einordnung der Einträge im Vorfallsregister.",
+          "usage": "Vorfälle / Kategorieauswahl"
+        },
+        "operatingSystems": {
+          "title": "Betriebssysteme",
+          "description": "Katalog der für Server verfügbaren Betriebssysteme mit Enddaten für Standard- und erweiterten Support.",
+          "usage": "Server / Registerkarte Technik"
+        },
+        "connectionTypes": {
+          "title": "Verbindungstypen",
+          "description": "Zweistufiger Katalog (Kategorie und Eintrag) mit typischen Ports.",
+          "usage": "Verbindungen / Protokollauswahl"
+        },
+        "subnets": {
+          "title": "Subnetze",
+          "description": "Definieren Sie Subnetze mit VLAN-Zuordnung. Jedes Subnetz gehört zu einer Netzwerkzone.",
+          "usage": "Assets / Netzwerkinformationen"
+        },
+        "domains": {
+          "title": "Domänen",
+          "description": "Definieren Sie Active-Directory- oder DNS-Domänen für Assets. Integrierte Einträge können nicht geändert werden.",
+          "usage": "Assets / Abschnitt Identität"
+        }
+      },
+      "columns": {
+        "standardSupport": "Standard-Support",
+        "extendedSupport": "Erweiterter Support",
+        "typicalPorts": "Typische Ports",
+        "location": "Standort",
+        "cidr": "CIDR",
+        "vlan": "VLAN",
+        "networkZone": "Netzwerkzone",
+        "description": "Beschreibung",
+        "dnsSuffix": "DNS-Suffix"
+      },
+      "placeholders": {
+        "osName": "z. B. Windows Server 2025",
+        "connectionName": "z. B. HTTPS",
+        "typicalPorts": "z. B. 80, 443",
+        "cidr": "z. B. 192.168.1.0/24",
+        "domainName": "z. B. Unternehmens-AD",
+        "dnsSuffix": "z. B. corp.example.com",
+        "select": "Auswählen…"
+      },
+      "empty": {
+        "operatingSystems": "Noch keine Betriebssysteme konfiguriert.",
+        "connectionTypes": "Keine Verbindungstypen definiert.",
+        "subnets": "Keine Subnetze definiert.",
+        "domains": "Keine Domänen definiert."
       }
     },
     "netbox": {

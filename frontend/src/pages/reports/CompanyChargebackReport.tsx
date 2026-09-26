@@ -24,7 +24,7 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import CompanySelect from '../../components/fields/CompanySelect';
 import api from '../../api';
-import { metricLabels, MetricKey, horizontalBarChartHeight } from './reportMetrics';
+import { getMetricLabels, MetricKey, horizontalBarChartHeight } from './reportMetrics';
 import { useLocale } from '../../i18n/useLocale';
 import { useTranslation } from 'react-i18next';
 
@@ -141,6 +141,7 @@ type CompanyChargebackKpiRow = CompanyChargebackReportResponse['kpis'][number];
 
 export default function CompanyChargebackReport() {
   const { t } = useTranslation(["ops"]);
+  const metricLabels = useMemo(() => getMetricLabels(t), [t]);
   const locale = useLocale();
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -242,7 +243,7 @@ export default function CompanyChargebackReport() {
     { field: 'departmentName', headerName: t('reports.columns.department'), flex: 1, minWidth: 200 },
     {
       field: 'amount',
-      headerName: `${metricLabel} amount`,
+      headerName: t('reports.columns.metricAmount', { metric: metricLabel }),
       width: 160,
       type: 'rightAligned',
       valueFormatter: (params) => formatNumber(params.value),
@@ -275,7 +276,7 @@ export default function CompanyChargebackReport() {
     { field: 'allocationMethodLabel', headerName: t('reports.columns.allocationMethod'), minWidth: 180 },
     {
       field: 'amount',
-      headerName: `${metricLabel} amount`,
+      headerName: t('reports.columns.metricAmount', { metric: metricLabel }),
       width: 160,
       type: 'rightAligned',
       valueFormatter: (params) => formatNumber(params.value),

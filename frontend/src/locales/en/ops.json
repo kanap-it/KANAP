@@ -889,7 +889,8 @@
       "subtitle": "Largest OPEX items by selected year ({{metric}})",
       "topTotal": "Top {{count}} total",
       "totalMetric": "Total {{metric}}",
-      "ofFilteredMetric": "{{pct}}% of filtered {{metric}}"
+      "ofFilteredMetric": "{{pct}}% of filtered {{metric}}",
+      "shareSubtitle": "Share of annual total ({{metric}})"
     },
     "opexDelta": {
       "title": "Top OPEX increase / decrease",

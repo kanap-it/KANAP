@@ -438,7 +438,7 @@ export default function LocationWorkspacePage() {
           disabled={createSubmitting || !canManage}
           size="small"
         >
-          Create
+          {t('common:buttons.create')}
         </Button>
       )}
       {!isCreate && data && (
@@ -457,7 +457,7 @@ export default function LocationWorkspacePage() {
           onClick={() => setDeleteDialogOpen(true)}
           disabled={deleting}
         >
-          Delete
+          {t('common:buttons.delete')}
         </Button>
       )}
     </>
@@ -555,7 +555,7 @@ export default function LocationWorkspacePage() {
         title="Delete location?"
         onClose={() => !deleting && setDeleteDialogOpen(false)}
         onSave={handleDelete}
-        saveLabel="Delete"
+        saveLabel={t('common:buttons.delete')}
         saveDisabled={deleting}
         saveLoading={deleting}
       >

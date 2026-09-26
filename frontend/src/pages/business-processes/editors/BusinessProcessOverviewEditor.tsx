@@ -197,7 +197,7 @@ export default forwardRef<BusinessProcessOverviewEditorHandle, Props>(function B
             value={normalizeStatus(statusValue ?? STATUS_ENABLED) === STATUS_ENABLED}
             onChange={(checked) => field.onChange(checked ? STATUS_ENABLED : STATUS_DISABLED)}
             disabled={disabled}
-            helperText="Toggle off to disable this process"
+            helperText={t('businessProcesses.fields.statusHelper')}
           />
         )}
       />

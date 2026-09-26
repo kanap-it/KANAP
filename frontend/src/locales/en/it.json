@@ -206,6 +206,135 @@
           "title": "Incidents",
           "subtitle": "Lists used by the incident register."
         }
+      },
+      "lists": {
+        "accessMethods": {
+          "title": "Access methods",
+          "description": "Methods by which users access applications (e.g., Web, Mobile, VDI).",
+          "usage": "Applications / Access method selector"
+        },
+        "applicationCategories": {
+          "title": "Application categories",
+          "description": "Categories that describe the primary purpose of each application or service.",
+          "usage": "Applications / Category selector"
+        },
+        "networkSegments": {
+          "title": "Network zones",
+          "description": "Network zones used to categorize subnets and describe connectivity.",
+          "usage": "Subnets / Network zone selector"
+        },
+        "entities": {
+          "title": "Entities",
+          "usage": "Connections / Endpoints"
+        },
+        "ipAddressTypes": {
+          "title": "IP address types",
+          "description": "Types of IP addresses for assets.",
+          "usage": "Assets / IP addresses"
+        },
+        "serverKinds": {
+          "title": "Asset types",
+          "usage": "Servers / Overview & create"
+        },
+        "serverRoles": {
+          "title": "Server roles",
+          "usage": "Servers / App link"
+        },
+        "hostingTypes": {
+          "title": "Hosting types",
+          "usage": "Locations / Create & edit"
+        },
+        "serverProviders": {
+          "title": "Cloud providers",
+          "description": "Cloud providers used by servers and locations.",
+          "usage": "Locations / Create & edit"
+        },
+        "lifecycleStates": {
+          "title": "Lifecycle statuses",
+          "description": "Shared lifecycle options for applications, app instances, interfaces, interface bindings, and servers.",
+          "usage": "Apps, interfaces & servers / Status"
+        },
+        "interfaceProtocols": {
+          "title": "Interface protocols",
+          "description": "Supported protocols for interface bindings between applications.",
+          "usage": "Interface bindings / Transport"
+        },
+        "interfaceDataCategories": {
+          "title": "Interface data categories",
+          "description": "Business data categories for interfaces.",
+          "usage": "Interfaces / Data profile"
+        },
+        "interfaceTriggerTypes": {
+          "title": "Interface trigger types",
+          "description": "Trigger types for interface legs.",
+          "usage": "Interface legs / Trigger"
+        },
+        "interfacePatterns": {
+          "title": "Integration patterns",
+          "description": "Integration patterns used by interface legs.",
+          "usage": "Interface legs / Pattern"
+        },
+        "interfaceFormats": {
+          "title": "Interface data formats",
+          "description": "Data formats for interface legs.",
+          "usage": "Interface legs / Payload format"
+        },
+        "interfaceAuthModes": {
+          "title": "Interface authentication modes",
+          "description": "Authentication modes for interface legs and bindings.",
+          "usage": "Interface bindings / Authentication"
+        },
+        "incidentCategories": {
+          "title": "Incident categories",
+          "description": "Categories used to classify entries in the incident register.",
+          "usage": "Incidents / Category selector"
+        },
+        "operatingSystems": {
+          "title": "Operating systems",
+          "description": "Catalog of operating systems available for servers, with standard and extended support end dates.",
+          "usage": "Servers / Technical tab"
+        },
+        "connectionTypes": {
+          "title": "Connection types",
+          "description": "Two-level catalog (category and entry) with typical ports.",
+          "usage": "Connections / Protocol selector"
+        },
+        "subnets": {
+          "title": "Subnets",
+          "description": "Define network subnets with VLAN assignments. Each subnet belongs to a network zone.",
+          "usage": "Assets / Network information"
+        },
+        "domains": {
+          "title": "Domains",
+          "description": "Define Active Directory or DNS domains for assets. Built-in entries cannot be modified.",
+          "usage": "Assets / Identity section"
+        }
+      },
+      "columns": {
+        "standardSupport": "Standard support",
+        "extendedSupport": "Extended support",
+        "typicalPorts": "Typical ports",
+        "location": "Location",
+        "cidr": "CIDR",
+        "vlan": "VLAN",
+        "networkZone": "Network zone",
+        "description": "Description",
+        "dnsSuffix": "DNS suffix"
+      },
+      "placeholders": {
+        "osName": "e.g., Windows Server 2025",
+        "connectionName": "e.g., HTTPS",
+        "typicalPorts": "e.g., 80, 443",
+        "cidr": "e.g., 192.168.1.0/24",
+        "domainName": "e.g., Corporate AD",
+        "dnsSuffix": "e.g., corp.example.com",
+        "select": "Select…"
+      },
+      "empty": {
+        "operatingSystems": "No operating systems configured yet.",
+        "connectionTypes": "No connection types defined.",
+        "subnets": "No subnets defined.",
+        "domains": "No domains defined."
       }
     },
     "netbox": {

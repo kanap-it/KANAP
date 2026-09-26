@@ -1447,15 +1447,15 @@ export default function ApplicationWorkspacePage() {
             )}
             {isCreate && (
               <Button variant="contained" onClick={() => void handleCreate()} disabled={!createDirty || savingCreate} size="small">
-                Create
+                {t('common:buttons.create')}
               </Button>
             )}
             {!isCreate && canDelete && (
               <Button variant="action-danger" startIcon={<DeleteIcon sx={{ fontSize: '14px !important' }} />} size="small">
-                Delete
+                {t('common:buttons.delete')}
               </Button>
             )}
-            <IconButton aria-label="Close" title="Close" onClick={closeWorkspace} size="small">
+            <IconButton aria-label={t('common:buttons.close')} title={t('common:buttons.close')} onClick={closeWorkspace} size="small">
               <CloseIcon />
             </IconButton>
           </>

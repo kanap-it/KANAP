@@ -1,8 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material/styles';
-import { describe, expect, it, vi } from 'vitest';
-import '../../i18n';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import i18n from '../../i18n';
 import { createAppTheme } from '../../config/ThemeContext';
 import { STATUS_DISABLED, STATUS_ENABLED, StatusValue } from '../../constants/status';
 import StatusLifecycleField from './StatusLifecycleField';
@@ -59,5 +59,34 @@ describe('StatusLifecycleField', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     expect(onDisabledAtChange).toHaveBeenCalledWith(expect.any(String));
     expect(onStatusChange).toHaveBeenCalledWith(STATUS_DISABLED);
+  });
+
+  describe('end of validity defaults', () => {
+    afterEach(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    it('labels the date field, its hint and the calendar button when no props are given', () => {
+      renderField({ status: STATUS_ENABLED });
+      expect(screen.getByText('End of validity')).toBeInTheDocument();
+      expect(screen.getByText('Leave blank to keep active indefinitely.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open calendar' })).toBeInTheDocument();
+      expect(screen.queryByText('Disabled At')).not.toBeInTheDocument();
+    });
+
+    it('keeps the label and hint given by the caller', () => {
+      renderField({ status: STATUS_ENABLED, disabledAtLabel: 'Retired on', disabledAtHelperText: 'Custom hint' });
+      expect(screen.getByText('Retired on')).toBeInTheDocument();
+      expect(screen.getByText('Custom hint')).toBeInTheDocument();
+      expect(screen.queryByText('End of validity')).not.toBeInTheDocument();
+    });
+
+    it('translates the defaults in French', async () => {
+      await i18n.changeLanguage('fr');
+      renderField({ status: STATUS_ENABLED });
+      expect(screen.getByText('Fin de validité')).toBeInTheDocument();
+      expect(screen.getByText('Laisser vide pour rester actif indéfiniment.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Ouvrir le calendrier' })).toBeInTheDocument();
+    });
   });
 });

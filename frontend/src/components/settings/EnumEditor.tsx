@@ -415,11 +415,11 @@ export function HostingTypeEditor(props: HostingTypeEditorProps) {
   const columns = React.useMemo(() => buildHostingTypeColumns(t), [t]);
   return (
     <EnumEditor<HostingTypeItem>
-      title="Hosting Types"
-      description="Location hosting models available when creating Locations (e.g., On-prem, Colocation, Public Cloud, SaaS)."
+      title={t('enumEditor.hostingTypes.title')}
+      description={t('enumEditor.hostingTypes.description')}
       columns={columns}
-      addButtonLabel="Add hosting type"
-      emptyMessage="No hosting types defined."
+      addButtonLabel={t('enumEditor.hostingTypes.add')}
+      emptyMessage={t('enumEditor.hostingTypes.empty')}
       {...props}
     />
   );
@@ -455,11 +455,11 @@ export function AssetKindEditor(props: AssetKindEditorProps) {
   const columns = React.useMemo(() => buildAssetKindColumns(t), [t]);
   return (
     <EnumEditor<AssetKindItem>
-      title="Asset Types"
-      description="Logical types for servers and infrastructure assets. Physical assets can track hardware and support information."
+      title={t('enumEditor.assetTypes.title')}
+      description={t('enumEditor.assetTypes.description')}
       columns={columns}
-      addButtonLabel="Add asset type"
-      emptyMessage="No asset types defined."
+      addButtonLabel={t('enumEditor.assetTypes.add')}
+      emptyMessage={t('enumEditor.assetTypes.empty')}
       {...props}
     />
   );
@@ -467,13 +467,7 @@ export function AssetKindEditor(props: AssetKindEditorProps) {
 
 type GraphTier = 'top' | 'upper' | 'center' | 'lower' | 'bottom';
 
-const GRAPH_TIER_OPTIONS: Array<{ value: GraphTier; label: string }> = [
-  { value: 'top', label: 'Top' },
-  { value: 'upper', label: 'Upper' },
-  { value: 'center', label: 'Center' },
-  { value: 'lower', label: 'Lower' },
-  { value: 'bottom', label: 'Bottom' },
-];
+const GRAPH_TIERS: GraphTier[] = ['top', 'upper', 'center', 'lower', 'bottom'];
 
 export interface ServerRoleItem extends EnumItem {
   graph_tier?: GraphTier;
@@ -501,9 +495,9 @@ const buildTieredColumns = <T extends EnumItem & { graph_tier?: GraphTier }>(
         fullWidth
         disabled={isLocked}
       >
-        {GRAPH_TIER_OPTIONS.map((opt) => (
-          <MenuItem key={opt.value} value={opt.value}>
-            {opt.label}
+        {GRAPH_TIERS.map((tier) => (
+          <MenuItem key={tier} value={tier}>
+            {t(`enumEditor.graphTiers.${tier}`)}
           </MenuItem>
         ))}
       </TextField>
@@ -519,11 +513,11 @@ export function ServerRoleEditor(props: ServerRoleEditorProps) {
   const columns = React.useMemo(() => buildTieredColumns<ServerRoleItem>(t, 'center'), [t]);
   return (
     <EnumEditor<ServerRoleItem>
-      title="Server Roles"
-      description="Roles assigned to servers when linking app instances. Graph tier influences connection map placement."
+      title={t('enumEditor.serverRoles.title')}
+      description={t('enumEditor.serverRoles.description')}
       columns={columns}
-      addButtonLabel="Add server role"
-      emptyMessage="No server roles defined."
+      addButtonLabel={t('enumEditor.serverRoles.add')}
+      emptyMessage={t('enumEditor.serverRoles.empty')}
       {...props}
     />
   );
@@ -536,11 +530,11 @@ export function EntityEditor(props: EntityEditorProps) {
   const columns = React.useMemo(() => buildTieredColumns<EntityItem>(t, 'top'), [t]);
   return (
     <EnumEditor<EntityItem>
-      title="Entities"
-      description="Endpoints used in connections and maps. Graph tier influences default map placement."
+      title={t('enumEditor.entities.title')}
+      description={t('enumEditor.entities.description')}
       columns={columns}
-      addButtonLabel="Add entity"
-      emptyMessage="No entities defined."
+      addButtonLabel={t('enumEditor.entities.add')}
+      emptyMessage={t('enumEditor.entities.empty')}
       {...props}
     />
   );

@@ -889,7 +889,8 @@
       "subtitle": "Größte OPEX-Positionen nach ausgewähltem Jahr ({{metric}})",
       "topTotal": "Top {{count}} gesamt",
       "totalMetric": "Gesamt {{metric}}",
-      "ofFilteredMetric": "{{pct}} % des gefilterten {{metric}}"
+      "ofFilteredMetric": "{{pct}} % des gefilterten {{metric}}",
+      "shareSubtitle": "Anteil an der Jahressumme ({{metric}})"
     },
     "opexDelta": {
       "title": "Top OPEX Anstieg / Rückgang",

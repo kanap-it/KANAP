@@ -93,7 +93,8 @@
     "unknown": "Desconocido",
     "readOnly": "Solo lectura",
     "managedDoc": "Documento gestionado",
-    "recommended": "Recomendado"
+    "recommended": "Recomendado",
+    "openCalendar": "Abrir calendario"
   },
   "delete": {
     "confirmTitle": "Confirmar eliminación",
@@ -500,7 +501,38 @@
     "baseDescription": "Descripción",
     "description": "Descripción",
     "translationsHelp": "Deje un campo vacío para usar la traducción automática cuando exista; de lo contrario, el texto base.",
-    "shownAs": "Se muestra: {{value}}"
+    "shownAs": "Se muestra: {{value}}",
+    "hostingTypes": {
+      "title": "Tipos de alojamiento",
+      "description": "Modelos de alojamiento disponibles al crear ubicaciones (p. ej., on-premise, colocation, nube pública, SaaS).",
+      "add": "Añadir tipo de alojamiento",
+      "empty": "No hay tipos de alojamiento definidos."
+    },
+    "assetTypes": {
+      "title": "Tipos de activo",
+      "description": "Tipos lógicos de servidores y activos de infraestructura. Los activos físicos pueden registrar información de hardware y soporte.",
+      "add": "Añadir tipo de activo",
+      "empty": "No hay tipos de activo definidos."
+    },
+    "serverRoles": {
+      "title": "Roles de servidor",
+      "description": "Roles asignados a los servidores al vincular instancias de aplicación. El nivel del grafo define su posición en el mapa de conexiones.",
+      "add": "Añadir rol de servidor",
+      "empty": "No hay roles de servidor definidos."
+    },
+    "entities": {
+      "title": "Entidades",
+      "description": "Endpoints utilizados en conexiones y mapas. El nivel del grafo define su posición predeterminada en el mapa.",
+      "add": "Añadir entidad",
+      "empty": "No hay entidades definidas."
+    },
+    "graphTiers": {
+      "top": "Superior",
+      "upper": "Medio superior",
+      "center": "Centro",
+      "lower": "Medio inferior",
+      "bottom": "Inferior"
+    }
   },
   "settingsSection": {
     "addItem": "Agregar elemento",
@@ -556,5 +588,9 @@
     "title": "Acceso denegado",
     "message": "No tiene permiso para ver esta página. Si cree que se trata de un error, contacte con un administrador.",
     "cta": "Ir al panel de control"
+  },
+  "lifecycleField": {
+    "endOfValidity": "Fin de validez",
+    "endOfValidityHint": "Dejar en blanco para permanecer activo indefinidamente."
   }
 }

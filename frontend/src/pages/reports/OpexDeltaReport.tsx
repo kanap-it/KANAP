@@ -6,6 +6,7 @@ import ReportLayout from '../../components/reports/ReportLayout';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import { useOpexSummaryAll, SummaryRow, pickYearSlot } from './useOpexSummary';
 import { useTranslation } from 'react-i18next';
+import { getMetricLabels, isMetricKey, type MetricKey } from './reportMetrics';
 
 function formatNumber(v: any) {
   const n = Number(v ?? 0);
@@ -14,16 +15,9 @@ function formatNumber(v: any) {
   return i.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
-const METRIC_LABELS: Record<string, string> = {
-  budget: 'Budget',
-  landing: 'Expected Landing',
-  follow_up: 'Actuals',
-  revision: 'Revision',
-};
-
-function labelForMetric(metric: string) {
+function labelForMetric(metric: string, metricLabels: Record<MetricKey, string>) {
   if (!metric) return '';
-  if (METRIC_LABELS[metric]) return METRIC_LABELS[metric];
+  if (isMetricKey(metric)) return metricLabels[metric];
   return metric
     .split('_')
     .map((segment) => (segment ? segment[0].toUpperCase() + segment.slice(1) : segment))
@@ -41,6 +35,7 @@ function inferYearFromVersionKey(key: string, currentYear: number): number | und
 
 export default function OpexDeltaReport() {
   const { t } = useTranslation(["ops"]);
+  const metricLabels = useMemo(() => getMetricLabels(t), [t]);
   const now = new Date();
   const currentYear = now.getFullYear();
   const previousYear = currentYear - 1;
@@ -315,11 +310,11 @@ export default function OpexDeltaReport() {
   }, [excludedAccounts, accountOptions]);
 
   const sourceLabel = sourceYear != null && sourceMetric
-    ? `${labelForMetric(sourceMetric)} (${sourceYear})`
-    : 'Source column';
+    ? `${labelForMetric(sourceMetric, metricLabels)} (${sourceYear})`
+    : t('reports.opexDelta.sourceColumn');
   const destinationLabel = destinationYear != null && destinationMetric
-    ? `${labelForMetric(destinationMetric)} (${destinationYear})`
-    : 'Destination column';
+    ? `${labelForMetric(destinationMetric, metricLabels)} (${destinationYear})`
+    : t('reports.opexDelta.destinationColumn');
 
   const columns = useMemo<ColDef[]>(() => [
     { field: 'product_name', headerName: t('reports.columns.product'), flex: 1, minWidth: 240 },
@@ -602,7 +597,7 @@ export default function OpexDeltaReport() {
               <MenuItem value="" disabled>{t("reports.filters.noMetricsAvailable")}</MenuItem>
             ) : (
               sourceMetrics.map((metric) => (
-                <MenuItem key={`source-metric-${metric}`} value={metric}>{labelForMetric(metric)}</MenuItem>
+                <MenuItem key={`source-metric-${metric}`} value={metric}>{labelForMetric(metric, metricLabels)}</MenuItem>
               ))
             )}
           </TextField>
@@ -639,7 +634,7 @@ export default function OpexDeltaReport() {
               <MenuItem value="" disabled>{t("reports.filters.noMetricsAvailable")}</MenuItem>
             ) : (
               destinationMetrics.map((metric) => (
-                <MenuItem key={`dest-metric-${metric}`} value={metric}>{labelForMetric(metric)}</MenuItem>
+                <MenuItem key={`dest-metric-${metric}`} value={metric}>{labelForMetric(metric, metricLabels)}</MenuItem>
               ))
             )}
           </TextField>

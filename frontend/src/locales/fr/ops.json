@@ -889,7 +889,8 @@
       "subtitle": "Plus gros postes OPEX par année sélectionnée ({{metric}})",
       "topTotal": "Total top {{count}}",
       "totalMetric": "Total {{metric}}",
-      "ofFilteredMetric": "{{pct}} % du {{metric}} filtré"
+      "ofFilteredMetric": "{{pct}} % du {{metric}} filtré",
+      "shareSubtitle": "Part du total annuel ({{metric}})"
     },
     "opexDelta": {
       "title": "Top hausse / baisse OPEX",

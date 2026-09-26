@@ -206,6 +206,135 @@
           "title": "Incidentes",
           "subtitle": "Listas utilizadas por el registro de incidentes."
         }
+      },
+      "lists": {
+        "accessMethods": {
+          "title": "Métodos de acceso",
+          "description": "Métodos con los que los usuarios acceden a las aplicaciones (p. ej., web, móvil, VDI).",
+          "usage": "Aplicaciones / Selector de método de acceso"
+        },
+        "applicationCategories": {
+          "title": "Categorías de aplicación",
+          "description": "Categorías que describen el propósito principal de cada aplicación o servicio.",
+          "usage": "Aplicaciones / Selector de categoría"
+        },
+        "networkSegments": {
+          "title": "Zonas de red",
+          "description": "Zonas de red utilizadas para clasificar las subredes y describir la conectividad.",
+          "usage": "Subredes / Selector de zona de red"
+        },
+        "entities": {
+          "title": "Entidades",
+          "usage": "Conexiones / Endpoints"
+        },
+        "ipAddressTypes": {
+          "title": "Tipos de dirección IP",
+          "description": "Tipos de direcciones IP de los activos.",
+          "usage": "Activos / Direcciones IP"
+        },
+        "serverKinds": {
+          "title": "Tipos de activo",
+          "usage": "Servidores / Resumen y creación"
+        },
+        "serverRoles": {
+          "title": "Roles de servidor",
+          "usage": "Servidores / Vínculo con aplicaciones"
+        },
+        "hostingTypes": {
+          "title": "Tipos de alojamiento",
+          "usage": "Ubicaciones / Creación y edición"
+        },
+        "serverProviders": {
+          "title": "Proveedores cloud",
+          "description": "Proveedores cloud utilizados por los servidores y las ubicaciones.",
+          "usage": "Ubicaciones / Creación y edición"
+        },
+        "lifecycleStates": {
+          "title": "Estados del ciclo de vida",
+          "description": "Opciones de ciclo de vida compartidas por aplicaciones, instancias de aplicación, interfaces, enlaces de interfaz y servidores.",
+          "usage": "Aplicaciones, interfaces y servidores / Estado"
+        },
+        "interfaceProtocols": {
+          "title": "Protocolos de interfaz",
+          "description": "Protocolos admitidos para los enlaces de interfaz entre aplicaciones.",
+          "usage": "Enlaces de interfaz / Transporte"
+        },
+        "interfaceDataCategories": {
+          "title": "Categorías de datos de interfaz",
+          "description": "Categorías de datos de negocio de las interfaces.",
+          "usage": "Interfaces / Perfil de datos"
+        },
+        "interfaceTriggerTypes": {
+          "title": "Tipos de disparador de interfaz",
+          "description": "Tipos de disparador de los segmentos de interfaz.",
+          "usage": "Segmentos de interfaz / Disparador"
+        },
+        "interfacePatterns": {
+          "title": "Patrones de integración",
+          "description": "Patrones de integración utilizados por los segmentos de interfaz.",
+          "usage": "Segmentos de interfaz / Patrón"
+        },
+        "interfaceFormats": {
+          "title": "Formatos de datos de interfaz",
+          "description": "Formatos de datos de los segmentos de interfaz.",
+          "usage": "Segmentos de interfaz / Formato de datos"
+        },
+        "interfaceAuthModes": {
+          "title": "Modos de autenticación de interfaz",
+          "description": "Modos de autenticación de los segmentos y enlaces de interfaz.",
+          "usage": "Enlaces de interfaz / Autenticación"
+        },
+        "incidentCategories": {
+          "title": "Categorías de incidente",
+          "description": "Categorías utilizadas para clasificar las entradas del registro de incidentes.",
+          "usage": "Incidentes / Selector de categoría"
+        },
+        "operatingSystems": {
+          "title": "Sistemas operativos",
+          "description": "Catálogo de sistemas operativos disponibles para los servidores, con las fechas de fin del soporte estándar y extendido.",
+          "usage": "Servidores / Pestaña técnica"
+        },
+        "connectionTypes": {
+          "title": "Tipos de conexión",
+          "description": "Catálogo de dos niveles (categoría y entrada) con los puertos típicos.",
+          "usage": "Conexiones / Selector de protocolo"
+        },
+        "subnets": {
+          "title": "Subredes",
+          "description": "Defina las subredes con su VLAN. Cada subred pertenece a una zona de red.",
+          "usage": "Activos / Información de red"
+        },
+        "domains": {
+          "title": "Dominios",
+          "description": "Defina los dominios Active Directory o DNS de los activos. Las entradas integradas no se pueden modificar.",
+          "usage": "Activos / Sección de identidad"
+        }
+      },
+      "columns": {
+        "standardSupport": "Soporte estándar",
+        "extendedSupport": "Soporte extendido",
+        "typicalPorts": "Puertos típicos",
+        "location": "Ubicación",
+        "cidr": "CIDR",
+        "vlan": "VLAN",
+        "networkZone": "Zona de red",
+        "description": "Descripción",
+        "dnsSuffix": "Sufijo DNS"
+      },
+      "placeholders": {
+        "osName": "p. ej., Windows Server 2025",
+        "connectionName": "p. ej., HTTPS",
+        "typicalPorts": "p. ej., 80, 443",
+        "cidr": "p. ej., 192.168.1.0/24",
+        "domainName": "p. ej., AD corporativo",
+        "dnsSuffix": "p. ej., corp.example.com",
+        "select": "Seleccionar…"
+      },
+      "empty": {
+        "operatingSystems": "Aún no hay sistemas operativos configurados.",
+        "connectionTypes": "No hay tipos de conexión definidos.",
+        "subnets": "No hay subredes definidas.",
+        "domains": "No hay dominios definidos."
       }
     },
     "netbox": {

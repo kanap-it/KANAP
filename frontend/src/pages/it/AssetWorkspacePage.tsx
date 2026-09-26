@@ -1238,7 +1238,7 @@ export default function AssetWorkspacePage() {
     <>
       {isCreate && (
         <Button variant="contained" onClick={() => void handleSave()} disabled={createDisabled} size="small">
-          Create
+          {t('common:buttons.create')}
         </Button>
       )}
       {!isCreate && canDelete && (
@@ -1257,7 +1257,7 @@ export default function AssetWorkspacePage() {
             await handleClose();
           }}
         >
-          Delete
+          {t('common:buttons.delete')}
         </Button>
       )}
       {!isCreate && data && id && (
@@ -2293,7 +2293,7 @@ export default function AssetWorkspacePage() {
         title="Edit members"
         onClose={() => setMemberDialogOpen(false)}
         onSave={handleSaveMembers}
-        saveLabel="Save"
+        saveLabel={t('common:buttons.save')}
         saveDisabled={memberSaving}
         saveLoading={memberSaving}
         sx={{ maxWidth: 560 }}

@@ -23,7 +23,7 @@ import type { ColDef } from 'ag-grid-community';
 import ReportLayout from '../../components/reports/ReportLayout';
 import ChartCard, { ChartCardHandle } from '../../components/reports/ChartCard';
 import api from '../../api';
-import { metricLabels, MetricKey, horizontalBarChartHeight } from './reportMetrics';
+import { getMetricLabels, MetricKey, horizontalBarChartHeight } from './reportMetrics';
 import { useLocale } from '../../i18n/useLocale';
 import { useTranslation } from 'react-i18next';
 
@@ -118,6 +118,7 @@ type GlobalChargebackReportResponse = {
 
 export default function GlobalChargebackReport() {
   const { t } = useTranslation(["ops"]);
+  const metricLabels = useMemo(() => getMetricLabels(t), [t]);
   const locale = useLocale();
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -194,7 +195,7 @@ export default function GlobalChargebackReport() {
     },
     {
       field: 'amount',
-      headerName: `${metricLabel} amount`,
+      headerName: t('reports.columns.metricAmount', { metric: metricLabel }),
       width: 160,
       type: 'rightAligned',
       valueFormatter: (params) => formatNumber(params.value),
@@ -298,7 +299,7 @@ export default function GlobalChargebackReport() {
     { field: 'companyName', headerName: t('reports.columns.company'), flex: 1, minWidth: 220 },
     {
       field: 'amount',
-      headerName: `${metricLabel} amount`,
+      headerName: t('reports.columns.metricAmount', { metric: metricLabel }),
       width: 160,
       type: 'rightAligned',
       valueFormatter: (params) => formatNumber(params.value),
@@ -384,7 +385,7 @@ export default function GlobalChargebackReport() {
     { field: 'consumerName', headerName: t('reports.columns.consumer'), flex: 1, minWidth: 200 },
     {
       field: 'amount',
-      headerName: `${metricLabel} amount`,
+      headerName: t('reports.columns.metricAmount', { metric: metricLabel }),
       width: 160,
       type: 'rightAligned',
       valueFormatter: (params) => formatNumber(params.value),
