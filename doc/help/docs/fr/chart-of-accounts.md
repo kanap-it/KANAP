@@ -112,7 +112,7 @@ L'espace de travail comporte un seul onglet **Vue d'ensemble** avec un formulair
 - **Numéro de compte de consolidation** : Le numéro de compte de consolidation standardisé.
 - **Nom du compte de consolidation** : Le nom de consolidation standardisé.
 - **Description du compte de consolidation** : Précisions sur la catégorie de consolidation.
-- **Statut / Date de désactivation** : Utilisez le champ de cycle de vie pour activer ou désactiver le compte. Définissez une **Date de désactivation** pour programmer le moment où le compte n'apparaît plus dans les menus déroulants de sélection.
+- **Cycle de vie** : l'interrupteur de statut, dont le libellé indique l'état actuel (**Activé** ou **Désactivé**), et la date de **Fin de validité**. Définissez une **Fin de validité** pour programmer le moment où le compte n'apparaît plus dans les menus déroulants de sélection. Voir [Statut et cycle de vie](#statut-et-cycle-de-vie).
 
 **Navigation** :
 - **Préc. / Suiv.** : Passer d'un compte à l'autre dans l'ordre actuel de la liste.
@@ -379,13 +379,14 @@ plan comptable de la société. Veuillez mettre à jour le compte.
 
 **Comment corriger** : Modifiez le poste et sélectionnez un compte du plan comptable actuel de la société. L'avertissement disparaît dès que le compte correspond au CoA de la société.
 
-## Statut et date de désactivation
+## Statut et cycle de vie
 
 Les comptes suivent la même gestion du cycle de vie que les autres données de référence :
 
   - **Activé** par défaut
-  - Définissez une **Date de désactivation** pour cesser d'utiliser un compte à partir d'une date donnée
-  - Après la date de désactivation :
+  - Définissez une **Fin de validité** pour cesser d'utiliser un compte à partir d'une date donnée. Laissez-la vide pour que le compte reste actif indéfiniment
+  - Passer le compte à **Désactivé** sans date fixe sa fin de validité à aujourd'hui
+  - Après la fin de validité :
       - Le compte n'apparaît plus dans les menus déroulants de sélection pour les nouveaux postes
       - Les données historiques restent intactes ; les postes existants conservent leur compte
       - Les rapports des années où le compte était actif l'incluent toujours

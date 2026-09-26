@@ -15,7 +15,7 @@ The dashboard is built from tiles arranged in a responsive grid: three columns o
 
 ### OPEX Snapshot
 
-A compact table covering three fiscal years: last year (Y-1), current year (Y), and next year (Y+1). Up to four value columns appear depending on whether data exists: **Budget**, **Revision**, **Follow Up**, and **Landing**. All amounts are rounded to the nearest thousand and displayed with a "k" suffix (for example, `7 846k`).
+A compact table covering three fiscal years: last year (Y-1), current year (Y), and next year (Y+1). Up to four value columns appear depending on whether data exists: **Budget**, **Revision**, **Actuals**, and **Expected landing**. All amounts are rounded to the nearest thousand and displayed with a "k" suffix (for example, `7 846k`).
 
 Click **View** to open the OPEX list.
 

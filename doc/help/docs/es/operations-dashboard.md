@@ -15,7 +15,7 @@ El panel de control está construido a partir de mosaicos dispuestos en una cuad
 
 ### Instantánea OPEX
 
-Una tabla compacta que cubre tres ejercicios fiscales: año anterior (A-1), año actual (A) y año siguiente (A+1). Hasta cuatro columnas de valores aparecen dependiendo de si existen datos: **Presupuesto**, **Revisión**, **Seguimiento** y **Aterrizaje previsto**. Todos los importes se redondean al millar más cercano y se muestran con el sufijo "k" (por ejemplo, `7 846k`).
+Una tabla compacta que cubre tres ejercicios fiscales: año anterior (A-1), año actual (A) y año siguiente (A+1). Hasta cuatro columnas de valores aparecen dependiendo de si existen datos: **Presupuesto**, **Revisión**, **Realizado** y **Aterrizaje previsto**. Todos los importes se redondean al millar más cercano y se muestran con el sufijo "k" (por ejemplo, `7 846k`).
 
 Haga clic en **Ver** para abrir la lista OPEX.
 

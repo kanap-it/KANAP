@@ -112,7 +112,7 @@ Der Arbeitsbereich hat einen einzelnen **Übersichts**-Tab mit einem Formular zu
 - **Konsolidierungs-Kontonummer**: Die standardisierte Konsolidierungs-Kontonummer.
 - **Konsolidierungs-Kontoname**: Der standardisierte Konsolidierungsname.
 - **Konsolidierungs-Kontobeschreibung**: Details zur Konsolidierungskategorie.
-- **Status / Deaktivierungsdatum**: Verwenden Sie das Lebenszyklusfeld, um das Konto zu aktivieren oder zu deaktivieren. Setzen Sie ein **Deaktivierungsdatum**, um zu planen, wann das Konto nicht mehr in Auswahl-Dropdowns erscheint.
+- **Lebenszyklus**: der Statusschalter, dessen Beschriftung den aktuellen Zustand zeigt (**Aktiviert** oder **Deaktiviert**), und das Datum **Ende der Gültigkeit**. Setzen Sie ein **Ende der Gültigkeit**, um zu planen, wann das Konto nicht mehr in Auswahl-Dropdowns erscheint. Siehe [Status und Lebenszyklus](#status-und-lebenszyklus).
 
 **Navigation**:
 - **Zurück / Weiter**: Zwischen Konten in der aktuellen Listenreihenfolge navigieren.
@@ -379,13 +379,14 @@ Kontenplan des Unternehmens. Bitte aktualisieren Sie das Konto.
 
 **Behebung**: Bearbeiten Sie die Position und wählen Sie ein Konto aus dem aktuellen Kontenplan des Unternehmens. Die Warnung verschwindet, sobald das Konto zum Kontenplan des Unternehmens passt.
 
-## Status und Deaktivierungsdatum
+## Status und Lebenszyklus
 
 Konten verwenden das gleiche Lebenszyklusmanagement wie andere Stammdaten:
 
   - Standardmäßig **aktiviert**
-  - Setzen Sie ein **Deaktivierungsdatum**, um ein Konto ab einem bestimmten Datum nicht mehr zu verwenden
-  - Nach dem Deaktivierungsdatum:
+  - Setzen Sie ein **Ende der Gültigkeit**, um ein Konto ab einem bestimmten Datum nicht mehr zu verwenden. Lassen Sie es leer, damit das Konto unbegrenzt aktiv bleibt
+  - Wenn Sie das Konto ohne Datum auf **Deaktiviert** setzen, wird das Ende der Gültigkeit auf heute gesetzt
+  - Nach dem Ende der Gültigkeit:
       - Das Konto erscheint nicht mehr in Auswahl-Dropdowns für neue Positionen
       - Historische Daten bleiben erhalten; bestehende Positionen behalten ihre Kontozuweisungen
       - Berichte für Jahre, in denen das Konto aktiv war, enthalten es weiterhin

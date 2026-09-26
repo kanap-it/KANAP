@@ -112,7 +112,7 @@ El espacio de trabajo tiene una única pestaña **Visión general** con un formu
 - **Número de cuenta de consolidación**: El número de cuenta de consolidación estandarizado.
 - **Nombre de cuenta de consolidación**: El nombre de consolidación estandarizado.
 - **Descripción de cuenta de consolidación**: Detalles sobre la categoría de consolidación.
-- **Estado / Fecha de desactivación**: Use el campo de ciclo de vida para habilitar o deshabilitar la cuenta. Establezca una **Fecha de desactivación** para programar cuándo la cuenta deja de aparecer en los desplegables de selección.
+- **Ciclo de vida**: el interruptor de estado, cuya etiqueta muestra el estado actual (**Activado** o **Desactivado**), y la fecha de **Fin de validez**. Establezca un **Fin de validez** para programar cuándo la cuenta deja de aparecer en los desplegables de selección. Consulte [Estado y ciclo de vida](#estado-y-ciclo-de-vida).
 
 **Navegación**:
 - **Anterior / Siguiente**: Navegar entre cuentas en el orden actual de la lista.
@@ -379,13 +379,14 @@ Plan de cuentas de la empresa. Por favor actualice la cuenta.
 
 **Cómo solucionarlo**: Edite la partida y seleccione una cuenta del Plan de cuentas actual de la empresa. La advertencia desaparecerá una vez que la cuenta coincida con el CoA de la empresa.
 
-## Estado y fecha de desactivación
+## Estado y ciclo de vida
 
 Las cuentas utilizan la misma gestión de ciclo de vida que otros datos maestros:
 
-  - **Habilitadas** por defecto
-  - Establezca una **Fecha de desactivación** para dejar de usar una cuenta a partir de una fecha específica
-  - Después de la fecha de desactivación:
+  - **Activadas** por defecto
+  - Establezca un **Fin de validez** para dejar de usar una cuenta a partir de una fecha específica. Déjelo en blanco para que la cuenta permanezca activa indefinidamente
+  - Si cambia la cuenta a **Desactivado** sin fecha, el fin de validez se fija en hoy
+  - Después del fin de validez:
       - La cuenta ya no aparece en los desplegables de selección para nuevos elementos
       - Los datos históricos permanecen intactos; los elementos existentes conservan sus asignaciones de cuenta
       - Los informes de años cuando la cuenta estaba activa siguen incluyéndola

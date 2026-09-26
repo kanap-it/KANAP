@@ -61,7 +61,7 @@ La pestaña Visión general captura la identidad y estado del departamento.
 - **Nombre**: Nombre del departamento (obligatorio)
 - **Empresa**: Empresa matriz -- vinculada a los datos maestros de Empresas (obligatorio). Las empresas que ya tienen un departamento con el mismo nombre se excluyen automáticamente del desplegable para prevenir duplicados.
 - **Descripción**: Descripción de texto libre
-- **Estado**: Habilitado o Deshabilitado, con una fecha de desactivación programable opcional
+- **Ciclo de vida**: el interruptor de estado, cuya etiqueta muestra el estado actual (**Activado** o **Desactivado**), y la fecha de **Fin de validez**. Deje la fecha en blanco para que el departamento permanezca activo indefinidamente, o fije una fecha futura para programar su fin. Si cambia el departamento a **Desactivado** sin fecha, el fin de validez se fija en hoy
 
 **Consejo**: Al crear un nuevo departamento, la pestaña Detalles está disponible solo después de guardar el registro inicial.
 

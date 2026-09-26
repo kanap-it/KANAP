@@ -112,7 +112,7 @@ The workspace has a single **Overview** tab with a form to view and edit the acc
 - **Consolidation Account Number**: The standardized consolidation account number.
 - **Consolidation Account Name**: The standardized consolidation name.
 - **Consolidation Account Description**: Details about the consolidation category.
-- **Status / Disabled date**: Use the lifecycle field to enable or disable the account. Set a **Disabled date** to schedule when the account stops appearing in selection dropdowns.
+- **Lifecycle**: the status switch, labelled with the current state (**Enabled** or **Disabled**), and the **End of validity** date. Set an **End of validity** to schedule when the account stops appearing in selection dropdowns. See [Status and lifecycle](#status-and-lifecycle).
 
 **Navigation**:
 - **Prev / Next**: Navigate between accounts in the current list order.
@@ -379,13 +379,14 @@ the company's Chart of Accounts. Please update the account.
 
 **How to fix it**: Edit the item and select an account from the company's current Chart of Accounts. The warning will disappear once the account matches the company's CoA.
 
-## Status and Disabled date
+## Status and lifecycle
 
 Accounts use the same lifecycle management as other master data:
 
   - **Enabled** by default
-  - Set a **Disabled date** to stop using an account from a specific date
-  - After the Disabled date:
+  - Set an **End of validity** to stop using an account from a specific date. Leave it blank to keep the account active indefinitely
+  - Switching the account to **Disabled** without a date sets its end of validity to today
+  - After the end of validity:
       - The account no longer appears in selection dropdowns for new items
       - Historical data remains intact; existing items keep their account assignments
       - Reports for years when the account was active still include it

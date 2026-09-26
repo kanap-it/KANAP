@@ -96,7 +96,7 @@ La pestaña Visión general contiene la información general de la empresa.
 - **N.º de registro**: número de registro mercantil
 - **N.º de IVA**: número de identificación fiscal
 - **Moneda base** (obligatorio): código de moneda ISO, búsqueda por nombre o código
-- **Estado / Fecha de desactivación**: controla si la empresa está activa (ver más abajo)
+- **Ciclo de vida**: el interruptor de estado, cuya etiqueta muestra el estado actual (**Activado** o **Desactivado**), y la fecha de **Fin de validez**. Consulte [Estado y ciclo de vida](#estado-y-ciclo-de-vida)
 - **Notas**: notas de texto libre
 
 ---
@@ -137,12 +137,13 @@ Cada empresa puede vincularse a un **Plan de cuentas** (CoA), que define el conj
 
 **Consejo**: si ve una advertencia de "cuenta obsoleta" al editar partidas OPEX/CAPEX, significa que la cuenta no pertenece al plan de cuentas actual de la empresa. Actualice la cuenta a una del CoA correcto para resolver esto.
 
-## Estado y fecha de desactivación
+## Estado y ciclo de vida
 
-Utilice la **Fecha de desactivación** para controlar cuándo una empresa deja de estar activa.
+Utilice el **Fin de validez** para controlar cuándo una empresa deja de estar activa.
 
-- Las empresas están **Habilitadas** por defecto. También puede programar una fecha de desactivación futura.
-- Después de la fecha de desactivación:
+- Las empresas están **Activadas** por defecto. Deje el **Fin de validez** en blanco para que la empresa permanezca activa indefinidamente, o programe una fecha futura.
+- Si cambia la empresa a **Desactivado** sin fecha, el fin de validez se fija en hoy.
+- Después del fin de validez:
     - La empresa ya no aparece en las listas de selección para nuevas asignaciones y se excluye de los informes de años estrictamente posteriores.
     - Los datos históricos permanecen intactos; la empresa sigue apareciendo en informes que cubren años en los que estaba activa.
 - **Prefiera desactivar en lugar de eliminar.** La eliminación solo es posible si nada referencia a la empresa (sin asignaciones ni gasto).

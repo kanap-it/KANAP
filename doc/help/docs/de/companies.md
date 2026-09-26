@@ -96,7 +96,7 @@ Der Übersichts-Tab enthält allgemeine Informationen über das Unternehmen.
 - **Registrierungsnr.**: Handelsregisternummer
 - **USt-IdNr.**: Umsatzsteuer-Identifikationsnummer
 - **Basiswährung** (Pflicht): ISO-Währungscode, durchsuchbar nach Name oder Code
-- **Status / Deaktivierungsdatum**: steuert, ob das Unternehmen aktiv ist (siehe unten)
+- **Lebenszyklus**: der Statusschalter, dessen Beschriftung den aktuellen Zustand zeigt (**Aktiviert** oder **Deaktiviert**), und das Datum **Ende der Gültigkeit**. Siehe [Status und Lebenszyklus](#status-und-lebenszyklus)
 - **Notizen**: Freitext-Notizen
 
 ---
@@ -137,12 +137,13 @@ Jedes Unternehmen kann mit einem **Kontenplan** (CoA) verknüpft werden, der den
 
 **Tipp**: Wenn Sie beim Bearbeiten von OPEX/CAPEX-Positionen eine Warnung „Veraltetes Konto" sehen, bedeutet dies, dass das Konto nicht zum aktuellen Kontenplan des Unternehmens gehört. Aktualisieren Sie das Konto auf eines aus dem richtigen Kontenplan, um dies zu beheben.
 
-## Status und Deaktivierungsdatum
+## Status und Lebenszyklus
 
-Verwenden Sie das **Deaktivierungsdatum**, um zu steuern, wann ein Unternehmen nicht mehr aktiv ist.
+Verwenden Sie das **Ende der Gültigkeit**, um zu steuern, wann ein Unternehmen nicht mehr aktiv ist.
 
-- Unternehmen sind standardmäßig **aktiviert**. Sie können auch ein zukünftiges Deaktivierungsdatum planen.
-- Nach dem Deaktivierungsdatum:
+- Unternehmen sind standardmäßig **aktiviert**. Lassen Sie das **Ende der Gültigkeit** leer, damit das Unternehmen unbegrenzt aktiv bleibt, oder planen Sie ein zukünftiges Datum.
+- Wenn Sie das Unternehmen ohne Datum auf **Deaktiviert** setzen, wird das Ende der Gültigkeit auf heute gesetzt.
+- Nach dem Ende der Gültigkeit:
     - Das Unternehmen erscheint nicht mehr in Auswahllisten für neue Zuordnungen und wird aus Berichten für strikt spätere Jahre ausgeschlossen.
     - Historische Daten bleiben erhalten; das Unternehmen erscheint weiterhin in Berichten, die Jahre abdecken, in denen es aktiv war.
 - **Deaktivieren statt löschen.** Das Löschen ist nur möglich, wenn nichts das Unternehmen referenziert (keine Zuordnungen oder Ausgaben).

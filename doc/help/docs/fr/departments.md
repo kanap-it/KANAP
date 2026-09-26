@@ -61,7 +61,7 @@ L'onglet Vue d'ensemble capture l'identité et le statut du département.
 - **Nom** : Nom du département (obligatoire)
 - **Société** : Société parente — liée aux données de référence Sociétés (obligatoire). Les sociétés qui ont déjà un département du même nom sont automatiquement exclues de la liste déroulante pour éviter les doublons.
 - **Description** : Description libre
-- **Statut** : Activé ou Désactivé, avec une date de désactivation planifiée optionnelle
+- **Cycle de vie** : l'interrupteur de statut, dont le libellé indique l'état actuel (**Activé** ou **Désactivé**), et la date de **Fin de validité**. Laissez la date vide pour que le département reste actif indéfiniment, ou fixez une date future pour programmer sa fin. Passer le département à **Désactivé** sans date fixe la fin de validité à aujourd'hui
 
 **Conseil** : Lors de la création d'un nouveau département, l'onglet Détails ne devient disponible qu'après l'enregistrement initial.
 

@@ -86,8 +86,8 @@ La pestaña Visión general captura la identidad y el estado del ciclo de vida d
 - **Empresa contratante**: Qué empresa es parte de este contrato
 - **Responsable**: La persona encargada de gestionar este contrato
 - **Notas**: Notas de texto libre
-- **Conmutador Habilitado**: Marcar un contrato como activo o deshabilitado
-- **Deshabilitado en**: Cuándo fue (o será) deshabilitado el contrato -- escriba una fecha en formato dd/mm/aaaa o use el selector de calendario
+- **Interruptor de estado**: su etiqueta muestra el estado actual (**Activado** o **Desactivado**). Si cambia el contrato a **Desactivado** sin fecha, el fin de validez se fija en hoy
+- **Fin de validez**: la fecha en que el contrato termina. Escriba una fecha en formato dd/mm/aaaa o use el botón de calendario. Déjela en blanco para que el contrato permanezca activo indefinidamente
 
 **Cómo funciona**:
 

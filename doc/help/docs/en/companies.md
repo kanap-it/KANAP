@@ -96,7 +96,7 @@ The Overview tab holds general information about the company.
 - **Registration #**: company registration number
 - **VAT #**: VAT identification number
 - **Base Currency** (required): ISO currency code, searchable by name or code
-- **Status / Disabled date**: controls whether the company is active (see below)
+- **Lifecycle**: the status switch, labelled with the current state (**Enabled** or **Disabled**), and the **End of validity** date. See [Status and lifecycle](#status-and-lifecycle)
 - **Notes**: free-text notes
 
 ---
@@ -137,12 +137,13 @@ Each company can be linked to a **Chart of Accounts** (CoA), which defines the s
 
 **Tip**: if you see an "obsolete account" warning when editing OPEX/CAPEX items, it means the account does not belong to the company's current Chart of Accounts. Update the account to one from the correct CoA to resolve this.
 
-## Status and Disabled date
+## Status and lifecycle
 
-Use the **Disabled date** to control when a company stops being active.
+Use the **End of validity** to control when a company stops being active.
 
-- Companies are **Enabled** by default. You can also schedule a future Disabled date.
-- After the Disabled date:
+- Companies are **Enabled** by default. Leave the **End of validity** blank to keep the company active indefinitely, or schedule a future date.
+- Switching the company to **Disabled** without a date sets its end of validity to today.
+- After the end of validity:
     - The company no longer appears in selection lists for new allocations and is excluded from reports for strictly later years.
     - Historical data remains intact; the company still appears in reports covering years when it was active.
 - **Prefer disabling over deleting.** Deletion is only possible if nothing references the company (no allocations or spend).

@@ -86,8 +86,8 @@ The Overview tab captures the contract's identity and lifecycle status.
 - **Contracting Company**: Which company is party to this contract
 - **Owner**: The person responsible for managing this contract
 - **Notes**: Free-form notes
-- **Enabled toggle**: Mark a contract as active or disabled
-- **Disabled At**: When the contract was (or will be) disabled -- type a date in dd/mm/yyyy format or use the calendar picker
+- **Status switch**: labelled with the current state (**Enabled** or **Disabled**). Switching the contract to **Disabled** without a date sets its end of validity to today
+- **End of validity**: the date the contract stops. Type a date in dd/mm/yyyy format or use the calendar button. Leave it blank to keep the contract active indefinitely
 
 **How it works**:
 

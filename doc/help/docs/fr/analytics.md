@@ -49,18 +49,19 @@ C'est le seul onglet. Il contient tous les champs de la catégorie.
 **Ce que vous pouvez modifier** :
 - **Nom** : Le libellé de la catégorie. Le modifier met à jour les listes déroulantes et les rapports partout.
 - **Description** : Explication libre de l'usage prévu de la catégorie.
-- **Statut / Date de désactivation** : Désactivez la catégorie pour la retirer. Voir la section ci-dessous pour plus de détails.
+- **Cycle de vie** : l'interrupteur de statut, dont le libellé indique l'état actuel (**Activé** ou **Désactivé**), et la date de **Fin de validité**. Voir [Statut et cycle de vie](#statut-et-cycle-de-vie).
 
 **Navigation dans l'espace de travail** : Utilisez les boutons **Préc** et **Suiv** pour naviguer entre les catégories sans revenir à la liste. L'espace de travail préserve votre contexte actuel de tri, recherche et filtre. Si vous avez des modifications non enregistrées, vous serez invité avant de naviguer.
 
 **Conseil** : Cliquez sur l'icône de fermeture (X) dans le coin supérieur droit pour revenir à la liste avec vos filtres intacts.
 
-## Statut et date de désactivation
+## Statut et cycle de vie
 
-Utilisez le bouton bascule de statut pour retirer une catégorie sans la supprimer.
+Chaque catégorie a un statut (**Activé** ou **Désactivé**) et une **Fin de validité** facultative. Ils permettent de retirer une catégorie sans la supprimer.
 
-- Lorsque vous désactivez une catégorie, une **date de désactivation** est enregistrée.
-- Après cette date, la catégorie n'apparaît plus dans les listes déroulantes de sélection pour les nouveaux éléments.
+- **Fin de validité** : la date à laquelle la catégorie s'arrête. Laissez-la vide pour que la catégorie reste active indéfiniment. Vous pouvez aussi programmer une date future.
+- Passer la catégorie à **Désactivé** sans date fixe sa fin de validité à aujourd'hui. La repasser à **Activé** efface la date.
+- Après la fin de validité, la catégorie n'apparaît plus dans les listes déroulantes de sélection pour les nouveaux éléments.
 - Les éléments existants conservent leur affectation, et les rapports historiques restent précis.
 - **Préférez la désactivation à la suppression** : il n'y a pas d'action de suppression sur cette page. La désactivation préserve la continuité du reporting tout en gardant la liste propre.
 

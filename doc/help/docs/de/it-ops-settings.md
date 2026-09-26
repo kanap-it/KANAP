@@ -1,6 +1,6 @@
-# IT-Landschaft-Einstellungen
+# IT-Landschaft Einstellungen
 
-Auf der Seite **IT-Landschaft-Einstellungen** passen Sie die Dropdown-Werte an, die in der gesamten IT-Landschaft verwendet werden. Diese Listen steuern, welche Optionen erscheinen, wenn Benutzer Anwendungen, Schnittstellen, Assets, Verbindungen und Standorte erstellen oder bearbeiten. Änderungen hier gelten für alle Benutzer in Ihrem Arbeitsbereich.
+Auf der Seite **IT-Landschaft Einstellungen** passen Sie die Dropdown-Werte an, die in der gesamten IT-Landschaft verwendet werden. Diese Listen steuern, welche Optionen erscheinen, wenn Benutzer Anwendungen, Schnittstellen, Assets, Verbindungen und Standorte erstellen oder bearbeiten. Änderungen hier gelten für alle Benutzer in Ihrem Arbeitsbereich.
 
 Für eine bessere Lesbarkeit der Karte enthalten **Entitäten** und **Serverrollen** zusätzlich ein Feld **Graph-Ebene**, das die rollenbasierte Platzierung der Verbindungskarte verwendet.
 
@@ -16,13 +16,14 @@ Wenn Sie den Eintrag **Einstellungen** im Menü der IT-Landschaft nicht sehen, b
 
 ## Wie die Seite organisiert ist
 
-Die Einstellungen sind in drei zusammenklappbare Abschnitte gruppiert:
+Der Editor **Einstufungen und Kontinuität** steht oben auf der Seite. Darunter sind die Listen in vier zusammenklappbare Abschnitte gruppiert:
 
-1. **Standorte** - Listen für das Erstellen oder Bearbeiten von Standorten.
-2. **Server und Verbindungen** - Listen für Server, Verbindungen und zugehörige Infrastrukturdaten.
-3. **Anwendungen, Services und Schnittstellen** - Listen für Anwendungen, App-Instanzen, Schnittstellen und Bindungen.
+1. **Standorte** - Listen für die Erstellung oder Bearbeitung von Standorten.
+2. **Server und Verbindungen** - Listen für Server, Verbindungen und zugehörige Risiko-/Endpoint-Daten.
+3. **Anwendungen, Services und Schnittstellen** - Listen für Anwendungen, Anwendungsinstanzen, Schnittstellen und Bindungen.
+4. **Vorfälle** - Listen für das Vorfallsregister.
 
-Jede Liste erscheint als aufklappbares Panel. Klicken Sie auf die Kopfzeile eines Panels, um es aufzuklappen und die Werte zu sehen. Ein Abschnitt lädt seinen Inhalt erst beim ersten Aufklappen. So bleibt die Seite auch bei vielen Listen schnell.
+Innerhalb eines Abschnitts sind die Listen nach Namen sortiert. Jede Liste erscheint als aufklappbares Panel mit einem kurzen Hinweis, wo ihre Werte verwendet werden (zum Beispiel *Anwendungen / Kategorieauswahl*). Klicken Sie auf die Kopfzeile eines Panels, um es aufzuklappen und die Werte zu sehen. Ein Abschnitt lädt seinen Inhalt erst beim ersten Aufklappen. So bleibt die Seite auch bei vielen Listen schnell.
 
 ### Editor-Steuerungen
 
@@ -63,7 +64,7 @@ Editoren zeigen und bearbeiten immer den Basistext; wenn der angezeigte Name in 
 
 ### Cloud-Anbieter
 
-Cloud-Anbieter, die für Assets und Cloud-Standorte verfügbar sind (z. B. AWS, Azure, GCP).
+Cloud-Anbieter, die von Servern und Standorten verwendet werden (z. B. AWS, Azure, GCP).
 
 **Spalten**: Name, Nicht mehr anbieten
 
@@ -73,9 +74,9 @@ Cloud-Anbieter, die für Assets und Cloud-Standorte verfügbar sind (z. B. AWS, 
 
 ### Hosting-Typen
 
-Hosting-Modelle für Standorte (z. B. On-prem, Colocation, Public Cloud, Private Cloud, SaaS).
+Hosting-Modelle, die beim Anlegen von Standorten verfügbar sind (z. B. On-Premises, Colocation, Public Cloud, SaaS).
 
-**Spalten**: Name, Kategorie (Vor Ort / Colocation oder Cloud / SaaS), Nicht mehr anbieten
+**Spalten**: Name, Kategorie (**Vor Ort / Colocation** oder **Cloud / SaaS**), Nicht mehr anbieten
 
 **Verwendung**:
 - Standorte-Arbeitsbereich → Reiter Übersicht → Feld **Hosting-Typ**
@@ -90,7 +91,7 @@ Die Kategorie bestimmt, welche Felder beim Bearbeiten eines Standorts erscheinen
 
 ### Verbindungstypen
 
-Ein zweistufiger Katalog von Verbindungsprotokollen, nach Kategorie geordnet, mit typischen Ports.
+Ein zweistufiger Katalog (Kategorie und Eintrag) von Verbindungsprotokollen, mit typischen Ports.
 
 **Spalten**: Kategorie (z. B. Datenbank, Fernzugriff), Name, Typische Ports, Nicht mehr anbieten
 
@@ -103,7 +104,7 @@ Zu den Standardkategorien gehören: Anwendung, Authentifizierung, Backup, Datenb
 
 ### Domänen
 
-Active-Directory- oder DNS-Domänen, denen Assets angehören können. Sie dienen zur Berechnung des vollqualifizierten Domänennamens (FQDN) jedes Assets.
+Active-Directory- oder DNS-Domänen für Assets. Integrierte Einträge können nicht geändert werden. Das DNS-Suffix dient zur Berechnung des vollqualifizierten Domänennamens (FQDN) jedes Assets.
 
 **Spalten**: Name, DNS-Suffix, Nicht mehr anbieten
 
@@ -121,7 +122,7 @@ Active-Directory- oder DNS-Domänen, denen Assets angehören können. Sie dienen
 
 ### Entitäten
 
-Quell- und Zielentitäten für Datenflüsse und Zugriffsmuster (z. B. Interne Benutzer, Internet, Partnernetzwerke, Externe Systeme).
+Endpunkte in Verbindungen und Karten (z. B. Interne Benutzer, Internet, Partnernetzwerke, Externe Systeme). Die Graph-Ebene bestimmt ihre Standardposition auf der Karte.
 
 **Spalten**: Name, Graph-Ebene, Nicht mehr anbieten
 
@@ -134,14 +135,14 @@ Quell- und Zielentitäten für Datenflüsse und Zugriffsmuster (z. B. Interne Be
 Die Graph-Ebene steuert das bevorzugte vertikale Band in der Verbindungskarte, wenn die **rollenbasierte Platzierung** aktiviert ist:
 
 - **Oben**: Benutzernahe oder externe Endpunkte
-- **Oberer**: Obere Anwendungs-/Dienstschicht
+- **Obere Mitte**: Obere Anwendungs-/Dienstschicht
 - **Mitte**: Neutrale Standard-Mittelschicht
-- **Unterer**: Unterstützende Infrastruktur
+- **Untere Mitte**: Unterstützende Infrastruktur
 - **Unten**: Daten- und speicherlastige Endpunkte
 
 ### IP-Adresstypen
 
-Typen von IP-Adressen, die Assets zugewiesen werden können. Nützlich, um verschiedene Netzwerkschnittstellen zu unterscheiden, etwa Host-IPs, Management-Schnittstellen und Speichernetzwerke.
+Typen von IP-Adressen für Assets. Nützlich, um verschiedene Netzwerkschnittstellen zu unterscheiden, etwa Host-IPs, Management-Schnittstellen und Speichernetzwerke.
 
 **Spalten**: Name, Nicht mehr anbieten
 
@@ -157,7 +158,7 @@ Assets können mehrere IP-Adressen mit jeweils eigenem Typ haben. Ein physischer
 
 ### Netzwerkzonen
 
-Netzwerkzonen zur Kategorisierung von Subnetzen und zur Beschreibung der Asset-Konnektivität (z. B. LAN, DMZ, Industrie-LAN, WLAN, Public Cloud, Gast, Management, Speicher, VPN).
+Netzwerkzonen zur Einordnung von Subnetzen und zur Beschreibung der Konnektivität (z. B. LAN, DMZ, Industrie-LAN, WLAN, Public Cloud, Gast, Management, Speicher, VPN).
 
 **Spalten**: Name, Nicht mehr anbieten
 
@@ -167,7 +168,7 @@ Netzwerkzonen zur Kategorisierung von Subnetzen und zur Beschreibung der Asset-K
 
 ### Subnetze
 
-Definieren Sie Netzwerk-Subnetze in CIDR-Notation, mit optionaler VLAN-Zuweisung und Netzwerkzonen-Klassifizierung. Jedes Subnetz gehört zu einem bestimmten Standort.
+Definieren Sie Subnetze in CIDR-Notation, mit optionaler VLAN-Zuordnung. Jedes Subnetz gehört zu einer Netzwerkzone und zu einem Standort.
 
 **Spalten**: Standort, CIDR, VLAN (1-4094), Netzwerkzone, Beschreibung, Nicht mehr anbieten
 
@@ -183,9 +184,9 @@ Definieren Sie Netzwerk-Subnetze in CIDR-Notation, mit optionaler VLAN-Zuweisung
 
 ### Betriebssysteme
 
-Katalog der Betriebssysteme für Assets, einschließlich der Daten des Support-Lebenszyklus.
+Katalog der für Server verfügbaren Betriebssysteme mit Enddaten für Standard- und erweiterten Support.
 
-**Spalten**: Name, Ende des Standard-Supports, Ende des erweiterten Supports, Nicht mehr anbieten
+**Spalten**: Name, Standard-Support, Erweiterter Support, Nicht mehr anbieten
 
 **Verwendung**:
 - Assets-Arbeitsbereich → Reiter Technik → Auswahl **Betriebssystem** (der Hilfetext zeigt die Support-Daten)
@@ -196,7 +197,7 @@ Die Standardeinträge umfassen Windows-Server-Versionen, Ubuntu LTS, RHEL, Debia
 
 ### Serverrollen
 
-Rollen, die Assets zugewiesen werden, wenn sie mit Anwendungsinstanzen verknüpft werden (z. B. Webserver, Datenbankserver, Worker).
+Rollen, die Servern beim Verknüpfen von Anwendungsinstanzen zugewiesen werden (z. B. Webserver, Datenbankserver, Worker). Die Graph-Ebene bestimmt ihre Position auf der Verbindungskarte.
 
 **Spalten**: Name, Graph-Ebene, Nicht mehr anbieten
 
@@ -206,14 +207,14 @@ Rollen, die Assets zugewiesen werden, wenn sie mit Anwendungsinstanzen verknüpf
 
 Integrierte Standardbeispiele:
 - `web`, `proxy` → **Oben**
-- `app`, `cloud-service` → **Oberer**
+- `app`, `cloud-service` → **Obere Mitte**
 - `db` → **Unten**
 
 ### Asset-Typen
 
-Logische Typen für Infrastruktur-Assets (z. B. Physischer Server, Virtuelle Maschine, Container, Serverless, Appliance).
+Logische Typen für Server und Infrastruktur-Assets (z. B. Physischer Server, Virtuelle Maschine, Container, Serverless, Appliance). Physische Assets können Hardware- und Support-Informationen erfassen.
 
-**Spalten**: Name, Nicht mehr anbieten
+**Spalten**: Name, Physisch, Nicht mehr anbieten
 
 **Verwendung**:
 - Assets-Arbeitsbereich → Reiter Übersicht → Feld **Typ**
@@ -224,7 +225,7 @@ Logische Typen für Infrastruktur-Assets (z. B. Physischer Server, Virtuelle Mas
 
 ### Zugriffsmethoden
 
-Methoden, mit denen Benutzer auf Anwendungen zugreifen (z. B. Webbrowser, mobile App, VDI-Sitzung).
+Methoden, mit denen Benutzer auf Anwendungen zugreifen (z. B. Web, mobil, VDI).
 
 **Spalten**: Name, Nicht mehr anbieten
 
@@ -237,7 +238,7 @@ Methoden, mit denen Benutzer auf Anwendungen zugreifen (z. B. Webbrowser, mobile
 
 ### Anwendungskategorien
 
-Kategorien, die den Hauptzweck jeder Anwendung oder jedes Dienstes beschreiben.
+Kategorien, die den Hauptzweck jeder Anwendung oder jedes Service beschreiben.
 
 **Spalten**: Name, Nicht mehr anbieten
 
@@ -251,9 +252,9 @@ Kategorien, die den Hauptzweck jeder Anwendung oder jedes Dienstes beschreiben.
 
 ### Datenklassen
 
-Datenklassifizierungsstufen für Anwendungen und Schnittstellen.
+Datenklassifizierungsstufen für Anwendungen und Schnittstellen. Sie bearbeiten sie im Editor **Einstufungen und Kontinuität** unter **Datenvertraulichkeit**.
 
-**Spalten**: Name, Nicht mehr anbieten
+**Spalten**: Name, Beschreibung, Nicht mehr anbieten
 
 **Gesperrte Codes**: Die integrierten Stufen (Öffentlich, Intern, Vertraulich, Eingeschränkt) können weder gelöscht noch als veraltet markiert werden.
 
@@ -262,9 +263,9 @@ Datenklassifizierungsstufen für Anwendungen und Schnittstellen.
 - Schnittstellen-Arbeitsbereich → Reiter Übersicht → Feld **Datenklasse**
 - Anwendungsliste → Spalte **Datenklasse**
 
-### Klassifizierungen und Kontinuität
+### Einstufungen und Kontinuität
 
-Dieser Editor konfiguriert die Stufen, mit denen Anwendungen klassifiziert werden. Er steht Benutzern mit `settings:admin` im Bereich **Anwendungen, Services und Schnittstellen** zur Verfügung und öffnet sich als einzelner Dialog mit einer Liste pro Katalog:
+Dieser Editor konfiguriert die Stufen, mit denen Anwendungen klassifiziert werden. Er steht Benutzern mit `settings:admin` oben auf der Seite zur Verfügung und öffnet sich als einzelner Dialog mit einer Liste pro Katalog:
 
 - **Geschäftskritikalität**: die Stufen, die einer Anwendung zugewiesen werden können. Jede Stufe hat einen Namen, eine Beschreibung, die bei der Auswahl unter dem Namen angezeigt wird, eine optionale **maximal tolerierbare Ausfallzeit** in Minuten und die Markierung **Nicht mehr anbieten**. Die Ausfallzeit dokumentiert die Stufe und löst bei einer Anwendung, deren RTO sie erreicht, einen Hinweis aus; sie ist ein Attribut der Stufe, kein Wert, der auf Anwendungen eingegeben wird.
 - **Cyberkritikalität**: unabhängige Folgenstufen.
@@ -281,23 +282,23 @@ Die Business-Stufen liefern auch die operative Kritikalität für Schnittstellen
 
 ### Integrationsmuster
 
-Integrationsmuster für Schnittstellenabschnitte (z. B. REST API, Datei-Batch, Queue, DB-Staging).
+Integrationsmuster, die von Schnittstellenabschnitten verwendet werden (z. B. REST API, Datei-Batch, Queue, DB-Staging).
 
 **Spalten**: Name, Nicht mehr anbieten
 
 **Verwendung**:
 - Schnittstellenabschnitte → Feld **Muster**
 
-### Schnittstellen-Authentifizierungsmodi
+### Authentifizierungsmodi für Schnittstellen
 
-Authentifizierungsmodi für Schnittstellenbindungen (z. B. Dienstkonto, OAuth2, API-Schlüssel, Zertifikat).
+Authentifizierungsmodi für Schnittstellenabschnitte und -bindungen (z. B. Dienstkonto, OAuth2, API-Schlüssel, Zertifikat).
 
 **Spalten**: Name, Nicht mehr anbieten
 
 **Verwendung**:
 - Schnittstellenbindungen → Feld **Authentifizierungsmodus**
 
-### Schnittstellen-Datenkategorien
+### Datenkategorien für Schnittstellen
 
 Geschäftsdatenkategorien für Schnittstellen (z. B. Stammdaten, Transaktional, Berichterstellung, Steuerung).
 
@@ -306,27 +307,27 @@ Geschäftsdatenkategorien für Schnittstellen (z. B. Stammdaten, Transaktional, 
 **Verwendung**:
 - Schnittstellen-Arbeitsbereich → Feld **Datenkategorie**
 
-### Schnittstellen-Datenformate
+### Datenformate für Schnittstellen
 
-Nutzdatenformate für Schnittstellenabschnitte (z. B. CSV, JSON, XML, IDoc, Binär).
+Datenformate für Schnittstellenabschnitte (z. B. CSV, JSON, XML, IDoc, Binär).
 
 **Spalten**: Name, Nicht mehr anbieten
 
 **Verwendung**:
 - Schnittstellenabschnitte → Feld **Format**
 
-### Schnittstellen-Protokolle
+### Schnittstellenprotokolle
 
-Technische Protokolle für Schnittstellenbindungen (z. B. HTTP/REST, gRPC, SFTP, Kafka, Datenbank).
+Unterstützte Protokolle für Schnittstellenbindungen zwischen Anwendungen (z. B. HTTP/REST, gRPC, SFTP, Kafka, Datenbank).
 
 **Spalten**: Name, Nicht mehr anbieten
 
 **Verwendung**:
 - Schnittstellenbindungen → Feld **Protokoll** (ältere Bindungen)
 
-### Schnittstellen-Auslösertypen
+### Auslösertypen für Schnittstellen
 
-Auslösemechanismen für Schnittstellenabschnitte (z. B. Ereignisbasiert, Geplant, Echtzeit, Manuell).
+Auslösertypen für Schnittstellenabschnitte (z. B. Ereignisbasiert, Geplant, Echtzeit, Manuell).
 
 **Spalten**: Name, Nicht mehr anbieten
 
@@ -335,7 +336,7 @@ Auslösemechanismen für Schnittstellenabschnitte (z. B. Ereignisbasiert, Geplan
 
 ### Lebenszyklus-Status
 
-Gemeinsame Lebenszyklus-Zustände für Anwendungen, App-Instanzen, Schnittstellen, Schnittstellenbindungen und Assets.
+Gemeinsame Lebenszyklus-Optionen für Anwendungen, Anwendungsinstanzen, Schnittstellen, Schnittstellenbindungen und Server.
 
 **Spalten**: Name, Nicht mehr anbieten
 
@@ -346,10 +347,23 @@ Gemeinsame Lebenszyklus-Zustände für Anwendungen, App-Instanzen, Schnittstelle
 
 ---
 
+## Vorfälle
+
+### Vorfallkategorien
+
+Kategorien zur Einordnung der Einträge im Vorfallsregister.
+
+**Spalten**: Name, Nicht mehr anbieten
+
+**Verwendung**:
+- Vorfälle → Auswahl **Kategorie**
+
+---
+
 ## Wie Änderungen bestehende Daten beeinflussen
 
 - **Bestehende Datensätze behalten ihren Wert** - Ein Umbenennen ändert nur die Anzeige, nicht die zugrunde liegenden Daten.
-- **Veraltete Werte**:
+- **Als „Nicht mehr anbieten“ markierte Werte**:
   - Bleiben für Datensätze gültig, die sie bereits verwenden.
   - Werden beim Erstellen neuer Datensätze in den Dropdowns ausgeblendet.
   - Erscheinen beim Bearbeiten weiterhin, wenn der Datensatz diesen Wert bereits verwendet.
@@ -372,11 +386,12 @@ So können Sie Ihre Taxonomie im Laufe der Zeit weiterentwickeln, ohne bestehend
 | **Entitäten** | Verbindungen (Quell-/Zielentität), Verbindungskarte (Platzierung nach Graph-Ebene) |
 | **Hosting-Typen** | Standorte (Übersicht) |
 | **Integrationsmuster** | Schnittstellenabschnitte (Muster) |
-| **Schnittstellen-Authentifizierungsmodi** | Schnittstellenbindungen (Authentifizierungsmodus) |
-| **Schnittstellen-Datenkategorien** | Schnittstellen (Datenkategorie) |
-| **Schnittstellen-Datenformate** | Schnittstellenabschnitte (Format) |
-| **Schnittstellen-Protokolle** | Schnittstellenbindungen (Protokoll) |
-| **Schnittstellen-Auslösertypen** | Schnittstellenabschnitte (Auslöser) |
+| **Authentifizierungsmodi für Schnittstellen** | Schnittstellenbindungen (Authentifizierungsmodus) |
+| **Datenkategorien für Schnittstellen** | Schnittstellen (Datenkategorie) |
+| **Datenformate für Schnittstellen** | Schnittstellenabschnitte (Format) |
+| **Schnittstellenprotokolle** | Schnittstellenbindungen (Protokoll) |
+| **Auslösertypen für Schnittstellen** | Schnittstellenabschnitte (Auslöser) |
+| **Vorfallkategorien** | Vorfälle (Kategorie) |
 | **IP-Adresstypen** | Assets (Reiter Technik → IP-Adressen → Typ) |
 | **Lebenszyklus-Status** | Anwendungen, App-Instanzen, Schnittstellen, Bindungen, Assets |
 | **Netzwerkzonen** | Subnetze (Netzwerkzone), Assets (automatisch aus dem Subnetz) |
@@ -390,7 +405,7 @@ So können Sie Ihre Taxonomie im Laufe der Zeit weiterentwickeln, ohne bestehend
 ## Tipps
 
 - **Namen an Ihre Terminologie anpassen** - Prüfen Sie die Standardwerte und benennen Sie sie so um, wie Ihre Organisation über diese Begriffe spricht. Datensätze behalten ihre Verknüpfung mit dem Wert; nur der Name ändert sich.
-- **Schrittweise auslaufen lassen** - Wenn Sie sich von einem Wert verabschieden, markieren Sie ihn als veraltet, statt ihn zu löschen. So bleiben historische Daten intakt, und Benutzer werden zu den neuen Optionen gelenkt.
+- **Schrittweise auslaufen lassen** - Wenn Sie sich von einem Wert verabschieden, markieren Sie ihn mit **Nicht mehr anbieten**, statt ihn zu entfernen. So bleiben historische Daten intakt, und Benutzer werden zu den neuen Optionen gelenkt.
 - **Datenklassen mit der Sicherheitsabteilung abstimmen** - Änderungen an Datenklassen sollten mit Ihren Richtlinien zur Informationssicherheit übereinstimmen. Sprechen Sie mit der Compliance, bevor Sie Klassifizierungsstufen hinzufügen oder umbenennen.
-- **Typische Ports als Dokumentation nutzen** - Das Feld „Typische Ports“ bei den Verbindungstypen dient der Information. Füllen Sie es aus, damit Benutzer wissen, welche Ports ein Verbindungstyp üblicherweise verwendet.
+- **Typische Ports als Dokumentation nutzen** - Das Feld **Typische Ports** bei den Verbindungstypen dient der Information. Füllen Sie es aus, damit Benutzer wissen, welche Ports ein Verbindungstyp üblicherweise verwendet.
 - **Kartenlesbarkeit mit Ebenen optimieren** - Richten Sie die Graph-Ebenen von Entitäten und Serverrollen an Ihren Architekturschichten aus (Edge, Anwendung, Daten), um übersichtlichere Layouts in der Verbindungskarte zu erhalten.

@@ -61,7 +61,7 @@ The Overview tab captures the department's identity and status.
 - **Name**: Department name (required)
 - **Company**: Parent company -- links to Companies master data (required). Companies that already have a department with the same name are automatically excluded from the dropdown to prevent duplicates.
 - **Description**: Free-text description
-- **Status**: Enabled or Disabled, with an optional scheduled disable date
+- **Lifecycle**: the status switch, labelled with the current state (**Enabled** or **Disabled**), and the **End of validity** date. Leave the date blank to keep the department active indefinitely, or set a future date to schedule its end. Switching the department to **Disabled** without a date sets the end of validity to today
 
 **Tip**: When creating a new department, the Details tab becomes available only after you save the initial record.
 

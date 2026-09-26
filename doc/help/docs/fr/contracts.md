@@ -86,8 +86,8 @@ L'onglet Vue d'ensemble capture l'identité et le statut du cycle de vie du cont
 - **Société contractante** : Quelle société est partie au contrat
 - **Responsable** : La personne chargée de gérer ce contrat
 - **Notes** : Notes libres
-- **Activé** : Marquer un contrat comme actif ou désactivé
-- **Désactivé le** : Quand le contrat a été (ou sera) désactivé — saisissez une date au format jj/mm/aaaa ou utilisez le sélecteur de calendrier
+- **Interrupteur de statut** : son libellé indique l'état actuel (**Activé** ou **Désactivé**). Passer le contrat à **Désactivé** sans date fixe sa fin de validité à aujourd'hui
+- **Fin de validité** : la date à laquelle le contrat s'arrête. Saisissez une date au format jj/mm/aaaa ou utilisez le bouton calendrier. Laissez-la vide pour que le contrat reste actif indéfiniment
 
 **Comment ça fonctionne** :
 

@@ -49,18 +49,19 @@ This is the only tab. It contains every field for the category.
 **What you can edit**:
 - **Name**: The category label. Changing it updates dropdowns and reports everywhere.
 - **Description**: Free-text explanation of the category's intended use.
-- **Status / Disabled date**: Toggle the category off to retire it. See the section below for details.
+- **Lifecycle**: the status switch, labelled with the current state (**Enabled** or **Disabled**), and the **End of validity** date. See [Status and lifecycle](#status-and-lifecycle).
 
 **Workspace navigation**: Use the **Prev** and **Next** buttons to step through categories without returning to the list. The workspace preserves your current sort, search, and filter context. If you have unsaved changes, you will be prompted before navigating away.
 
 **Tip**: Click the close icon (X) in the top-right corner to return to the list with your filters intact.
 
-## Status and Disabled date
+## Status and lifecycle
 
-Use the status toggle to retire a category without deleting it.
+Every category has a status (**Enabled** or **Disabled**) and an optional **End of validity**. Use them to retire a category without deleting it.
 
-- When you disable a category, a **Disabled date** is recorded.
-- After that date, the category no longer appears in selection dropdowns for new items.
+- **End of validity**: the date the category stops. Leave it blank to keep the category active indefinitely. You can also schedule a future date.
+- Switching the category to **Disabled** without a date sets its end of validity to today. Switching it back to **Enabled** clears the date.
+- After the end of validity, the category no longer appears in selection dropdowns for new items.
 - Existing items keep their assignment, and historical reports remain accurate.
 - **Prefer disabling over deleting**: there is no delete action on this page. Disabling preserves reporting continuity while keeping the list clean.
 

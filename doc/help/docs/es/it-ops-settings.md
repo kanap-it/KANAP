@@ -1,6 +1,6 @@
-# Configuración del Panorama IT
+# Configuración del panorama IT
 
-La página de **Configuración del Panorama IT** le permite personalizar los valores de los desplegables utilizados en todo el Panorama IT. Estas listas controlan qué opciones aparecen cuando los usuarios crean o editan Aplicaciones, Interfaces, Activos, Conexiones y Ubicaciones. Los cambios aquí se aplican a todos los usuarios de su espacio de trabajo.
+La página de **Configuración del panorama IT** le permite personalizar los valores de los desplegables utilizados en todo el Panorama IT. Estas listas controlan qué opciones aparecen cuando los usuarios crean o editan Aplicaciones, Interfaces, Activos, Conexiones y Ubicaciones. Los cambios aquí se aplican a todos los usuarios de su espacio de trabajo.
 
 Para la legibilidad del mapa, las **Entidades** y **Roles de servidor** también incluyen un campo de **Nivel del grafo** utilizado por la ubicación basada en roles del Mapa de conexiones.
 
@@ -16,19 +16,20 @@ Si no ve la entrada **Configuración** en el cajón del Panorama IT, solicite a 
 
 ## Cómo está organizada la página
 
-La configuración se agrupa en tres secciones plegables:
+El editor **Clasificaciones y continuidad** está en la parte superior de la página. Debajo, las listas se agrupan en cuatro secciones plegables:
 
-1. **Ubicaciones** - Listas usadas al crear o editar Ubicaciones.
-2. **Servidores y conexiones** - Listas para Servidores, Conexiones y datos de infraestructura relacionados.
-3. **Apps, servicios e interfaces** - Listas usadas en Aplicaciones, Instancias de app, Interfaces y Enlaces.
+1. **Ubicaciones** - Listas utilizadas al crear o editar ubicaciones.
+2. **Servidores y conexiones** - Listas utilizadas para servidores, conexiones y datos de riesgo/endpoint relacionados.
+3. **Aplicaciones, servicios e interfaces** - Listas utilizadas en aplicaciones, instancias de aplicación, interfaces y enlaces.
+4. **Incidentes** - Listas utilizadas por el registro de incidentes.
 
-Cada lista aparece como un panel expandible. Haga clic en el encabezado de un panel para expandirlo y ver los valores. Solo una sección carga su contenido cuando la expande por primera vez, lo que mantiene la página rápida incluso cuando tiene muchas listas.
+Dentro de una sección, las listas se ordenan por nombre. Cada lista aparece como un panel expandible con una breve indicación de dónde se usan sus valores (por ejemplo, *Aplicaciones / Selector de categoría*). Haga clic en el encabezado de un panel para expandirlo y ver los valores. Solo una sección carga su contenido cuando la expande por primera vez, lo que mantiene la página rápida incluso cuando tiene muchas listas.
 
 ### Controles del editor
 
 Cada lista tiene sus propios controles en la parte superior:
 
-- **Añadir elemento** - Inserta una nueva fila en la parte superior de la lista, enfocada y lista para escribir.
+- **Agregar elemento** - Inserta una nueva fila en la parte superior de la lista, enfocada y lista para escribir.
 - Las ediciones se guardan automáticamente alrededor de un segundo y medio después de su último cambio, una vez que todas las filas son válidas. Un indicador de guardado se muestra junto a la lista.
 
 Para listas largas (más de 25 filas), la tabla virtualiza filas, mostrando unas 20 a la vez con desplazamiento suave y encabezados fijos.
@@ -63,7 +64,7 @@ Los editores siempre muestran y editan el texto base; cuando el nombre mostrado 
 
 ### Proveedores cloud
 
-Proveedores cloud disponibles para Activos y Ubicaciones de tipo cloud (p. ej., AWS, Azure, GCP).
+Proveedores cloud utilizados por los servidores y las ubicaciones (p. ej., AWS, Azure, GCP).
 
 **Columnas**: Nombre, Dejar de proponer
 
@@ -73,15 +74,15 @@ Proveedores cloud disponibles para Activos y Ubicaciones de tipo cloud (p. ej., 
 
 ### Tipos de alojamiento
 
-Modelos de alojamiento de ubicaciones (p. ej., Local, Coubicación, Nube pública, Nube privada, SaaS).
+Modelos de alojamiento disponibles al crear ubicaciones (p. ej., on-premise, colocation, nube pública, SaaS).
 
-**Columnas**: Nombre, Categoría (Local/Coubicación o Nube/SaaS), Dejar de proponer
+**Columnas**: Nombre, Categoría (**Local / colocación** o **Nube / SaaS**), Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Ubicaciones → pestaña Visión general → campo **Tipo de alojamiento**
 
 La categoría determina qué campos aparecen al editar una Ubicación:
-- **Local / Coubicación** muestra campos de Empresa operadora y Centro de datos
+- **Local / colocación** muestra campos de Empresa operadora y Centro de datos
 - **Nube / SaaS** muestra campos de Proveedor cloud, Región e Información adicional
 
 ---
@@ -90,7 +91,7 @@ La categoría determina qué campos aparecen al editar una Ubicación:
 
 ### Tipos de conexión
 
-Un catálogo de dos niveles de protocolos de conexión organizados por categoría, con puertos típicos.
+Un catálogo de dos niveles (categoría y entrada) de protocolos de conexión, con los puertos típicos.
 
 **Columnas**: Categoría (p. ej., Base de datos, Acceso remoto), Nombre, Puertos típicos, Dejar de proponer
 
@@ -103,7 +104,7 @@ Las categorías predeterminadas incluyen: Aplicación, Autenticación, Respaldo,
 
 ### Dominios
 
-Dominios Active Directory o DNS a los que pueden pertenecer los activos. Se usan para calcular el nombre de dominio completamente cualificado (FQDN) de cada activo.
+Dominios Active Directory o DNS de los activos. Las entradas integradas no se pueden modificar. El sufijo DNS se usa para calcular el nombre de dominio completamente cualificado (FQDN) de cada activo.
 
 **Columnas**: Nombre, Sufijo DNS, Dejar de proponer
 
@@ -121,27 +122,27 @@ Dominios Active Directory o DNS a los que pueden pertenecer los activos. Se usan
 
 ### Entidades
 
-Entidades de origen y destino para flujos de datos y patrones de acceso (p. ej., Usuarios internos, Internet, Redes de partners, Sistemas externos).
+Endpoints utilizados en conexiones y mapas (p. ej., Usuarios internos, Internet, Redes de partners, Sistemas externos). El nivel del grafo define su posición predeterminada en el mapa.
 
 **Columnas**: Nombre, Nivel del grafo, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Conexiones → campos de **Entidad de origen** y **Entidad de destino**
-- Mapa de conexiones → las entidades aparecen como endpoints de flujo y usan el Nivel del grafo para la ubicación vertical (las entidades predeterminadas son Superior)
+- Mapa de conexiones → las entidades aparecen como endpoints de flujo y usan su nivel del grafo para la ubicación vertical (las entidades predeterminadas son Superior)
 
-### Valores de Nivel del grafo
+### Valores del nivel del grafo
 
-El Nivel del grafo controla la banda vertical preferida en el Mapa de conexiones cuando la **Ubicación basada en roles** está habilitada:
+El nivel del grafo controla la banda vertical preferida en el Mapa de conexiones cuando la **Ubicación basada en roles** está habilitada:
 
 - **Superior**: Endpoints más orientados al usuario o externos
-- **Medio-superior**: Capa de aplicación/servicio superior
-- **Central**: Capa media neutral/predeterminada
-- **Medio-inferior**: Infraestructura de soporte
+- **Medio superior**: Capa de aplicación/servicio superior
+- **Centro**: Capa media neutral/predeterminada
+- **Medio inferior**: Infraestructura de soporte
 - **Inferior**: Endpoints pesados en datos/almacenamiento
 
 ### Tipos de dirección IP
 
-Tipos de direcciones IP que pueden asignarse a activos. Útil para distinguir entre diferentes interfaces de red como IPs de host, interfaces de gestión y redes de almacenamiento.
+Tipos de direcciones IP de los activos. Útil para distinguir entre diferentes interfaces de red como IPs de host, interfaces de gestión y redes de almacenamiento.
 
 **Columnas**: Nombre, Dejar de proponer
 
@@ -157,7 +158,7 @@ Los activos pueden tener múltiples direcciones IP, cada una con su propio tipo.
 
 ### Zonas de red
 
-Zonas de red usadas para categorizar subredes y describir la conectividad de activos (p. ej., LAN, DMZ, LAN industrial, WiFi, Nube pública, Invitados, Gestión, Almacenamiento, VPN).
+Zonas de red utilizadas para clasificar las subredes y describir la conectividad (p. ej., LAN, DMZ, LAN industrial, WiFi, Nube pública, Invitados, Gestión, Almacenamiento, VPN).
 
 **Columnas**: Nombre, Dejar de proponer
 
@@ -167,7 +168,7 @@ Zonas de red usadas para categorizar subredes y describir la conectividad de act
 
 ### Subredes
 
-Defina subredes de red con notación CIDR, asignaciones VLAN opcionales y clasificación por zona de red. Cada subred pertenece a una Ubicación específica.
+Defina las subredes con notación CIDR y, si procede, su VLAN. Cada subred pertenece a una zona de red y a una ubicación.
 
 **Columnas**: Ubicación, CIDR, VLAN (1-4094), Zona de red, Descripción, Dejar de proponer
 
@@ -183,9 +184,9 @@ Defina subredes de red con notación CIDR, asignaciones VLAN opcionales y clasif
 
 ### Sistemas operativos
 
-Catálogo de sistemas operativos para Activos, incluyendo fechas del ciclo de vida de soporte.
+Catálogo de sistemas operativos disponibles para los servidores, con las fechas de fin del soporte estándar y extendido.
 
-**Columnas**: Nombre, Fecha de fin de soporte estándar, Fecha de fin de soporte extendido, Dejar de proponer
+**Columnas**: Nombre, Soporte estándar, Soporte extendido, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Activos → pestaña Técnico → selector de **Sistema operativo** (el texto de ayuda muestra las fechas de soporte)
@@ -196,7 +197,7 @@ Las entradas predeterminadas incluyen versiones de Windows Server, Ubuntu LTS, R
 
 ### Roles de servidor
 
-Roles asignados a activos al vincularlos a instancias de aplicación (p. ej., Servidor web, Servidor de base de datos, Worker).
+Roles asignados a los servidores al vincular instancias de aplicación (p. ej., Servidor web, Servidor de base de datos, Worker). El nivel del grafo define su posición en el mapa de conexiones.
 
 **Columnas**: Nombre, Nivel del grafo, Dejar de proponer
 
@@ -206,25 +207,25 @@ Roles asignados a activos al vincularlos a instancias de aplicación (p. ej., Se
 
 Ejemplos predeterminados integrados:
 - `web`, `proxy` → **Superior**
-- `app`, `cloud-service` → **Medio-superior**
+- `app`, `cloud-service` → **Medio superior**
 - `db` → **Inferior**
 
 ### Tipos de activo
 
-Tipos lógicos para activos de infraestructura (p. ej., Servidor físico, Máquina virtual, Contenedor, Serverless, Appliance).
+Tipos lógicos de servidores y activos de infraestructura (p. ej., Servidor físico, Máquina virtual, Contenedor, Serverless, Appliance). Los activos físicos pueden registrar información de hardware y soporte.
 
-**Columnas**: Nombre, Dejar de proponer
+**Columnas**: Nombre, Físico, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Activos → pestaña Visión general → campo **Tipo**
 
 ---
 
-## Apps, servicios e interfaces
+## Aplicaciones, servicios e interfaces
 
 ### Métodos de acceso
 
-Métodos por los cuales los usuarios acceden a las aplicaciones (p. ej., Navegador web, App móvil, Sesión VDI).
+Métodos con los que los usuarios acceden a las aplicaciones (p. ej., web, móvil, VDI).
 
 **Columnas**: Nombre, Dejar de proponer
 
@@ -251,9 +252,9 @@ Categorías que describen el propósito principal de cada aplicación o servicio
 
 ### Clases de datos
 
-Niveles de clasificación de datos para Aplicaciones e Interfaces.
+Niveles de clasificación de datos para Aplicaciones e Interfaces. Se editan en el editor **Clasificaciones y continuidad**, en **Confidencialidad de los datos**.
 
-**Columnas**: Nombre, Dejar de proponer
+**Columnas**: Nombre, Descripción, Dejar de proponer
 
 **Códigos bloqueados**: Los niveles integrados (Público, Interno, Confidencial, Restringido) no pueden eliminarse ni marcarse como obsoletos.
 
@@ -264,7 +265,7 @@ Niveles de clasificación de datos para Aplicaciones e Interfaces.
 
 ### Clasificaciones y continuidad
 
-Este editor configura los niveles utilizados para clasificar las aplicaciones. Está disponible para usuarios `settings:admin` en la sección **Aplicaciones, servicios e interfaces** y se abre como un único cuadro de diálogo con una lista por catálogo:
+Este editor configura los niveles utilizados para clasificar las aplicaciones. Está disponible para usuarios `settings:admin` en la parte superior de la página y se abre como un único cuadro de diálogo con una lista por catálogo:
 
 - **Criticidad de negocio**: los niveles que se pueden asignar a una aplicación. Cada nivel tiene un nombre, una descripción que se muestra bajo el nombre al elegir un nivel, una **duración máxima tolerable de interrupción (MTD)** opcional en minutos y una marca **Dejar de proponer**. La duración documenta el nivel y activa una advertencia en una aplicación cuyo RTO la alcanza; es un atributo del nivel, no un valor que se introduce en las aplicaciones.
 - **Criticidad cibernética**: niveles de consecuencias independientes.
@@ -281,61 +282,61 @@ Los niveles de negocio también alimentan la criticidad operativa de interfaces 
 
 ### Patrones de integración
 
-Patrones de integración para rutas de Interfaz (p. ej., REST API, Lote de archivos, Cola, Staging BD).
+Patrones de integración utilizados por los segmentos de interfaz (p. ej., REST API, Lote de archivos, Cola, Staging BD).
 
 **Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
-- Rutas de interfaz → campo **Patrón**
+- Segmentos de interfaz → campo **Patrón**
 
-### Modos de autenticación de interfaces
+### Modos de autenticación de interfaz
 
-Modos de autenticación para enlaces de Interfaz (p. ej., Cuenta de servicio, OAuth2, Clave API, Certificado).
+Modos de autenticación de los segmentos y enlaces de interfaz (p. ej., Cuenta de servicio, OAuth2, Clave API, Certificado).
 
 **Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Enlaces de interfaz → campo **Modo de autenticación**
 
-### Categorías de datos de interfaces
+### Categorías de datos de interfaz
 
-Categorías de datos de negocio para Interfaces (p. ej., Datos maestros, Transaccional, Informes, Control).
+Categorías de datos de negocio de las interfaces (p. ej., Datos maestros, Transaccional, Informes, Control).
 
 **Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Espacio de trabajo de Interfaces → campo **Categoría de datos**
 
-### Formatos de datos de interfaces
+### Formatos de datos de interfaz
 
-Formatos de carga para rutas de Interfaz (p. ej., CSV, JSON, XML, IDoc, Binario).
+Formatos de datos de los segmentos de interfaz (p. ej., CSV, JSON, XML, IDoc, Binario).
 
 **Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
-- Rutas de interfaz → campo **Formato**
+- Segmentos de interfaz → campo **Formato de datos**
 
-### Protocolos de interfaces
+### Protocolos de interfaz
 
-Protocolos técnicos para enlaces de Interfaz (p. ej., HTTP/REST, gRPC, SFTP, Kafka, Base de datos).
+Protocolos admitidos para los enlaces de interfaz entre aplicaciones (p. ej., HTTP/REST, gRPC, SFTP, Kafka, Base de datos).
 
 **Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
 - Enlaces de interfaz → campo **Protocolo** (enlaces legado)
 
-### Tipos de disparador de interfaces
+### Tipos de disparador de interfaz
 
-Mecanismos de disparo para rutas de Interfaz (p. ej., Basado en eventos, Programado, Tiempo real, Manual).
+Tipos de disparador de los segmentos de interfaz (p. ej., Basado en eventos, Programado, Tiempo real, Manual).
 
 **Columnas**: Nombre, Dejar de proponer
 
 **Dónde se usa**:
-- Rutas de interfaz → campo **Disparador**
+- Segmentos de interfaz → campo **Disparador**
 
 ### Estados del ciclo de vida
 
-Estados de ciclo de vida compartidos para Aplicaciones, Instancias de app, Interfaces, Enlaces de interfaz y Activos.
+Opciones de ciclo de vida compartidas por aplicaciones, instancias de aplicación, interfaces, enlaces de interfaz y servidores.
 
 **Columnas**: Nombre, Dejar de proponer
 
@@ -346,10 +347,23 @@ Estados de ciclo de vida compartidos para Aplicaciones, Instancias de app, Inter
 
 ---
 
+## Incidentes
+
+### Categorías de incidente
+
+Categorías utilizadas para clasificar las entradas del registro de incidentes.
+
+**Columnas**: Nombre, Dejar de proponer
+
+**Dónde se usa**:
+- Incidentes → selector de **Categoría**
+
+---
+
 ## Cómo afectan los cambios a los datos existentes
 
 - **Los registros existentes conservan su valor** - Renombrar solo cambia lo que ven los usuarios, no los datos subyacentes.
-- **Valores obsoletos**:
+- **Valores marcados como Dejar de proponer**:
   - Permanecen válidos para registros que ya los utilizan.
   - Se ocultan de los desplegables al crear nuevos registros.
   - Siguen apareciendo durante la edición si el registro ya usa ese valor.
@@ -369,20 +383,21 @@ Este enfoque le permite evolucionar su taxonomía con el tiempo sin romper los r
 | **Tipos de conexión** | Conexiones (Tipo de conexión) |
 | **Clases de datos** | Aplicaciones (pestaña Conformidad), Interfaces (Visión general), Lista de aplicaciones |
 | **Dominios** | Activos (pestaña Técnico → Dominio, FQDN) |
-| **Entidades** | Conexiones (Entidad de origen/destino), Mapa de conexiones (ubicación por Nivel del grafo) |
+| **Entidades** | Conexiones (Entidad de origen/destino), Mapa de conexiones (ubicación por nivel del grafo) |
 | **Tipos de alojamiento** | Ubicaciones (Visión general) |
-| **Patrones de integración** | Rutas de interfaz (Patrón) |
-| **Modos de autenticación** | Enlaces de interfaz (Modo de autenticación) |
-| **Categorías de datos de interfaces** | Interfaces (Categoría de datos) |
-| **Formatos de datos de interfaces** | Rutas de interfaz (Formato) |
-| **Protocolos de interfaces** | Enlaces de interfaz (Protocolo) |
-| **Tipos de disparador de interfaces** | Rutas de interfaz (Disparador) |
+| **Patrones de integración** | Segmentos de interfaz (Patrón) |
+| **Modos de autenticación de interfaz** | Enlaces de interfaz (Modo de autenticación) |
+| **Categorías de datos de interfaz** | Interfaces (Categoría de datos) |
+| **Formatos de datos de interfaz** | Segmentos de interfaz (Formato de datos) |
+| **Protocolos de interfaz** | Enlaces de interfaz (Protocolo) |
+| **Tipos de disparador de interfaz** | Segmentos de interfaz (Disparador) |
+| **Categorías de incidente** | Incidentes (Categoría) |
 | **Tipos de dirección IP** | Activos (pestaña Técnico → Direcciones IP → Tipo) |
 | **Estados del ciclo de vida** | Aplicaciones, Instancias de app, Interfaces, Enlaces, Activos |
 | **Zonas de red** | Subredes (Zona de red), Activos (auto-rellenado desde subred) |
 | **Sistemas operativos** | Activos (pestaña Técnico) |
 | **Subredes** | Activos (pestaña Técnico → Direcciones IP → Selector de subred) |
-| **Roles de servidor** | Aplicaciones → pestaña Servidores (rol al vincular activo a app), Mapa de conexiones (ubicación por Nivel del grafo) |
+| **Roles de servidor** | Aplicaciones → pestaña Servidores (rol al vincular activo a app), Mapa de conexiones (ubicación por nivel del grafo) |
 | **Tipos de activo** | Activos (Visión general → Tipo) |
 
 ---
@@ -390,7 +405,7 @@ Este enfoque le permite evolucionar su taxonomía con el tiempo sin romper los r
 ## Consejos
 
 - **Alinee los nombres con su terminología** - Revise los valores predeterminados y renombre los valores para que coincidan con cómo su organización habla de estos conceptos. Los registros conservan su vínculo con el valor; solo cambia el nombre.
-- **Marque como obsoleto gradualmente** - Al dejar de usar un valor, márquelo como obsoleto en lugar de eliminarlo. Esto mantiene los datos históricos intactos mientras dirige a los usuarios hacia nuevas opciones.
+- **Retire gradualmente** - Al dejar de usar un valor, márquelo como **Dejar de proponer** en lugar de eliminarlo. Esto mantiene los datos históricos intactos mientras dirige a los usuarios hacia nuevas opciones.
 - **Coordine las Clases de datos con seguridad** - Los cambios en las Clases de datos deben alinearse con sus políticas de seguridad de la información. Consulte con conformidad antes de añadir o renombrar niveles de clasificación.
-- **Use los puertos típicos como documentación** - El campo "Puertos típicos" de los Tipos de conexión es informativo. Complételo para ayudar a los usuarios a entender qué puertos usa comúnmente cada tipo de conexión.
-- **Ajuste la legibilidad del mapa con niveles** - Mantenga los Niveles del grafo de Entidades y Roles de servidor alineados con sus capas de arquitectura (borde, aplicación, datos) para diseños más claros del Mapa de conexiones.
+- **Use los puertos típicos como documentación** - El campo **Puertos típicos** de los tipos de conexión es informativo. Complételo para ayudar a los usuarios a entender qué puertos usa comúnmente cada tipo de conexión.
+- **Ajuste la legibilidad del mapa con niveles** - Mantenga los niveles del grafo de las entidades y los roles de servidor alineados con sus capas de arquitectura (borde, aplicación, datos) para diseños más claros del Mapa de conexiones.

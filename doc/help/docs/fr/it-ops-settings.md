@@ -1,8 +1,8 @@
-# Paramètres de la Cartographie SI
+# Paramètres de la cartographie SI
 
-La page **Paramètres de la Cartographie SI** vous permet de personnaliser les valeurs des menus déroulants utilisés dans toute la Cartographie SI. Ces listes contrôlent les options qui apparaissent lorsque les utilisateurs créent ou modifient des Applications, Interfaces, Actifs, Connexions et Sites. Les modifications ici s'appliquent à tous les utilisateurs de votre espace de travail.
+La page **Paramètres de la cartographie SI** vous permet de personnaliser les valeurs des menus déroulants utilisés dans toute la Cartographie SI. Ces listes contrôlent les options qui apparaissent lorsque les utilisateurs créent ou modifient des Applications, Interfaces, Actifs, Connexions et Sites. Les modifications ici s'appliquent à tous les utilisateurs de votre espace de travail.
 
-Pour la lisibilité des cartes, les **Entités** et les **Rôles de serveur** incluent également un champ **Niveau graphique** utilisé par le placement basé sur les rôles de la Carte des connexions.
+Pour la lisibilité des cartes, les **Entités** et les **Rôles de serveur** incluent également un champ **Niveau du graphe** utilisé par le placement basé sur les rôles de la Carte des connexions.
 
 ## Où trouver cette page
 
@@ -16,13 +16,14 @@ Si vous ne voyez pas l'entrée **Paramètres** dans le tiroir de la Cartographie
 
 ## Organisation de la page
 
-Les paramètres sont regroupés en trois sections repliables :
+L'éditeur **Classifications et continuité** se trouve en haut de la page. En dessous, les listes sont regroupées en quatre sections repliables :
 
-1. **Sites** - Listes utilisées lors de la création ou modification de Sites.
-2. **Serveurs et connexions** - Listes pour les Serveurs, Connexions et données d'infrastructure associées.
-3. **Apps, services et interfaces** - Listes utilisées pour les Applications, Instances d'applications, Interfaces et Liaisons.
+1. **Sites** - Listes utilisées lors de la création ou de la modification des sites.
+2. **Serveurs et connexions** - Listes utilisées pour les serveurs, les connexions et les données de risque/endpoint associées.
+3. **Applications, services et interfaces** - Listes utilisées pour les applications, les instances d'application, les interfaces et les liaisons.
+4. **Incidents** - Listes utilisées par le registre des incidents.
 
-Chaque liste apparaît comme un panneau extensible. Cliquez sur un en-tête de panneau pour le développer et voir les valeurs. Le contenu de chaque section ne se charge que lorsque vous la développez pour la première fois, ce qui maintient la rapidité de la page même avec de nombreuses listes.
+Dans une section, les listes sont triées par nom. Chaque liste apparaît comme un panneau extensible, avec une courte indication de l'endroit où ses valeurs sont utilisées (par exemple, *Applications / Choix de la catégorie*). Cliquez sur un en-tête de panneau pour le développer et voir les valeurs. Le contenu de chaque section ne se charge que lorsque vous la développez pour la première fois, ce qui maintient la rapidité de la page même avec de nombreuses listes.
 
 ### Contrôles de l'éditeur
 
@@ -49,7 +50,7 @@ Une liste qui enfreint l'une de ces règles n'est pas enregistrée tant que vous
 
 **Supprimer** efface une valeur que rien n'utilise. Lorsque des enregistrements référencent encore la valeur, KANAP indique combien (applications, actifs, interfaces, connexions, sites, incidents, sous-réseaux…), avec un lien vers la liste filtrée lorsqu'une liste peut être filtrée sur ce champ, et propose **Ne plus proposer** à la place : la valeur reste visible sur les enregistrements qui l'utilisent déjà et n'est plus proposée pour les nouveaux. Une valeur utilisée n'est jamais supprimée, même via l'API.
 
-Les valeurs intégrées que KANAP gère lui-même (les quatre statuts de cycle de vie, les domaines Workgroup et N/A) ne peuvent être ni modifiées ni supprimées. Les zones réseau et types d'actifs par défaut peuvent être modifiés et retirés, mais pas supprimés : le serveur les recréerait.
+Les valeurs intégrées que KANAP gère lui-même (les quatre statuts de cycle de vie, les domaines Workgroup et N/A) ne peuvent être ni modifiées ni supprimées. Les zones réseau et types d'actif par défaut peuvent être modifiés et retirés, mais pas supprimés : le serveur les recréerait.
 
 ### Traduire vos valeurs
 
@@ -63,7 +64,7 @@ Les éditeurs affichent et modifient toujours le texte de base ; lorsque le nom 
 
 ### Fournisseurs cloud
 
-Fournisseurs cloud disponibles pour les Actifs et les Sites de type cloud (ex. : AWS, Azure, GCP).
+Fournisseurs cloud utilisés par les serveurs et les sites (ex. : AWS, Azure, GCP).
 
 **Colonnes** : Nom, Ne plus proposer
 
@@ -73,15 +74,15 @@ Fournisseurs cloud disponibles pour les Actifs et les Sites de type cloud (ex. :
 
 ### Types d'hébergement
 
-Modèles d'hébergement des sites (ex. : Sur site, Colocation, Cloud public, Cloud privé, SaaS).
+Modèles d'hébergement proposés à la création d'un site (ex. : sur site, colocation, cloud public, SaaS).
 
-**Colonnes** : Nom, Catégorie (Sur site/Colocation ou Cloud/SaaS), Ne plus proposer
+**Colonnes** : Nom, Catégorie (**Sur site / colocation** ou **Cloud / SaaS**), Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Sites > Onglet Vue d'ensemble > Champ **Type d'hébergement**
 
 La catégorie détermine quels champs apparaissent lors de la modification d'un Site :
-- **Sur site / Colocation** affiche Société d'exploitation et champs Datacenter
+- **Sur site / colocation** affiche Société d'exploitation et champs Datacenter
 - **Cloud / SaaS** affiche Fournisseur cloud, Région et champs d'informations complémentaires
 
 ---
@@ -90,20 +91,20 @@ La catégorie détermine quels champs apparaissent lors de la modification d'un 
 
 ### Types de connexion
 
-Un catalogue à deux niveaux de protocoles de connexion organisés par catégorie, avec les ports typiques.
+Catalogue à deux niveaux (catégorie et entrée) des protocoles de connexion, avec les ports courants.
 
-**Colonnes** : Catégorie (ex. : Base de données, Accès distant), Nom, Ports typiques, Ne plus proposer
+**Colonnes** : Catégorie (ex. : Base de données, Accès distant), Nom, Ports courants, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Connexions > Sélecteur **Type de connexion**
 
-Le champ **Ports typiques** est en texte libre - vous pouvez saisir des ports uniques (`443`), des listes (`80, 443`), des plages (`9101-9103`), ou des indicateurs comme `multiple` ou `à préciser`.
+Le champ **Ports courants** est en texte libre - vous pouvez saisir des ports uniques (`443`), des listes (`80, 443`), des plages (`9101-9103`), ou des indicateurs comme `multiple` ou `à préciser`.
 
 Les catégories par défaut incluent : Application, Authentification, Sauvegarde, Base de données, Email, Partage de fichiers, Transfert de fichiers, Messagerie, Supervision, Services réseau, Accès distant, Réplication, Stockage, VPN / Tunnel, Générique.
 
 ### Domaines
 
-Domaines Active Directory ou DNS auxquels les actifs peuvent appartenir. Utilisés pour calculer le nom de domaine complet (FQDN) de chaque actif.
+Domaines Active Directory ou DNS des actifs. Les entrées intégrées ne peuvent pas être modifiées. Le suffixe DNS sert à calculer le nom de domaine complet (FQDN) de chaque actif.
 
 **Colonnes** : Nom, Suffixe DNS, Ne plus proposer
 
@@ -121,27 +122,27 @@ Domaines Active Directory ou DNS auxquels les actifs peuvent appartenir. Utilis�
 
 ### Entités
 
-Entités source et cible pour les flux de données et les schémas d'accès (ex. : Utilisateurs internes, Internet, Réseaux partenaires, Systèmes externes).
+Endpoints utilisés dans les connexions et les cartes (ex. : Utilisateurs internes, Internet, Réseaux partenaires, Systèmes externes). Le niveau du graphe fixe leur position par défaut sur la carte.
 
-**Colonnes** : Nom, Niveau graphique, Ne plus proposer
+**Colonnes** : Nom, Niveau du graphe, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Connexions > Champs **Entité source** et **Entité cible**
-- Carte des connexions > Les entités apparaissent comme des points de terminaison de flux et utilisent le Niveau graphique pour le placement vertical (les entités par défaut sont Haut)
+- Carte des connexions > Les entités apparaissent comme des points de terminaison de flux et utilisent leur niveau du graphe pour le placement vertical (les entités par défaut sont Haut)
 
-### Valeurs du Niveau graphique
+### Valeurs du niveau du graphe
 
-Le Niveau graphique contrôle la bande verticale préférée dans la Carte des connexions lorsque le **Placement basé sur les rôles** est activé :
+Le niveau du graphe contrôle la bande verticale préférée dans la Carte des connexions lorsque le **Placement basé sur les rôles** est activé :
 
 - **Haut** : Points de terminaison les plus exposés aux utilisateurs ou externes
-- **Supérieur** : Couche applicative/service supérieure
+- **Intermédiaire haut** : Couche applicative/service supérieure
 - **Centre** : Couche intermédiaire neutre/par défaut
-- **Inférieur** : Infrastructure de support
+- **Intermédiaire bas** : Infrastructure de support
 - **Bas** : Points de terminaison orientés données/stockage
 
 ### Types d'adresse IP
 
-Types d'adresses IP pouvant être assignées aux actifs. Utile pour distinguer différentes interfaces réseau comme les IP host, les interfaces de gestion et les réseaux de stockage.
+Types d'adresses IP des actifs. Utile pour distinguer différentes interfaces réseau comme les IP host, les interfaces de gestion et les réseaux de stockage.
 
 **Colonnes** : Nom, Ne plus proposer
 
@@ -157,7 +158,7 @@ Les actifs peuvent avoir plusieurs adresses IP, chacune avec son propre type. Pa
 
 ### Zones réseau
 
-Zones réseau utilisées pour catégoriser les sous-réseaux et décrire la connectivité des actifs (ex. : LAN, DMZ, LAN industriel, WiFi, Cloud public, Invité, Management, Stockage, VPN).
+Zones réseau utilisées pour classer les sous-réseaux et décrire la connectivité (ex. : LAN, DMZ, LAN industriel, WiFi, Cloud public, Invité, Management, Stockage, VPN).
 
 **Colonnes** : Nom, Ne plus proposer
 
@@ -167,7 +168,7 @@ Zones réseau utilisées pour catégoriser les sous-réseaux et décrire la conn
 
 ### Sous-réseaux
 
-Définissez les sous-réseaux avec la notation CIDR, des assignations VLAN optionnelles et la classification par zone réseau. Chaque sous-réseau appartient à un Site spécifique.
+Définissez les sous-réseaux avec la notation CIDR et, si besoin, leur VLAN. Chaque sous-réseau appartient à une zone réseau et à un site.
 
 **Colonnes** : Site, CIDR, VLAN (1-4094), Zone réseau, Description, Ne plus proposer
 
@@ -183,9 +184,9 @@ Définissez les sous-réseaux avec la notation CIDR, des assignations VLAN optio
 
 ### Systèmes d'exploitation
 
-Catalogue de systèmes d'exploitation pour les Actifs, incluant les dates de cycle de vie du support.
+Catalogue des systèmes d'exploitation proposés pour les serveurs, avec les dates de fin de support standard et étendu.
 
-**Colonnes** : Nom, Date de fin de support standard, Date de fin de support étendu, Ne plus proposer
+**Colonnes** : Nom, Support standard, Support étendu, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Actifs > Onglet Technique > Sélecteur **Système d'exploitation** (le texte d'aide affiche les dates de support)
@@ -196,9 +197,9 @@ Les entrées par défaut incluent les versions Windows Server, Ubuntu LTS, RHEL,
 
 ### Rôles de serveur
 
-Rôles assignés aux actifs lors de leur liaison à des instances d'application (ex. : Serveur web, Serveur de base de données, Worker).
+Rôles attribués aux serveurs lors de la liaison avec les instances d'application (ex. : Serveur web, Serveur de base de données, Worker). Le niveau du graphe fixe leur position sur la carte des connexions.
 
-**Colonnes** : Nom, Niveau graphique, Ne plus proposer
+**Colonnes** : Nom, Niveau du graphe, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Applications > Onglet Serveurs > Menu déroulant **Rôle** lors de la liaison d'un actif à une instance
@@ -206,25 +207,25 @@ Rôles assignés aux actifs lors de leur liaison à des instances d'application 
 
 Exemples par défaut intégrés :
 - `web`, `proxy` > **Haut**
-- `app`, `cloud-service` > **Supérieur**
+- `app`, `cloud-service` > **Intermédiaire haut**
 - `db` > **Bas**
 
-### Types d'actifs
+### Types d'actif
 
-Types logiques pour les actifs d'infrastructure (ex. : Serveur physique, Machine virtuelle, Conteneur, Serverless, Appliance).
+Types logiques des serveurs et des actifs d'infrastructure (ex. : Serveur physique, Machine virtuelle, Conteneur, Serverless, Appliance). Les actifs physiques peuvent suivre les informations matérielles et de support.
 
-**Colonnes** : Nom, Ne plus proposer
+**Colonnes** : Nom, Physique, Ne plus proposer
 
 **Où c'est utilisé** :
 - Espace de travail Actifs > Onglet Vue d'ensemble > Champ **Type**
 
 ---
 
-## Apps, services et interfaces
+## Applications, services et interfaces
 
 ### Méthodes d'accès
 
-Méthodes par lesquelles les utilisateurs accèdent aux applications (ex. : Navigateur web, Application mobile, Session VDI).
+Modes d'accès des utilisateurs aux applications (ex. : Web, mobile, VDI).
 
 **Colonnes** : Nom, Ne plus proposer
 
@@ -235,9 +236,9 @@ Méthodes par lesquelles les utilisateurs accèdent aux applications (ex. : Navi
 
 **Conseil** : Personnalisez les méthodes d'accès pour correspondre à la manière dont votre organisation catégorise l'accès aux applications. Par exemple, ajoutez « Citrix » ou « Client léger » si ce sont des modes d'accès courants dans votre environnement.
 
-### Catégories d'applications
+### Catégories d'application
 
-Catégories qui décrivent l'objectif principal de chaque application ou service.
+Catégories qui décrivent la finalité principale de chaque application ou service.
 
 **Colonnes** : Nom, Ne plus proposer
 
@@ -251,9 +252,9 @@ Catégories qui décrivent l'objectif principal de chaque application ou service
 
 ### Classifications de données
 
-Niveaux de classification des données pour les Applications et Interfaces.
+Niveaux de classification des données pour les Applications et Interfaces. Vous les modifiez dans l'éditeur **Classifications et continuité**, sous **Confidentialité des données**.
 
-**Colonnes** : Nom, Ne plus proposer
+**Colonnes** : Nom, Description, Ne plus proposer
 
 **Codes verrouillés** : Les niveaux intégrés (Public, Interne, Confidentiel, Restreint) ne peuvent pas être supprimés ni rendus obsolètes.
 
@@ -264,7 +265,7 @@ Niveaux de classification des données pour les Applications et Interfaces.
 
 ### Classifications et continuité
 
-Cet éditeur configure les niveaux utilisés pour classifier les applications. Il est disponible aux utilisateurs `settings:admin` dans la section **Applications, services et interfaces** et s'ouvre dans une seule boîte de dialogue, avec une liste par catalogue :
+Cet éditeur configure les niveaux utilisés pour classifier les applications. Il est disponible aux utilisateurs `settings:admin` en haut de la page et s'ouvre dans une seule boîte de dialogue, avec une liste par catalogue :
 
 - **Criticité business** : les niveaux qu'une application peut recevoir. Chaque niveau a un nom, une description affichée sous le nom au moment du choix, une **durée maximale tolérable d'interruption (DMIA)** facultative en minutes et un indicateur **Ne plus proposer**. La DMIA documente le niveau et déclenche un avertissement sur une application dont le RTO l'atteint ; c'est un attribut du niveau, pas une valeur saisie sur les applications.
 - **Criticité cyber** : niveaux de conséquences indépendants.
@@ -279,18 +280,18 @@ Les codes sont générés à partir des noms et ne sont jamais affichés ; les r
 
 Les niveaux business alimentent aussi la criticité opérationnelle des interfaces et des connexions. Les dérivations incomplètes sont signalées comme telles ; elles ne sont pas traitées comme le niveau le plus faible.
 
-### Patterns d'intégration
+### Modèles d'intégration
 
-Patterns d'intégration pour les legs d'interfaces (ex. : API REST, Batch fichier, File d'attente, Staging BDD).
+Modèles d'intégration utilisés par les segments d'interface (ex. : API REST, Batch fichier, File d'attente, Staging BDD).
 
 **Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
-- Legs d'interfaces > Champ **Pattern**
+- Segments d'interface > Champ **Modèle**
 
 ### Modes d'authentification d'interface
 
-Modes d'authentification pour les liaisons d'interfaces (ex. : Compte de service, OAuth2, Clé API, Certificat).
+Modes d'authentification des segments et liaisons d'interface (ex. : Compte de service, OAuth2, Clé API, Certificat).
 
 **Colonnes** : Nom, Ne plus proposer
 
@@ -299,7 +300,7 @@ Modes d'authentification pour les liaisons d'interfaces (ex. : Compte de service
 
 ### Catégories de données d'interface
 
-Catégories de données métier pour les Interfaces (ex. : Master Data, Transactionnel, Reporting, Contrôle).
+Catégories de données métier des interfaces (ex. : Master Data, Transactionnel, Reporting, Contrôle).
 
 **Colonnes** : Nom, Ne plus proposer
 
@@ -308,34 +309,34 @@ Catégories de données métier pour les Interfaces (ex. : Master Data, Transact
 
 ### Formats de données d'interface
 
-Formats de payload pour les legs d'interfaces (ex. : CSV, JSON, XML, IDoc, Binaire).
+Formats de données des segments d'interface (ex. : CSV, JSON, XML, IDoc, Binaire).
 
 **Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
-- Legs d'interfaces > Champ **Format**
+- Segments d'interface > Champ **Format**
 
 ### Protocoles d'interface
 
-Protocoles techniques pour les liaisons d'interfaces (ex. : HTTP/REST, gRPC, SFTP, Kafka, Base de données).
+Protocoles pris en charge pour les liaisons d'interface entre applications (ex. : HTTP/REST, gRPC, SFTP, Kafka, Base de données).
 
 **Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
 - Liaisons d'interfaces > Champ **Protocole** (liaisons historiques)
 
-### Types de déclencheur d'interface
+### Types de déclenchement d'interface
 
-Mécanismes de déclenchement pour les legs d'interfaces (ex. : Événementiel, Planifié, Temps réel, Manuel).
+Types de déclenchement des segments d'interface (ex. : Événementiel, Planifié, Temps réel, Manuel).
 
 **Colonnes** : Nom, Ne plus proposer
 
 **Où c'est utilisé** :
-- Legs d'interfaces > Champ **Déclencheur**
+- Segments d'interface > Champ **Déclenchement**
 
-### Statuts de cycle de vie
+### Statuts du cycle de vie
 
-États de cycle de vie partagés pour les Applications, Instances d'applications, Interfaces, Liaisons d'interfaces et Actifs.
+Options de cycle de vie partagées par les applications, les instances d'application, les interfaces, les liaisons d'interface et les serveurs.
 
 **Colonnes** : Nom, Ne plus proposer
 
@@ -346,10 +347,23 @@ Mécanismes de déclenchement pour les legs d'interfaces (ex. : Événementiel, 
 
 ---
 
+## Incidents
+
+### Catégories d'incident
+
+Catégories utilisées pour classer les entrées du registre des incidents.
+
+**Colonnes** : Nom, Ne plus proposer
+
+**Où c'est utilisé** :
+- Incidents > Sélecteur **Catégorie**
+
+---
+
 ## Impact des modifications sur les données existantes
 
 - **Les enregistrements existants conservent leur valeur** - Renommer ne modifie que ce que les utilisateurs voient, pas les données sous-jacentes.
-- **Valeurs obsolètes** :
+- **Valeurs marquées Ne plus proposer** :
   - Restent valides pour les enregistrements qui les utilisent déjà.
   - Sont masquées des menus déroulants lors de la création de nouveaux enregistrements.
   - Apparaissent toujours lors de la modification si l'enregistrement utilise déjà cette valeur.
@@ -364,33 +378,34 @@ Cette approche vous permet de faire évoluer votre taxonomie au fil du temps san
 | Liste | Où c'est utilisé |
 |-------|------------------|
 | **Méthodes d'accès** | Applications (Onglet Technique et support > Méthodes d'accès) |
-| **Catégories d'applications** | Applications (Catégorie) |
+| **Catégories d'application** | Applications (Catégorie) |
 | **Fournisseurs cloud** | Actifs (Fournisseur), Sites (Fournisseur cloud) |
 | **Types de connexion** | Connexions (Type de connexion) |
-| **Classifications de données** | Applications (Onglet Conformité), Interfaces (Vue d'ensemble), Liste Applications |
+| **Classes de données** | Applications (Onglet Conformité), Interfaces (Vue d'ensemble), Liste Applications |
 | **Domaines** | Actifs (Onglet Technique > Domaine, FQDN) |
-| **Entités** | Connexions (Entité source/cible), Carte des connexions (Placement Niveau graphique) |
+| **Entités** | Connexions (Entité source/cible), Carte des connexions (placement par niveau du graphe) |
 | **Types d'hébergement** | Sites (Vue d'ensemble) |
-| **Patterns d'intégration** | Legs d'interfaces (Pattern) |
-| **Modes d'auth. d'interface** | Liaisons d'interfaces (Mode d'auth.) |
+| **Modèles d'intégration** | Segments d'interface (Modèle) |
+| **Modes d'authentification d'interface** | Liaisons d'interfaces (Mode d'auth.) |
 | **Catégories de données d'interface** | Interfaces (Catégorie de données) |
-| **Formats de données d'interface** | Legs d'interfaces (Format) |
+| **Formats de données d'interface** | Segments d'interface (Format) |
 | **Protocoles d'interface** | Liaisons d'interfaces (Protocole) |
-| **Types de déclencheur d'interface** | Legs d'interfaces (Déclencheur) |
+| **Types de déclenchement d'interface** | Segments d'interface (Déclenchement) |
+| **Catégories d'incident** | Incidents (Catégorie) |
 | **Types d'adresse IP** | Actifs (Onglet Technique > Adresses IP > Type) |
-| **Statuts de cycle de vie** | Applications, Instances, Interfaces, Liaisons, Actifs |
+| **Statuts du cycle de vie** | Applications, Instances, Interfaces, Liaisons, Actifs |
 | **Zones réseau** | Sous-réseaux (Zone réseau), Actifs (auto-rempli depuis le sous-réseau) |
 | **Systèmes d'exploitation** | Actifs (Onglet Technique) |
 | **Sous-réseaux** | Actifs (Onglet Technique > Adresses IP > Sélecteur de sous-réseau) |
-| **Rôles de serveur** | Applications > Onglet Serveurs (rôle lors de la liaison actif-app), Carte des connexions (Placement Niveau graphique) |
-| **Types d'actifs** | Actifs (Vue d'ensemble > Type) |
+| **Rôles de serveur** | Applications > Onglet Serveurs (rôle lors de la liaison actif-app), Carte des connexions (placement par niveau du graphe) |
+| **Types d'actif** | Actifs (Vue d'ensemble > Type) |
 
 ---
 
 ## Conseils
 
 - **Alignez les noms avec votre terminologie** - Revoyez les valeurs par défaut et renommez les valeurs pour correspondre à la manière dont votre organisation parle de ces concepts. Les enregistrements conservent leur lien avec la valeur ; seul le nom change.
-- **Rendez obsolète progressivement** - Lors de la transition vers une nouvelle valeur, marquez-la comme obsolète plutôt que de la supprimer. Cela préserve les données historiques tout en orientant les utilisateurs vers les nouvelles options.
+- **Retirez progressivement** - Lors de la transition vers une nouvelle valeur, cochez **Ne plus proposer** sur l'ancienne plutôt que de la supprimer. Cela préserve les données historiques tout en orientant les utilisateurs vers les nouvelles options.
 - **Coordonnez les classifications de données avec la sécurité** - Les modifications des classifications de données doivent être alignées avec vos politiques de sécurité de l'information. Consultez la conformité avant d'ajouter ou renommer les niveaux de classification.
-- **Utilisez les ports typiques comme documentation** - Le champ « Ports typiques » des Types de connexion est informatif. Remplissez-le pour aider les utilisateurs à comprendre quels ports chaque type de connexion utilise couramment.
-- **Ajustez la lisibilité des cartes avec les niveaux** - Gardez les niveaux graphiques des Entités et Rôles de serveur alignés avec vos couches d'architecture (edge, app, données) pour des dispositions de Carte des connexions plus claires.
+- **Utilisez les ports courants comme documentation** - Le champ **Ports courants** des types de connexion est informatif. Remplissez-le pour aider les utilisateurs à comprendre quels ports chaque type de connexion utilise couramment.
+- **Ajustez la lisibilité des cartes avec les niveaux** - Gardez les niveaux du graphe des entités et des rôles de serveur alignés avec vos couches d'architecture (edge, app, données) pour des dispositions de Carte des connexions plus claires.

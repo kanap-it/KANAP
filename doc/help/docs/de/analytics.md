@@ -49,18 +49,19 @@ Dies ist der einzige Tab. Er enthält alle Felder der Kategorie.
 **Was Sie bearbeiten können**:
 - **Name**: Die Kategoriebezeichnung. Eine Änderung aktualisiert Dropdowns und Berichte überall.
 - **Beschreibung**: Freitext-Erklärung der beabsichtigten Verwendung der Kategorie.
-- **Status / Deaktivierungsdatum**: Schalten Sie die Kategorie ab, um sie stillzulegen. Siehe den Abschnitt unten für Details.
+- **Lebenszyklus**: der Statusschalter, dessen Beschriftung den aktuellen Zustand zeigt (**Aktiviert** oder **Deaktiviert**), und das Datum **Ende der Gültigkeit**. Siehe [Status und Lebenszyklus](#status-und-lebenszyklus).
 
 **Arbeitsbereich-Navigation**: Verwenden Sie die Schaltflächen **Zurück** und **Weiter**, um zwischen Kategorien zu wechseln, ohne zur Liste zurückzukehren. Der Arbeitsbereich behält Ihren aktuellen Sortier-, Such- und Filterkontext bei. Bei ungespeicherten Änderungen werden Sie vor dem Navigieren aufgefordert.
 
 **Tipp**: Klicken Sie auf das Schließen-Symbol (X) in der oberen rechten Ecke, um mit intakten Filtern zur Liste zurückzukehren.
 
-## Status und Deaktivierungsdatum
+## Status und Lebenszyklus
 
-Verwenden Sie den Statusumschalter, um eine Kategorie stillzulegen, ohne sie zu löschen.
+Jede Kategorie hat einen Status (**Aktiviert** oder **Deaktiviert**) und ein optionales **Ende der Gültigkeit**. Damit legen Sie eine Kategorie still, ohne sie zu löschen.
 
-- Wenn Sie eine Kategorie deaktivieren, wird ein **Deaktivierungsdatum** erfasst.
-- Nach diesem Datum erscheint die Kategorie nicht mehr in Auswahl-Dropdowns für neue Elemente.
+- **Ende der Gültigkeit**: das Datum, an dem die Kategorie endet. Lassen Sie es leer, damit die Kategorie unbegrenzt aktiv bleibt. Sie können auch ein zukünftiges Datum planen.
+- Wenn Sie die Kategorie ohne Datum auf **Deaktiviert** setzen, wird das Ende der Gültigkeit auf heute gesetzt. Zurück auf **Aktiviert** löscht das Datum.
+- Nach dem Ende der Gültigkeit erscheint die Kategorie nicht mehr in Auswahl-Dropdowns für neue Elemente.
 - Bestehende Elemente behalten ihre Zuordnung, und historische Berichte bleiben korrekt.
 - **Deaktivieren statt löschen**: Auf dieser Seite gibt es keine Löschaktion. Das Deaktivieren bewahrt die Berichtskontinuität und hält die Liste übersichtlich.
 
