@@ -60,6 +60,18 @@ function adaptDateFilter(raw: AiDateFilterValue) {
   }
 }
 
+/**
+ * Both filters on one column: an identical filter once, two date filters as an
+ * AND model (the end of validity lists compile every condition of it). Any
+ * other pair cannot be expressed as one grid filter: null.
+ */
+function combineSameColumn(existing: any, next: any): any | null {
+  if (JSON.stringify(existing) === JSON.stringify(next)) return existing;
+  if (existing.filterType !== 'date' || next.filterType !== 'date') return null;
+  const conditions = existing.operator === 'AND' && Array.isArray(existing.conditions) ? existing.conditions : [existing];
+  return { filterType: 'date', operator: 'AND', conditions: [...conditions, next] };
+}
+
 export function adaptFilters(
   registry: AiEntityFilterRegistry,
   aiFilters?: Record<string, AiFilterValue>,
@@ -112,6 +124,18 @@ export function adaptFilters(
     if (!adapted) {
       ignored.add(fieldName);
       continue;
+    }
+
+    // Two fields on the same column (an alias and its field) must both apply,
+    // or the later one is reported as ignored: never overwrite silently.
+    const existing = filters[field.grid];
+    if (existing) {
+      const combined = combineSameColumn(existing, adapted);
+      if (!combined) {
+        ignored.add(fieldName);
+        continue;
+      }
+      adapted = combined;
     }
 
     filters[field.grid] = adapted;

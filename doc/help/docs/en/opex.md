@@ -18,7 +18,7 @@ Navigate to **Budget Management > OPEX** to see your list. Click **New** to crea
 
 **Optional but useful**:
   - **Description**: Additional context or notes about the spend
-  - **Effective End**: When this spend stops (leave blank for ongoing items)
+  - **End of validity**: The date this spend stops. Leave it blank if there is no end. After it, the item is disabled and later years no longer count in the budget views
   - **IT Owner** / **Business Owner**: Who is responsible
   - **Analytics Category**: Custom grouping for reporting (e.g., "Infrastructure", "Business Apps"). New categories can be created on the fly
   - **Notes**: Free-form internal notes
@@ -52,7 +52,8 @@ The OPEX list (at **Budget Management > OPEX**) is your main view for browsing, 
   - **Enabled**: Item status (enabled or disabled)
   - **Description**: Item description
   - **Currency**: ISO currency code
-  - **Effective Start / Effective End**: Start and end dates
+  - **Effective Start**: Start date
+  - **End of validity**: Date the item stops (blank means no end)
   - **IT Owner / Business Owner**: Responsible users
   - **Analytics**: Analytics category name
   - **Project ID**: Linked project identifier
@@ -111,14 +112,14 @@ This tab shows all the general information about the spend item.
   - **Currency** (defaults to workspace currency; shows only allowed currencies)
   - **Paying Company** (autocomplete from your Companies; required)
   - **Account** (filtered by the paying company's Chart of Accounts; required)
-  - **Effective Start** and **Effective End** (date fields)
+  - **Effective Start** (date field)
   - **IT Owner** and **Business Owner** (autocomplete from enabled users)
   - **Analytics Category** (autocomplete; creates new categories on the fly)
   - **Notes**
 
 **Status and lifecycle**:
-  - Use the **Enabled** toggle or set a **Disabled date** to control when the item appears in reports and selection lists
-  - Disabled items are excluded from reports for years strictly after the disabled date
+  - Use the **Enabled** toggle or set an **End of validity** to control when the item appears in reports and selection lists
+  - Disabled items are excluded from reports for years strictly after the end of validity
   - Historical data remains intact; you will still see disabled items in reports covering years when they were active
 
 **Save and Reset**:
@@ -306,7 +307,9 @@ You can bulk-load OPEX items via CSV to speed up initial setup or sync with exte
 **CSV structure**:
   - Delimiter: semicolon `;` (not comma)
   - Encoding: UTF-8 (save as "CSV UTF-8" in Excel)
-  - Headers: `product_name;description;supplier_name;account_number;currency;effective_start;effective_end;disabled_at;status;owner_it_email;owner_business_email;analytics_category;notes;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget`
+  - Headers: `product_name;description;supplier_name;company_name;account_number;currency;effective_start;status;disabled_at;owner_it_email;owner_business_email;analytics_category;notes;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget;y_plus1_revision`
+  - `disabled_at` is the end of validity: the date the item stops. Use a date (`2026-12-31`) or a full date and time. Leave it empty if there is no end
+  - Older files with an `effective_end` column still import: its date fills the end of validity when `disabled_at` is empty
 
 **Import**:
   1. Click **Import CSV** in the OPEX list
@@ -338,19 +341,20 @@ You can bulk-load OPEX items via CSV to speed up initial setup or sync with exte
 
 ## Status and Lifecycle
 
-Every OPEX item has a **status** (Enabled or Disabled) and an optional **Disabled date** that controls when it appears in reports and selection lists.
+Every OPEX item has a **status** (Enabled or Disabled) and an optional **End of validity** that controls when it appears in reports and selection lists. It is the only end date of an item.
 
 **How it works**:
   - **Enabled**: The item is active and appears everywhere (lists, reports, allocations)
-  - **Disabled date**: When set, the item is disabled at the end of that day
-  - After the disabled date:
+  - **End of validity**: The date the item stops. Leave it blank if there is no end
+  - After the end of validity:
     - The item no longer appears in selection lists for new contracts or allocations
-    - It is excluded from reports for years strictly after the disabled date
+    - It is excluded from reports for years strictly after the end of validity
     - Historical data remains intact; the item still appears in reports covering years when it was active
 
 **Setting status**:
-  - In the **Overview** tab, use the **Enabled** toggle or set a **Disabled date**
-  - You can schedule a future disabled date (useful for planned end-of-contract items)
+  - When you create the item, you can set its **End of validity** in the **Properties** panel
+  - Later, use the **Enabled** toggle or change the **End of validity** in the **Properties** panel
+  - You can schedule a future end of validity (useful for planned end-of-contract items)
 
 **Viewing disabled items**:
   - By default, the OPEX list shows only **Enabled** items
@@ -361,7 +365,7 @@ Every OPEX item has a **status** (Enabled or Disabled) and an optional **Disable
   - **Delete only if**: The item was created by mistake and has no budgets, allocations, or tasks
   - Deletion is guarded: you cannot delete an item that is referenced by contracts, tasks, or has budget data
 
-**Tip**: Use the Disabled date to sunset OPEX items when contracts end or services are discontinued. Do not delete unless it is a true mistake.
+**Tip**: Use the End of validity to sunset OPEX items when contracts end or services are discontinued. Do not delete unless it is a true mistake.
 
 ---
 

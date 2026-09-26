@@ -18,10 +18,13 @@ import { CurrencySettingsService } from '../currency/currency-settings.service';
 import { decodeCsvBufferUtf8OrThrow } from '../common/encoding';
 import { addCents, formatCents, toCents } from '../common/amount';
 import { AmountMeasure, replaceAmounts, spreadAnnualRows } from './amounts-write.util';
-import { resolveLifecycleState, StatusState } from '../common/status';
+import { parseEndOfValidityInput, resolveLifecycleState, StatusState } from '../common/status';
 import { SpendItemUpsertDto } from './dto/spend-item.dto';
 import { ItemNumberService } from '../common/item-number.service';
 import { denormalizeCsvRow, neutralizeCsvRow } from '../common/csv/csv-export.service';
+
+// Accepted on import for one release, never exported: the end of validity used to be split in two dates.
+const LEGACY_CSV_HEADERS = ['effective_end'];
 
 @Injectable()
 export class SpendItemsCsvService {
@@ -48,7 +51,6 @@ export class SpendItemsCsvService {
       'account_number',
       'currency',
       'effective_start',
-      'effective_end',
       'status',
       'disabled_at',
       'owner_it_email',
@@ -153,7 +155,6 @@ export class SpendItemsCsvService {
           account_number: account ? (account as any).account_number : '',
           currency: (it as any).currency ?? '',
           effective_start: (it as any).effective_start ?? '',
-          effective_end: (it as any).effective_end ?? '',
           status: (it as any).status ?? 'enabled',
           disabled_at: (it as any).disabled_at ? new Date((it as any).disabled_at).toISOString() : '',
           owner_it_email: ownerIt ? (ownerIt as any).email ?? '' : '',
@@ -205,7 +206,7 @@ export class SpendItemsCsvService {
       parseString(content, { headers: true, delimiter, ignoreEmpty: true, trim: true })
         .on('headers', (headers: string[]) => {
           const missing = expectedHeaders.filter((h) => !headers.includes(h));
-          const extras = headers.filter((h) => !expectedHeaders.includes(h));
+          const extras = headers.filter((h) => !expectedHeaders.includes(h) && !LEGACY_CSV_HEADERS.includes(h));
           headerOk = missing.length === 0 && extras.length === 0;
           if (!headerOk) errors.push({ row: 0, message: `Header mismatch. Missing: ${missing.join(', ') || '-'}, Extra: ${extras.join(', ') || '-'}` });
         })
@@ -270,7 +271,6 @@ export class SpendItemsCsvService {
       account_number: string | null;
       currency: string;
       effective_start: string;
-      effective_end: string | null;
       status: StatusState;
       disabled_at: string | null;
       notes: string | null;
@@ -320,7 +320,6 @@ export class SpendItemsCsvService {
         : null;
       const currency = (r['currency'] ?? '').toString().trim().toUpperCase();
       const effective_start = ((r['effective_start'] ?? '').toString().trim()) || defaultStart;
-      const effective_end = ((r['effective_end'] ?? '').toString().trim()) || null;
       const statusRaw = (r['status'] ?? 'enabled').toString().trim().toLowerCase();
       if (statusRaw && statusRaw !== 'enabled' && statusRaw !== 'disabled') {
         errors.push({ row: line, message: `Invalid status '${statusRaw}'. Use 'enabled' or 'disabled'.` });
@@ -328,12 +327,18 @@ export class SpendItemsCsvService {
       const status = statusRaw === 'disabled' ? StatusState.DISABLED : StatusState.ENABLED;
       const disabledAtRaw = (r['disabled_at'] ?? '').toString().trim();
       let disabled_at: string | null = null;
-      if (disabledAtRaw) {
-        const parsed = new Date(disabledAtRaw);
-        if (Number.isNaN(parsed.getTime())) {
-          errors.push({ row: line, message: `Invalid disabled_at '${disabledAtRaw}'. Use ISO date format.` });
-        } else {
-          disabled_at = parsed.toISOString();
+      try {
+        disabled_at = parseEndOfValidityInput(disabledAtRaw)?.toISOString() ?? null;
+      } catch {
+        errors.push({ row: line, message: `Invalid disabled_at '${disabledAtRaw}'. Use ISO date format.` });
+      }
+      // Files from before the single end date carry effective_end: it fills an empty end of validity.
+      const legacyEndRaw = (r['effective_end'] ?? '').toString().trim();
+      if (!disabledAtRaw && legacyEndRaw) {
+        try {
+          disabled_at = parseEndOfValidityInput(legacyEndRaw)?.toISOString() ?? null;
+        } catch {
+          errors.push({ row: line, message: `Invalid effective_end '${legacyEndRaw}'. Use YYYY-MM-DD.` });
         }
       }
       const ownerItEmailRaw = (r['owner_it_email'] ?? '').toString().trim();
@@ -380,7 +385,6 @@ export class SpendItemsCsvService {
         account_number: normalizedAccountNumber,
         currency,
         effective_start,
-        effective_end,
         status,
         disabled_at,
         analytics_category_name: analyticsCategoryName,
@@ -450,7 +454,6 @@ export class SpendItemsCsvService {
         account_id: accountId,
         currency: item.currency,
         effective_start: item.effective_start,
-        effective_end: item.effective_end ?? null,
         status: item.status,
         disabled_at: item.disabled_at,
         analytics_category_id: analyticsCategory ? analyticsCategory.id : null,

@@ -51,6 +51,8 @@ import { AiToolName } from '../ai.types';
 import { AiConversationRetentionService } from '../../cleanup/ai-conversation-retention.service';
 import { AiAggregateExecutor } from '../query/ai-aggregate.executor';
 import { AiQueryExecutor } from '../query/ai-query.executor';
+import { adaptFilters } from '../query/ai-filter.adapter';
+import { getAiEntityRegistry } from '../query/registries';
 import { ItOpsSettingsService } from '../../it-ops-settings/it-ops-settings.service';
 import { Tenant } from '../../tenants/tenant.entity';
 import { Location } from '../../locations/location.entity';
@@ -4017,6 +4019,7 @@ async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
           project_name: 'Infrastructure Refresh',
           project_stream_name: 'Infrastructure',
           project_category_name: 'Run',
+          disabled_at: new Date('2031-06-30T12:00:00.000Z'),
           versions: {
             [`y${anchorYear - 2}`]: { year: anchorYear - 2, reporting: { budget: 10, revision: 9, follow_up: 8, landing: 7 } },
             yMinus1: { year: anchorYear - 1, reporting: { budget: 20, revision: 19, follow_up: 18, landing: 17 } },
@@ -4085,6 +4088,8 @@ async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
   assert.equal(result.items[0].metadata.project_name, 'Infrastructure Refresh');
   assert.equal(result.items[0].metadata.project_stream, 'Infrastructure');
   assert.equal(result.items[0].metadata.project_category, 'Run');
+  assert.equal(result.items[0].metadata.end_of_validity, '2031-06-30T12:00:00.000Z', 'the end of validity is exposed');
+  assert.equal(Object.prototype.hasOwnProperty.call(result.items[0].metadata, 'effective_end'), false, 'no separate effective end any more');
   assert.equal(result.items[0].metadata.y_minus2_budget, 10);
   assert.equal(result.items[0].metadata.y_minus1_budget, 20);
   assert.equal(result.items[0].metadata.y_budget, 30);
@@ -4099,11 +4104,11 @@ async function testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals() {
   );
 }
 
-async function testSpendSummaryFiltersSupportRelativeYearMetricsAndDates() {
-  const rows = [
+function spendSummaryDateRows() {
+  return [
     {
       id: 'spend-1',
-      effective_end: '2026-06-30',
+      disabled_at: new Date('2026-06-30T12:00:00.000Z'),
       project_stream_name: 'Infrastructure',
       versions: {
         yMinus2: { reporting: { budget: 10, revision: 0, follow_up: 0, landing: 0 } },
@@ -4112,7 +4117,7 @@ async function testSpendSummaryFiltersSupportRelativeYearMetricsAndDates() {
     },
     {
       id: 'spend-2',
-      effective_end: '2026-08-15',
+      disabled_at: new Date('2026-08-15T12:00:00.000Z'),
       project_stream_name: 'Security',
       versions: {
         yMinus2: { reporting: { budget: 5, revision: 0, follow_up: 0, landing: 0 } },
@@ -4120,15 +4125,45 @@ async function testSpendSummaryFiltersSupportRelativeYearMetricsAndDates() {
       },
     },
   ] as any;
+}
 
-  const filtered = applyAgFiltersInMemory(rows, {
+async function testSpendSummaryFiltersSupportRelativeYearMetricsAndDates() {
+  // effective_end is the deprecated alias of end_of_validity: both reach the grid's disabled_at.
+  const adapted = adaptFilters(getAiEntityRegistry('spend_items'), {
+    effective_end: { op: 'before', value: '2026-07-01' },
+  });
+  assert.deepEqual(adapted.applied, ['effective_end']);
+  assert.deepEqual(adapted.filters, { disabled_at: { filterType: 'date', type: 'lessThan', dateFrom: '2026-07-01' } });
+
+  const filtered = applyAgFiltersInMemory(spendSummaryDateRows(), {
     project_stream_name: { filterType: 'set', values: ['Infrastructure'] },
     yMinus2Budget: { filterType: 'number', type: 'greaterThanOrEqual', filter: 10 },
     yPlus2Budget: { filterType: 'number', type: 'inRange', filter: 40, filterTo: 60 },
-    effective_end: { filterType: 'date', type: 'lessThan', dateFrom: '2026-07-01' },
+    ...adapted.filters,
   });
 
   assert.deepEqual(filtered.map((row: any) => row.id), ['spend-1']);
+}
+
+async function testSpendAndCapexEndOfValidityQueryField() {
+  for (const entityType of ['spend_items', 'capex_items'] as const) {
+    const registry = getAiEntityRegistry(entityType);
+    assert.equal(registry.fields.end_of_validity.grid, 'disabled_at', `${entityType}: end_of_validity reads disabled_at`);
+    assert.equal(registry.fields.end_of_validity.type, 'date');
+    assert.match(registry.fields.effective_end.description, /^Deprecated alias of end_of_validity\./);
+    assert.equal(registry.sortFields.end_of_validity, 'disabled_at', `${entityType}: sortable on the end of validity`);
+    assert.equal(registry.sortFields.effective_end, 'disabled_at', `${entityType}: the alias sorts the same column`);
+
+    const adapted = adaptFilters(registry, { end_of_validity: { op: 'after', value: '2026-07-01' } });
+    assert.deepEqual(adapted.applied, ['end_of_validity']);
+    assert.deepEqual(adapted.filters, { disabled_at: { filterType: 'date', type: 'greaterThan', dateFrom: '2026-07-01' } });
+  }
+
+  const filtered = applyAgFiltersInMemory(
+    spendSummaryDateRows(),
+    adaptFilters(getAiEntityRegistry('spend_items'), { end_of_validity: { op: 'after', value: '2026-07-01' } }).filters,
+  );
+  assert.deepEqual(filtered.map((row: any) => row.id), ['spend-2']);
 }
 
 async function testAiAggregateExecutorSpendItemsSupportsSummaryMetricsAndProjectStreams() {
@@ -4450,6 +4485,7 @@ async function run() {
     await testAiQueryExecutorClosesRemainingMilestone1aGapFields();
     await testAiQueryExecutorSpendItemsExposeRelativeYearlyTotals();
     await testSpendSummaryFiltersSupportRelativeYearMetricsAndDates();
+    await testSpendAndCapexEndOfValidityQueryField();
     await testAiAggregateExecutorSpendItemsSupportsSummaryMetricsAndProjectStreams();
     await testAiAdminOverviewAggregatesUsageAndIsTenantScoped();
     await testAiConversationRetentionArchivesAndPurgesOldConversations();

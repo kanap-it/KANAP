@@ -25,7 +25,7 @@ Navegue a **Gestión presupuestaria > CAPEX** para ver su lista. Haga clic en **
 
 **Opcionales pero útiles**:
 
-- **Fin efectivo**: Cuándo termina la vida útil de este activo o se completa el proyecto (deje en blanco para activos sin fin definido)
+- **Fin de validez**: La fecha en que termina esta inversión, por ejemplo cuando acaba la vida útil del activo o se completa el proyecto. Déjelo en blanco si no hay fin. Después de esa fecha, la partida se deshabilita y los años posteriores ya no cuentan en las vistas de presupuesto
 - **Notas**: Notas internas de texto libre sobre la inversión
 
 Una vez que guarde, el espacio de trabajo desbloquea todas las pestañas: **Visión general**, **Presupuesto**, **Asignaciones**, **Tareas** y **Relaciones**.
@@ -83,7 +83,7 @@ Estas columnas están ocultas por defecto. Muéstrelas desde el selector de colu
 | **Aterrizaje Y-1** | Gasto de capital real final del año anterior |
 | **Moneda** | Código de moneda de la partida |
 | **Inicio** | Fecha de inicio efectivo |
-| **Fin** | Fecha de fin efectivo |
+| **Fin de validez** | Fecha en que la partida termina (en blanco significa sin fin) |
 | **Notas** | Notas de texto libre |
 | **Tarea** | Título de la tarea más reciente vinculada a esta partida |
 | **Habilitado** | Estado (habilitado o deshabilitado) |
@@ -150,13 +150,13 @@ Esta pestaña muestra toda la información general de la partida CAPEX.
 - **Tipo de inversión**: Reemplazo, Capacidad, Productividad, Seguridad, Conformidad, Crecimiento de negocio u Otro
 - **Prioridad**: Obligatorio, Alto, Medio o Bajo
 - **Moneda**: Se establece por defecto a la moneda CAPEX del espacio de trabajo; muestra solo monedas permitidas
-- **Inicio efectivo** y **Fin efectivo**: Campos de fecha en formato DD/MM/AAAA
+- **Inicio efectivo**: Campo de fecha en formato DD/MM/AAAA
 - **Notas**: Notas internas de texto libre
 
 **Estado y ciclo de vida**:
 
-- Utilice el conmutador **Habilitado** o establezca una **Fecha de desactivación** para controlar cuándo aparece la partida en informes y listas de selección
-- Las partidas deshabilitadas se excluyen de informes para años estrictamente posteriores a la fecha de desactivación
+- Utilice el conmutador **Habilitado** o establezca un **Fin de validez** para controlar cuándo aparece la partida en informes y listas de selección
+- Las partidas deshabilitadas se excluyen de informes para años estrictamente posteriores al fin de validez
 - Los datos históricos permanecen intactos; seguirá viendo partidas deshabilitadas en informes que cubren años cuando estaban activas
 
 **Guardar y Restablecer**:
@@ -380,7 +380,9 @@ Puede cargar masivamente partidas CAPEX vía CSV para acelerar la configuración
 
 - Delimitador: punto y coma `;` (no coma)
 - Codificación: UTF-8 (guarde como "CSV UTF-8" en Excel)
-- Encabezados: `description;ppe_type;investment_type;priority;currency;effective_start;effective_end;status;disabled_at;notes;company_name;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget`
+- Encabezados: `item_number;description;ppe_type;investment_type;priority;currency;effective_start;status;disabled_at;notes;company_name;owner_it_email;owner_business_email;analytics_category;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget;y_plus1_revision;y_plus2_budget`
+- `disabled_at` es el fin de validez: la fecha en que la partida termina. Utilice una fecha (`2026-12-31`) o una fecha y hora completas. Déjelo vacío si no hay fin
+- Los archivos antiguos con una columna `effective_end` se siguen importando: su fecha rellena el fin de validez cuando `disabled_at` está vacío
 
 **Importar**:
 
@@ -419,21 +421,22 @@ Puede cargar masivamente partidas CAPEX vía CSV para acelerar la configuración
 
 ## Estado y ciclo de vida
 
-Cada partida CAPEX tiene un **estado** (Habilitado o Deshabilitado) y una **Fecha de desactivación** opcional que controla cuándo aparece en informes y listas de selección.
+Cada partida CAPEX tiene un **estado** (Habilitado o Deshabilitado) y un **Fin de validez** opcional que controla cuándo aparece en informes y listas de selección. Es la única fecha de fin de una partida.
 
 **Cómo funciona**:
 
 - **Habilitado**: La partida está activa y aparece en todas partes (listas, informes, asignaciones)
-- **Fecha de desactivación**: Cuando se establece, la partida se desactiva al final de ese día
-- Después de la fecha de desactivación:
+- **Fin de validez**: La fecha en que la partida termina. Déjelo en blanco si no hay fin
+- Después del fin de validez:
   - La partida ya no aparece en listas de selección para nuevos contratos o asignaciones
-  - Se excluye de informes para años estrictamente posteriores a la fecha de desactivación
+  - Se excluye de informes para años estrictamente posteriores al fin de validez
   - Los datos históricos permanecen intactos; la partida sigue apareciendo en informes que cubren años cuando estaba activa
 
 **Establecer estado**:
 
-- En la pestaña **Visión general**, utilice el conmutador **Habilitado** o establezca una **Fecha de desactivación**
-- Puede programar una fecha de desactivación futura (útil para disposiciones de activos planificadas o fechas de fin de vida)
+- Al crear la partida, puede establecer su **Fin de validez** en el panel **Propiedades**
+- Más adelante, utilice el conmutador **Habilitado** o cambie el **Fin de validez** en el panel **Propiedades**
+- Puede programar un fin de validez futuro (útil para disposiciones de activos planificadas o fechas de fin de vida)
 
 **Ver partidas deshabilitadas**:
 
@@ -446,7 +449,7 @@ Cada partida CAPEX tiene un **estado** (Habilitado o Deshabilitado) y una **Fech
 - **Elimine solo si**: La partida se creó por error y no tiene presupuestos, asignaciones ni tareas
 - La eliminación está protegida: no puede eliminar una partida que tiene datos presupuestarios, asignaciones, tareas o está referenciada por contratos
 
-**Consejo**: Utilice la Fecha de desactivación para marcar activos que han sido completamente depreciados, eliminados o proyectos completados. No elimine a menos que sea un verdadero error.
+**Consejo**: Utilice el Fin de validez para marcar activos que han sido completamente depreciados, eliminados o proyectos completados. No elimine a menos que sea un verdadero error.
 
 ---
 

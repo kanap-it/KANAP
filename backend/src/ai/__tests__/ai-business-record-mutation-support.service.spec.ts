@@ -9,6 +9,7 @@ import { AiBusinessRecordMutationSupportService } from '../mutation/ai-business-
 const TENANT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const USER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const APP_ID = '11111111-1111-4111-8111-111111111111';
+const SPEND_ID = '22222222-2222-4222-8222-222222222222';
 
 const applicationCategories = [
   { code: 'line_of_business', label: 'Business Applications' },
@@ -47,6 +48,15 @@ function createHarness() {
     },
     query: async (sql: string, params: unknown[]) => {
       calls.managerQueries.push(sql);
+      if (sql.includes('FROM spend_items') && String(params[1]).toLowerCase() === 'hosting') {
+        return [{
+          id: SPEND_ID,
+          tenant_id: TENANT_ID,
+          product_name: 'Hosting',
+          status: 'enabled',
+          disabled_at: null,
+        }];
+      }
       if (sql.includes('FROM applications') && String(params[1]).toLowerCase() === 'payroll') {
         return [{
           id: APP_ID,
@@ -168,12 +178,41 @@ async function testCreateDoesNotUseObservedApplicationValuesAsAllowedValues() {
   assert.equal(calls.managerQueries.length, 0);
 }
 
+async function updateHosting(fields: Record<string, unknown>) {
+  const { service, context } = createHarness();
+  const prepared = await service.prepareUpdatePreview(context, { entity_type: 'spend_items', ref: 'Hosting', fields });
+  return {
+    fields: prepared.mutationInput.fields as Record<string, unknown>,
+    labels: prepared.mutationInput.field_labels as Record<string, unknown>,
+  };
+}
+
+async function testEffectiveEndIsAnAliasOfTheEndOfValidity() {
+  const legacy = await updateHosting({ effective_end: '2031-06-30' });
+  assert.deepEqual(legacy.fields, { disabled_at: '2031-06-30T12:00:00.000Z' }, 'effective_end alone sets the end of validity at noon UTC');
+  assert.equal(legacy.labels.disabled_at, 'End of validity');
+
+  const both = await updateHosting({ effective_end: '2031-06-30', disabled_at: '2031-09-30' });
+  assert.deepEqual(both.fields, { disabled_at: '2031-09-30T12:00:00.000Z' }, 'a given disabled_at wins over the alias');
+
+  const named = await updateHosting({ end_of_validity: '2031-01-31T21:59:00.000Z' });
+  assert.deepEqual(named.fields, { disabled_at: '2031-01-31T21:59:00.000Z' }, 'end_of_validity is accepted, a full timestamp is kept');
+
+  await assert.rejects(
+    () => updateHosting({ effective_end: null }),
+    /At least one writable field is required/,
+    'a blank alias never clears the end of validity',
+  );
+  await assert.rejects(() => updateHosting({ effective_end: '2031-02-30' }), /End of validity must be a valid date/);
+}
+
 async function main() {
   await testCreateAcceptsConfiguredCategoryCode();
   await testCreateResolvesConfiguredCategoryLabel();
   await testUpdateResolvesConfiguredBusinessApplicationsLabel();
   await testCreateRejectsCategoryOutsideTenantSettings();
   await testCreateDoesNotUseObservedApplicationValuesAsAllowedValues();
+  await testEffectiveEndIsAnAliasOfTheEndOfValidity();
 }
 
 main().catch((error) => {

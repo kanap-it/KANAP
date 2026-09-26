@@ -43,7 +43,7 @@ type SummaryRow = {
   priority: 'mandatory' | 'high' | 'medium' | 'low';
   currency: string;
   effective_start: string;
-  effective_end?: string | null;
+  disabled_at?: string | null;
   status: string;
   notes?: string | null;
   company_id?: string | null;
@@ -560,12 +560,14 @@ export default function CapexPage() {
         cellRenderer: linkCell('effective_start'),
       },
       {
-        field: 'effective_end',
-        headerName: t('capex.columns.effectiveEnd'),
+        field: 'disabled_at',
+        headerName: t('capex.columns.endOfValidity'),
         width: 150,
         defaultHidden: true,
-        valueFormatter: (p: any) => formatShortDate(p.value as string | null, locale),
-        cellRenderer: linkCell('effective_end'),
+        filter: 'agDateColumnFilter',
+        // A timestamp: shown as the calendar day in the viewer's time zone, like the drawer.
+        valueFormatter: (p: any) => formatShortDate(p.value ? new Date(p.value as string) : null, locale),
+        cellRenderer: linkCell('disabled_at'),
       },
       {
         colId: 'owner_it_name',

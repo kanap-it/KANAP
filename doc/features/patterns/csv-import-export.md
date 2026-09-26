@@ -21,6 +21,8 @@ Owner: Eng
 - Lifecycle (`disabled_at`):
   - When provided, `disabled_at` is treated as the source of truth for lifecycle. The backend derives `status` from the timestamp at save time.
   - Leave `disabled_at` blank to keep records active indefinitely. Set a date to schedule end-of-day deactivation (23:59 local input → stored ISO timestamp).
+  - OPEX and CAPEX items: `disabled_at` is the item's only end date, shown as "End of validity". A bare date (`2026-12-31`) is stored at 12:00 UTC of that day, so it reads the same calendar day across European time zones and keeps its year; a full ISO timestamp is kept as given. OPEX exports write the full timestamp, CAPEX exports the date.
+  - OPEX and CAPEX items, legacy files: an `effective_end` column is still accepted on import for one release and never exported. Its date fills `disabled_at` when that cell is empty; it never overrides a `disabled_at` value and an empty cell clears nothing.
   - If both `status` and `disabled_at` are present and conflict, the date wins; the system will normalize `status` to match `disabled_at`.
 
 ## Workflow
@@ -78,7 +80,7 @@ Platform Admin (CoA Templates)
  - Platform Admin standard accounts use the same headers (without `coa_code`) and are stored per template.
 
 ### OPEX (Spend Items)
-- Headers: `product_name;description;supplier_name;account_number;currency;effective_start;effective_end;disabled_at;status;owner_it_email;owner_business_email;analytics_category;notes;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget`
+- Headers: `product_name;description;supplier_name;company_name;account_number;currency;effective_start;status;disabled_at;owner_it_email;owner_business_email;analytics_category;notes;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget;y_plus1_revision`
 - Unique key: composite `(product_name, supplier_id)` resolved from `supplier_name` (case-insensitive)
 - References:
   - `supplier_name` → Suppliers by `name`
@@ -117,7 +119,7 @@ Platform Admin (CoA Templates)
   - Supplier linking is managed in the UI, not via CSV
 
 ### CAPEX Items
-- Headers: `product_name;description;supplier_name;account_number;currency;effective_start;effective_end;disabled_at;status;owner_it_email;owner_business_email;analytics_category;notes;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget`
+- Headers: `item_number;description;ppe_type;investment_type;priority;currency;effective_start;status;disabled_at;notes;company_name;owner_it_email;owner_business_email;analytics_category;y_minus1_budget;y_minus1_landing;y_budget;y_follow_up;y_landing;y_revision;y_plus1_budget;y_plus1_revision;y_plus2_budget`
 - Unique key: `description`
 - Validation:
   - `ppe_type`: `hardware|software` (case-insensitive)

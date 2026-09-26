@@ -72,6 +72,15 @@ export class NotificationsService {
   private recentNotifications = new Map<string, number>();
   private readonly DEDUPE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
+  // Expiry warnings follow a fixed schedule (expiry-reminder-schedule.ts). This guard only
+  // stops a re-run of the daily task on the same day from sending a reminder twice:
+  // key -> sent at, kept for 24 hours and cleaned with its own window.
+  private expiryRemindersSent = new Map<string, number>();
+  private readonly EXPIRY_REMINDER_GUARD_MS = 24 * 60 * 60 * 1000;
+
+  // Clock for the dedupe windows (replaced in specs).
+  private now: () => number = () => Date.now();
+
   // Cache for tenant slugs (tenantId -> slug)
   private tenantSlugCache = new Map<string, string>();
   private readonly MAX_INLINE_IMAGES_PER_EMAIL = 8;
@@ -91,7 +100,7 @@ export class NotificationsService {
   private shouldNotify(userId: string, itemType: string, itemId: string, trigger: string): boolean {
     const key = `${userId}:${itemType}:${itemId}:${trigger}`;
     const lastNotified = this.recentNotifications.get(key);
-    const now = Date.now();
+    const now = this.now();
 
     if (lastNotified && now - lastNotified < this.DEDUPE_WINDOW_MS) {
       return false;
@@ -106,11 +115,17 @@ export class NotificationsService {
    */
   @Interval(10 * 60 * 1000)
   private cleanupDedupeCache() {
-    const now = Date.now();
+    const now = this.now();
     let cleaned = 0;
     for (const [key, timestamp] of this.recentNotifications) {
       if (now - timestamp > this.DEDUPE_WINDOW_MS) {
         this.recentNotifications.delete(key);
+        cleaned++;
+      }
+    }
+    for (const [key, timestamp] of this.expiryRemindersSent) {
+      if (now - timestamp >= this.EXPIRY_REMINDER_GUARD_MS) {
+        this.expiryRemindersSent.delete(key);
         cleaned++;
       }
     }
@@ -1174,7 +1189,8 @@ export class NotificationsService {
   }
 
   /**
-   * Notify about expiration warning (for scheduled job).
+   * Notify about expiration warning (for scheduled job). The caller decides the day (the
+   * fixed reminder schedule); this sends to opted-in recipients, once per reminder.
    */
   async notifyExpirationWarning(params: {
     itemType: 'contract' | 'opex';
@@ -1192,16 +1208,17 @@ export class NotificationsService {
     const localeGroups = new Map<string, NotificationRecipient[]>();
 
     for (const recipient of params.recipients) {
-      // Use a longer dedupe window for expiration warnings (7 days)
-      const key = `${recipient.userId}:${params.itemType}:${params.itemId}:expiration:${params.warningType}`;
-      const lastNotified = this.recentNotifications.get(key);
-      const now = Date.now();
-      const EXPIRATION_DEDUPE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-      if (lastNotified && now - lastNotified < EXPIRATION_DEDUPE_MS) {
+      // One reminder per recipient, item, deadline and reminder day: a same-day re-run of
+      // the task does not resend it.
+      const key = [
+        recipient.userId, params.itemType, params.itemId, params.warningType,
+        params.expirationDate, params.daysRemaining,
+      ].join(':');
+      const sentAt = this.expiryRemindersSent.get(key);
+      const now = this.now();
+      if (sentAt !== undefined && now - sentAt < this.EXPIRY_REMINDER_GUARD_MS) {
         continue;
       }
-      this.recentNotifications.set(key, now);
 
       // Don't pass manager - notifications are fire-and-forget, so the transaction
       // may be closed by the time this runs. Preferences service uses its own connection.
@@ -1210,7 +1227,10 @@ export class NotificationsService {
         params.tenantId,
       );
 
+      // Opt-in only. Record the key only for a recipient who is emailed, so a user who opts
+      // in after a skipped run still gets the reminder on a re-run.
       if (!this.checkPreferences(prefs, 'budget', 'expiration_warning')) continue;
+      this.expiryRemindersSent.set(key, now);
 
       const locale = resolveEmailLocale(recipient.locale);
       const existing = localeGroups.get(locale);

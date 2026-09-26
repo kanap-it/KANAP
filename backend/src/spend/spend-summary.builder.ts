@@ -842,6 +842,11 @@ export function sortSummaryRows(
     if (typeof av === 'number' && typeof bv === 'number') {
       return av === bv ? 0 : (av < bv ? -1 : 1) * dir;
     }
+    // disabled_at comes as a Date: its string form starts with the weekday.
+    if (av instanceof Date && bv instanceof Date) {
+      const diff = av.getTime() - bv.getTime();
+      return diff === 0 ? 0 : (diff < 0 ? -1 : 1) * dir;
+    }
 
     const as = String(av).toLowerCase();
     const bs = String(bv).toLowerCase();

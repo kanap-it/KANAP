@@ -18,7 +18,7 @@ Rendez-vous dans **Gestion budgétaire > OPEX** pour voir votre liste. Cliquez s
 
 **Optionnel mais utile** :
   - **Description** : Contexte ou notes supplémentaires sur la dépense
-  - **Date de fin effective** : Quand cette dépense s'arrête (laisser vide pour les postes permanents)
+  - **Fin de validité** : La date à laquelle cette dépense s'arrête. Laissez-la vide s'il n'y a pas de fin. Après cette date, le poste est désactivé et les années suivantes ne comptent plus dans les vues budgétaires
   - **Responsable IT** / **Responsable métier** : Qui est en charge
   - **Catégorie analytique** : Regroupement personnalisé pour le reporting (ex. : « Infrastructure », « Apps métier »). De nouvelles catégories peuvent être créées à la volée
   - **Notes** : Notes internes libres
@@ -52,7 +52,8 @@ La liste OPEX (dans **Gestion budgétaire > OPEX**) est votre vue principale pou
   - **Activé** : Statut du poste (activé ou désactivé)
   - **Description** : Description du poste
   - **Devise** : Code devise ISO
-  - **Début effectif / Fin effective** : Dates de début et fin
+  - **Début effectif** : Date de début
+  - **Fin de validité** : Date à laquelle le poste s'arrête (vide signifie sans fin)
   - **Responsable IT / Responsable métier** : Utilisateurs responsables
   - **Analytique** : Nom de la catégorie analytique
   - **ID Projet** : Identifiant du projet lié
@@ -111,14 +112,14 @@ Cet onglet affiche toutes les informations générales sur le poste de dépense.
   - **Devise** (par défaut la devise de l'espace de travail ; affiche uniquement les devises autorisées)
   - **Société payeuse** (autocomplétion depuis vos Sociétés ; obligatoire)
   - **Compte** (filtré par le plan comptable de la société payeuse ; obligatoire)
-  - **Début effectif** et **Fin effective** (champs de date)
+  - **Début effectif** (champ de date)
   - **Responsable IT** et **Responsable métier** (autocomplétion depuis les utilisateurs actifs)
   - **Catégorie analytique** (autocomplétion ; crée de nouvelles catégories à la volée)
   - **Notes**
 
 **Statut et cycle de vie** :
-  - Utilisez la bascule **Activé** ou définissez une **Date de désactivation** pour contrôler quand le poste apparaît dans les rapports et listes de sélection
-  - Les postes désactivés sont exclus des rapports pour les années strictement postérieures à la date de désactivation
+  - Utilisez la bascule **Activé** ou définissez une **Fin de validité** pour contrôler quand le poste apparaît dans les rapports et listes de sélection
+  - Les postes désactivés sont exclus des rapports pour les années strictement postérieures à la fin de validité
   - Les données historiques restent intactes ; vous verrez toujours les postes désactivés dans les rapports couvrant les années où ils étaient actifs
 
 **Enregistrer et Réinitialiser** :

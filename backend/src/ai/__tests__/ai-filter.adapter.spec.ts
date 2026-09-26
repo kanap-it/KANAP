@@ -4,6 +4,8 @@ import { tasksRegistry } from '../query/registries/tasks.registry';
 import { projectsRegistry } from '../query/registries/projects.registry';
 import { requestsRegistry } from '../query/registries/requests.registry';
 import { incidentsRegistry } from '../query/registries/incidents.registry';
+import { spendItemsRegistry } from '../query/registries/spend-items.registry';
+import { companiesRegistry } from '../query/registries/companies.registry';
 
 function testSetFilterAdaptation() {
   const adapted = adaptFilters(tasksRegistry, {
@@ -89,6 +91,39 @@ function testIncidentUnknownFieldIgnored() {
   assert.deepEqual(adapted.ignored, ['made_up']);
 }
 
+function testEndOfValidityAndAliasBothApply() {
+  const adapted = adaptFilters(spendItemsRegistry, {
+    end_of_validity: { op: 'after', value: '2026-01-01' },
+    effective_end: { op: 'before', value: '2027-01-01' },
+  });
+  assert.deepEqual(adapted.filters, {
+    disabled_at: {
+      filterType: 'date',
+      operator: 'AND',
+      conditions: [
+        { filterType: 'date', type: 'greaterThan', dateFrom: '2026-01-01' },
+        { filterType: 'date', type: 'lessThan', dateFrom: '2027-01-01' },
+      ],
+    },
+  });
+  assert.deepEqual(adapted.applied, ['end_of_validity', 'effective_end']);
+  assert.deepEqual(adapted.ignored, []);
+
+  const same = adaptFilters(spendItemsRegistry, {
+    end_of_validity: { op: 'before', value: '2027-01-01' },
+    effective_end: { op: 'before', value: '2027-01-01' },
+  });
+  assert.deepEqual(same.filters, { disabled_at: { filterType: 'date', type: 'lessThan', dateFrom: '2027-01-01' } });
+  assert.deepEqual(same.applied, ['end_of_validity', 'effective_end']);
+}
+
+function testSameColumnConflictIsReported() {
+  const adapted = adaptFilters(companiesRegistry, { country: ['FR'], country_iso: ['DE'] });
+  assert.deepEqual(adapted.filters, { country_iso: { filterType: 'set', values: ['FR'] } }, 'the first filter is kept');
+  assert.deepEqual(adapted.applied, ['country']);
+  assert.deepEqual(adapted.ignored, ['country_iso'], 'the later one is reported as not applied');
+}
+
 function run() {
   testSetFilterAdaptation();
   testStringToSetFilterAdaptation();
@@ -99,6 +134,8 @@ function run() {
   testIncidentSeveritySetFilter();
   testIncidentDetectedAtDateFilter();
   testIncidentUnknownFieldIgnored();
+  testEndOfValidityAndAliasBothApply();
+  testSameColumnConflictIsReported();
 }
 
 run();

@@ -1,3 +1,6 @@
+import { FindOperator, Raw } from 'typeorm';
+import { compileAgFilterCondition, createParamNameGenerator, normalizeAgFilterModel } from './ag-grid-filtering';
+
 export enum StatusState {
   ENABLED = 'enabled',
   DISABLED = 'disabled',
@@ -44,6 +47,116 @@ export function normalizeDisabledAtInput(value: DisabledAtInput): Date | null {
   return date ? new Date(date) : null;
 }
 
+const YMD_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * The end of validity for a bare calendar day: noon UTC of that day, so the
+ * day and the year read the same from UTC-11 to UTC+11 (the UI shows it in
+ * the browser's local time, the summary masks years by its UTC year).
+ */
+export function endOfValidityFromDate(ymd: string): Date {
+  const match = YMD_PATTERN.exec(String(ymd ?? '').trim());
+  if (!match) throw new Error(`Invalid date '${ymd}'. Use YYYY-MM-DD.`);
+  const [, y, m, d] = match;
+  const date = new Date(`${y}-${m}-${d}T12:00:00.000Z`);
+  // Date rolls 2026-02-30 over to March: refuse anything that is not a real calendar day.
+  if (Number.isNaN(date.getTime()) || date.getUTCMonth() + 1 !== Number(m) || date.getUTCDate() !== Number(d)) {
+    throw new Error(`Invalid date '${ymd}'. Use YYYY-MM-DD.`);
+  }
+  return date;
+}
+
+/**
+ * Parse an end of validity coming from a file, an API alias or the AI: a bare
+ * YYYY-MM-DD becomes noon UTC of that day, a full timestamp is kept as given,
+ * empty means no end. Throws on anything else.
+ */
+export function parseEndOfValidityInput(value: unknown): Date | null {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) throw new Error('Invalid end of validity.');
+    return new Date(value);
+  }
+  const text = String(value).trim();
+  if (text === '') return null;
+  if (YMD_PATTERN.test(text)) return endOfValidityFromDate(text);
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) throw new Error(`Invalid date '${text}'. Use YYYY-MM-DD or an ISO date and time.`);
+  return parsed;
+}
+
+function isBlankInput(value: unknown): boolean {
+  return value == null || (typeof value === 'string' && value.trim() === '');
+}
+
+function parseNamedEndOfValidity(field: string, value: unknown): Date | null {
+  try {
+    return parseEndOfValidityInput(value);
+  } catch (err) {
+    throw new Error(`${field}: ${(err as Error).message}`);
+  }
+}
+
+/**
+ * The end of validity of an API body, parsed like every other server input
+ * (a bare day is noon UTC, a full timestamp is kept). The deprecated
+ * `effective_end` (one release) fills it only when no `disabled_at` is given,
+ * and a blank value never clears it. Returns the `disabled_at` to write:
+ * undefined when the body sets none, null or blank when it clears it.
+ * Throws, naming the field, on a value that is not a date.
+ */
+export function resolveEndOfValidityAlias(disabledAt: DisabledAtInput, effectiveEnd: unknown): DisabledAtInput {
+  if (!isBlankInput(disabledAt)) {
+    return typeof disabledAt === 'number' ? disabledAt : parseNamedEndOfValidity('disabled_at', disabledAt);
+  }
+  if (isBlankInput(effectiveEnd)) return disabledAt;
+  return parseNamedEndOfValidity('effective_end', effectiveEnd);
+}
+
+export type LifecycleScope = 'active' | 'inactive' | { activeSince: Date } | null;
+
+const ALIAS_TOKEN = '__disabled_at__';
+
+/**
+ * `where.disabled_at` for the item lists: the lifecycle scope AND the grid's
+ * own date filter on the end of validity. Both target the same column, so
+ * assigning one after the other would silently drop the first.
+ */
+export function disabledAtWhere(scope: LifecycleScope, gridFilter?: unknown): FindOperator<any> | undefined {
+  const parts: string[] = [];
+  const params: Record<string, unknown> = {};
+  if (scope === 'active') {
+    parts.push(`${ALIAS_TOKEN} IS NULL OR ${ALIAS_TOKEN} > NOW()`);
+  } else if (scope === 'inactive') {
+    parts.push(`${ALIAS_TOKEN} IS NOT NULL AND ${ALIAS_TOKEN} <= NOW()`);
+  } else if (scope && scope.activeSince) {
+    parts.push(`${ALIAS_TOKEN} IS NULL OR ${ALIAS_TOKEN} >= :period_start`);
+    params.period_start = scope.activeSince;
+  }
+  // A combined model (two conditions from the grid, or two AI filters on the
+  // same column) applies every condition with its own operator.
+  const raw = gridFilter as any;
+  const combined = raw && typeof raw === 'object' && Array.isArray(raw.conditions) && raw.conditions.length > 0
+    && (raw.operator === 'AND' || raw.operator === 'OR');
+  const models: any[] = combined ? raw.conditions : [normalizeAgFilterModel(gridFilter)];
+  const nextParam = createParamNameGenerator('end_of_validity_');
+  const compiledParts: string[] = [];
+  for (const model of models) {
+    // Only a date filter makes sense on a timestamp; a text filter would not compile in SQL.
+    if (!model || typeof model !== 'object' || model.filterType !== 'date') continue;
+    const compiled = compileAgFilterCondition(model, { expression: ALIAS_TOKEN }, nextParam);
+    if (compiled) {
+      compiledParts.push(compiled.sql);
+      Object.assign(params, compiled.params);
+    }
+  }
+  if (compiledParts.length === 1) parts.push(compiledParts[0]);
+  else if (compiledParts.length > 1) parts.push(compiledParts.map((part) => `(${part})`).join(raw.operator === 'OR' ? ' OR ' : ' AND '));
+  if (parts.length === 0) return undefined;
+  const sql = parts.map((part) => `(${part})`).join(' AND ');
+  return Raw((alias) => sql.split(ALIAS_TOKEN).join(alias), params);
+}
+
 interface ResolveLifecycleArgs {
   currentDisabledAt?: Date | null;
   nextDisabledAt?: DisabledAtInput;
@@ -75,4 +188,19 @@ export function resolveLifecycleState({
 
   const status = deriveStatusFromDisabledAt(disabledAt, now);
   return { status, disabled_at: disabledAt };
+}
+
+/** Sets `where.disabled_at` for an item list: the lifecycle scope AND the grid's filter on that column. */
+export function applyDisabledAtWhere(where: Record<string, any>, scope: LifecycleScope, filters: any): void {
+  const condition = disabledAtWhere(scope, filters?.disabled_at);
+  if (condition) where.disabled_at = condition;
+  else delete where.disabled_at;
+}
+
+/** The summary views keep, by default, the items still active at the start of the first year shown. */
+export function summaryScope(includeDisabled: boolean, lifecycleStatus: StatusState | null, periodStart: Date): LifecycleScope {
+  if (includeDisabled) return null;
+  if (lifecycleStatus === StatusState.DISABLED) return 'inactive';
+  if (lifecycleStatus === StatusState.ENABLED) return 'active';
+  return { activeSince: periodStart };
 }
