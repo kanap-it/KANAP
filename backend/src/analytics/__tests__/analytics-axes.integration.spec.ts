@@ -443,10 +443,17 @@ async function testNewTenantHasItsDefault() {
     const slug = `ax-boot-${randomUUID().slice(0, 8)}`;
     const tenant = await tenants.createTenant({ slug, name: 'Analytics bootstrap' }, { manager });
     const axes = await loadAnalyticsAxes(manager, tenant.id);
-    assert.deepEqual(axes.map((axis) => [axis.code, axis.name, axis.is_default]), [['default', null, true]]);
-    // Creating the same slug again runs the seeds on the existing tenant: still one default.
+    // The default, then the three CAPEX dimensions (lot C1).
+    const expected = [
+      ['default', null, true, null, false],
+      ['ppe_type', 'PP&E type', false, 'capex', true],
+      ['investment_type', 'Investment type', false, 'capex', true],
+      ['priority', 'Priority', false, 'capex', true],
+    ];
+    assert.deepEqual(axes.map((axis) => [axis.code, axis.name, axis.is_default, axis.applies_to, axis.required]), expected);
+    // Creating the same slug again runs the seeds on the existing tenant: still one default, nothing more.
     await tenants.createTenant({ slug, name: 'Analytics bootstrap' }, { manager });
-    assert.equal((await loadAnalyticsAxes(manager, tenant.id)).length, 1);
+    assert.equal((await loadAnalyticsAxes(manager, tenant.id)).length, expected.length);
   });
 }
 
