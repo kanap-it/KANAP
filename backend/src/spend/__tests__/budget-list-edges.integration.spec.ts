@@ -22,10 +22,13 @@ import { prng, seedListFixture, uuidFrom } from './oracle/budget-list.fixture';
 //   numeric(18,2) near its maximum) is listed, sorted, filtered and totalled
 //   like the oracle, and the CAPEX totals reader and list take it too;
 // - `sqlLiteral` refuses `$<digit>`, which `finalize` would renumber;
-// - every enum the list sorts in a fixed order (status, run or build, and the
-//   CAPEX priority, investment type and PPE type of decision Q4) lists exactly
-//   the values of its database enum, in their declaration order: a value
-//   added by a migration and not here would sort as blank.
+// - a dimension column (the CAPEX priority, investment type and PP&E type are
+//   dimensions since lot C1) sorts by the value's position in its dimension,
+//   then by name, like the oracle, in both lists: the fixture's positions are
+//   out of the names' order, so a sort on the name alone fails;
+// - every enum the list sorts in a fixed order (status, run or build) lists
+//   exactly the values of its database enum, in their declaration order: a
+//   value added by a migration and not here would sort as blank.
 // @database-spec: opens the data-source, so run-ci-tests.js runs this file in its serial database lane.
 
 const SEED = 20261002;
@@ -193,6 +196,34 @@ async function run() {
     }
     const capexTop = await engine.budgetListSummary(capex, capexDeps, { ...all, sort: 'yBudget:DESC', limit: 1 }, m, ROW_OPTIONS);
     assert.equal(capexTop.items[0].id, capexItem, 'the absurd investment sorts first');
+
+    // ----- a dimension column: the value's position, then its name -----
+    const [nature]: Array<{ id: string }> = await runner.query(
+      `SELECT id::text AS id FROM analytics_axes WHERE tenant_id = $1 AND code = 'nature'`, [tenantId]);
+    const valueOf = new Map<string, { name: string; position: number }>(
+      (await runner.query(
+        `SELECT v.item_id::text AS item, c.name, c.sort_order AS position
+           FROM spend_item_analytics_values v JOIN analytics_categories c ON c.tenant_id = v.tenant_id AND c.id = v.category_id
+          WHERE v.tenant_id = $1 AND v.axis_id = $2`, [tenantId, nature.id],
+      )).map((row: { item: string; name: string; position: number }) => [row.item, { name: row.name, position: Number(row.position) }]),
+    );
+    for (const [label, listScope, listDeps, listOracle] of [
+      ['OPEX', scope, deps, freshOracle],
+      ['CAPEX', capex, capexDeps, capexOracle],
+    ] as const) {
+      for (const dir of ['ASC', 'DESC'] as const) {
+        const query = { ...all, sort: `analytics_${nature.id}:${dir}` };
+        const sorted = await engine.budgetListIds(listScope, listDeps, query, m);
+        assert.deepEqual(sorted.ids, (await listOracle.summaryIds(query)).ids, `${label} sort on a dimension ${dir}: the oracle's order`);
+        const values = sorted.ids.map((id) => valueOf.get(id)).filter((value): value is { name: string; position: number } => !!value);
+        const positions = values.map((value) => value.position);
+        const ordered = [...positions].sort((a, b) => (dir === 'ASC' ? a - b : b - a));
+        assert.deepEqual(positions, ordered, `${label} sort on a dimension ${dir}: by position first`);
+        const names = values.map((value) => value.name).filter((name, i, list) => i === 0 || list[i - 1] !== name);
+        const byName = [...new Set(names)].sort((a, b) => a.localeCompare(b) * (dir === 'ASC' ? 1 : -1));
+        assert.notDeepEqual(names, byName, `${label} sort on a dimension ${dir}: not the order of the names (fixture positions)`);
+      }
+    }
 
     // ----- fixed sort orders against the database enums -----
     for (const [field, order] of Object.entries(FIXED_SORT_ORDERS)) {

@@ -103,6 +103,21 @@ const PROJECT_NAMES = ['Atlas', 'atlas', 'Borealis', 'Alpha, Beta', 'Ébène', '
 const CONTRACT_NAMES = ['Accord cadre', 'accord cadre', 'Zephyr agreement', 'Contrat Électricité', 'Contrat electricite', 'Licence 2024', 'Support, maintenance'];
 const TASK_TITLES = ['Renouveler licence', 'renouveler licence', 'Vérifier facture', 'Verifier facture', 'Négocier', 'Clôturer'];
 
+/**
+ * The position of each value in its dimension (`sort_order`), by its index there: not zero, out of
+ * the names' alphabetical order, with ties (broken by the name), so that the list's and the
+ * aggregate's sort on a dimension column (position, then name) differs from a sort on the name.
+ */
+const VALUE_POSITIONS = [3, 1, 2, 1, 4, 2];
+
+export interface ListFixtureOptions {
+  /**
+   * `false`: every value at position 0, the order of the names (report-aggregates-parity: its
+   * former report orders the options by name, a gap of lot D3 left as it is). Default `true`.
+   */
+  valuePositions?: boolean;
+}
+
 export interface ListFixture {
   tenantId: string;
   emptyTenantId: string;
@@ -111,7 +126,14 @@ export interface ListFixture {
 }
 
 /** Seeds the fixture tenant (and an empty tenant) in the runner's transaction; leaves the fixture tenant current. */
-export async function seedListFixture(runner: QueryRunner, seed: number, itemCount = 300, capexCount = 100): Promise<ListFixture> {
+export async function seedListFixture(
+  runner: QueryRunner,
+  seed: number,
+  itemCount = 300,
+  capexCount = 100,
+  options: ListFixtureOptions = {},
+): Promise<ListFixture> {
+  const positions = options.valuePositions ?? true;
   const r = prng(seed);
   // Ids from their own stream: the values drawn from `r` stay those of earlier runs of the same seed.
   const ids = prng(seed ^ 0x5bd1e995);
@@ -216,13 +238,13 @@ export async function seedListFixture(runner: QueryRunner, seed: number, itemCou
   const categoriesByAxis = axes.map(() => [] as string[]);
   const categoryRows: unknown[][] = [];
   axes.forEach((axis, a) => {
-    for (const name of CATEGORY_NAMES.slice(a, a + 6)) {
+    CATEGORY_NAMES.slice(a, a + 6).forEach((name, i) => {
       const id = uuid();
       categoriesByAxis[a].push(id);
-      categoryRows.push([id, t, axis, `${name}${a ? ` ${a}` : ''}`]);
-    }
+      categoryRows.push([id, t, axis, `${name}${a ? ` ${a}` : ''}`, positions ? VALUE_POSITIONS[i] : 0]);
+    });
   });
-  await insert(runner, 'analytics_categories', [['id', 'uuid'], ['tenant_id', 'uuid'], ['axis_id', 'uuid'], ['name', 'text']], categoryRows);
+  await insert(runner, 'analytics_categories', [['id', 'uuid'], ['tenant_id', 'uuid'], ['axis_id', 'uuid'], ['name', 'text'], ['sort_order', 'int']], categoryRows);
 
   // Projects with streams and categories (one empty stream name).
   const pCats = [uuid(), uuid(), uuid()];
