@@ -162,7 +162,7 @@ Un fichier dans un ancien format est refusé en entier : les fichiers de postes 
 
 > Ce fichier provient d'une version antérieure de KANAP. Exportez un nouveau fichier depuis cette liste, reportez-y vos modifications, puis importez-le de nouveau.
 
-Un fichier CAPEX avec une colonne `ppe_type`, `investment_type` ou `priority` est lui aussi refusé en entier. Ces valeurs passent désormais par des colonnes de dimension. L'écran affiche ce message :
+Un fichier CAPEX exporté avant que le type d'immobilisation, le type d'investissement et la priorité deviennent des dimensions, reconnu à ses trois colonnes `ppe_type`, `investment_type` et `priority` présentes ensemble, est lui aussi refusé en entier. Ces valeurs passent désormais par des colonnes de dimension. Une ou deux de ces colonnes seules sont des colonnes inconnues, ignorées avec un avertissement. L'écran affiche ce message :
 
 > The ppe_type, investment_type and priority columns are now dimension columns (analytics:ppe_type, analytics:investment_type, analytics:priority). Export a fresh file from this list, copy your changes into it, and import it again.
 

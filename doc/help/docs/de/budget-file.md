@@ -162,7 +162,7 @@ Eine Datei in einem älteren Format wird als Ganzes abgelehnt: die Positionsdate
 
 > Diese Datei stammt aus einer früheren Version von KANAP. Exportieren Sie eine neue Datei aus dieser Liste, übertragen Sie Ihre Änderungen hinein und importieren Sie sie erneut.
 
-Eine CAPEX-Datei mit einer Spalte `ppe_type`, `investment_type` oder `priority` wird ebenfalls als Ganzes abgelehnt. Diese Werte stehen jetzt in Dimensionsspalten. Der Bildschirm zeigt diese Meldung:
+Eine CAPEX-Datei, die exportiert wurde, bevor Anlagentyp, Investitionsart und Priorität zu Dimensionen wurden, erkennbar an ihren drei Spalten `ppe_type`, `investment_type` und `priority` zusammen, wird ebenfalls als Ganzes abgelehnt. Diese Werte stehen jetzt in Dimensionsspalten. Eine oder zwei dieser Spalten allein sind unbekannte Spalten und werden mit einer Warnung ignoriert. Der Bildschirm zeigt diese Meldung:
 
 > The ppe_type, investment_type and priority columns are now dimension columns (analytics:ppe_type, analytics:investment_type, analytics:priority). Export a fresh file from this list, copy your changes into it, and import it again.
 

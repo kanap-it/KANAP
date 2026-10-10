@@ -162,7 +162,7 @@ A file in an older layout is refused as a whole: the item files with `y_budget` 
 
 > This file comes from an earlier version of KANAP. Export a fresh file from this list, copy your changes into it, and import it again.
 
-A CAPEX file with a `ppe_type`, `investment_type` or `priority` column is refused as a whole too. These values now travel in dimension columns. The screen shows this message:
+A CAPEX file exported before the PP&E type, investment type and priority became dimensions, recognised by its three columns `ppe_type`, `investment_type` and `priority` together, is refused as a whole too. These values now travel in dimension columns. One or two of these columns alone are unknown columns, ignored with a warning. The screen shows this message:
 
 > The ppe_type, investment_type and priority columns are now dimension columns (analytics:ppe_type, analytics:investment_type, analytics:priority). Export a fresh file from this list, copy your changes into it, and import it again.
 

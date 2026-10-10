@@ -162,7 +162,7 @@ Un archivo con un formato anterior se rechaza por completo: los archivos de part
 
 > Este archivo procede de una versión anterior de KANAP. Exporte un archivo nuevo desde esta lista, copie en él sus cambios y vuelva a importarlo.
 
-Un archivo CAPEX con una columna `ppe_type`, `investment_type` o `priority` también se rechaza por completo. Estos valores van ahora en columnas de dimensión. La pantalla muestra este mensaje:
+Un archivo CAPEX exportado antes de que el tipo de activo fijo, el tipo de inversión y la prioridad pasaran a ser dimensiones, reconocible por sus tres columnas `ppe_type`, `investment_type` y `priority` juntas, también se rechaza por completo. Estos valores van ahora en columnas de dimensión. Una o dos de estas columnas solas son columnas desconocidas, que se ignoran con una advertencia. La pantalla muestra este mensaje:
 
 > The ppe_type, investment_type and priority columns are now dimension columns (analytics:ppe_type, analytics:investment_type, analytics:priority). Export a fresh file from this list, copy your changes into it, and import it again.
 

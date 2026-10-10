@@ -155,15 +155,26 @@ async function testOldFiles() {
   assert.equal(opex.rows.length, 0, 'an old file produces no row errors');
   const rows = await readBudgetCsv('item_type,measure,jan\nopex,budget,1\n', { scope: 'opex', language: 'en', dimensionCodes: [] });
   assert.deepEqual(rows.fileErrors, [OLD_BUDGET_FILE_MESSAGE]);
-  // The CAPEX criteria columns of before lot C1: refused as a whole, never read as dimensions.
+  // A CAPEX file of before lot C1 (its three criteria columns together), on either route: refused
+  // as a whole, never read as dimensions.
   for (const [scope, header] of [
     ['capex', 'item_number,name,ppe_type,investment_type,priority,currency'],
-    ['capex', 'item_number,name,Priority,currency'],
-    ['opex', 'item_number,name,investment type,currency'],
+    ['opex', 'item_number,name,PPE type,Investment-Type,Priority,currency'],
   ] as Array<[BudgetFileScope, string]>) {
     const criteria = await readBudgetCsv(`${header}\nCPX-3,Server,hardware,replacement,high,EUR\n`, { scope, language: 'en', dimensionCodes: ['priority'] });
     assert.deepEqual(criteria.fileErrors, [CRITERIA_COLUMNS_MESSAGE], `${scope}: ${header}`);
     assert.equal(criteria.rows.length, 0, 'no row errors besides');
+  }
+  // One or two of them alone: unknown columns, ignored with a warning, as before lot C1.
+  for (const [scope, text, ignored] of [
+    ['opex', 'item_number,name,currency,Priority\nOPX-3,Widget,EUR,P1\n', ['Priority']],
+    ['capex', 'item_number,name,currency,ppe_type,priority\nCPX-3,Widget,EUR,hardware,high\n', ['ppe_type', 'priority']],
+  ] as Array<[BudgetFileScope, string, string[]]>) {
+    const header = text.split('\n')[0];
+    const partial = await preflight(scope, text, [line()]);
+    assert.deepEqual(partial.fileErrors, [], `${scope}: ${header}`);
+    assert.deepEqual(partial.warnings.ignoredColumns, ignored, `${scope}: ${header} ignored`);
+    assert.equal(partial.changes.unchanged, 1, `${scope}: the line is read, unchanged`);
   }
   const dimensions = await readBudgetCsv('item_number,name,analytics:priority,currency\nCPX-3,Server,High,EUR\n', {
     scope: 'capex', language: 'en', dimensionCodes: ['ppe_type', 'investment_type', 'priority'],

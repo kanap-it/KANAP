@@ -45,9 +45,10 @@ export interface InterpretedRow {
 }
 
 /**
- * Read one budget file. An old layout, or a file with the CAPEX criteria
- * columns of before lot C1, comes back as that one message and no rows, so the
- * preflight does not also list a missing name or dimension on every line.
+ * Read one budget file. An old layout, or a CAPEX file of before lot C1 (the
+ * three criteria columns together), comes back as that one message and no
+ * rows, so the preflight does not also list a missing name or dimension on
+ * every line.
  */
 export async function readBudgetCsv(
   input: Buffer | string,

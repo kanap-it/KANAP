@@ -18,9 +18,11 @@ export const OLD_BUDGET_FILE_MESSAGE =
   'This file comes from an earlier version of KANAP. Export a fresh file from this list, copy your changes into it, and import it again.';
 
 /**
- * The columns of the three CAPEX criteria before lot C1, refused as a whole: their values are
- * dimension values now, read from `analytics:ppe_type`, `analytics:investment_type` and
- * `analytics:priority` (never guessed from the former codes). Compared like the old headers.
+ * The columns of the three CAPEX criteria before lot C1. A file with all three is a CAPEX file
+ * exported before lot C1: refused as a whole, since their values are dimension values now, read
+ * from `analytics:ppe_type`, `analytics:investment_type` and `analytics:priority` (never guessed
+ * from the former codes). One or two of them alone are unknown columns, ignored with a warning
+ * like any other. Compared like the old headers.
  */
 const CRITERIA_HEADER_KEYS = new Set(['ppetype', 'investmenttype', 'priority']);
 
@@ -129,9 +131,10 @@ export function budgetFileSchema(
   };
 }
 
-/** True when the header row has a column of the CAPEX criteria of before lot C1. */
+/** True when the header row has the three columns of the CAPEX criteria of before lot C1, on any route. */
 export function hasCriteriaColumns(headers: readonly string[]): boolean {
-  return headers.some((header) => CRITERIA_HEADER_KEYS.has(looseKey(header)));
+  const keys = new Set(headers.map((header) => looseKey(header)));
+  return [...CRITERIA_HEADER_KEYS].every((key) => keys.has(key));
 }
 
 /** True when the header row is an OPEX item file, a CAPEX item file, or a budget rows file. */
