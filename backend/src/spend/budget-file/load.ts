@@ -33,9 +33,6 @@ const SCOPE = {
     name: 'i.product_name',
     nameColumn: 'product_name',
     description: 'i.description',
-    ppe: 'NULL::text',
-    investment: 'NULL::text',
-    priority: 'NULL::text',
     analytics: 'opex' as const,
   },
   capex: {
@@ -47,9 +44,6 @@ const SCOPE = {
     name: 'i.product_name',
     nameColumn: 'product_name',
     description: 'NULL::text',
-    ppe: 'i.ppe_type::text',
-    investment: 'i.investment_type::text',
-    priority: 'i.priority::text',
     analytics: 'capex' as const,
   },
 } as const;
@@ -59,7 +53,6 @@ const ITEM_COLUMNS = (scope: BudgetFileScope) => {
   const t = SCOPE[scope];
   return `i.id::text AS id, ${lineNumberSql('i', t.nature)}::int AS item_number, i.row_version::int AS row_version,
     ${t.name} AS name, ${t.description} AS description,
-    ${t.ppe} AS ppe_type, ${t.investment} AS investment_type, ${t.priority} AS priority,
     i.paying_company_id::text AS company_id, i.supplier_id::text AS supplier_id,
     i.account_id::text AS account_id, i.cost_center_id::text AS cost_center_id,
     i.run_build::text AS run_build,
@@ -186,9 +179,6 @@ interface ItemSql {
   row_version: number;
   name: string | null;
   description: string | null;
-  ppe_type: string | null;
-  investment_type: string | null;
-  priority: string | null;
   company_id: string | null;
   supplier_id: string | null;
   account_id: string | null;
@@ -245,9 +235,6 @@ async function hydrate(manager: EntityManager, scope: BudgetFileScope, tenantId:
       rowVersion: Number(row.row_version),
       name: row.name ?? '',
       description: row.description,
-      ppeType: row.ppe_type,
-      investmentType: row.investment_type,
-      priority: row.priority,
       companyId: row.company_id,
       companyName: row.company_id ? companyName.get(row.company_id) ?? null : null,
       supplierId: row.supplier_id,

@@ -16,9 +16,7 @@ Der Arbeitsbereich öffnet sich im Erstellungsmodus, mit geöffnetem Bereich **E
 - **Zahlendes Unternehmen**: Welches Unternehmen die Investition tätigt (erforderlich für die Buchhaltung)
 - **Konto**: Das Sachkonto für diese Investitionsausgabe. Es erscheinen nur Konten aus dem Kontenplan des zahlenden Unternehmens, und zwar nur solche, die in [Kontenpläne und Kontenverwaltung](chart-of-accounts.md#opex-oder-capex-konten) auf **OPEX und CAPEX** oder **Nur CAPEX** gesetzt sind. Eine Position, die bereits ein Konto mit **Nur OPEX** hat, behält es und bleibt bearbeitbar. Ein solches Konto für eine neue Position oder beim Ändern des Kontos zu wählen, wird abgelehnt
 - **Währung**: ISO-Code (z. B. USD, EUR). Standardmäßig Ihre Arbeitsbereich-CAPEX-Währung; kann pro Position überschrieben werden
-- **Anlagentyp**: Sachanlagen-Klassifizierung: Hardware oder Software
-- **Investitionsart**: Zweck der Investition (siehe Optionen unten)
-- **Priorität**: Geschäftliche Prioritätsstufe (siehe Optionen unten)
+- **PP&E type**, **Investment type** und **Priority**: die drei CAPEX-Dimensionen, je ein Feld. Kein Wert ist vorausgewählt: Wählen Sie in jedem Feld einen. Siehe [CAPEX-Dimensionen](#capex-dimensionen)
 - **Beginn der Gültigkeit**: Wann diese Investition beginnt (TT/MM/JJJJ)
 
 **Optional aber nützlich**:
@@ -39,24 +37,17 @@ Sobald die Position erstellt ist, schaltet der Arbeitsbereich alle vier Tabs fre
 
 ---
 
-## Investitionsarten
+## CAPEX-Dimensionen
 
-CAPEX-Positionen müssen nach Investitionsart klassifiziert werden. Dies hilft bei der Analyse von Investitionsmustern:
+Jeder Arbeitsbereich klassifiziert CAPEX-Positionen nach drei Analysedimensionen:
 
-- **Ersatz**: Ersetzen bestehender Vermögenswerte, die veraltet sind oder das Lebensende erreicht haben
-- **Kapazität**: Kapazitätserweiterung zur Unterstützung von Geschäftswachstum oder erhöhter Nachfrage
-- **Produktivität**: Verbesserung der Effizienz oder Senkung der Betriebskosten
-- **Sicherheit**: Stärkung der Sicherheitsposition, Compliance oder Risikominderung
-- **Konformität**: Erfüllung regulatorischer oder Compliance-Anforderungen
-- **Geschäftswachstum**: Ermöglichung neuer Produkte, Märkte oder Geschäftsfähigkeiten
-- **Sonstige**: Investitionen, die nicht in die obigen Kategorien passen
+| Dimension | Werte |
+|---|---|
+| **PP&E type** | Hardware, Software (Sachanlagen) |
+| **Investment type** | Replacement, Capacity, Productivity, Security, Conformity, Business growth, Other |
+| **Priority** | Mandatory, High, Medium, Low |
 
-**Prioritätsstufen**:
-
-- **Obligatorisch**: Muss umgesetzt werden (regulatorisch, kritische Infrastruktur, Sicherheit)
-- **Hoch**: Starker Business Case, hoher ROI oder strategische Bedeutung
-- **Mittel**: Wertvoll, kann aber bei Bedarf aufgeschoben werden
-- **Niedrig**: Nice-to-have, kann verschoben werden
+Sie werden für CAPEX-Zeilen verwendet und sind erforderlich: Eine neue Position braucht auf jeder von ihnen einen Wert. Sie funktionieren wie jede andere Dimension: Ihre Felder stehen im Bereich **Eigenschaften** bei den anderen Dimensionen, und ihre Spalten werden in der CAPEX-Liste standardmäßig angezeigt. Ein Administrator kann sie umbenennen, Werte hinzufügen, die Reihenfolge der Werte ändern, sie deaktivieren oder löschen. Siehe [CAPEX-Dimensionen](analytics.md#capex-dimensionen) unter Analysedimensionen.
 
 ---
 
@@ -74,16 +65,14 @@ Die CAPEX-Liste (unter **Budgetverwaltung > CAPEX**) ist Ihre Hauptansicht zum D
 | **Zahlendes Unternehmen** | Welches Unternehmen diese Position bezahlt |
 | **Vertrag** | Der Name des zuletzt verknüpften Vertrags |
 | **Konto** | Nummer und Name des Sachkontos |
-| **Anlagentyp** | Hardware oder Software |
-| **Investitionsart** | Zweck der Investition |
-| **Priorität** | Geschäftliche Prioritätsstufe |
 | **Zuordnung** | Zuordnungsmethoden-Bezeichnung des aktuellen Jahres |
+| **Erforderliche Dimensionen** | Eine Spalte pro aktivierter Dimension, die für CAPEX-Zeilen erforderlich ist, nach ihr benannt, mit dem Wert der Position: anfangs **PP&E type**, **Investment type** und **Priority** |
 | **Budget J** und **Erwarteter Endwert J** | Die Beträge des aktuellen Jahres in der Standardspalte und in der letzten angezeigten Spalte, in der Berichtswährung. Mit den Standardeinstellungen sind das Budget und Erwarteter Endwert. Ist die Standardspalte zugleich die letzte angezeigte Spalte, erscheint nur eine Betragsspalte. Siehe [Budgetspalten](budget-operations.md#budgetspalten) |
 | **Aufgabe** | Titel der neuesten mit dieser Position verknüpften Aufgabe |
 
 ### Zusätzliche Spalten
 
-Diese Spalten sind standardmäßig ausgeblendet. Zeigen Sie sie über die Spaltenauswahl an (Hamburger-Menü im Grid-Header):
+Diese Spalten sind standardmäßig ausgeblendet. Zeigen Sie sie über die Spaltenauswahl an (Hamburger-Menü im Grid-Header). Eine von Ihnen gespeicherte Spaltenanordnung behält ihre eigene Spaltenauswahl:
 
 | Spalte | Was sie zeigt |
 |--------|---------------|
@@ -94,7 +83,7 @@ Diese Spalten sind standardmäßig ausgeblendet. Zeigen Sie sie über die Spalte
 | **Gültig ab** | Startdatum |
 | **Ende der Gültigkeit** | Datum, an dem die Position endet (leer bedeutet kein Ende) |
 | **IT-Verantwortlicher** / **Fachbereichsverantwortlicher** | Zuständige Benutzer |
-| **Analysedimensionen** | Eine Spalte pro aktivierter Dimension, die für CAPEX-Zeilen verwendet wird, nach ihr benannt, mit dem Wert der Position, in der Reihenfolge der Dimensionen. Die Spalte der Standarddimension heißt **Analysedimension**, bis sie umbenannt wird |
+| **Analysedimensionen** | Eine Spalte pro aktivierter Dimension, die für CAPEX-Zeilen verwendet wird, nach ihr benannt, mit dem Wert der Position, in der Reihenfolge der Dimensionen. Die Spalte der Standarddimension heißt **Analysedimension**, bis sie umbenannt wird. Die Spalten der Dimensionen, die für CAPEX-Zeilen erforderlich sind, werden standardmäßig angezeigt |
 | **Kostenstelle** | Code und Name der Kostenstelle. Fahren Sie mit der Maus darüber, um ihren vollständigen Pfad im Baum zu sehen; klicken Sie darauf, um die Kostenstelle zu öffnen |
 | **Budgetverantwortlicher** | Der Budgetverantwortliche der Kostenstelle der Position. Er wird aus der Kostenstelle abgeleitet und nicht auf der Position gespeichert: Ändern Sie den Budgetverantwortlichen einer Kostenstelle, und alle ihre Positionen folgen |
 | **Run oder Build** | **Run** oder **Build** |
@@ -105,11 +94,11 @@ Diese Spalten sind standardmäßig ausgeblendet. Zeigen Sie sie über die Spalte
 
 ### Schnellsuche
 
-Das Suchfeld oben durchsucht Referenz, Beschreibung, Lieferant, zahlendes Unternehmen, Konto, Vertrag, Projektnamen, Zuordnung, Verantwortliche, Analysewerte, Kostenstelle (Code, Name und Pfad), Budgetverantwortlicher, Anlagentyp, Investitionsart, Priorität, Notizen, Währung und Status. Ergebnisse aktualisieren sich in Echtzeit während der Eingabe, unabhängig von Akzenten und Groß-/Kleinschreibung.
+Das Suchfeld oben durchsucht Referenz, Beschreibung, Lieferant, zahlendes Unternehmen, Konto, Vertrag, Projektnamen, Zuordnung, Verantwortliche, Analysewerte (nach dem Namen des Werts, zum Beispiel „Business growth“), Kostenstelle (Code, Name und Pfad), Budgetverantwortlicher, Notizen, Währung und Status. Ergebnisse aktualisieren sich in Echtzeit während der Eingabe, unabhängig von Akzenten und Groß-/Kleinschreibung.
 
 ### Spaltenfilter
 
-Jede filterbare Spaltenüberschrift hat ein Filtersymbol. **Lieferant**, **Zahlendes Unternehmen**, **Konto**, **Anlagentyp**, **Investitionsart**, **Priorität**, **Zuordnung**, **Währung**, **IT-Verantwortlicher**, **Fachbereichsverantwortlicher**, jede Analysedimension, **Kostenstelle**, **Budgetverantwortlicher**, **Run oder Build**, **VZÄ gemeldet** und **Aktiviert** verwenden Kontrollkästchen-Set-Filter mit **Alle**, **Keine** und einer Löschen-Schaltfläche. Der Filter **VZÄ gemeldet** bietet **Ja** und **Nein**. Der Filter **Aktiviert** bietet **Aktiviert** und **Deaktiviert** mit derselben Bedeutung wie **Anzeigen** und grenzt die Liste ein, wenn **Anzeigen** auf **Alle** steht. Wenn Sie darin auf **Leeren** klicken oder beide Werte abwählen, zeigt die Liste nichts mehr an, unabhängig von **Anzeigen**. Mehrere Filter werden mit UND-Logik kombiniert.
+Jede filterbare Spaltenüberschrift hat ein Filtersymbol. **Lieferant**, **Zahlendes Unternehmen**, **Konto**, **Zuordnung**, **Währung**, **IT-Verantwortlicher**, **Fachbereichsverantwortlicher**, jede Analysedimension, **Kostenstelle**, **Budgetverantwortlicher**, **Run oder Build**, **VZÄ gemeldet** und **Aktiviert** verwenden Kontrollkästchen-Set-Filter mit **Alle**, **Keine** und einer Löschen-Schaltfläche. Der Filter **VZÄ gemeldet** bietet **Ja** und **Nein**. Der Filter **Aktiviert** bietet **Aktiviert** und **Deaktiviert** mit derselben Bedeutung wie **Anzeigen** und grenzt die Liste ein, wenn **Anzeigen** auf **Alle** steht. Wenn Sie darin auf **Leeren** klicken oder beide Werte abwählen, zeigt die Liste nichts mehr an, unabhängig von **Anzeigen**. Mehrere Filter werden mit UND-Logik kombiniert.
 
 Aktivieren Sie **Alle** und deaktivieren Sie dann die Werte, die Sie ausschließen möchten: Der Filter behält alles außer diesen (die Überschrift zeigt dann zum Beispiel **Alle außer 3**), und ein später angelegter Wert wird automatisch einbezogen.
 
@@ -123,7 +112,7 @@ Textspalten verwenden Textfilter, unabhängig von Akzenten und Groß-/Kleinschre
 
 ### Sortierung
 
-Klicken Sie auf eine Spaltenüberschrift, um aufsteigend oder absteigend zu sortieren. Jede Spalte ist sortierbar, auch jede Betrags- und VZÄ-Spalte. Positionen ohne VZÄ stehen bei aufsteigender Sortierung am Ende. Textspalten sortieren in natürlicher Lesereihenfolge: Ein Name mit Akzent wird neben seiner unakzentuierten Schreibweise eingeordnet (zum Beispiel „Électricité“ neben „Electricite“), und Kleinbuchstaben stehen vor Großbuchstaben, wenn die Buchstaben sonst gleich sind. Standardmäßig wird nach der Standardspalte des aktuellen Jahres sortiert, höchster Betrag zuerst (**Budget J** mit den Standardeinstellungen). **Zurück** und **Weiter** im Arbeitsbereich folgen derselben Reihenfolge. Die Liste merkt sich Ihre letzte Sortierung bei der Rückkehr.
+Klicken Sie auf eine Spaltenüberschrift, um aufsteigend oder absteigend zu sortieren. Jede Spalte ist sortierbar, auch jede Betrags- und VZÄ-Spalte. Positionen ohne VZÄ stehen bei aufsteigender Sortierung am Ende. Textspalten sortieren in natürlicher Lesereihenfolge: Ein Name mit Akzent wird neben seiner unakzentuierten Schreibweise eingeordnet (zum Beispiel „Électricité“ neben „Electricite“), und Kleinbuchstaben stehen vor Großbuchstaben, wenn die Buchstaben sonst gleich sind. Eine Dimensionsspalte sortiert in der Reihenfolge der Werte der Dimension, festgelegt unter [Analysedimensionen](analytics.md#werte-ordnen), dann nach Name. Positionen ohne Wert stehen bei aufsteigender Sortierung am Ende. Standardmäßig wird nach der Standardspalte des aktuellen Jahres sortiert, höchster Betrag zuerst (**Budget J** mit den Standardeinstellungen). **Zurück** und **Weiter** im Arbeitsbereich folgen derselben Reihenfolge. Die Liste merkt sich Ihre letzte Sortierung bei der Rückkehr.
 
 ### Summenzeile
 
@@ -135,7 +124,7 @@ Jede angezeigte VZÄ-Spalte zeigt die Summe der VZÄ der Positionen. Haben einig
 
 Klicken Sie auf eine beliebige Zelle in einer Zeile, um den Arbeitsbereich auf dem für diese Spalte relevantesten Tab zu öffnen:
 
-- **Beschreibung**, **Lieferant**, **Zahlendes Unternehmen**, **Anlagentyp**, **Investitionsart**, **Priorität** und die anderen allgemeinen Spalten: Öffnet die **Übersicht**
+- **Beschreibung**, **Lieferant**, **Zahlendes Unternehmen**, die Dimensionsspalten und die anderen allgemeinen Spalten: Öffnet die **Übersicht**
 - **Betragsspalten** (Budget J, Erwarteter Endwert J, Revision J+1 usw.) und **VZÄ-Spalten**: Öffnet den **Budget**-Tab für das Jahr der Spalte
 - **Zuordnung**: Öffnet den **Zuordnungen**-Tab für das aktuelle Jahr
 - **Aufgabe**: Öffnet den Tab **Übersicht**, in dem sich der Aufgabenbereich befindet
@@ -156,7 +145,7 @@ Dieselben Filter werden auch in der Webadresse der Seite gespeichert. Ein Neulad
 
 Wenn Sie eine Position öffnen, zeigt der Arbeitsbereich die Schaltflächen **Zurück** und **Weiter**. Diese navigieren durch die Liste in der aktuellen Sortierreihenfolge unter Berücksichtigung von Filtern und Suche und speichern zuerst Ihre ausstehenden Änderungen. Der Zähler (z. B. „Position 3 von 47") zeigt Ihre Position in der gefilterten Liste.
 
-**Tipp**: Verwenden Sie Spaltenfilter und Schnellsuche, um fokussierte Ansichten zu erstellen (z. B. „Alle Hardware-Investitionen mit hoher Priorität"), und navigieren Sie dann mit **Zurück**/**Weiter** von Position zu Position, um Budgets zu überprüfen.
+**Tipp**: Verwenden Sie Spaltenfilter und Schnellsuche, um fokussierte Ansichten zu erstellen (zum Beispiel **Hardware** im Filter **PP&E type** und **High** im Filter **Priority**), und navigieren Sie dann mit **Zurück**/**Weiter** von Position zu Position, um Budgets zu überprüfen.
 
 ---
 
@@ -165,7 +154,7 @@ Wenn Sie eine Position öffnen, zeigt der Arbeitsbereich die Schaltflächen **Zu
 Klicken Sie auf eine beliebige Zeile der Liste, um den Arbeitsbereich zu öffnen. Er besteht aus vier Teilen:
 
 - **Kopfzeile**: die Referenz der Position (z. B. `CPX-7`) mit einer Kopierschaltfläche, der Name der Investition (anklicken, um die Position umzubenennen), **Zurück** / **Weiter**, **Link senden** und die Schaltfläche zum Schließen
-- **Metadatenleiste** unter dem Titel: **Status**, **Priorität**, **IT-Verantwortlicher** und **Fachverantwortlicher**, direkt bearbeitbar. Hat die Kostenstelle der Position einen Budgetverantwortlichen, folgt **Budgetverantwortlicher** danach. Er ist schreibgeschützt und aus der Kostenstelle abgeleitet, nicht auf der Position gespeichert: Fahren Sie mit der Maus darüber, um zu sehen, aus welcher Kostenstelle er stammt, und ändern Sie ihn auf der Kostenstelle (siehe [Kostenstellen](cost-centers.md#budgetverantwortlicher-auf-budgetzeilen))
+- **Metadatenleiste** unter dem Titel: **Status**, **IT-Verantwortlicher** und **Fachverantwortlicher**, direkt bearbeitbar. Hat die Kostenstelle der Position einen Budgetverantwortlichen, folgt **Budgetverantwortlicher** danach. Er ist schreibgeschützt und aus der Kostenstelle abgeleitet, nicht auf der Position gespeichert: Fahren Sie mit der Maus darüber, um zu sehen, aus welcher Kostenstelle er stammt, und ändern Sie ihn auf der Kostenstelle (siehe [Kostenstellen](cost-centers.md#budgetverantwortlicher-auf-budgetzeilen))
 - **Vier Tabs**: **Übersicht**, **Budget**, **Zuordnungen** und **Verknüpfungen** (der Tab Verknüpfungen zeigt die Anzahl der Verknüpfungen der Position)
 - **Bereich Eigenschaften** rechts: die Hauptfelder der Position. Öffnen oder schließen Sie ihn mit der Eigenschaften-Schaltfläche; der Arbeitsbereich merkt sich Ihre Wahl
 
@@ -205,11 +194,10 @@ Der Tab Übersicht enthält die Details der Investition und ihre Aufgaben.
 
 **Bereich Eigenschaften**:
 
-- **Lieferant**, **Kostenstelle**, **Zahlendes Unternehmen**, **Konto** (gefiltert nach dem Kontenplan des zahlenden Unternehmens), **Währung** (nur die in Ihrem Arbeitsbereich erlaubten Währungen), **Anlagentyp**, **Investitionsart**, ein Feld pro Analysedimension, **Run oder Build** und **Beginn der Gültigkeit**
+- **Lieferant**, **Kostenstelle**, **Zahlendes Unternehmen**, **Konto** (gefiltert nach dem Kontenplan des zahlenden Unternehmens), **Währung** (nur die in Ihrem Arbeitsbereich erlaubten Währungen), ein Feld pro Analysedimension (darunter **PP&E type**, **Investment type** und **Priority**), **Run oder Build** und **Beginn der Gültigkeit**
 - **Lebenszyklus**: der Statusschalter, dessen Beschriftung den aktuellen Zustand zeigt (**Aktiviert** oder **Deaktiviert**), und das Datum **Ende der Gültigkeit**. Siehe [Status und Lebenszyklus](#status-und-lebenszyklus)
 - Die Daten **Erstellt** und **Aktualisiert** (schreibgeschützt)
 - Geben Sie in **Lieferant**, **Zahlendes Unternehmen**, **Konto**, **IT-Verantwortlicher**, **Fachbereichsverantwortlicher** oder einem Analysedimensionsfeld Text ein, um nach Namen zu suchen. Treffer erscheinen während der Eingabe, sodass Sie jeden Wert auch in einer sehr langen Liste finden; eine Zeile unter der Liste zeigt „Weiter tippen, um einzugrenzen: es gibt weitere Ergebnisse“, wenn es mehr Treffer gibt als angezeigt werden
-- Die **Priorität** stellen Sie beim Erstellen im Bereich Eigenschaften ein, danach in der Metadatenleiste
 
 **Kostenstelle**:
 
@@ -604,11 +592,11 @@ Wenn Sie eine Aktion nicht ausführen können (z. B. die Schaltfläche **CSV imp
 
 ## Tipps
 
-- **Einfach anfangen**: Erstellen Sie Positionen nur mit dem Wesentlichen (Beschreibung, Anlagentyp, Investitionsart, zahlendes Unternehmen, Konto), dann ergänzen Sie Budgets und Zuordnungen bei der Planung.
+- **Einfach anfangen**: Erstellen Sie Positionen nur mit dem Wesentlichen (Titel, zahlendes Unternehmen, Konto und die erforderlichen Dimensionen), dann ergänzen Sie Budgets und Zuordnungen bei der Planung.
 - **Mitarbeiterzahl-Zuordnung verwenden**: Für die meisten Investitionen reicht Mitarbeiterzahl aus. Reservieren Sie manuelle Zuordnungen für Investitionen, die nur bestimmten Unternehmen oder Abteilungen zugutekommen.
 - **Verträge verknüpfen**: Wenn Sie Investitionen über Verträge verwalten, verknüpfen Sie sie im Verknüpfungen-Tab für die Beschaffungsverfolgung.
 - **Dokumentation hochladen**: Verwenden Sie die Anhangfunktion, um Lieferantenangebote, Genehmigungsvermerke und technische Spezifikationen neben der Position zu speichern.
-- **Genau klassifizieren**: Verwenden Sie Investitionsart und Priorität konsistent, um aussagekräftige Analysen und Priorisierung der Investitionsausgaben zu ermöglichen.
+- **Genau klassifizieren**: Verwenden Sie die Dimensionen **Investment type** und **Priority** konsistent, um aussagekräftige Analysen und Priorisierung der Investitionsausgaben zu ermöglichen.
 - **Unternehmenskennzahlen aktuell halten**: Zuordnungen hängen von Mitarbeiterzahl, IT-Benutzern und Umsatz der Unternehmen ab. Veraltete Kennzahlen verursachen Zuordnungsfehler.
 - **CSV für Masseneinrichtung verwenden**: Wenn Sie von einem anderen System migrieren oder viele Investitionspositionen haben, beginnen Sie mit dem CSV-Import. Exportieren Sie eine neue Datei, füllen Sie Ihre Zeilen aus und prüfen Sie sie vor dem Laden.
 - **Deaktivieren statt löschen**: Bewahren Sie die Historie, indem Sie Positionen deaktivieren, wenn Vermögenswerte veräußert oder Projekte abgeschlossen werden.

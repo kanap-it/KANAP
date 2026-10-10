@@ -60,7 +60,7 @@ La liste OPEX (dans **Gestion budgétaire > OPEX**) est votre vue principale pou
   - **Début effectif** : Date de début
   - **Fin de validité** : Date à laquelle le poste s'arrête (vide signifie sans fin)
   - **Responsable IT** / **Responsable métier** : Utilisateurs responsables
-  - **Dimensions analytiques** : Une colonne par dimension activée utilisée pour les lignes OPEX, à son nom, avec la valeur du poste, dans l'ordre des dimensions. La colonne de la dimension par défaut s'intitule **Dimension analytique** tant qu'elle n'est pas renommée
+  - **Dimensions analytiques** : Une colonne par dimension activée utilisée pour les lignes OPEX, à son nom, avec la valeur du poste, dans l'ordre des dimensions. La colonne de la dimension par défaut s'intitule **Dimension analytique** tant qu'elle n'est pas renommée. Les colonnes des dimensions obligatoires pour les lignes OPEX s'affichent par défaut. Une disposition de colonnes que vous avez enregistrée garde son propre choix
   - **Centre de coûts** : Le code et le nom du centre de coûts. Survolez-le pour voir son chemin complet dans l'arbre ; cliquez dessus pour ouvrir le centre de coûts
   - **Responsable budgétaire** : Le responsable budgétaire du centre de coûts du poste. Il est déduit du centre de coûts et non enregistré sur le poste : changez le responsable budgétaire d'un centre de coûts et tous ses postes suivent
   - **Run ou build** : **Run** ou **Build**
@@ -82,6 +82,7 @@ La liste OPEX (dans **Gestion budgétaire > OPEX**) est votre vue principale pou
 **Tri** :
   - Cliquez sur un en-tête de colonne pour trier croissant/décroissant. Toutes les colonnes se trient, y compris chaque colonne de montant et chaque colonne ETP. Les postes sans ETP viennent en dernier dans l'ordre croissant
   - Les colonnes de texte se trient dans l'ordre de lecture naturel : un nom accentué se trie à côté de son équivalent sans accent (par exemple « Électricité » à côté de « Electricite »), et les minuscules passent avant les majuscules à égalité de lettres
+  - Une colonne de dimension se trie dans l'ordre des valeurs de la dimension, défini dans [Dimensions analytiques](analytics.md#ordonner-les-valeurs), puis par nom. Les postes sans valeur viennent en dernier dans l'ordre croissant
   - Le tri par défaut suit la colonne par défaut de l'année en cours, du plus grand au plus petit (**Budget A** avec les réglages standard). Les boutons **Préc.** et **Suiv.** de l'espace de travail suivent le même ordre
   - La liste mémorise votre dernier tri, recherche et filtres quand vous revenez
 

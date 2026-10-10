@@ -60,7 +60,7 @@ The OPEX list (at **Budget management > OPEX**) is your main view for browsing, 
   - **Effective start**: Start date
   - **End of validity**: Date the item stops (blank means no end)
   - **IT owner** / **Business owner**: Responsible users
-  - **Analytics dimensions**: One column per enabled dimension used for OPEX lines, named after it, with the item's value, in the order of the dimensions. The default dimension's column reads **Analytics dimension** until it is renamed
+  - **Analytics dimensions**: One column per enabled dimension used for OPEX lines, named after it, with the item's value, in the order of the dimensions. The default dimension's column reads **Analytics dimension** until it is renamed. The columns of the dimensions required for OPEX lines show by default. A column layout you saved keeps its own choice
   - **Cost center**: The code and name of the cost center. Hover it to see its full path in the tree; click it to open the cost center
   - **Budget holder**: The budget holder of the item's cost center. It is derived from the cost center, not stored on the item: change the budget holder of a cost center and every item on it follows
   - **Run or build**: **Run** or **Build**
@@ -82,6 +82,7 @@ The OPEX list (at **Budget management > OPEX**) is your main view for browsing, 
 **Sorting**:
   - Click a column header to sort ascending/descending. Every column sorts, including every amount and FTE column. Items without an FTE come last in ascending order
   - Text columns sort in natural reading order: an accented name sorts next to its unaccented spelling (for example "Électricité" next to "Electricite"), and lowercase comes before uppercase when letters are otherwise equal
+  - A dimension column sorts in the order of the dimension's values, set in [Analytics dimensions](analytics.md#ordering-values), then by name. Items without a value come last in ascending order
   - Default sort is by the default column of the current year, highest first (**Budget Y** with the standard settings). The **Prev** and **Next** buttons of the workspace follow the same order
   - The list remembers your last sort, search, and filters when you return
 

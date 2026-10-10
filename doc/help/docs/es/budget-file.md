@@ -73,16 +73,13 @@ Son iguales en ambos archivos, salvo las columnas propias del tipo al principio 
 |---|---|---|
 | `item_number` | El número de la partida: `CPX-3` o `3` | Vacío: la fila añade una partida |
 | `name` | El título de la inversión | Obligatorio |
-| `ppe_type` | `hardware` o `software` | Obligatorio |
-| `investment_type` | `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth` u `other` | Obligatorio |
-| `priority` | `mandatory`, `high`, `medium` o `low` | Obligatorio |
 | `company_name` | Empresa pagadora | Obligatorio salvo que la partida tenga un centro de coste |
 | `supplier_name` | Nombre del proveedor | Opcional |
 | `supplier_erp_id` | El ID del proveedor en su ERP | Opcional |
 | `account_number` | Número de cuenta, en el plan de cuentas de la empresa pagadora | Obligatorio |
 | `cost_center_code` | Código del centro de coste. Se rechaza un grupo | Opcional |
 | `run_build` | `run` o `build` | Opcional |
-| `analytics:<code>` | El nombre del valor en la dimensión cuyo código es ese. Una columna por dimensión activada usada para las líneas CAPEX, la dimensión por defecto incluida | Opcional, salvo para una dimensión obligatoria. La carga crea un valor que no existe |
+| `analytics:<code>` | El nombre del valor en la dimensión cuyo código es ese, sin distinguir mayúsculas y minúsculas. Una columna por dimensión activada usada para las líneas CAPEX, la dimensión por defecto incluida. El tipo de activo fijo, el tipo de inversión y la prioridad están en `analytics:ppe_type`, `analytics:investment_type` y `analytics:priority`, por ejemplo `Hardware`, `Business growth` o `High` | Opcional, salvo para una dimensión obligatoria, como las tres dimensiones CAPEX. La carga crea un valor que no existe |
 | `owner_it_email` | Correo de un usuario activo | Opcional |
 | `owner_business_email` | Correo de un usuario activo | Opcional |
 | `project` | Número de proyecto, por ejemplo `PRJ-3` | Opcional |
@@ -164,6 +161,10 @@ Una columna que KANAP no conoce se ignora, con una advertencia. Una columna que 
 Un archivo con un formato anterior se rechaza por completo: los archivos de partidas con columnas del tipo `y_budget`, y el archivo de líneas presupuestarias con las columnas `measure` y `jan` … `dec`. La pantalla muestra este mensaje:
 
 > Este archivo procede de una versión anterior de KANAP. Exporte un archivo nuevo desde esta lista, copie en él sus cambios y vuelva a importarlo.
+
+Un archivo CAPEX exportado antes de que el tipo de activo fijo, el tipo de inversión y la prioridad pasaran a ser dimensiones, reconocible por sus tres columnas `ppe_type`, `investment_type` y `priority` juntas, también se rechaza por completo. Estos valores van ahora en columnas de dimensión. Una o dos de estas columnas solas son columnas desconocidas, que se ignoran con una advertencia. La pantalla muestra este mensaje:
+
+> The ppe_type, investment_type and priority columns are now dimension columns (analytics:ppe_type, analytics:investment_type, analytics:priority). Export a fresh file from this list, copy your changes into it, and import it again.
 
 Exporte un archivo nuevo y copie en él sus filas.
 

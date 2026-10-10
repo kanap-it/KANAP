@@ -16,9 +16,7 @@ The workspace opens in creation mode, with the **Properties** panel open on the 
 - **Paying company**: Which company is making the investment (required for accounting)
 - **Account**: The general ledger account for this capital expenditure. Only accounts from the paying company's chart of accounts appear, and only those set as **OPEX and CAPEX** or **CAPEX only** in [Chart of Accounts](chart-of-accounts.md#opex-or-capex-accounts). An item that already has an **OPEX only** account keeps it and stays editable. Choosing such an account on a new item or when you change the account is refused
 - **Currency**: ISO code (e.g., USD, EUR). Defaults to your workspace CAPEX currency; you can override per item
-- **PP&E type**: Property, Plant & Equipment classification -- Hardware or Software
-- **Investment type**: Purpose of the investment (see options below)
-- **Priority**: Business priority level (see options below)
+- **PP&E type**, **Investment type** and **Priority**: the three CAPEX dimensions, one field each. No value is chosen in advance: pick one in each field. See [CAPEX dimensions](#capex-dimensions)
 - **Effective start**: When this investment begins (DD/MM/YYYY)
 
 **Optional but useful**:
@@ -39,24 +37,17 @@ Once the item is created, the workspace unlocks all four tabs: **Overview**, **B
 
 ---
 
-## Investment types
+## CAPEX dimensions
 
-CAPEX items must be classified by investment type. This helps analyze capital spending patterns:
+Every workspace classifies CAPEX items on three analytics dimensions:
 
-- **Replacement**: Replacing existing assets that are obsolete or end-of-life
-- **Capacity**: Adding capacity to support business growth or increased demand
-- **Productivity**: Improving efficiency or reducing operational costs
-- **Security**: Enhancing security posture, compliance, or risk mitigation
-- **Conformity**: Meeting regulatory or compliance requirements
-- **Business growth**: Enabling new products, markets, or business capabilities
-- **Other**: Investments that do not fit the above categories
+| Dimension | Values |
+|---|---|
+| **PP&E type** | Hardware, Software (Property, Plant & Equipment) |
+| **Investment type** | Replacement, Capacity, Productivity, Security, Conformity, Business growth, Other |
+| **Priority** | Mandatory, High, Medium, Low |
 
-**Priority levels**:
-
-- **Mandatory**: Must be done (regulatory, critical infrastructure, security)
-- **High**: Strong business case, high ROI or strategic importance
-- **Medium**: Valuable but can be deferred if needed
-- **Low**: Nice to have, can be postponed
+They are used for CAPEX lines and required, so a new item needs a value on each. They work like any other dimension: their fields sit in the **Properties** panel with the other dimensions, and their columns show by default in the CAPEX list. An administrator can rename them, add values, change the order of the values, disable or delete them. See [CAPEX dimensions](analytics.md#capex-dimensions) in Analytics dimensions.
 
 ---
 
@@ -74,16 +65,14 @@ The CAPEX list (at **Budget management > CAPEX**) is your main view for browsing
 | **Paying company** | Which company pays for this item |
 | **Contract** | The latest linked contract name |
 | **Account** | The GL account number and name |
-| **PP&E type** | Hardware or Software |
-| **Investment type** | Purpose of the investment |
-| **Priority** | Business priority level |
 | **Allocation** | Current-year allocation method label |
+| **Required dimensions** | One column per enabled dimension required for CAPEX lines, named after it, with the item's value: **PP&E type**, **Investment type** and **Priority** to start with |
 | **Budget Y** and **Expected landing Y** | The current-year amounts of the default column and of the last shown column, in the reporting currency. With the standard settings these are Budget and Expected landing. When the default column is also the last shown one, a single amount column appears. See [Budget columns](budget-operations.md#budget-columns) |
 | **Task** | Title of the most recent task linked to this item |
 
 ### Additional columns
 
-These columns are hidden by default. Show them from the column chooser (hamburger menu in the grid header):
+These columns are hidden by default. Show them from the column chooser (hamburger menu in the grid header). A column layout you saved keeps its own choice of columns:
 
 | Column | What it shows |
 |---|---|
@@ -94,7 +83,7 @@ These columns are hidden by default. Show them from the column chooser (hamburge
 | **Effective start** | Start date |
 | **End of validity** | Date the item stops (blank means no end) |
 | **IT owner** / **Business owner** | Responsible users |
-| **Analytics dimensions** | One column per enabled dimension used for CAPEX lines, named after it, with the item's value, in the order of the dimensions. The default dimension's column reads **Analytics dimension** until it is renamed |
+| **Analytics dimensions** | One column per enabled dimension used for CAPEX lines, named after it, with the item's value, in the order of the dimensions. The default dimension's column reads **Analytics dimension** until it is renamed. The columns of the dimensions required for CAPEX lines show by default |
 | **Cost center** | The code and name of the cost center. Hover it to see its full path in the tree; click it to open the cost center |
 | **Budget holder** | The budget holder of the item's cost center. It is derived from the cost center, not stored on the item: change the budget holder of a cost center and every item on it follows |
 | **Run or build** | **Run** or **Build** |
@@ -105,11 +94,11 @@ These columns are hidden by default. Show them from the column chooser (hamburge
 
 ### Quick search
 
-The search box at the top searches the reference, description, supplier, paying company, account, contract, project names, allocation, owners, analytics values, cost center (code, name and path), budget holder, PP&E type, investment type, priority, notes, currency and status. Results update in real time as you type, ignoring accents and case.
+The search box at the top searches the reference, description, supplier, paying company, account, contract, project names, allocation, owners, analytics values (by value name, for example "Business growth"), cost center (code, name and path), budget holder, notes, currency and status. Results update in real time as you type, ignoring accents and case.
 
 ### Column filters
 
-Each filterable column header has a filter icon. **Supplier**, **Paying company**, **Account**, **PP&E type**, **Investment type**, **Priority**, **Allocation**, **Currency**, **IT owner**, **Business owner**, each analytics dimension, **Cost center**, **Budget holder**, **Run or build**, **FTE declared** and **Enabled** use checkbox set filters with **All**, **None**, and a clear button. The **FTE declared** filter offers **Yes** and **No**. The **Enabled** filter offers **Enabled** and **Disabled**, with the same meaning as **Show**, and narrows the list when **Show** is set to **All**. Clicking **Clear** in it, or unticking both values, lists nothing, whatever **Show** says. Multiple filters combine with AND logic.
+Each filterable column header has a filter icon. **Supplier**, **Paying company**, **Account**, **Allocation**, **Currency**, **IT owner**, **Business owner**, each analytics dimension, **Cost center**, **Budget holder**, **Run or build**, **FTE declared** and **Enabled** use checkbox set filters with **All**, **None**, and a clear button. The **FTE declared** filter offers **Yes** and **No**. The **Enabled** filter offers **Enabled** and **Disabled**, with the same meaning as **Show**, and narrows the list when **Show** is set to **All**. Clicking **Clear** in it, or unticking both values, lists nothing, whatever **Show** says. Multiple filters combine with AND logic.
 
 Tick **All**, then untick the values you want to leave out: the filter keeps everything except those (the header reads, for example, **All but 3**), and a value created later is included automatically.
 
@@ -123,7 +112,7 @@ Text columns use text filters, ignoring accents and case. On **Ref**, type the n
 
 ### Sorting
 
-Click a column header to sort ascending or descending. Every column sorts, including every amount and FTE column. Items without an FTE come last in ascending order. Text columns sort in natural reading order: an accented name sorts next to its unaccented spelling (for example "Électricité" next to "Electricite"), and lowercase comes before uppercase when letters are otherwise equal. The default sort is the default column of the current year, highest first (**Budget Y** with the standard settings). **Prev** and **Next** in the workspace follow the same order. The list remembers your last sort when you return.
+Click a column header to sort ascending or descending. Every column sorts, including every amount and FTE column. Items without an FTE come last in ascending order. Text columns sort in natural reading order: an accented name sorts next to its unaccented spelling (for example "Électricité" next to "Electricite"), and lowercase comes before uppercase when letters are otherwise equal. A dimension column sorts in the order of the dimension's values, set in [Analytics dimensions](analytics.md#ordering-values), then by name. Items without a value come last in ascending order. The default sort is the default column of the current year, highest first (**Budget Y** with the standard settings). **Prev** and **Next** in the workspace follow the same order. The list remembers your last sort when you return.
 
 ### Totals row
 
@@ -135,7 +124,7 @@ Each shown FTE column shows the sum of the items' FTE. When some items have no F
 
 Click any cell in a row to open the workspace on the tab most relevant to that column:
 
-- **Description**, **Supplier**, **Paying company**, **PP&E type**, **Investment type**, **Priority** and the other general columns: Opens **Overview**
+- **Description**, **Supplier**, **Paying company**, the dimension columns and the other general columns: Opens **Overview**
 - **Amount columns** (Budget Y, Expected landing Y, Revision Y+1, etc.) and **FTE columns**: Opens the **Budget** tab for the column's year
 - **Allocation**: Opens the **Allocations** tab for the current year
 - **Task**: Opens the **Overview** tab, where the Tasks panel sits
@@ -156,7 +145,7 @@ The same filters are also kept in the page's web address, so reloading the page 
 
 When you open an item, the workspace shows **Prev** and **Next** buttons. These navigate through the list in the current sort order, respecting filters and search, and save your pending edits first. The counter (e.g., "Item 3 of 47") shows your position in the filtered list.
 
-**Tip**: Use column filters and quick search to build focused views (e.g., "All hardware investments with high priority"), then navigate item-by-item with **Prev**/**Next** to review budgets.
+**Tip**: Use column filters and quick search to build focused views (for example, **Hardware** in the **PP&E type** filter and **High** in the **Priority** filter), then navigate item-by-item with **Prev**/**Next** to review budgets.
 
 ---
 
@@ -165,7 +154,7 @@ When you open an item, the workspace shows **Prev** and **Next** buttons. These 
 Click any row in the list to open the workspace. It has four parts:
 
 - **Header**: the item reference (e.g., `CPX-7`) with a copy button, the investment's name (click it to rename the item), **Prev** / **Next**, **Send link**, and the close button
-- **Metadata bar** under the title: **Status**, **Priority**, **IT owner**, and **Business owner**, each editable in place. When the item's cost center has a budget holder, **Budget holder** follows them. It is read only and derived from the cost center, not stored on the item: hover it to see which cost center it comes from, and change it on the cost center (see [Cost centers](cost-centers.md#budget-holder-on-budget-lines))
+- **Metadata bar** under the title: **Status**, **IT owner**, and **Business owner**, each editable in place. When the item's cost center has a budget holder, **Budget holder** follows them. It is read only and derived from the cost center, not stored on the item: hover it to see which cost center it comes from, and change it on the cost center (see [Cost centers](cost-centers.md#budget-holder-on-budget-lines))
 - **Four tabs**: **Overview**, **Budget**, **Allocations**, and **Relations** (the Relations tab shows how many links the item has)
 - **Properties panel** on the right: the item's main fields. Open or close it with the properties button; the workspace remembers your choice
 
@@ -205,10 +194,9 @@ The Overview tab holds the details of the investment and its tasks.
 
 **Properties panel**:
 
-- **Supplier**, **Cost center**, **Paying company**, **Account** (filtered by the paying company's chart of accounts), **Currency** (only the currencies allowed in your workspace), **PP&E type**, **Investment type**, one field per analytics dimension, **Run or build**, and **Effective start**
+- **Supplier**, **Cost center**, **Paying company**, **Account** (filtered by the paying company's chart of accounts), **Currency** (only the currencies allowed in your workspace), one field per analytics dimension (**PP&E type**, **Investment type** and **Priority** among them), **Run or build**, and **Effective start**
 - **Lifecycle**: the status switch, labelled with the current state (**Enabled** or **Disabled**), and the **End of validity** date. See [Status and lifecycle](#status-and-lifecycle)
 - **Created** and **Updated** dates (read only)
-- **Priority** is set in the Properties panel when you create the item, then in the metadata bar
 - Type in **Supplier**, **Paying company**, **Account**, **IT owner**, **Business owner** or an analytics dimension field to search by name. Matches appear as you type, so you can find any value even in a very long list; a line under the list reads "Type to narrow down: more results" when there are more matches than shown
 
 **Cost center**:
@@ -606,11 +594,11 @@ If you cannot perform an action (e.g., the **Import CSV** button is missing), ch
 
 ## Tips
 
-- **Start simple**: Create items with just the essentials (description, PP&E type, investment type, paying company, account), then add budgets and allocations as you plan.
+- **Start simple**: Create items with just the essentials (title, paying company, account and the required dimensions), then add budgets and allocations as you plan.
 - **Use Headcount allocation**: For most capital investments, Headcount is enough. Reserve manual allocations for investments that benefit specific companies or departments only.
 - **Link contracts**: If you manage capital purchases via contracts, link them in the Relations tab for procurement tracking.
 - **Upload documentation**: Use the attachments feature to store vendor quotes, approval memos, and technical specs alongside the item.
-- **Classify accurately**: Use Investment type and Priority consistently to enable meaningful capital spend analysis and prioritization.
+- **Classify accurately**: Use the **Investment type** and **Priority** dimensions consistently to enable meaningful capital spend analysis and prioritization.
 - **Keep company metrics current**: Allocations depend on company headcount, IT users, and turnover. Outdated metrics cause allocation errors.
 - **Use CSV for bulk setup**: If you are migrating from another system or have many capital items, start with CSV import. Export a fresh file, fill in your rows, and check it before loading.
 - **Disable, do not delete**: Preserve history by disabling items when assets are disposed of or projects complete.

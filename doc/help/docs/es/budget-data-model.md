@@ -63,9 +63,7 @@ Una partida vive varios años: una licencia de tres años es una partida con tre
 | Número | `item_number` | Lo asigna KANAP | Vacío en el archivo: crea una partida |
 | Nombre del producto (OPEX), título (CAPEX) | `name` | Sí | |
 | Descripción (OPEX) | `description` | No | |
-| Tipo de activo fijo (CAPEX) | `ppe_type` | Sí | `hardware` o `software` |
-| Tipo de inversión (CAPEX) | `investment_type` | Sí | `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth` u `other` |
-| Prioridad (CAPEX) | `priority` | Sí | `mandatory`, `high`, `medium` o `low` |
+| Tipo de activo fijo, tipo de inversión, prioridad (CAPEX) | `analytics:ppe_type`, `analytics:investment_type`, `analytics:priority` | En una línea nueva, mientras la dimensión sea obligatoria | Valores de las tres dimensiones CAPEX, guardados como los valores de cualquier otra dimensión. Consulte [Dimensiones CAPEX](analytics.md#dimensiones-capex) |
 | Empresa pagadora | `company_name` | Sí | Se toma del centro de coste cuando solo se indica el centro de coste |
 | Proveedor | `supplier_name`, `supplier_erp_id` | No | |
 | Cuenta | `account_number` | Sí | En el plan de cuentas de la empresa pagadora |

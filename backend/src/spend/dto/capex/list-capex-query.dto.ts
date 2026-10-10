@@ -1,21 +1,11 @@
 import { z } from 'zod';
 import { ListQuerySchema, ListQuery } from '../../../common/dto/list-query.dto';
-import { PpeTypes, InvestmentTypes, PriorityLevels } from './create-capex-item.dto';
 
 /**
  * Extended query schema for listing CAPEX items.
  * Extends the common ListQuerySchema with CAPEX-specific filters.
  */
 export const ListCapexQuerySchema = ListQuerySchema.extend({
-  /** Filter by PPE type */
-  ppe_type: z.enum(PpeTypes).optional(),
-
-  /** Filter by investment type */
-  investment_type: z.enum(InvestmentTypes).optional(),
-
-  /** Filter by priority */
-  priority: z.enum(PriorityLevels).optional(),
-
   /** Filter by paying company ID */
   paying_company_id: z.string().uuid().optional(),
 
@@ -66,9 +56,6 @@ export class ListCapexQueryDto implements ListCapexQuery {
   include!: string[];
   q?: string;
   status?: 'enabled' | 'disabled';
-  ppe_type?: (typeof PpeTypes)[number];
-  investment_type?: (typeof InvestmentTypes)[number];
-  priority?: (typeof PriorityLevels)[number];
   paying_company_id?: string;
   supplier_id?: string;
   project_id?: string;

@@ -445,50 +445,60 @@ async function testAggregate(kind: Kind) {
 }
 
 /**
- * Decision Q4 (lot 2B, PR C): the CAPEX priority, investment type and PPE type
- * sort in their business order (the declaration order of their enums), with
- * or without a search, in the page, the ids and the AI list (before: by code,
- * high < low < mandatory < medium). Their filter values keep the text order.
+ * A dimension's values sort in the dimension's order (D3; lot C1, decision 2: the CAPEX priority,
+ * a dimension since lot C1, keeps its business order), then by name, blanks last ascending: with
+ * or without a search, in the page, the ids, the aggregate's key order and the AI list. The
+ * filter values follow the same order.
  */
-async function testCapexEnumsSortInBusinessOrder() {
-  await withFixture('capex', async (runner, { tenantId, ids }, svc) => {
+async function testDimensionSortsInItsOrder(kind: Kind) {
+  await withFixture(kind, async (runner, { tenantId, ids }, svc) => {
     const opts = { manager: runner.manager };
-    const set: Array<[string, string, string, string]> = [
-      [ids.alpha, 'low', 'other', 'software'],
-      [ids.bravo, 'mandatory', 'replacement', 'hardware'],
-      [ids.charlie, 'high', 'security', 'software'],
-      [ids.delta, 'medium', 'capacity', 'hardware'],
-      [ids.echo, 'high', 'business_growth', 'software'],
-    ];
-    for (const [id, priority, investment, ppe] of set) {
+    const [axis] = await runner.query(
+      `INSERT INTO analytics_axes (tenant_id, code, name, sort_order) VALUES ($1, 'priority', 'Priority', 3) RETURNING id`,
+      [tenantId],
+    );
+    const value = async (name: string, order: number): Promise<string> => {
+      const [row] = await runner.query(
+        `INSERT INTO analytics_categories (tenant_id, axis_id, name, sort_order) VALUES ($1, $2, $3, $4) RETURNING id`,
+        [tenantId, axis.id, name, order],
+      );
+      return row.id;
+    };
+    const v = { mandatory: await value('Mandatory', 1), high: await value('High', 2), medium: await value('Medium', 3), low: await value('Low', 4) };
+    for (const [itemId, categoryId] of [[ids.alpha, v.low], [ids.bravo, v.mandatory], [ids.charlie, v.high], [ids.delta, v.medium], [ids.echo, v.high]]) {
       await runner.query(
-        `UPDATE spend_items SET priority = $3, investment_type = $4, ppe_type = $5 WHERE tenant_id = $1 AND id = $2 AND nature = 'capex'`,
-        [tenantId, id, priority, investment, ppe],
+        `INSERT INTO spend_item_analytics_values (tenant_id, item_id, axis_id, category_id) VALUES ($1, $2, $3, $4)`,
+        [tenantId, itemId, axis.id, categoryId],
       );
     }
-    const column = async (field: string, dir: 'ASC' | 'DESC', q?: string) => {
+    const field = `analytics_${axis.id}`;
+    const column = async (dir: 'ASC' | 'DESC', q?: string) => {
       const query = { ...ALL, sort: `${field}:${dir}`, ...(q ? { q } : {}) };
       const page = await svc.summary({ ...query, limit: 100 }, opts);
       const navigation = await svc.summaryIds(query, opts);
-      assert.deepEqual(navigation.ids, page.items.map((row: any) => row.id), `${field} ${dir}: the ids follow the page`);
+      assert.deepEqual(navigation.ids, page.items.map((row: any) => row.id), `${kind} ${dir}: the ids follow the page`);
       return page.items.map((row: any) => row[field]);
     };
-    const priorities = ['mandatory', 'high', 'high', 'medium', 'low'];
-    assert.deepEqual(await column('priority', 'ASC'), priorities, 'priority ascending: mandatory first');
-    assert.deepEqual(await column('priority', 'DESC'), [...priorities].reverse(), 'priority descending');
-    assert.deepEqual(await column('priority', 'ASC', 'e'), priorities, 'priority ascending, with a search');
-    assert.deepEqual(await column('investment_type', 'ASC'), ['replacement', 'capacity', 'security', 'business_growth', 'other'], 'investment type as declared');
-    assert.deepEqual(await column('ppe_type', 'DESC'), ['software', 'software', 'software', 'hardware', 'hardware'], 'PPE type descending');
+    const order = ['Mandatory', 'High', 'High', 'Medium', 'Low'];
+    assert.deepEqual(await column('ASC'), order, `${kind}: ascending, the dimension's order (not High, Low, Mandatory, Medium)`);
+    assert.deepEqual(await column('DESC'), [...order].reverse(), `${kind}: descending`);
+    assert.deepEqual(await column('ASC', 'e'), order, `${kind}: ascending, with a search`);
+    const values = await svc.summaryFilterValues({ ...ALL, fields: field }, opts);
+    assert.deepEqual(values[field], ['Mandatory', 'High', 'Medium', 'Low'], `${kind}: filter values in the same order`);
 
-    const values = await svc.summaryFilterValues({ ...ALL, fields: 'priority,investment_type,ppe_type' }, opts);
-    assert.deepEqual(values.priority, ['high', 'low', 'mandatory', 'medium'], 'filter values: text order (the grid orders its options by label)');
-    assert.deepEqual(values.ppe_type, ['hardware', 'software']);
+    // Two values at the same position: by name. A line without a value: last ascending.
+    await runner.query(`UPDATE analytics_categories SET sort_order = 1 WHERE tenant_id = $1 AND id = $2`, [tenantId, v.low]);
+    await runner.query(`DELETE FROM spend_item_analytics_values WHERE tenant_id = $1 AND item_id = $2 AND axis_id = $3`, [tenantId, ids.delta, axis.id]);
+    assert.deepEqual(await column('ASC'), ['Low', 'Mandatory', 'High', 'High', null], `${kind}: same position by name, blank last`);
+    const grouped = await svc.summaryAggregate(ALL, { groupBy: [field], measures: [], order: [{ by: 'key', index: 0, dir: 'ASC' }] }, opts);
+    assert.deepEqual(grouped.groups.map((group: any) => [group.keys[0], group.count]), [['Low', 1], ['Mandatory', 1], ['High', 2], [null, 1]],
+      `${kind}: the aggregate orders its keys the same way`);
 
-    const listed: any = await queryExecutor(svc).execute(aiContext(runner, tenantId) as any, {
-      entity_type: 'capex_items',
-      sort: { field: 'priority', direction: 'asc' },
+    const listed: any = await queryExecutor(svc, kind).execute(aiContext(runner, tenantId) as any, {
+      entity_type: kind === 'opex' ? 'spend_items' : 'capex_items',
+      sort: { field: 'analytics:priority', direction: 'asc' },
     });
-    assert.deepEqual(listed.items.map((item: any) => item.metadata.priority), priorities, 'AI: sorted by priority in business order');
+    assert.deepEqual(listed.items.map((item: any) => item.metadata['analytics:priority']), ['Low', 'Mandatory', 'High', 'High', null], `${kind}: AI sort`);
   });
 }
 
@@ -1029,8 +1039,8 @@ void runSpecs('budget-summary.integration.spec', [
     [`analytics dimensions (${kind})`, () => testAnalyticsDimensions(kind)],
     [`a dimension of the other line type is hidden (${kind})`, () => testOtherTypeDimensionHidden(kind)],
     [`FTE fields and totals (${kind})`, () => testFteFields(kind)],
+    [`a dimension sorts in its order (${kind})`, () => testDimensionSortsInItsOrder(kind)],
   ]),
-  ['CAPEX enums sort in business order', testCapexEnumsSortInBusinessOrder],
   ['AI: a partial list is truncated', testAiMarksAPartialListTruncated],
   ['AI: CAPEX amount filter', testAiCapexAmountFilter],
   ['AI: CAPEX detail', testAiCapexDetail],

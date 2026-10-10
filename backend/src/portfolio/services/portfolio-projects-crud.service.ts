@@ -289,7 +289,7 @@ export class PortfolioProjectsCrudService extends PortfolioProjectsBaseService {
     // Load CAPEX items
     if (include.has('capex') || include.has('financials')) {
       result.capex_items = await mg.query(
-        `SELECT c.id, c.product_name AS description, c.ppe_type, c.investment_type, c.priority, c.currency, c.status,
+        `SELECT c.id, c.product_name AS description, c.currency, c.status,
                 sup.name as supplier_name
          FROM portfolio_project_opex pc
          JOIN spend_items c ON c.id = pc.opex_id AND c.nature = 'capex'

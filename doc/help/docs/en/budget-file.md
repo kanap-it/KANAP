@@ -73,16 +73,13 @@ These are the same in both files, except for the type-specific columns near the 
 |---|---|---|
 | `item_number` | The line's number: `CPX-3` or `3` | Empty: the row adds a line |
 | `name` | The title of the investment | Required |
-| `ppe_type` | `hardware` or `software` | Required |
-| `investment_type` | `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth` or `other` | Required |
-| `priority` | `mandatory`, `high`, `medium` or `low` | Required |
 | `company_name` | Paying company | Required unless the line has a cost center |
 | `supplier_name` | Supplier name | Optional |
 | `supplier_erp_id` | The supplier's ID in your ERP | Optional |
 | `account_number` | Account number, in the paying company's chart of accounts | Required |
 | `cost_center_code` | Cost center code. A group is refused | Optional |
 | `run_build` | `run` or `build` | Optional |
-| `analytics:<code>` | The value's name in the dimension whose code it is. One column per enabled dimension used for CAPEX lines, the default dimension included | Optional, except for a required dimension. A value that does not exist is created by the load |
+| `analytics:<code>` | The value's name in the dimension whose code it is, regardless of case. One column per enabled dimension used for CAPEX lines, the default dimension included. The PP&E type, investment type and priority are in `analytics:ppe_type`, `analytics:investment_type` and `analytics:priority`, for example `Hardware`, `Business growth` or `High` | Optional, except for a required dimension, such as the three CAPEX dimensions. A value that does not exist is created by the load |
 | `owner_it_email` | Email of an active user | Optional |
 | `owner_business_email` | Email of an active user | Optional |
 | `project` | Project number, such as `PRJ-3` | Optional |
@@ -164,6 +161,10 @@ A column KANAP does not know is ignored, with a warning. A column that looks lik
 A file in an older layout is refused as a whole: the item files with `y_budget` style columns, and the budget rows file with `measure` and `jan` … `dec` columns. The screen shows this message:
 
 > This file comes from an earlier version of KANAP. Export a fresh file from this list, copy your changes into it, and import it again.
+
+A CAPEX file exported before the PP&E type, investment type and priority became dimensions, recognised by its three columns `ppe_type`, `investment_type` and `priority` together, is refused as a whole too. These values now travel in dimension columns. One or two of these columns alone are unknown columns, ignored with a warning. The screen shows this message:
+
+> The ppe_type, investment_type and priority columns are now dimension columns (analytics:ppe_type, analytics:investment_type, analytics:priority). Export a fresh file from this list, copy your changes into it, and import it again.
 
 Export a fresh file and copy your rows into it.
 

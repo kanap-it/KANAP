@@ -33,9 +33,6 @@ export interface StoredLine {
   rowVersion: number;
   name: string;
   description: string | null;
-  ppeType: string | null;
-  investmentType: string | null;
-  priority: string | null;
   companyId: string | null;
   companyName: string | null;
   supplierId: string | null;

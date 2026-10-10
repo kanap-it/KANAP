@@ -16,9 +16,7 @@ L'espace de travail s'ouvre en mode création, avec le panneau **Propriétés** 
 - **Société payeuse** : Quelle société réalise l'investissement (obligatoire pour la comptabilité)
 - **Compte** : Le compte du grand livre pour cette dépense d'investissement. Seuls les comptes du plan comptable de la société payeuse apparaissent, et seulement ceux réglés sur **OPEX et CAPEX** ou **CAPEX uniquement** dans [Plans comptables et gestion des comptes](chart-of-accounts.md#comptes-opex-ou-capex). Un poste qui a déjà un compte **OPEX uniquement** le conserve et reste modifiable. Choisir un tel compte sur un nouveau poste, ou en changeant le compte, est refusé
 - **Devise** : Code ISO (ex. : USD, EUR). Par défaut la devise CAPEX de votre espace de travail ; modifiable par poste
-- **Type d'immobilisation** : Classification des immobilisations corporelles : Matériel ou Logiciel
-- **Type d'investissement** : Objectif de l'investissement (voir les options ci-dessous)
-- **Priorité** : Niveau de priorité métier (voir les options ci-dessous)
+- **PP&E type**, **Investment type** et **Priority** : les trois dimensions CAPEX, un champ chacune. Aucune valeur n'est choisie à l'avance : choisissez-en une dans chaque champ. Voir [Dimensions CAPEX](#dimensions-capex)
 - **Début d'effet** : Quand cet investissement commence (JJ/MM/AAAA)
 
 **Optionnel mais utile** :
@@ -39,24 +37,17 @@ Une fois le poste créé, l'espace de travail déverrouille les quatre onglets :
 
 ---
 
-## Types d'investissement
+## Dimensions CAPEX
 
-Les postes CAPEX doivent être classifiés par type d'investissement. Cela aide à analyser les schémas de dépenses d'investissement :
+Chaque espace de travail classe les postes CAPEX sur trois dimensions analytiques :
 
-- **Remplacement** : Remplacement d'actifs existants obsolètes ou en fin de vie
-- **Capacité** : Ajout de capacité pour supporter la croissance métier ou une demande accrue
-- **Productivité** : Amélioration de l'efficacité ou réduction des coûts opérationnels
-- **Sécurité** : Renforcement de la posture de sécurité, conformité ou atténuation des risques
-- **Conformité** : Satisfaction d'exigences réglementaires ou de conformité
-- **Croissance métier** : Permettre de nouveaux produits, marchés ou capacités métier
-- **Autre** : Investissements ne correspondant pas aux catégories ci-dessus
+| Dimension | Valeurs |
+|---|---|
+| **PP&E type** | Hardware, Software (immobilisations corporelles) |
+| **Investment type** | Replacement, Capacity, Productivity, Security, Conformity, Business growth, Other |
+| **Priority** | Mandatory, High, Medium, Low |
 
-**Niveaux de priorité** :
-
-- **Obligatoire** : Doit être fait (réglementaire, infrastructure critique, sécurité)
-- **Haute** : Business case solide, ROI élevé ou importance stratégique
-- **Moyenne** : Précieux mais reportable si nécessaire
-- **Basse** : Souhaitable, peut être reporté
+Elles sont utilisées pour les lignes CAPEX et obligatoires : un nouveau poste a besoin d'une valeur sur chacune. Elles fonctionnent comme toute autre dimension : leurs champs se trouvent dans le panneau **Propriétés** avec les autres dimensions, et leurs colonnes s'affichent par défaut dans la liste CAPEX. Un administrateur peut les renommer, ajouter des valeurs, changer l'ordre des valeurs, les désactiver ou les supprimer. Voir [Dimensions CAPEX](analytics.md#dimensions-capex) dans Dimensions analytiques.
 
 ---
 
@@ -74,16 +65,14 @@ La liste CAPEX (dans **Gestion budgétaire > CAPEX**) est votre vue principale p
 | **Société payeuse** | Quelle société paie ce poste |
 | **Contrat** | Le nom du dernier contrat lié |
 | **Compte** | Le numéro et nom du compte comptable |
-| **Type d'immobilisation** | Matériel ou Logiciel |
-| **Type d'investissement** | Objectif de l'investissement |
-| **Priorité** | Niveau de priorité métier |
 | **Ventilation** | Libellé de la méthode de ventilation de l'année en cours |
+| **Dimensions obligatoires** | Une colonne par dimension activée obligatoire pour les lignes CAPEX, à son nom, avec la valeur du poste : **PP&E type**, **Investment type** et **Priority** au départ |
 | **Budget A** et **Atterrissage prévu A** | Les montants de l'année en cours de la colonne par défaut et de la dernière colonne affichée, dans la devise de reporting. Avec les réglages standard, ce sont Budget et Atterrissage prévu. Quand la colonne par défaut est aussi la dernière affichée, une seule colonne de montant apparaît. Voir [Colonnes budgétaires](budget-operations.md#colonnes-budgetaires) |
 | **Tâche** | Titre de la tâche la plus récente liée à ce poste |
 
 ### Colonnes supplémentaires
 
-Ces colonnes sont masquées par défaut. Affichez-les depuis le sélecteur de colonnes (menu hamburger dans l'en-tête de la grille) :
+Ces colonnes sont masquées par défaut. Affichez-les depuis le sélecteur de colonnes (menu hamburger dans l'en-tête de la grille). Une disposition de colonnes que vous avez enregistrée garde son propre choix de colonnes :
 
 | Colonne | Ce qu'elle affiche |
 |---|---|
@@ -94,7 +83,7 @@ Ces colonnes sont masquées par défaut. Affichez-les depuis le sélecteur de co
 | **Début effectif** | Date de début |
 | **Fin de validité** | Date à laquelle le poste s'arrête (vide signifie sans fin) |
 | **Responsable IT** / **Responsable métier** | Utilisateurs responsables |
-| **Dimensions analytiques** | Une colonne par dimension activée utilisée pour les lignes CAPEX, à son nom, avec la valeur du poste, dans l'ordre des dimensions. La colonne de la dimension par défaut s'intitule **Dimension analytique** tant qu'elle n'est pas renommée |
+| **Dimensions analytiques** | Une colonne par dimension activée utilisée pour les lignes CAPEX, à son nom, avec la valeur du poste, dans l'ordre des dimensions. La colonne de la dimension par défaut s'intitule **Dimension analytique** tant qu'elle n'est pas renommée. Les colonnes des dimensions obligatoires pour les lignes CAPEX s'affichent par défaut |
 | **Centre de coûts** | Le code et le nom du centre de coûts. Survolez-le pour voir son chemin complet dans l'arbre ; cliquez dessus pour ouvrir le centre de coûts |
 | **Responsable budgétaire** | Le responsable budgétaire du centre de coûts du poste. Il est déduit du centre de coûts et non enregistré sur le poste : changez le responsable budgétaire d'un centre de coûts et tous ses postes suivent |
 | **Run ou build** | **Run** ou **Build** |
@@ -105,11 +94,11 @@ Ces colonnes sont masquées par défaut. Affichez-les depuis le sélecteur de co
 
 ### Recherche rapide
 
-Le champ de recherche en haut porte sur la référence, la description, le fournisseur, la société payeuse, le compte, le contrat, les noms de projets, la ventilation, les responsables, les valeurs analytiques, le centre de coûts (code, nom et chemin), le responsable budgétaire, le type d'immobilisation, le type d'investissement, la priorité, les notes, la devise et le statut. Les résultats se mettent à jour en temps réel pendant la saisie, en ignorant les accents et la casse.
+Le champ de recherche en haut porte sur la référence, la description, le fournisseur, la société payeuse, le compte, le contrat, les noms de projets, la ventilation, les responsables, les valeurs analytiques (par nom de valeur, par exemple « Business growth »), le centre de coûts (code, nom et chemin), le responsable budgétaire, les notes, la devise et le statut. Les résultats se mettent à jour en temps réel pendant la saisie, en ignorant les accents et la casse.
 
 ### Filtres de colonnes
 
-Chaque en-tête de colonne filtrable a une icône de filtre. **Fournisseur**, **Société payeuse**, **Compte**, **Type d'immobilisation**, **Type d'investissement**, **Priorité**, **Ventilation**, **Devise**, **Responsable IT**, **Responsable métier**, chaque dimension analytique, **Centre de coûts**, **Responsable budgétaire**, **Run ou build**, **ETP déclarés** et **Activé** utilisent des filtres par jeu de cases à cocher avec **Tous**, **Aucun** et un bouton d'effacement. Le filtre **ETP déclarés** propose **Oui** et **Non**. Le filtre **Activé** propose **Activé** et **Désactivé**, avec le même sens que **Afficher**, et restreint la liste lorsque **Afficher** est réglé sur **Tous**. Cliquer sur **Effacer** dans ce filtre, ou décocher les deux valeurs, n'affiche plus rien, quel que soit le choix de **Afficher**. Plusieurs filtres se combinent avec une logique ET.
+Chaque en-tête de colonne filtrable a une icône de filtre. **Fournisseur**, **Société payeuse**, **Compte**, **Ventilation**, **Devise**, **Responsable IT**, **Responsable métier**, chaque dimension analytique, **Centre de coûts**, **Responsable budgétaire**, **Run ou build**, **ETP déclarés** et **Activé** utilisent des filtres par jeu de cases à cocher avec **Tous**, **Aucun** et un bouton d'effacement. Le filtre **ETP déclarés** propose **Oui** et **Non**. Le filtre **Activé** propose **Activé** et **Désactivé**, avec le même sens que **Afficher**, et restreint la liste lorsque **Afficher** est réglé sur **Tous**. Cliquer sur **Effacer** dans ce filtre, ou décocher les deux valeurs, n'affiche plus rien, quel que soit le choix de **Afficher**. Plusieurs filtres se combinent avec une logique ET.
 
 Cochez **Tous**, puis décochez les valeurs à exclure : le filtre garde tout sauf celles-ci (l'en-tête affiche par exemple **Tous sauf 3**), et une valeur créée plus tard est incluse automatiquement.
 
@@ -123,7 +112,7 @@ Les colonnes texte utilisent des filtres texte, en ignorant les accents et la ca
 
 ### Tri
 
-Cliquez sur un en-tête de colonne pour trier par ordre croissant ou décroissant. Toutes les colonnes se trient, y compris chaque colonne de montant et chaque colonne ETP. Les postes sans ETP viennent en dernier dans l'ordre croissant. Les colonnes de texte se trient dans l'ordre de lecture naturel : un nom accentué se trie à côté de son équivalent sans accent (par exemple « Électricité » à côté de « Electricite »), et les minuscules passent avant les majuscules à égalité de lettres. Le tri par défaut suit la colonne par défaut de l'année en cours, du plus élevé au plus faible (**Budget A** avec les réglages standard). **Préc.** et **Suiv.** dans l'espace de travail suivent le même ordre. La liste mémorise votre dernier tri quand vous revenez.
+Cliquez sur un en-tête de colonne pour trier par ordre croissant ou décroissant. Toutes les colonnes se trient, y compris chaque colonne de montant et chaque colonne ETP. Les postes sans ETP viennent en dernier dans l'ordre croissant. Les colonnes de texte se trient dans l'ordre de lecture naturel : un nom accentué se trie à côté de son équivalent sans accent (par exemple « Électricité » à côté de « Electricite »), et les minuscules passent avant les majuscules à égalité de lettres. Une colonne de dimension se trie dans l'ordre des valeurs de la dimension, défini dans [Dimensions analytiques](analytics.md#ordonner-les-valeurs), puis par nom. Les postes sans valeur viennent en dernier dans l'ordre croissant. Le tri par défaut suit la colonne par défaut de l'année en cours, du plus élevé au plus faible (**Budget A** avec les réglages standard). **Préc.** et **Suiv.** dans l'espace de travail suivent le même ordre. La liste mémorise votre dernier tri quand vous revenez.
 
 ### Ligne de totaux
 
@@ -135,7 +124,7 @@ Chaque colonne ETP affichée montre la somme des ETP des postes. Lorsque certain
 
 Cliquez sur n'importe quelle cellule d'une ligne pour ouvrir l'espace de travail sur l'onglet le plus pertinent pour cette colonne :
 
-- **Description**, **Fournisseur**, **Société payeuse**, **Type d'immobilisation**, **Type d'investissement**, **Priorité** et les autres colonnes générales : Ouvre la **Vue d'ensemble**
+- **Description**, **Fournisseur**, **Société payeuse**, les colonnes de dimension et les autres colonnes générales : Ouvre la **Vue d'ensemble**
 - **Colonnes de montants** (Budget A, Atterrissage prévu A, Révision A+1, etc.) et **Colonnes ETP** : Ouvre l'onglet **Budget** sur l'année de la colonne
 - **Ventilation** : Ouvre l'onglet **Ventilations** pour l'année en cours
 - **Tâche** : Ouvre l'onglet **Vue d'ensemble**, où se trouve le panneau des tâches
@@ -156,7 +145,7 @@ Ces mêmes filtres sont aussi conservés dans l'adresse de la page : recharger l
 
 Lorsque vous ouvrez un poste, l'espace de travail affiche les boutons **Préc.** et **Suiv.**. Ils parcourent la liste dans l'ordre de tri actuel, en respectant les filtres et la recherche, et enregistrent d'abord vos modifications en attente. Le compteur (ex. : « Poste 3 sur 47 ») indique votre position dans la liste filtrée.
 
-**Conseil** : Utilisez les filtres de colonnes et la recherche rapide pour construire des vues ciblées (ex. : « Tous les investissements matériel de priorité haute »), puis naviguez poste par poste avec **Préc.**/**Suiv.** pour revoir les budgets.
+**Conseil** : Utilisez les filtres de colonnes et la recherche rapide pour construire des vues ciblées (par exemple **Hardware** dans le filtre **PP&E type** et **High** dans le filtre **Priority**), puis naviguez poste par poste avec **Préc.**/**Suiv.** pour revoir les budgets.
 
 ---
 
@@ -165,7 +154,7 @@ Lorsque vous ouvrez un poste, l'espace de travail affiche les boutons **Préc.**
 Cliquez sur n'importe quelle ligne de la liste pour ouvrir l'espace de travail. Il comporte quatre parties :
 
 - **En-tête** : la référence du poste (ex. : `CPX-7`) avec un bouton de copie, le nom de l'investissement (cliquez dessus pour renommer le poste), **Préc.** / **Suiv.**, **Envoyer le lien** et le bouton de fermeture
-- **Barre de métadonnées** sous le titre : **Statut**, **Priorité**, **Responsable IT** et **Responsable métier**, modifiables sur place. Lorsque le centre de coûts du poste a un responsable budgétaire, **Responsable budgétaire** vient ensuite. Il est en lecture seule et déduit du centre de coûts, non enregistré sur le poste : survolez-le pour voir de quel centre de coûts il provient, et modifiez-le sur le centre de coûts (voir [Centres de coûts](cost-centers.md#responsable-budgetaire-sur-les-lignes-budgetaires))
+- **Barre de métadonnées** sous le titre : **Statut**, **Responsable IT** et **Responsable métier**, modifiables sur place. Lorsque le centre de coûts du poste a un responsable budgétaire, **Responsable budgétaire** vient ensuite. Il est en lecture seule et déduit du centre de coûts, non enregistré sur le poste : survolez-le pour voir de quel centre de coûts il provient, et modifiez-le sur le centre de coûts (voir [Centres de coûts](cost-centers.md#responsable-budgetaire-sur-les-lignes-budgetaires))
 - **Quatre onglets** : **Vue d'ensemble**, **Budget**, **Ventilations** et **Relations** (l'onglet Relations indique le nombre de liens du poste)
 - **Panneau Propriétés** à droite : les champs principaux du poste. Ouvrez-le ou fermez-le avec le bouton des propriétés ; l'espace de travail mémorise votre choix
 
@@ -205,10 +194,9 @@ L'onglet Vue d'ensemble contient les détails de l'investissement et ses tâches
 
 **Panneau Propriétés** :
 
-- **Fournisseur**, **Centre de coûts**, **Société payeuse**, **Compte** (filtré par le plan comptable de la société payeuse), **Devise** (seulement les devises autorisées dans votre espace de travail), **Type d'immobilisation**, **Type d'investissement**, un champ par dimension analytique, **Run ou build** et **Début d'effet**
+- **Fournisseur**, **Centre de coûts**, **Société payeuse**, **Compte** (filtré par le plan comptable de la société payeuse), **Devise** (seulement les devises autorisées dans votre espace de travail), un champ par dimension analytique (dont **PP&E type**, **Investment type** et **Priority**), **Run ou build** et **Début d'effet**
 - **Cycle de vie** : l'interrupteur de statut, dont le libellé indique l'état actuel (**Activé** ou **Désactivé**), et la date de **Fin de validité**. Voir [Statut et cycle de vie](#statut-et-cycle-de-vie)
 - Dates **Créé** et **Mis à jour** (lecture seule)
-- La **Priorité** se règle dans le panneau Propriétés à la création du poste, puis dans la barre de métadonnées
 - Saisissez du texte dans **Fournisseur**, **Société payeuse**, **Compte**, **Responsable IT**, **Responsable métier** ou un champ de dimension analytique pour rechercher par nom. Les résultats apparaissent au fur et à mesure que vous tapez, afin de trouver n'importe quelle valeur même dans une très longue liste ; une ligne sous la liste indique « Tapez pour affiner : d'autres résultats existent » lorsqu'il y a plus de résultats qu'affichés
 
 **Centre de coûts** :
@@ -604,11 +592,11 @@ Si vous ne pouvez pas effectuer une action (ex. : le bouton **Import CSV** est a
 
 ## Conseils
 
-- **Commencez simple** : Créez les postes avec juste l'essentiel (description, type d'immobilisation, type d'investissement, société payeuse, compte), puis ajoutez les budgets et ventilations au fur et à mesure.
+- **Commencez simple** : Créez les postes avec juste l'essentiel (titre, société payeuse, compte et dimensions obligatoires), puis ajoutez les budgets et ventilations au fur et à mesure.
 - **Utilisez la ventilation par effectif** : Pour la plupart des investissements, Effectif suffit. Réservez les ventilations manuelles aux investissements qui ne bénéficient qu'à des sociétés ou départements spécifiques.
 - **Liez les contrats** : Si vous gérez les achats d'investissement via des contrats, liez-les dans l'onglet Relations pour suivre les achats.
 - **Téléversez la documentation** : Utilisez les pièces jointes pour stocker les devis fournisseur, notes d'approbation et spécifications techniques avec le poste.
-- **Classifiez avec précision** : Utilisez le Type d'investissement et la Priorité de manière cohérente pour permettre une analyse et une priorisation pertinentes des dépenses d'investissement.
+- **Classifiez avec précision** : Utilisez les dimensions **Investment type** et **Priority** de manière cohérente pour permettre une analyse et une priorisation pertinentes des dépenses d'investissement.
 - **Maintenez les métriques des sociétés à jour** : Les ventilations dépendent de l'effectif, des utilisateurs IT et du chiffre d'affaires des sociétés. Des métriques obsolètes causent des erreurs de ventilation.
 - **Utilisez le CSV pour la configuration en masse** : Si vous migrez depuis un autre système ou avez de nombreux postes d'investissement, commencez par l'import CSV. Exportez un fichier récent, remplissez vos lignes et vérifiez-le avant de charger.
 - **Désactivez, ne supprimez pas** : Préservez l'historique en désactivant les postes lorsque les actifs sont cédés ou les projets terminés.

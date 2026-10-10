@@ -17,6 +17,19 @@ const OLD_HEADER_KEYS = new Set([
 export const OLD_BUDGET_FILE_MESSAGE =
   'This file comes from an earlier version of KANAP. Export a fresh file from this list, copy your changes into it, and import it again.';
 
+/**
+ * The columns of the three CAPEX criteria before lot C1. A file with all three is a CAPEX file
+ * exported before lot C1: refused as a whole, since their values are dimension values now, read
+ * from `analytics:ppe_type`, `analytics:investment_type` and `analytics:priority` (never guessed
+ * from the former codes). One or two of them alone are unknown columns, ignored with a warning
+ * like any other. Compared like the old headers.
+ */
+const CRITERIA_HEADER_KEYS = new Set(['ppetype', 'investmenttype', 'priority']);
+
+export const CRITERIA_COLUMNS_MESSAGE =
+  'The ppe_type, investment_type and priority columns are now dimension columns (analytics:ppe_type, analytics:investment_type, analytics:priority). '
+  + 'Export a fresh file from this list, copy your changes into it, and import it again.';
+
 /** File names of the five columns, in the order the export writes them. */
 export const FILE_COLUMNS = ['budget', 'revision', 'forecast', 'actual', 'landing'] as const;
 
@@ -43,12 +56,13 @@ export function columnOfMeasure(measure: AmountMeasure): FileColumn {
 
 /**
  * Detail columns in file order. `dimensionCodes` inserts `analytics:<code>`
- * after `run_build`. The token is not here: it is the last column, after amounts.
+ * after `run_build` (the PP&E type, investment type and priority of a CAPEX
+ * line among them since lot C1). The token is not here: it is the last column,
+ * after amounts.
  */
 export function detailColumns(scope: BudgetFileScope, dimensionCodes: readonly string[]): string[] {
   const columns = ['item_number', 'name'];
   if (scope === 'opex') columns.push('description');
-  else columns.push('ppe_type', 'investment_type', 'priority');
   columns.push(
     'company_name', 'supplier_name', 'supplier_erp_id', 'account_number', 'cost_center_code', 'run_build',
   );
@@ -115,6 +129,12 @@ export function budgetFileSchema(
       },
     },
   };
+}
+
+/** True when the header row has the three columns of the CAPEX criteria of before lot C1, on any route. */
+export function hasCriteriaColumns(headers: readonly string[]): boolean {
+  const keys = new Set(headers.map((header) => looseKey(header)));
+  return [...CRITERIA_HEADER_KEYS].every((key) => keys.has(key));
 }
 
 /** True when the header row is an OPEX item file, a CAPEX item file, or a budget rows file. */

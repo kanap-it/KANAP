@@ -73,16 +73,13 @@ Elles sont identiques dans les deux fichiers, sauf les colonnes propres au type 
 |---|---|---|
 | `item_number` | Le numéro du poste : `CPX-3` ou `3` | Vide : la ligne ajoute un poste |
 | `name` | Le titre de l'investissement | Obligatoire |
-| `ppe_type` | `hardware` ou `software` | Obligatoire |
-| `investment_type` | `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth` ou `other` | Obligatoire |
-| `priority` | `mandatory`, `high`, `medium` ou `low` | Obligatoire |
 | `company_name` | Société payeuse | Obligatoire sauf si le poste a un centre de coûts |
 | `supplier_name` | Nom du fournisseur | Facultatif |
 | `supplier_erp_id` | L'ID du fournisseur dans votre ERP | Facultatif |
 | `account_number` | Numéro de compte, dans le plan comptable de la société payeuse | Obligatoire |
 | `cost_center_code` | Code du centre de coûts. Un groupe est refusé | Facultatif |
 | `run_build` | `run` ou `build` | Facultatif |
-| `analytics:<code>` | Le nom de la valeur dans la dimension dont c'est le code. Une colonne par dimension activée utilisée pour les lignes CAPEX, dimension par défaut incluse | Facultatif, sauf pour une dimension obligatoire. Une valeur inexistante est créée par le chargement |
+| `analytics:<code>` | Le nom de la valeur dans la dimension dont c'est le code, sans tenir compte de la casse. Une colonne par dimension activée utilisée pour les lignes CAPEX, dimension par défaut incluse. Le type d'immobilisation, le type d'investissement et la priorité sont dans `analytics:ppe_type`, `analytics:investment_type` et `analytics:priority`, par exemple `Hardware`, `Business growth` ou `High` | Facultatif, sauf pour une dimension obligatoire, comme les trois dimensions CAPEX. Une valeur inexistante est créée par le chargement |
 | `owner_it_email` | E-mail d'un utilisateur actif | Facultatif |
 | `owner_business_email` | E-mail d'un utilisateur actif | Facultatif |
 | `project` | Numéro de projet, par exemple `PRJ-3` | Facultatif |
@@ -164,6 +161,10 @@ Une colonne que KANAP ne connaît pas est ignorée, avec un avertissement. Une c
 Un fichier dans un ancien format est refusé en entier : les fichiers de postes avec des colonnes de type `y_budget`, et le fichier des lignes budgétaires avec les colonnes `measure` et `jan` … `dec`. L'écran affiche ce message :
 
 > Ce fichier provient d'une version antérieure de KANAP. Exportez un nouveau fichier depuis cette liste, reportez-y vos modifications, puis importez-le de nouveau.
+
+Un fichier CAPEX exporté avant que le type d'immobilisation, le type d'investissement et la priorité deviennent des dimensions, reconnu à ses trois colonnes `ppe_type`, `investment_type` et `priority` présentes ensemble, est lui aussi refusé en entier. Ces valeurs passent désormais par des colonnes de dimension. Une ou deux de ces colonnes seules sont des colonnes inconnues, ignorées avec un avertissement. L'écran affiche ce message :
+
+> The ppe_type, investment_type and priority columns are now dimension columns (analytics:ppe_type, analytics:investment_type, analytics:priority). Export a fresh file from this list, copy your changes into it, and import it again.
 
 Exportez un nouveau fichier et reportez-y vos lignes.
 

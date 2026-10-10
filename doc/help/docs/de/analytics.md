@@ -22,7 +22,7 @@ Nature          Program
 
 ### Die Standarddimension
 
-Jeder Arbeitsbereich beginnt mit einer Dimension, der Standarddimension. Solange Sie ihr keinen Namen geben, erscheint sie als **Analysedimension**, in der Sprache jeder Person. Hatte Ihr Arbeitsbereich bereits Analysewerte, gehören sie zu dieser Dimension, und jede Zeile behält ihren Wert.
+Jeder Arbeitsbereich hat eine Standarddimension. Solange Sie ihr keinen Namen geben, erscheint sie als **Analysedimension**, in der Sprache jeder Person. Hatte Ihr Arbeitsbereich bereits Analysewerte, gehören sie zu dieser Dimension, und jede Zeile behält ihren Wert.
 
 Die Standarddimension hat eine besondere Rolle:
 
@@ -31,6 +31,23 @@ Die Standarddimension hat eine besondere Rolle:
 - Fragen an Plaid zur Analysekategorie verwenden sie. Siehe [Analysedimensionen in Plaid](#analysedimensionen-in-plaid). In einer Budgetdatei hat jede Dimension ihre eigene Spalte, die Standarddimension eingeschlossen: Siehe [Ein Budget aus einer Tabellenkalkulation laden](budget-file.md).
 - Sie bleibt die Standarddimension, wenn Sie sie umbenennen, ihren Code ändern oder sie in der Reihenfolge der Dimensionen verschieben.
 - Ihre Bezeichnung ist reserviert: Keine andere Dimension kann „Analysedimension“ heißen, und das gilt für jede Sprache der App.
+
+### CAPEX-Dimensionen
+
+Jeder Arbeitsbereich hat außerdem drei Dimensionen, die CAPEX-Zeilen klassifizieren. Sie sind auf **Nur CAPEX** gesetzt, erforderlich und aktiviert:
+
+| Dimension | Code | Werte, in ihrer Reihenfolge |
+|---|---|---|
+| **PP&E type** | `ppe_type` | Hardware, Software |
+| **Investment type** | `investment_type` | Replacement, Capacity, Productivity, Security, Conformity, Business growth, Other |
+| **Priority** | `priority` | Mandatory, High, Medium, Low |
+
+- Ihre Namen und Werte sind auf Englisch. Sie stehen nach den Dimensionen, die der Arbeitsbereich bereits hatte.
+- Trägt eine andere Dimension bereits einen dieser Namen, erhält die CAPEX-Dimension den Namen mit dem Zusatz „(CAPEX)“, zum Beispiel **Priority (CAPEX)**.
+- Hatte der Arbeitsbereich bereits eine Dimension mit einem dieser Codes, bleibt diese Dimension unverändert und erhält nur die Werte, die ihr fehlten.
+- Eine CAPEX-Zeile, die vor diesen Dimensionen angelegt wurde, trägt den Wert ihres früheren Anlagentyps, ihrer Investitionsart und ihrer Priorität.
+- Sie funktionieren wie jede andere Dimension. Sie können sie und ihre Werte umbenennen, Werte hinzufügen, die Reihenfolge ändern, ihre Einstellungen ändern, sie deaktivieren oder löschen.
+- Der Code benennt die Spalte der Dimension in der CAPEX-Budgetdatei: `analytics:ppe_type`, `analytics:investment_type` und `analytics:priority`. Wenn Sie einen Code ändern, trägt eine vor der Änderung exportierte Datei noch den alten Spaltennamen und wird mit „Unknown dimension“ abgelehnt. Exportieren Sie eine neue Datei. Siehe [Ein Budget aus einer Tabellenkalkulation laden](budget-file.md).
 
 ---
 
@@ -228,7 +245,7 @@ Die Werte einer Dimension haben eine Reihenfolge, die Sie festlegen. KANAP biete
 - der CSV-Export der Werte
 - die Werte, die Plaid auflistet
 
-Die Zeilen der Berichte behalten ihre eigene Reihenfolge, nach Betrag. Wenn Sie die OPEX- oder CAPEX-Liste nach der Spalte einer Dimension sortieren, wird sie nach dem Namen des Werts sortiert.
+Wenn Sie die OPEX- oder CAPEX-Liste nach der Spalte einer Dimension sortieren, folgt sie ebenfalls dieser Reihenfolge, dann dem Namen des Werts. Zeilen ohne Wert stehen bei aufsteigender Sortierung am Ende. Die Zeilen der Berichte behalten ihre eigene Reihenfolge, nach Betrag.
 
 Anfangs stehen die Werte in alphabetischer Reihenfolge. Ein neuer Wert kommt in seiner Dimension an die letzte Stelle.
 
@@ -295,7 +312,7 @@ Im Bereich **Eigenschaften** einer OPEX- oder CAPEX-Position, und wenn Sie eine 
 - Ein Wert gilt für die ganze Zeile, über alle Jahre.
 - Können die Dimensionen nicht geladen werden, ersetzt eine Zeile diese Felder: „Die Dimensionen konnten nicht geladen werden.“
 
-Die OPEX- und CAPEX-Listen haben eine Spalte pro aktivierter Dimension, die für diese Zeilenart verwendet wird, standardmäßig ausgeblendet, mit Kontrollkästchen-Filtern. Siehe [OPEX](opex.md) und [CAPEX](capex.md).
+Die OPEX- und CAPEX-Listen haben eine Spalte pro aktivierter Dimension, die für diese Zeilenart verwendet wird, mit Kontrollkästchen-Filtern. Die Spalte einer Dimension, die für diese Zeilenart erforderlich ist, wird standardmäßig angezeigt, die anderen Spalten sind ausgeblendet. Eine von Ihnen gespeicherte Spaltenanordnung behält ihre eigene Auswahl. Siehe [OPEX](opex.md) und [CAPEX](capex.md).
 
 ---
 
@@ -320,6 +337,7 @@ Die sieben Budgetberichte lassen sich auch auf einen Wert einer Dimension eingre
 - Die Suche von Plaid und die `@`-Erwähnungen im Chat finden eine OPEX- oder CAPEX-Zeile über den Namen eines Werts, den sie auf einer für ihren Typ angezeigten Dimension hat, mit oder ohne Akzente.
 - Plaid kann den Wert einer Zeile in jeder Dimension setzen, ändern oder löschen, wenn es eine OPEX- oder CAPEX-Zeile anlegt oder aktualisiert. Fragen Sie zum Beispiel: „Setze die Nature de coût von OPX-12 auf Licences et maintenance.“ Plaid findet den Wert über seinen Namen in dieser Dimension und zeigt in der Vorschau die Dimension und den Wert, vorher und nachher. Nichts ändert sich, bevor Sie zustimmen.
 - Plaid befolgt dieselben Regeln wie die App: nur aktivierte Dimensionen, die für den Typ der Zeile verwendet werden, nur aktivierte Werte, die für den Typ der Zeile verwendet werden, und eine Zeile behält einen Wert, den sie bereits trägt.
+- Wenn Plaid eine Zeile anlegt, braucht sie einen Wert auf jeder erforderlichen Dimension des Zeilentyps. Bei einer CAPEX-Zeile gehören **PP&E type**, **Investment type** und **Priority** dazu.
 - Plaid weiß, welche Dimensionen erforderlich sind. Eine neue Zeile braucht in jeder von ihnen einen Wert, und Plaid kann den Wert einer erforderlichen Dimension nicht löschen. Plaid lehnt eine Anfrage ab, die gegen die Regel verstößt, und nennt den Grund, zum Beispiel „Nature is required for spend item creation.“
 - Plaid kann auch einen Wert in der Dimension anlegen, die Sie nennen. Ohne Angabe einer Dimension kommt der Wert in die Standarddimension.
 

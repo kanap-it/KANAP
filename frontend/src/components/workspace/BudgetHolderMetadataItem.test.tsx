@@ -64,13 +64,11 @@ const BARS: Array<[string, (costCenterId: string | null, known?: Known) => React
   ['CAPEX', (costCenterId, known = null) => (
     <CapexMetadataBar
       status="enabled"
-      priority="medium"
       ownerItId={null}
       ownerBizId={null}
       costCenterId={costCenterId}
       costCenter={known}
       onStatusChange={noop}
-      onPriorityChange={noop}
       onOwnerItChange={noop}
       onOwnerBizChange={noop}
     />

@@ -153,15 +153,16 @@ export const SUMMARY_SCOPES: Record<SummaryScope, SummaryScopeConfig> = {
     nameField: 'product_name',
     fieldColumns: { description: 'product_name' },
     columns: [
-      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id', 'ppe_type', 'investment_type', 'priority',
+      'id', 'item_number', 'description', 'paying_company_id', 'supplier_id', 'account_id',
       'currency', 'effective_start', 'disabled_at', 'status', 'owner_it_id', 'owner_business_id', 'project_id',
       'cost_center_id', 'run_build', 'notes', 'created_at', 'updated_at',
     ],
-    extraFields: ['ppe_type', 'investment_type', 'priority'],
-    // Read by CapexPage.tsx: the cells (the three enums through their labels), their tooltips and
-    // links, the row id and the delete confirmation (description).
+    // The PP&E type, investment type and priority are dimension values since lot C1 (`analytics_<id>`).
+    extraFields: [],
+    // Read by CapexPage.tsx: the cells, their tooltips and links, the row id and the delete
+    // confirmation (description).
     gridItemColumns: [
-      'id', 'item_number', 'reference', 'description', 'ppe_type', 'investment_type', 'priority', 'status', 'currency', 'effective_start',
+      'id', 'item_number', 'reference', 'description', 'status', 'currency', 'effective_start',
       'disabled_at', 'notes', 'created_at', 'updated_at',
     ],
   },
@@ -183,17 +184,14 @@ export interface SummaryDeps {
 /**
  * Enum columns that sort in their business order, the declaration order of
  * their database enum, not alphabetically by code: the list engine ranks
- * their values (a value outside the list sorts as blank). The CAPEX priority,
- * investment type and PPE type joined status and run or build with lot 2B's
- * decision Q4 (they sorted by code before: high, low, mandatory, medium). A
- * spec checks each list against `pg_enum`.
+ * their values (a value outside the list sorts as blank). A spec checks each
+ * list against `pg_enum`. The CAPEX priority, investment type and PP&E type
+ * are dimensions since lot C1: their values sort in the dimension's order
+ * (`budget-list.config.ts`, `axisValue`).
  */
 export const FIXED_SORT_ORDERS: Record<string, readonly string[]> = {
   status: [StatusState.ENABLED, StatusState.DISABLED],
   run_build: ['run', 'build'],
-  priority: ['mandatory', 'high', 'medium', 'low'],
-  investment_type: ['replacement', 'capacity', 'productivity', 'security', 'conformity', 'business_growth', 'other'],
-  ppe_type: ['hardware', 'software'],
 };
 
 export type SummarySlotTotals = Record<SlotMetric, number>;

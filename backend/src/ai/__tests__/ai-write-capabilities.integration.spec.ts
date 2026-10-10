@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
 import { DataSource, QueryRunner } from 'typeorm';
 import { ensureDefaultAnalyticsAxis } from '../../analytics/analytics-axes.util';
+import { ensureCapexDimensions } from '../../analytics/capex-dimensions.seed';
 
 process.env.AI_CHAT_ENABLED = 'true';
 process.env.AI_SETTINGS_ENABLED = 'true';
@@ -928,9 +929,6 @@ async function testBusinessTaskFinancialWritesAndRbac(harness: Harness) {
         entity_type: 'capex_items',
         fields: {
           description: `Forbidden CAPEX ${seed.tag}`,
-          ppe_type: 'hardware',
-          investment_type: 'capacity',
-          priority: 'medium',
           paying_company_id: seed.companyId,
           currency: 'EUR',
           effective_start: '2026-01-01',
@@ -1158,7 +1156,7 @@ async function testItemAnalyticsDimensions(harness: Harness) {
         lineType: 'CAPEX', otherType: 'OPEX', ownAxis: assetClass, ownCode: 'asset-class', ownValue: servers, ownName: 'Servers',
         otherCode: 'recurrence', otherName: 'Recurrence', otherValueName: 'Monthly',
         createFields: {
-          description: `Dimensions ${seed.tag}`, ppe_type: 'hardware', investment_type: 'capacity', priority: 'medium',
+          description: `Dimensions ${seed.tag}`,
           paying_company_id: seed.companyId, currency: 'EUR', effective_start: '2026-01-01',
         },
       },
@@ -1337,6 +1335,41 @@ async function testItemAnalyticsDimensions(harness: Harness) {
 }
 
 /**
+ * Lot C1a: the PP&E type, investment type and priority of a CAPEX line are the values of the
+ * dimensions every tenant starts with. A create without them is refused naming the first one; the
+ * former field keys are no longer writable; the values pass under `analytics:<code>`.
+ */
+async function testCapexCriteriaAreDimensions(harness: Harness) {
+  await withSeededTransaction(harness, async (runner, seed) => {
+    await ensureCapexDimensions(runner.manager, seed.tenantId);
+    const ctx = context(seed, runner, 'capex-criteria');
+    const fields = { description: `Criteria ${seed.tag}`, paying_company_id: seed.companyId, currency: 'EUR', effective_start: '2026-01-01' };
+    const create = (extra: Record<string, unknown>) =>
+      harness.tools.execute(ctx, 'create_business_record', { entity_type: 'capex_items', fields: { ...fields, ...extra } });
+
+    await expectRejects(() => create({}), /^PP&E type is required for CAPEX item creation\.$/);
+    await expectRejects(() => create({ ppe_type: 'hardware' }), /^"?ppe_type"? is not writable for CAPEX items\./);
+    await expectRejects(
+      () => create({ 'analytics:ppe_type': 'Hardware', 'analytics:investment_type': 'Capacity' }),
+      /^Priority is required for CAPEX item creation\.$/,
+    );
+    const created = await executeToolPreview(harness, ctx, 'create_business_record', {
+      entity_type: 'capex_items',
+      fields: { ...fields, 'analytics:ppe_type': 'Hardware', 'analytics:investment_type': 'Capacity', 'analytics:priority': 'High' },
+    });
+    const createdId = (await approvePreview(harness, ctx, created)).target.entity_id;
+    const values = await runner.query(
+      `SELECT a.code, c.name FROM spend_item_analytics_values v
+         JOIN analytics_axes a ON a.id = v.axis_id AND a.tenant_id = v.tenant_id
+         JOIN analytics_categories c ON c.id = v.category_id AND c.tenant_id = v.tenant_id
+        WHERE v.tenant_id = $1 AND v.item_id = $2 ORDER BY a.sort_order`,
+      [seed.tenantId, createdId],
+    );
+    assert.deepEqual(values.map((row: any) => `${row.code}=${row.name}`), ['ppe_type=Hardware', 'investment_type=Capacity', 'priority=High']);
+  });
+}
+
+/**
  * Lot D2: a required dimension. The create preview is refused without a value on it (in the style
  * of the other create-time fields) and passes with one; an update preview clearing a held value is
  * refused with the write gate's message. A disabled required dimension and one of the other line
@@ -1370,7 +1403,7 @@ async function testItemRequiredDimensions(harness: Harness) {
       {
         entityType: 'capex_items', itemId: seed.capexItemId, linkTable: 'spend_item_analytics_values', label: 'CAPEX item', other: 'opex',
         createFields: {
-          description: `Required ${seed.tag}`, ppe_type: 'hardware', investment_type: 'capacity', priority: 'medium',
+          description: `Required ${seed.tag}`,
           paying_company_id: seed.companyId, currency: 'EUR', effective_start: '2026-01-01',
         },
       },
@@ -1562,6 +1595,7 @@ async function run() {
     await testItemAnalyticsCategoryThroughTheLinks(harness);
     await testItemAnalyticsDimensions(harness);
     await testItemRequiredDimensions(harness);
+    await testCapexCriteriaAreDimensions(harness);
     await testAnalyticsValueInANamedDimension(harness);
     await testBudgetLinesByBusinessReference(harness);
   } finally {

@@ -190,6 +190,8 @@ describe('CapexItemPage create', () => {
       analytics_values: { 'axis-default': 'category-1', 'axis-nature': 'category-2' },
     });
     expect(mocked.post.mock.calls[0][1]).not.toHaveProperty('analytics_category_id');
+    // No preloaded PP&E type, investment type or priority: they are dimension values (lot C1).
+    for (const former of ['ppe_type', 'investment_type', 'priority']) expect(mocked.post.mock.calls[0][1]).not.toHaveProperty(former);
     // The page moves on to the new line's workspace.
     await waitFor(() => expect(mocked.get).toHaveBeenCalledWith('/capex-items/new-id', expect.objectContaining({ signal: expect.any(AbortSignal) })));
   });
@@ -536,6 +538,28 @@ describe('CapexItemPage list context and dimensions', () => {
     expect(JSON.parse(stored.filters)).toEqual(kept);
   });
 
+  it('walks prev/next like the list: a sort or filter on a former CAPEX criterion falls back', async () => {
+    const kept = { [`analytics_${NATURE}`]: { filterType: 'set', values: ['Licences'] } };
+    const filters = {
+      ...kept,
+      priority: { filterType: 'set', values: ['high'] },
+      ppe_type: { filterType: 'set', values: ['hardware'] },
+    };
+    window.sessionStorage.setItem('capex-list-context', JSON.stringify({
+      sort: 'priority:ASC', q: '', filters: JSON.stringify(filters), statusScope: 'enabled',
+    }));
+    renderAt(`/ops/capex/${ITEM_ID}/overview`);
+    await waitFor(() => expect(nav.calls.some((c) => c.enabled)).toBe(true));
+    for (const call of nav.calls.filter((c) => c.enabled)) {
+      expect(call.sort ?? null).toBeNull();
+      expect(JSON.parse(call.filters ?? '{}')).toEqual(kept);
+    }
+    // The stored list context is written back without them.
+    const stored = JSON.parse(window.sessionStorage.getItem('capex-list-context') ?? '{}');
+    expect(stored.sort).toBe('');
+    expect(JSON.parse(stored.filters)).toEqual(kept);
+  });
+
   it('keeps a sort on an enabled dimension', async () => {
     window.sessionStorage.setItem('capex-list-context', JSON.stringify({
       sort: `analytics_${NATURE}:DESC`, q: '', filters: '', statusScope: 'enabled',
@@ -569,7 +593,7 @@ describe('CapexItemPage autosave across lines', () => {
   const LINE_B = 'bbbbbbbb-0000-4000-8000-00000000000b';
   const line = (id: string, n: number, name: string) => ({
     id, item_number: n, description: name, notes: `${name} notes`, currency: 'EUR', effective_start: '2026-01-01',
-    paying_company_id: 'company-1', account_id: 'account-1', ppe_type: 'hardware', investment_type: 'replacement', priority: 'medium',
+    paying_company_id: 'company-1', account_id: 'account-1',
   });
   let busy = true;
 
@@ -915,7 +939,7 @@ describe('CapexItemPage cost center across lines', () => {
     company_id: 'company-1', company_name: 'Company', owner_user_id: 'user-1', owner_name: 'Ada Holder',
   });
   const line = (id: string, n: number, costCenter: { id: string; code: string }) => ({
-    id, item_number: n, description: `Line ${n}`, notes: '', ppe_type: 'hardware', investment_type: 'replacement', priority: 'medium',
+    id, item_number: n, description: `Line ${n}`, notes: '',
     currency: 'EUR', effective_start: '2026-01-01', paying_company_id: 'company-1', account_id: 'account-1',
     cost_center_id: costCenter.id, references: { cost_center: costCenter },
   });

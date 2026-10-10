@@ -69,9 +69,6 @@ const OPEX_ROW = {
 const CAPEX_ROW = {
   item_number: '',
   description: 'SAP Cheddar Migration',
-  ppe_type: 'software',
-  investment_type: 'replacement',
-  priority: 'mandatory',
   currency: 'EUR',
   effective_start: '2025-07-01',
   status: 'enabled',
@@ -82,6 +79,9 @@ const CAPEX_ROW = {
   owner_business_email: 'isabelle.moreau@fromage-co.example',
   analytics_category: 'Centre de compétences',
   'analytics:nature': 'Conseil',
+  'analytics:ppe_type': 'Software',
+  'analytics:investment_type': 'Replacement',
+  'analytics:priority': 'Mandatory',
   cost_center_code: 'FR-DIS-200',
   run_build: 'build',
   y_minus1_budget: '50000',
@@ -96,7 +96,7 @@ const CAPEX_ROW = {
 };
 
 const OPEX_HEADER = 'item_number,name,description,company_name,supplier_name,supplier_erp_id,account_number,cost_center_code,run_build,analytics:default,analytics:nature,analytics:reference,owner_it_email,owner_business_email,project,currency,effective_start,end_of_validity,notes,budget_2025,landing_2025,budget_2026,revision_2026,actual_2026,landing_2026,budget_2027,revision_2027,kanap_token';
-const CAPEX_HEADER = 'item_number,name,ppe_type,investment_type,priority,company_name,supplier_name,supplier_erp_id,account_number,cost_center_code,run_build,analytics:default,analytics:nature,owner_it_email,owner_business_email,project,currency,effective_start,end_of_validity,notes,budget_2025,landing_2025,budget_2026,revision_2026,actual_2026,landing_2026,budget_2027,revision_2027,budget_2028,kanap_token';
+const CAPEX_HEADER = 'item_number,name,company_name,supplier_name,supplier_erp_id,account_number,cost_center_code,run_build,analytics:default,analytics:nature,analytics:ppe_type,analytics:investment_type,analytics:priority,owner_it_email,owner_business_email,project,currency,effective_start,end_of_validity,notes,budget_2025,landing_2025,budget_2026,revision_2026,actual_2026,landing_2026,budget_2027,revision_2027,budget_2028,kanap_token';
 
 test('OPEX lines file: column order, dimension column, token last', () => {
   const csv = buildLinesFile('opex', [OPEX_ROW], { year: 2026, defaultDimensionCode: 'default', existingNumbers: new Map() });
@@ -105,11 +105,16 @@ test('OPEX lines file: column order, dimension column, token last', () => {
   assert.equal(header.at(-1), 'kanap_token');
 });
 
-test('CAPEX lines file: column order, CAPEX has no description column', () => {
+test('CAPEX lines file: column order, CAPEX has no description column, the criteria as dimension columns', () => {
   const csv = buildLinesFile('capex', [CAPEX_ROW], { year: 2026, defaultDimensionCode: 'default', existingNumbers: new Map() });
-  const { header } = parse(csv);
+  const { header, rows } = parse(csv);
   assert.equal(header.join(','), CAPEX_HEADER);
   assert.ok(!header.includes('description'));
+  for (const former of ['ppe_type', 'investment_type', 'priority']) assert.ok(!header.includes(former), `no ${former} column`);
+  assert.deepEqual(
+    [rows[0]['analytics:ppe_type'], rows[0]['analytics:investment_type'], rows[0]['analytics:priority']],
+    ['Software', 'Replacement', 'Mandatory'],
+  );
 });
 
 test('relative amount columns land on the year Y passed in', () => {

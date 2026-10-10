@@ -204,9 +204,6 @@
     "columns": {
       "description": "Beschreibung",
       "company": "Unternehmen",
-      "ppeType": "Anlagentyp",
-      "investmentType": "Investitionsart",
-      "priority": "Priorität",
       "yAllocation": "J Zuordnung",
       "yPlus1Allocation": "J+1 Zuordnung",
       "currency": "Währung",
@@ -232,28 +229,9 @@
       "budgetHolder": "Budgetverantwortlicher",
       "runBuild": "Run oder Build"
     },
-    "ppeTypes": {
-      "hardware": "Hardware",
-      "software": "Software"
-    },
     "runBuild": {
       "run": "Run",
       "build": "Build"
-    },
-    "investmentTypes": {
-      "replacement": "Ersatz",
-      "capacity": "Kapazität",
-      "productivity": "Produktivität",
-      "security": "Sicherheit",
-      "conformity": "Konformität",
-      "business_growth": "Geschäftswachstum",
-      "other": "Sonstiges"
-    },
-    "priorityTypes": {
-      "mandatory": "Pflicht",
-      "high": "Hoch",
-      "medium": "Mittel",
-      "low": "Niedrig"
     },
     "workspace": {
       "newCapexItem": "Neue CAPEX-Position",
@@ -397,9 +375,6 @@
       "notes": "Notizen",
       "notesPlaceholder": "z. B. Verlängerung im Q3 verhandelt",
       "description": "Beschreibung",
-      "ppeType": "Anlagentyp",
-      "investmentType": "Investitionsart",
-      "priority": "Priorität",
       "costCenter": "Kostenstelle",
       "costCenterCompanyHint": "Diese Kostenstelle gehört zu {{company}}.",
       "runBuild": "Run oder Build"
@@ -409,8 +384,7 @@
       "itOwner": "IT-Verantwortlicher",
       "itOwnerMissing": "IT-Verantwortlicher fehlt",
       "businessOwner": "Fachverantwortlicher",
-      "businessOwnerMissing": "Fachverantwortlicher fehlt",
-      "priority": "Priorität"
+      "businessOwnerMissing": "Fachverantwortlicher fehlt"
     },
     "status": {
       "enabled": "Aktiviert",

@@ -60,7 +60,6 @@ const ITEM_COLUMNS: Record<string, FieldSql['kind']> = {
 };
 
 const OPEX_ONLY_COLUMNS: Record<string, FieldSql['kind']> = { product_name: 'text', contract_id: 'uuid' };
-const CAPEX_ONLY_COLUMNS: Record<string, FieldSql['kind']> = { ppe_type: 'enum', investment_type: 'enum', priority: 'enum' };
 
 /** The separator of the entries the quick search reads as one text (U+001F), and its SQL literal. */
 const SEP_CHAR = '\u001f';
@@ -75,7 +74,7 @@ export class BudgetListConfig implements ListConfig {
 
   constructor(private readonly rt: BudgetListRuntime) {
     this.from = `${rt.scope.itemTable} i`;
-    this.columns = { ...ITEM_COLUMNS, ...(rt.scope.scope === 'opex' ? OPEX_ONLY_COLUMNS : CAPEX_ONLY_COLUMNS) };
+    this.columns = { ...ITEM_COLUMNS, ...(rt.scope.scope === 'opex' ? OPEX_ONLY_COLUMNS : {}) };
   }
 
   private get scope() {
@@ -481,7 +480,8 @@ export class BudgetListConfig implements ListConfig {
     const link = this.axisLink(stmt, index);
     const category = `axc${index}`;
     this.join(stmt, category, `LEFT JOIN analytics_categories ${category} ON ${category}.tenant_id = ${stmt.tenant} AND ${category}.id = ${link}.category_id`, [link]);
-    return { kind: 'text', sql: `${category}.name`, joins: [category] };
+    // Sorted in the dimension's order (D3; lot C1, decision 2): the value's position, then its name.
+    return { kind: 'text', sql: `${category}.name`, joins: [category], position: `${category}.sort_order` };
   }
 
   /** The line's link on the tenant's dimension of that index (one row at most: the link's primary key). */
@@ -668,7 +668,7 @@ export class BudgetListConfig implements ListConfig {
         const index = link.slice(2);
         return key === 'analytics_category_id'
           ? { kind: 'uuid', sql: `${link}.category_id::text`, joins: [link] }
-          : { kind: 'text', sql: `axc${index}.name`, joins: [`axc${index}`] };
+          : { kind: 'text', sql: `axc${index}.name`, joins: [`axc${index}`], position: `axc${index}.sort_order` };
       }
       case 'cost_center_code':
       case 'cost_center_name':

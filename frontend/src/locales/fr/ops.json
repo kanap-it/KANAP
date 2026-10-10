@@ -204,9 +204,6 @@
     "columns": {
       "description": "Description",
       "company": "Société",
-      "ppeType": "Type d'immobilisation",
-      "investmentType": "Type d'investissement",
-      "priority": "Priorité",
       "yAllocation": "Ventilation A",
       "yPlus1Allocation": "Ventilation A+1",
       "currency": "Devise",
@@ -232,28 +229,9 @@
       "budgetHolder": "Responsable budgétaire",
       "runBuild": "Run ou build"
     },
-    "ppeTypes": {
-      "hardware": "Matériel",
-      "software": "Logiciel"
-    },
     "runBuild": {
       "run": "Run",
       "build": "Build"
-    },
-    "investmentTypes": {
-      "replacement": "Remplacement",
-      "capacity": "Capacité",
-      "productivity": "Productivité",
-      "security": "Sécurité",
-      "conformity": "Conformité",
-      "business_growth": "Croissance métier",
-      "other": "Autre"
-    },
-    "priorityTypes": {
-      "mandatory": "Obligatoire",
-      "high": "Haute",
-      "medium": "Moyenne",
-      "low": "Basse"
     },
     "workspace": {
       "newCapexItem": "Nouveau poste CAPEX",
@@ -397,9 +375,6 @@
       "notes": "Notes",
       "notesPlaceholder": "ex. renouvellement négocié au T3",
       "description": "Description",
-      "ppeType": "Type d'immobilisation",
-      "investmentType": "Type d'investissement",
-      "priority": "Priorité",
       "costCenter": "Centre de coûts",
       "costCenterCompanyHint": "Ce centre de coûts appartient à {{company}}.",
       "runBuild": "Run ou build"
@@ -409,8 +384,7 @@
       "itOwner": "Responsable IT",
       "itOwnerMissing": "Responsable IT manquant",
       "businessOwner": "Responsable métier",
-      "businessOwnerMissing": "Responsable métier manquant",
-      "priority": "Priorité"
+      "businessOwnerMissing": "Responsable métier manquant"
     },
     "status": {
       "enabled": "Activé",

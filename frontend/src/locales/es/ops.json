@@ -204,9 +204,6 @@
     "columns": {
       "description": "Descripción",
       "company": "Empresa",
-      "ppeType": "Tipo de activo fijo",
-      "investmentType": "Tipo de inversión",
-      "priority": "Prioridad",
       "yAllocation": "Asignación A",
       "yPlus1Allocation": "Asignación A+1",
       "currency": "Moneda",
@@ -232,28 +229,9 @@
       "budgetHolder": "Responsable del presupuesto",
       "runBuild": "Run o build"
     },
-    "ppeTypes": {
-      "hardware": "Hardware",
-      "software": "Software"
-    },
     "runBuild": {
       "run": "Run",
       "build": "Build"
-    },
-    "investmentTypes": {
-      "replacement": "Reemplazo",
-      "capacity": "Capacidad",
-      "productivity": "Productividad",
-      "security": "Seguridad",
-      "conformity": "Conformidad",
-      "business_growth": "Crecimiento del negocio",
-      "other": "Otro"
-    },
-    "priorityTypes": {
-      "mandatory": "Obligatorio",
-      "high": "Alta",
-      "medium": "Media",
-      "low": "Baja"
     },
     "workspace": {
       "newCapexItem": "Nueva partida CAPEX",
@@ -397,9 +375,6 @@
       "notes": "Notas",
       "notesPlaceholder": "p. ej., renovación negociada en el T3",
       "description": "Descripción",
-      "ppeType": "Tipo de activo fijo",
-      "investmentType": "Tipo de inversión",
-      "priority": "Prioridad",
       "costCenter": "Centro de coste",
       "costCenterCompanyHint": "Este centro de coste pertenece a {{company}}.",
       "runBuild": "Run o build"
@@ -409,8 +384,7 @@
       "itOwner": "Responsable de TI",
       "itOwnerMissing": "Falta responsable de TI",
       "businessOwner": "Responsable de negocio",
-      "businessOwnerMissing": "Falta responsable de negocio",
-      "priority": "Prioridad"
+      "businessOwnerMissing": "Falta responsable de negocio"
     },
     "status": {
       "enabled": "Activado",

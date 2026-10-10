@@ -1,7 +1,7 @@
 import { CENTS_LIMIT } from '../../common/amount';
 import { CsvDateOrder, CsvLanguage, CsvParsedDate, CsvReadResult, DecimalMark, readCsv } from '../../common/csv-sheet';
 import { AmountMeasure } from '../amounts-write.util';
-import { budgetFileSchema, isOldBudgetLayout, OLD_BUDGET_FILE_MESSAGE, schemaFields } from './columns';
+import { budgetFileSchema, CRITERIA_COLUMNS_MESSAGE, hasCriteriaColumns, isOldBudgetLayout, OLD_BUDGET_FILE_MESSAGE, schemaFields } from './columns';
 import { parseToken, ParsedToken } from './token';
 import { BudgetFileScope } from './types';
 
@@ -45,8 +45,10 @@ export interface InterpretedRow {
 }
 
 /**
- * Read one budget file. An old layout comes back as that one message and no
- * rows, so the preflight does not also list a missing name on every line.
+ * Read one budget file. An old layout, or a CAPEX file of before lot C1 (the
+ * three criteria columns together), comes back as that one message and no
+ * rows, so the preflight does not also list a missing name or dimension on
+ * every line.
  */
 export async function readBudgetCsv(
   input: Buffer | string,
@@ -64,12 +66,15 @@ export async function readBudgetCsv(
     input,
     budgetFileSchema(options.scope, options.language, options.dimensionCodes, options.dateOrder, options.decimalMark, options.refusedDimensions),
   );
-  if (!isOldBudgetLayout(read.rawHeaders)) return read;
+  const refusal = isOldBudgetLayout(read.rawHeaders)
+    ? OLD_BUDGET_FILE_MESSAGE
+    : hasCriteriaColumns(read.rawHeaders) ? CRITERIA_COLUMNS_MESSAGE : null;
+  if (!refusal) return read;
   return {
     ...read,
     headerErrors: [],
     ignoredColumns: [],
-    fileErrors: [OLD_BUDGET_FILE_MESSAGE],
+    fileErrors: [refusal],
     rows: [],
     dates: null,
     amounts: null,

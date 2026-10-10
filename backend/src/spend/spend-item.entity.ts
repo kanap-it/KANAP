@@ -33,25 +33,6 @@ export class SpendItem {
   @Column('text', { nullable: true, select: false })
   legacy_number!: string | null;
 
-  /**
-   * The CAPEX classification (lot Z1, until lot C1 turns it into dimensions): set on CAPEX lines,
-   * empty on OPEX lines. Never selected unless asked for, so an OPEX line reads as before.
-   */
-  @Column({ type: 'enum', enum: ['hardware', 'software'], enumName: 'ppe_type', nullable: true, select: false })
-  ppe_type!: 'hardware' | 'software' | null;
-
-  @Column({
-    type: 'enum',
-    enum: ['replacement', 'capacity', 'productivity', 'security', 'conformity', 'business_growth', 'other'],
-    enumName: 'capex_investment_type',
-    nullable: true,
-    select: false,
-  })
-  investment_type!: 'replacement' | 'capacity' | 'productivity' | 'security' | 'conformity' | 'business_growth' | 'other' | null;
-
-  @Column({ type: 'enum', enum: ['mandatory', 'high', 'medium', 'low'], enumName: 'priority_level', nullable: true, select: false })
-  priority!: 'mandatory' | 'high' | 'medium' | 'low' | null;
-
   @Column('uuid', { nullable: true })
   paying_company_id!: string | null;
 

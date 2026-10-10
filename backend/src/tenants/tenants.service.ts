@@ -11,6 +11,7 @@ import { DEFAULT_TASK_TYPES } from '../portfolio/portfolio-task-type.entity';
 import { DEFAULT_EMPLOYMENT_TYPES } from '../portfolio/portfolio-employment-type.entity';
 import { seedManagedDocsKnowledgeAssets } from '../knowledge/integrated-document-seed';
 import { ensureDefaultAnalyticsAxis } from '../analytics/analytics-axes.util';
+import { ensureCapexDimensions } from '../analytics/capex-dimensions.seed';
 
 // Built-in roles configuration for newly created tenants.
 const BUILT_IN_ROLES: Array<{
@@ -393,13 +394,15 @@ export class TenantsService {
 
   /**
    * The defaults every tenant starts with: system and built-in roles with their permissions,
-   * the default analytics dimension, task types, employment types, and the document libraries
-   * with their folders, types and templates. Idempotent: existing rows are kept. Also used to
-   * rebuild a tenant's starting state (TenantBaselineService).
+   * the default analytics dimension and the three CAPEX dimensions (PP&E type, investment type,
+   * priority) with their values, task types, employment types, and the document libraries with
+   * their folders, types and templates. Idempotent: existing rows are kept. Also used to rebuild
+   * a tenant's starting state (TenantBaselineService).
    */
   async seedTenantDefaults(manager: EntityManager, tenantId: string) {
     await this.ensureSystemRoles(manager, tenantId);
     await ensureDefaultAnalyticsAxis(manager, tenantId);
+    await ensureCapexDimensions(manager, tenantId);
     await this.seedDefaultTaskTypes(manager, tenantId);
     await this.seedDefaultEmploymentTypes(manager, tenantId);
     await this.seedDefaultDocumentLibraries(manager, tenantId);

@@ -22,7 +22,7 @@ Nature          Program
 
 ### La dimension par défaut
 
-Chaque espace de travail commence avec une dimension, la dimension par défaut. Tant que vous ne lui donnez pas de nom, elle s'affiche comme **Dimension analytique**, dans la langue de chaque personne. Si votre espace de travail avait déjà des valeurs analytiques, elles appartiennent à cette dimension et chaque ligne conserve sa valeur.
+Chaque espace de travail a une dimension par défaut. Tant que vous ne lui donnez pas de nom, elle s'affiche comme **Dimension analytique**, dans la langue de chaque personne. Si votre espace de travail avait déjà des valeurs analytiques, elles appartiennent à cette dimension et chaque ligne conserve sa valeur.
 
 La dimension par défaut a un rôle particulier :
 
@@ -31,6 +31,23 @@ La dimension par défaut a un rôle particulier :
 - Les questions posées à Plaid sur la catégorie analytique l'utilisent. Voir [Dimensions analytiques dans Plaid](#dimensions-analytiques-dans-plaid). Dans un fichier budgétaire, chaque dimension a sa propre colonne, dimension par défaut incluse : voir [Charger un budget depuis un tableur](budget-file.md).
 - Elle reste la dimension par défaut quand vous la renommez, changez son code ou la déplacez dans l'ordre des dimensions.
 - Son libellé est réservé : aucune autre dimension ne peut s'appeler « Dimension analytique », dans aucune des langues de l'application.
+
+### Dimensions CAPEX
+
+Chaque espace de travail a aussi trois dimensions qui classent les lignes CAPEX. Elles sont utilisées pour **CAPEX uniquement**, obligatoires et activées :
+
+| Dimension | Code | Valeurs, dans l'ordre |
+|---|---|---|
+| **PP&E type** | `ppe_type` | Hardware, Software |
+| **Investment type** | `investment_type` | Replacement, Capacity, Productivity, Security, Conformity, Business growth, Other |
+| **Priority** | `priority` | Mandatory, High, Medium, Low |
+
+- Leurs noms et leurs valeurs sont en anglais. Elles viennent après les dimensions que l'espace de travail avait déjà.
+- Quand une autre dimension porte déjà l'un de ces noms, la dimension CAPEX reçoit ce nom suivi de « (CAPEX) », par exemple **Priority (CAPEX)**.
+- Quand l'espace de travail avait déjà une dimension avec l'un de ces codes, cette dimension est conservée telle quelle et reçoit seulement les valeurs qui lui manquaient.
+- Une ligne CAPEX créée avant ces dimensions porte la valeur de son ancien type d'immobilisation, type d'investissement et priorité.
+- Elles fonctionnent comme toute autre dimension. Vous pouvez les renommer, renommer leurs valeurs, ajouter des valeurs, changer l'ordre, modifier leurs réglages, les désactiver ou les supprimer.
+- Le code donne son nom à la colonne de la dimension dans le fichier budgétaire CAPEX : `analytics:ppe_type`, `analytics:investment_type` et `analytics:priority`. Si vous changez un code, un fichier exporté avant le changement porte encore l'ancien nom de colonne et il est refusé avec « Unknown dimension ». Exportez un nouveau fichier. Voir [Charger un budget depuis un tableur](budget-file.md).
 
 ---
 
@@ -228,7 +245,7 @@ Les valeurs d'une dimension ont un ordre, que vous définissez. KANAP propose le
 - l'export CSV des valeurs
 - les valeurs que liste Plaid
 
-Les lignes des rapports gardent leur propre ordre, par montant. Trier la liste OPEX ou CAPEX sur la colonne d'une dimension la trie par nom de valeur.
+Trier la liste OPEX ou CAPEX sur la colonne d'une dimension suit aussi cet ordre, puis le nom de la valeur. Les lignes sans valeur viennent en dernier dans l'ordre croissant. Les lignes des rapports gardent leur propre ordre, par montant.
 
 Au départ, les valeurs sont dans l'ordre alphabétique. Une nouvelle valeur se place en dernier dans sa dimension.
 
@@ -295,7 +312,7 @@ Dans le panneau **Propriétés** d'un poste OPEX ou CAPEX, et lorsque vous en cr
 - Une valeur s'applique à toute la ligne, sur toutes les années.
 - Si les dimensions ne peuvent pas être chargées, une ligne remplace ces champs : « Les dimensions n'ont pas pu être chargées. »
 
-Les listes OPEX et CAPEX ont une colonne par dimension activée utilisée pour ce type de ligne, masquée par défaut, avec un filtre par cases à cocher. Voir [OPEX](opex.md) et [CAPEX](capex.md).
+Les listes OPEX et CAPEX ont une colonne par dimension activée utilisée pour ce type de ligne, avec un filtre par cases à cocher. La colonne d'une dimension obligatoire pour ce type de ligne s'affiche par défaut, et les autres colonnes sont masquées. Une disposition de colonnes que vous avez enregistrée garde son propre choix. Voir [OPEX](opex.md) et [CAPEX](capex.md).
 
 ---
 
@@ -320,6 +337,7 @@ Les sept rapports budgétaires peuvent aussi être restreints à une valeur d'un
 - La recherche de Plaid et les mentions `@` du chat trouvent une ligne OPEX ou CAPEX par le nom d'une valeur qu'elle porte sur une dimension affichée pour son type, avec ou sans accents.
 - Plaid peut définir, modifier ou effacer la valeur d'une ligne sur n'importe quelle dimension lorsqu'il crée ou met à jour une ligne OPEX ou CAPEX. Demandez par exemple : « Mets la Nature de coût de OPX-12 sur Licences et maintenance ». Plaid trouve la valeur par son nom dans cette dimension et affiche dans l'aperçu la dimension et la valeur, avant et après. Rien ne change tant que vous n'avez pas approuvé.
 - Plaid applique les mêmes règles que l'application : uniquement les dimensions activées utilisées pour le type de la ligne, uniquement les valeurs activées utilisées pour le type de la ligne, et une ligne conserve une valeur qu'elle porte déjà.
+- Quand Plaid crée une ligne, il lui faut une valeur sur chaque dimension obligatoire du type de la ligne. Pour une ligne CAPEX, cela comprend **PP&E type**, **Investment type** et **Priority**.
 - Plaid sait quelles dimensions sont obligatoires. Une nouvelle ligne doit avoir une valeur sur chacune d'elles, et Plaid ne peut pas effacer la valeur d'une dimension obligatoire. Plaid refuse une demande qui enfreint la règle et en donne la raison, par exemple « Nature is required for spend item creation. »
 - Plaid peut aussi créer une valeur dans la dimension que vous nommez. Sans dimension, la valeur est créée dans la dimension par défaut.
 

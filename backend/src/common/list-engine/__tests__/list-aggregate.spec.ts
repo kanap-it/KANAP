@@ -154,14 +154,19 @@ function testParts() {
   const byNumber = build({ groupBy: ['item_number'], measures: [], order: [{ by: 'key', index: 0, dir: 'DESC' }] }).sql;
   assert.ok(byNumber.includes('(g.k0)::numeric DESC'), 'a number key sorts as a number');
 
-  const capex = build({ groupBy: ['priority'], measures: [sum('b', 'yBudget')] }, {}, 'capex').sql;
+  const capex = build({ groupBy: ['currency'], measures: [sum('b', 'yBudget')] }, {}, 'capex').sql;
   // Lot Z1: the CAPEX lines live in the single family, read by their nature.
   assert.ok(capex.includes('FROM spend_items i') && capex.includes('JOIN spend_version_totals at'), 'CAPEX reads the single family');
   assert.ok(capex.includes(`WHERE (i.tenant_id = $1 AND i.nature = 'capex')`) && capex.includes(`ai.nature = 'capex'`), 'CAPEX lines only, in the list and in its amounts');
 
-  // An explicit key order follows a ranked enum's business order (Q4); the final tie-break stays the key's text.
-  const ranked = build({ groupBy: ['priority'], measures: [], order: [{ by: 'key', index: 0, dir: 'ASC' }] }, {}, 'capex').sql;
-  assert.ok(ranked.includes(`ORDER BY (CASE g.k0 WHEN 'mandatory' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END) ASC, g.k0 COLLATE "und-x-icu" ASC NULLS FIRST)`), 'priority by its rank, then its text');
+  // An explicit key order follows a ranked enum's business order (Q4), a dimension value its position in the dimension
+  // (D3; lot C1, decision 2: the CAPEX priority is a dimension since), then its text; the final tie-break stays the key's text.
+  const axisField = `analytics_${runtime().axes!.ids[0]}`;
+  const positioned = build({ groupBy: [axisField], measures: [], order: [{ by: 'key', index: 0, dir: 'DESC' }] }, {}, 'capex').sql;
+  assert.ok(positioned.includes('(axc0.sort_order) AS p0') && positioned.includes('min(p0) AS p0'), 'a dimension key carries its position to its group');
+  assert.ok(positioned.includes('ORDER BY g.p0 DESC, g.k0 COLLATE "und-x-icu" DESC, g.k0 COLLATE "und-x-icu" ASC NULLS FIRST)'), 'a dimension key by its position, then its text');
+  const byText = build({ groupBy: [axisField], measures: [] }, {}, 'capex').sql;
+  assert.ok(byText.includes('ORDER BY g.n DESC, g.k0 COLLATE "und-x-icu" ASC NULLS FIRST'), 'its position only in an explicit key order');
   const status = build({ groupBy: ['status'], measures: [], order: [{ by: 'key', index: 0, dir: 'DESC' }] }).sql;
   assert.ok(status.includes(`(CASE g.k0 WHEN 'enabled' THEN 0 WHEN 'disabled' THEN 1 END) DESC`), 'status by its rank');
   assert.ok(plain.includes('ORDER BY g.n DESC, g.k0 COLLATE "und-x-icu" ASC NULLS FIRST'), 'without an explicit key order, the text only');

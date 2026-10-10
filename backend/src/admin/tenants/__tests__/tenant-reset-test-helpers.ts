@@ -446,7 +446,7 @@ function normalizeRow(row: Record<string, unknown>): string {
 
 /**
  * The starting state of a tenant without ids or timestamps: roles and permissions, analytics
- * dimension, task and employment types, document libraries, folders, types and templates with
+ * dimensions and their values, task and employment types, document libraries, folders, types and templates with
  * their numbers, charts of accounts and accounts, companies, calendars, item sequences.
  */
 export async function baselineSnapshot(tenantId: string): Promise<Record<string, string[]>> {
@@ -454,6 +454,8 @@ export async function baselineSnapshot(tenantId: string): Promise<Record<string,
     roles: `SELECT * FROM roles WHERE tenant_id = $1`,
     role_permissions: `SELECT r.role_name, rp.resource, rp.level FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE rp.tenant_id = $1`,
     analytics_axes: `SELECT * FROM analytics_axes WHERE tenant_id = $1`,
+    analytics_categories: `SELECT c.*, a.code AS axis_code FROM analytics_categories c
+                JOIN analytics_axes a ON a.id = c.axis_id AND a.tenant_id = c.tenant_id WHERE c.tenant_id = $1`,
     portfolio_task_types: `SELECT * FROM portfolio_task_types WHERE tenant_id = $1`,
     portfolio_employment_types: `SELECT * FROM portfolio_employment_types WHERE tenant_id = $1`,
     document_libraries: `SELECT * FROM document_libraries WHERE tenant_id = $1`,

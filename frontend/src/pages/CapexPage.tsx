@@ -15,13 +15,13 @@ import { useAuth } from '../auth/AuthContext';
 import { LinkCellRenderer } from '../components/grid/renderers';
 import { formatItemRef } from '../utils/item-ref';
 import { readStoredCapexListContext, writeStoredCapexListContext } from './capex/listContextStorage';
+import { capexListFieldPredicate } from './capex/listFields';
 import { statusScopeParams } from '../utils/statusScopeParams';
 import ForbiddenPage from './ForbiddenPage';
 import {
   amountColumnYear,
   buildAmountColumnDefs,
   buildFteColumnDefs,
-  dimensionFieldPredicate,
   explicitSort,
   fteTotalsToRow,
   SummaryVersions,
@@ -62,9 +62,6 @@ type SummaryRow = {
   run_build?: 'run' | 'build' | null;
   /** 'yes' when the line declares FTE in some year and column, else null. */
   has_fte?: 'yes' | null;
-  ppe_type: 'hardware' | 'software';
-  investment_type: 'replacement' | 'capacity' | 'productivity' | 'security' | 'conformity' | 'business_growth' | 'other';
-  priority: 'mandatory' | 'high' | 'medium' | 'low';
   currency: string;
   effective_start: string;
   disabled_at?: string | null;
@@ -138,9 +135,10 @@ function CapexPageView() {
   // created once read them here.
   const budgetColumnsRef = useRef(budgetColumns);
   budgetColumnsRef.current = budgetColumns;
-  // The dimension columns the list builds: a sort or filter on another dimension falls back like a hidden amount column.
+  // The dimension columns the list builds: a sort or filter on another dimension, or on a field the
+  // list no longer has, falls back like a hidden amount column.
   const isListField = useMemo(
-    () => dimensionFieldPredicate(analyticsAxes.enabled.filter((axis) => !axis.is_default).map((axis) => axis.id)),
+    () => capexListFieldPredicate(analyticsAxes.enabled.filter((axis) => !axis.is_default).map((axis) => axis.id)),
     [analyticsAxes],
   );
   const isListFieldRef = useRef(isListField);
@@ -204,14 +202,12 @@ function CapexPageView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gridCanMount]);
 
-  // `businessOrder`: the options follow the label map's key order (the enum's declaration order, the
-  // order the list sorts them in) instead of their labels' alphabetical order. `serverOrder`: they
-  // keep the server's order (a dimension's values, in the dimension's order). Blank stays last.
-  const getCapexFilterValues = useCallback((field: string, opts?: { emptyLabel?: string; labelMap?: Record<string, string>; businessOrder?: boolean; serverOrder?: boolean }) => {
+  // `serverOrder`: the options keep the server's order (a dimension's values, in the dimension's
+  // order) instead of their labels' alphabetical order. Blank stays last.
+  const getCapexFilterValues = useCallback((field: string, opts?: { emptyLabel?: string; labelMap?: Record<string, string>; serverOrder?: boolean }) => {
     const emptyLabel = opts?.emptyLabel ?? t('shared.blank');
     const labelMap = opts?.labelMap;
     const serverOrder = !!opts?.serverOrder;
-    const rank = opts?.businessOrder && labelMap ? Object.keys(labelMap) : null;
     return async ({ context }: any) => {
       const queryState = context?.getQueryState?.() ?? {};
       const filters = { ...(queryState.filters || {}) };
@@ -235,41 +231,11 @@ function CapexPageView() {
         if (a.value == null) return b.value == null ? 0 : 1;
         if (b.value == null) return -1;
         if (serverOrder) return 0;
-        if (rank) {
-          // A value the map does not know goes after the known ones.
-          const ra = rank.indexOf(String(a.value));
-          const rb = rank.indexOf(String(b.value));
-          if (ra !== rb) return (ra < 0 ? rank.length : ra) - (rb < 0 ? rank.length : rb);
-        }
         return (a.label || '').localeCompare(b.label || '');
       });
       return options;
     };
   }, [t]);
-
-  // The three enum maps list their values in declaration order: their set filters offer them in that
-  // business order, the order the list sorts them in (decision Q4).
-  const PPE_LABELS: Record<string, string> = useMemo(() => ({
-    hardware: t('capex.ppeTypes.hardware'),
-    software: t('capex.ppeTypes.software'),
-  }), [t]);
-
-  const INVESTMENT_LABELS: Record<string, string> = useMemo(() => ({
-    replacement: t('capex.investmentTypes.replacement'),
-    capacity: t('capex.investmentTypes.capacity'),
-    productivity: t('capex.investmentTypes.productivity'),
-    security: t('capex.investmentTypes.security'),
-    conformity: t('capex.investmentTypes.conformity'),
-    business_growth: t('capex.investmentTypes.business_growth'),
-    other: t('capex.investmentTypes.other'),
-  }), [t]);
-
-  const PRIORITY_LABELS: Record<string, string> = useMemo(() => ({
-    mandatory: t('capex.priorityTypes.mandatory'),
-    high: t('capex.priorityTypes.high'),
-    medium: t('capex.priorityTypes.medium'),
-    low: t('capex.priorityTypes.low'),
-  }), [t]);
 
   const FTE_DECLARED_LABELS: Record<string, string> = useMemo(() => ({ yes: t('shared.fteDeclaredYes') }), [t]);
   const RUN_BUILD_LABELS: Record<string, string> = useMemo(() => ({
@@ -496,36 +462,6 @@ function CapexPageView() {
         cellRenderer: linkCell('account_display'),
       },
       {
-        field: 'ppe_type',
-        headerName: t('capex.columns.ppeType'),
-        width: 140,
-        filter: CheckboxSetFilter,
-        floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: { getValues: getCapexFilterValues('ppe_type', { labelMap: PPE_LABELS, businessOrder: true }), searchable: false },
-        valueFormatter: (p: any) => p.value != null ? (PPE_LABELS[String(p.value)] || String(p.value)) : '',
-        cellRenderer: linkCell('ppe_type'),
-      },
-      {
-        field: 'investment_type',
-        headerName: t('capex.columns.investmentType'),
-        width: 170,
-        filter: CheckboxSetFilter,
-        floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: { getValues: getCapexFilterValues('investment_type', { labelMap: INVESTMENT_LABELS, businessOrder: true }), searchable: false },
-        valueFormatter: (p: any) => p.value != null ? (INVESTMENT_LABELS[String(p.value)] || String(p.value)) : '',
-        cellRenderer: linkCell('investment_type'),
-      },
-      {
-        field: 'priority',
-        headerName: t('capex.columns.priority'),
-        width: 120,
-        filter: CheckboxSetFilter,
-        floatingFilterComponent: CheckboxSetFloatingFilter,
-        filterParams: { getValues: getCapexFilterValues('priority', { labelMap: PRIORITY_LABELS, businessOrder: true }), searchable: false },
-        valueFormatter: (p: any) => p.value != null ? (PRIORITY_LABELS[String(p.value)] || String(p.value)) : '',
-        cellRenderer: linkCell('priority'),
-      },
-      {
         colId: 'allocation_label',
         headerName: t('capex.columns.allocation'),
         valueGetter: (p: any) => p.data?.allocation_method_label ?? '',
@@ -608,11 +544,13 @@ function CapexPageView() {
       },
       // One column per enabled dimension, in dimension order. The default dimension keeps its column
       // id wherever it stands, so saved layouts, links and AI filters still find it.
-      ...analyticsListColumns(analyticsAxes, defaultAnalyticsLabel).map(({ field, label }) => ({
+      // A dimension required for CAPEX lines shows by default (lot C1, decision 3: the PP&E type, the
+      // investment type and the priority); a saved layout still decides.
+      ...analyticsListColumns(analyticsAxes, defaultAnalyticsLabel, 'capex').map(({ field, label, required }) => ({
         field,
         headerName: label,
         width: 200,
-        defaultHidden: true,
+        defaultHidden: !required,
         filter: CheckboxSetFilter,
         floatingFilterComponent: CheckboxSetFloatingFilter,
         filterParams: { getValues: getCapexFilterValues(field, { serverOrder: true }), searchable: false },
@@ -701,7 +639,7 @@ function CapexPageView() {
         cellRenderer: linkCell('updated_at'),
       },
     ];
-  }, [Y, analyticsAxes, budgetColumns, defaultAnalyticsLabel, getCapexFilterValues, getCapexHref, INVESTMENT_LABELS, PPE_LABELS, PRIORITY_LABELS, RUN_BUILD_LABELS, FTE_DECLARED_LABELS, locale, navigate, queryClient, t]);
+  }, [Y, analyticsAxes, budgetColumns, defaultAnalyticsLabel, getCapexFilterValues, getCapexHref, RUN_BUILD_LABELS, FTE_DECLARED_LABELS, locale, navigate, queryClient, t]);
 
   const canCreate = hasLevel('capex','manager');
   const canAdmin = hasLevel('capex','admin');

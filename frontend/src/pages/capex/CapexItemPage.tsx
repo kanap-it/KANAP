@@ -13,7 +13,8 @@ import { STATUS_SCOPE_PARAM } from '../../utils/statusScopeParams';
 import { compactListSearchCached } from '../../lib/listContext';
 import { useBudgetColumns } from '../../hooks/useBudgetColumns';
 import { axisRequiredFor, isHiddenAxis, useAnalyticsAxes } from '../../hooks/useAnalyticsAxes';
-import { dimensionFieldPredicate, explicitSort, filtersStringOnShownColumns } from '../../components/finance/amountColumns';
+import { explicitSort, filtersStringOnShownColumns } from '../../components/finance/amountColumns';
+import { capexListFieldPredicate } from './listFields';
 import useAutosave, { autosaveErrorMessage, useAutosaveRegistry } from '../../hooks/useAutosave';
 import { sendPatchBuffer, useSharedPatchBuffer } from '../../hooks/patchBuffer';
 import { ConflictChoice, EditConflict, conflictCompanions, useEditConflicts, useOtherConflictTargets } from '../../hooks/editConflicts';
@@ -36,8 +37,8 @@ import {
 import PortfolioDetailWorkspaceShell from '../portfolio/workspace/PortfolioDetailWorkspaceShell';
 import SendLinkButton from '../../components/workspace/SendLinkButton';
 import { WorkspaceTabBoundary, retryableLazy } from '../../components/workspace/WorkspaceTabBoundary';
-import CapexMetadataBar, { CapexPriority } from './workspace/CapexMetadataBar';
-import CapexPropertiesDrawer, { CapexInvestmentType, CapexPpeType, RunBuild } from './workspace/CapexPropertiesDrawer';
+import CapexMetadataBar from './workspace/CapexMetadataBar';
+import CapexPropertiesDrawer, { RunBuild } from './workspace/CapexPropertiesDrawer';
 import type { BudgetTabHandle } from '../../components/finance/BudgetTab';
 import type { AllocationsTabHandle } from '../../components/finance/AllocationsTab';
 import { namesInSentence, useHeldChoices } from '../../components/finance/heldChoices';
@@ -85,9 +86,6 @@ type CapexForm = {
   currency: string;
   account_id: string;
   paying_company_id: string;
-  ppe_type: CapexPpeType;
-  investment_type: CapexInvestmentType;
-  priority: CapexPriority;
   effective_start: string;
   status: StatusValue;
   disabled_at: string | null;
@@ -106,7 +104,6 @@ type AnalyticsValues = Record<string, string | null>;
 
 const EMPTY_FORM: CapexForm = {
   description: '', supplier_id: '', currency: 'EUR', account_id: '', paying_company_id: '',
-  ppe_type: 'hardware', investment_type: 'replacement', priority: 'medium',
   effective_start: '', status: 'enabled', disabled_at: null,
   owner_it_id: '', owner_business_id: '', analytics_values: {}, cost_center_id: '', run_build: '', notes: '',
   created_at: null, updated_at: null,
@@ -171,9 +168,6 @@ function toForm(data: any): CapexForm {
     currency: (data?.currency || 'EUR').toUpperCase(),
     account_id: data?.account_id || '',
     paying_company_id: data?.paying_company_id || '',
-    ppe_type: (data?.ppe_type || 'hardware') as CapexPpeType,
-    investment_type: (data?.investment_type || 'replacement') as CapexInvestmentType,
-    priority: (data?.priority || 'medium') as CapexPriority,
     effective_start: data?.effective_start ? String(data.effective_start).slice(0, 10) : '',
     status: deriveStatusFromDisabledAt(normalizedDisabledAt),
     disabled_at: normalizedDisabledAt,
@@ -196,9 +190,6 @@ const CONFLICT_FIELD_LABELS: Record<string, string> = {
   paying_company_id: 'capex.fields.payingCompany',
   account_id: 'capex.fields.account',
   currency: 'capex.fields.currency',
-  ppe_type: 'capex.fields.ppeType',
-  investment_type: 'capex.fields.investmentType',
-  priority: 'capex.fields.priority',
   cost_center_id: 'capex.fields.costCenter',
   run_build: 'capex.fields.runBuild',
   effective_start: 'capex.fields.effectiveStart',
@@ -208,9 +199,6 @@ const CONFLICT_FIELD_LABELS: Record<string, string> = {
 };
 /** The translation key of each enum value the conflict banner shows. */
 const CONFLICT_ENUM_KEYS: Record<string, string> = {
-  ppe_type: 'capex.ppeTypes',
-  investment_type: 'capex.investmentTypes',
-  priority: 'capex.priorityTypes',
   run_build: 'opex.runBuild',
 };
 const ANALYTICS_CONFLICT_PREFIX = 'analytics_values.';
@@ -395,10 +383,11 @@ export default function CapexItemPage() {
   // The list's sort, '' for the default one: prev/next and the list then use the current default.
   const budgetColumns = useBudgetColumns();
   // The list builds a column for each enabled dimension besides the default one; a sort or filter
-  // on another dimension falls back there, and here too.
+  // on another dimension, or on a field the list no longer has (the former CAPEX criteria), falls
+  // back there, and here too.
   const analyticsAxes = useAnalyticsAxes({ scope: 'capex' });
   const isListField = React.useMemo(
-    () => dimensionFieldPredicate(analyticsAxes.enabled.filter((axis) => !axis.is_default).map((axis) => axis.id)),
+    () => capexListFieldPredicate(analyticsAxes.enabled.filter((axis) => !axis.is_default).map((axis) => axis.id)),
     [analyticsAxes],
   );
   // Filters saved as a context (`ctx`: a link opened in a new tab, a reload) are read first.
@@ -896,9 +885,6 @@ export default function CapexItemPage() {
       const payload = {
         description,
         supplier_id: toNull(createForm.supplier_id),
-        ppe_type: createForm.ppe_type,
-        investment_type: createForm.investment_type,
-        priority: createForm.priority,
         currency: createForm.currency.toUpperCase(),
         effective_start: createForm.effective_start,
         ...(createForm.disabled_at
@@ -1038,13 +1024,11 @@ export default function CapexItemPage() {
             ownerItName={ownerName(references.owner_it, form.owner_it_id)}
             ownerBizName={ownerName(references.owner_business, form.owner_business_id)}
             status={form.status}
-            priority={form.priority}
             ownerItId={form.owner_it_id || null}
             ownerBizId={form.owner_business_id || null}
             costCenterId={shownCostCenterId || null}
             costCenter={matching(references.cost_center, shownCostCenterId)}
             onStatusChange={handleStatusChange}
-            onPriorityChange={(v) => void patchNow({ priority: v })}
             onOwnerItChange={(v) => void patchNow({ owner_it_id: (v || '') as string })}
             onOwnerBizChange={(v) => void patchNow({ owner_business_id: (v || '') as string })}
           />
@@ -1091,9 +1075,6 @@ export default function CapexItemPage() {
             payingCompanyId={createForm.paying_company_id}
             accountId={createForm.account_id}
             currency={createForm.currency}
-            ppeType={createForm.ppe_type}
-            investmentType={createForm.investment_type}
-            priority={createForm.priority}
             analyticsValues={createForm.analytics_values}
             costCenterId={createForm.cost_center_id}
             runBuild={createForm.run_build}
@@ -1112,9 +1093,6 @@ export default function CapexItemPage() {
               setCreateCurrencyTouched(true);
               updateCreateForm({ currency: v.toUpperCase() });
             }}
-            onPpeTypeChange={(v) => updateCreateForm({ ppe_type: v })}
-            onInvestmentTypeChange={(v) => updateCreateForm({ investment_type: v })}
-            onPriorityChange={(v) => updateCreateForm({ priority: v })}
             onAnalyticsValueChange={(axisId, v) => updateCreateForm({ analytics_values: { [axisId]: v } })}
             onCostCenterChange={pickCreateCostCenter}
             onRunBuildChange={(v) => updateCreateForm({ run_build: v })}
@@ -1132,9 +1110,6 @@ export default function CapexItemPage() {
             payingCompanyId={form.paying_company_id}
             accountId={form.account_id}
             currency={form.currency}
-            ppeType={form.ppe_type}
-            investmentType={form.investment_type}
-            priority={form.priority}
             analyticsValues={form.analytics_values}
             costCenterId={shownCostCenterId}
             runBuild={form.run_build}
@@ -1147,9 +1122,6 @@ export default function CapexItemPage() {
             onPayingCompanyChange={(v) => void changePayingCompany(v)}
             onAccountChange={(v) => void patchNow({ account_id: v })}
             onCurrencyChange={(v) => void patchNow({ currency: v.toUpperCase() })}
-            onPpeTypeChange={(v) => void patchNow({ ppe_type: v })}
-            onInvestmentTypeChange={(v) => void patchNow({ investment_type: v })}
-            // priority is edited via the metadata bar in edit mode; the drawer renders it in create mode only
             onAnalyticsValueChange={(axisId, v) => void patchNow({ analytics_values: { [axisId]: v } })}
             onCostCenterChange={(v) => void patchNow({ cost_center_id: v })}
             onRunBuildChange={(v) => void patchNow({ run_build: v })}

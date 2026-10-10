@@ -711,7 +711,9 @@ async function main() {
       if (!tenant) throw new Error(`No tenant ${TENANT_SLUG}`);
       tenantId = tenant.id;
     } else {
-      tenantId = (await seedListFixture(runner, SEED)).tenantId;
+      // Values at position 0: the former report orders a dimension's options by name, the
+      // aggregate by position then name (a gap of lot D3, left as it is).
+      tenantId = (await seedListFixture(runner, SEED, undefined, undefined, { valuePositions: false })).tenantId;
     }
     await runner.query(`SELECT set_config('app.current_tenant', $1, true)`, [tenantId]);
     await decorateAccounts(runner.manager, tenantId);

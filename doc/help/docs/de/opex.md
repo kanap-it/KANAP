@@ -60,7 +60,7 @@ Die OPEX-Liste (unter **Budgetverwaltung > OPEX**) ist Ihre Hauptansicht zum Dur
   - **Gültig ab**: Startdatum
   - **Ende der Gültigkeit**: Datum, an dem die Position endet (leer bedeutet kein Ende)
   - **IT-Verantwortlicher** / **Fachbereichsverantwortlicher**: Zuständige Benutzer
-  - **Analysedimensionen**: Eine Spalte pro aktivierter Dimension, die für OPEX-Zeilen verwendet wird, nach ihr benannt, mit dem Wert der Position, in der Reihenfolge der Dimensionen. Die Spalte der Standarddimension heißt **Analysedimension**, bis sie umbenannt wird
+  - **Analysedimensionen**: Eine Spalte pro aktivierter Dimension, die für OPEX-Zeilen verwendet wird, nach ihr benannt, mit dem Wert der Position, in der Reihenfolge der Dimensionen. Die Spalte der Standarddimension heißt **Analysedimension**, bis sie umbenannt wird. Die Spalten der Dimensionen, die für OPEX-Zeilen erforderlich sind, werden standardmäßig angezeigt. Eine von Ihnen gespeicherte Spaltenanordnung behält ihre eigene Auswahl
   - **Kostenstelle**: Code und Name der Kostenstelle. Fahren Sie mit der Maus darüber, um ihren vollständigen Pfad im Baum zu sehen; klicken Sie darauf, um die Kostenstelle zu öffnen
   - **Budgetverantwortlicher**: Der Budgetverantwortliche der Kostenstelle der Position. Er wird aus der Kostenstelle abgeleitet und nicht auf der Position gespeichert: Ändern Sie den Budgetverantwortlichen einer Kostenstelle, und alle ihre Positionen folgen
   - **Run oder Build**: **Run** oder **Build**
@@ -82,6 +82,7 @@ Die OPEX-Liste (unter **Budgetverwaltung > OPEX**) ist Ihre Hauptansicht zum Dur
 **Sortierung**:
   - Klicken Sie auf eine Spaltenüberschrift, um aufsteigend/absteigend zu sortieren. Jede Spalte ist sortierbar, auch jede Betrags- und VZÄ-Spalte. Positionen ohne VZÄ stehen bei aufsteigender Sortierung am Ende
   - Textspalten sortieren in natürlicher Lesereihenfolge: Ein Name mit Akzent wird neben seiner unakzentuierten Schreibweise eingeordnet (zum Beispiel „Électricité“ neben „Electricite“), und Kleinbuchstaben stehen vor Großbuchstaben, wenn die Buchstaben sonst gleich sind
+  - Eine Dimensionsspalte sortiert in der Reihenfolge der Werte der Dimension, festgelegt unter [Analysedimensionen](analytics.md#werte-ordnen), dann nach Name. Positionen ohne Wert stehen bei aufsteigender Sortierung am Ende
   - Standardmäßig wird nach der Standardspalte des aktuellen Jahres sortiert, höchster Betrag zuerst (**Budget J** mit den Standardeinstellungen). Die Schaltflächen **Zurück** und **Weiter** des Arbeitsbereichs folgen derselben Reihenfolge
   - Die Liste merkt sich Ihre letzte Sortierung, Suche und Filter bei der Rückkehr
 
