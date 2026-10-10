@@ -23,8 +23,11 @@ import { CAPEX_NUMBER_OFFSET } from '../round-inputs.fixtures';
  * - lines linked to several projects (one named "Alpha, Beta"), a legacy
  *   project, ties on task and contract creation time;
  * - created_at ties and sub-millisecond differences;
- * - CAPEX: every priority, investment type and PPE type, an empty
- *   description (the CAPEX name is required, not null).
+ * - CAPEX: an empty description (the CAPEX name is required, not null);
+ *   the former PP&E type, investment type and priority columns, filled and
+ *   never read (dimensions since lot C1);
+ * - dimension values whose position in their dimension is not their
+ *   alphabetical order, some sharing one (lot C1, decision 2).
  *
  * Since lot Z1 the CAPEX lines live in the spend_* tables with nature
  * 'capex': the title in `product_name`, the CPX number in `legacy_number`,
@@ -214,14 +217,16 @@ export async function seedListFixture(runner: QueryRunner, seed: number, itemCou
   );
   const categoriesByAxis = axes.map(() => [] as string[]);
   const categoryRows: unknown[][] = [];
+  // Positions out of the alphabetical order, two pairs sharing one: a dimension sorts by position, then by name.
+  const POSITIONS = [3, 1, 2, 1, 0, 2];
   axes.forEach((axis, a) => {
-    for (const name of CATEGORY_NAMES.slice(a, a + 6)) {
+    CATEGORY_NAMES.slice(a, a + 6).forEach((name, k) => {
       const id = uuid();
       categoriesByAxis[a].push(id);
-      categoryRows.push([id, t, axis, `${name}${a ? ` ${a}` : ''}`]);
-    }
+      categoryRows.push([id, t, axis, `${name}${a ? ` ${a}` : ''}`, POSITIONS[k]]);
+    });
   });
-  await insert(runner, 'analytics_categories', [['id', 'uuid'], ['tenant_id', 'uuid'], ['axis_id', 'uuid'], ['name', 'text']], categoryRows);
+  await insert(runner, 'analytics_categories', [['id', 'uuid'], ['tenant_id', 'uuid'], ['axis_id', 'uuid'], ['name', 'text'], ['sort_order', 'int']], categoryRows);
 
   // Projects with streams and categories (one empty stream name).
   const pCats = [uuid(), uuid(), uuid()];

@@ -1,43 +1,12 @@
 import { z } from 'zod';
 
 /**
- * Valid PPE (Property, Plant & Equipment) types.
- */
-export const PpeTypes = ['hardware', 'software'] as const;
-
-/**
- * Valid investment types for CAPEX items.
- */
-export const InvestmentTypes = [
-  'replacement',
-  'capacity',
-  'productivity',
-  'security',
-  'conformity',
-  'business_growth',
-  'other',
-] as const;
-
-/**
- * Valid priority levels.
- */
-export const PriorityLevels = ['mandatory', 'high', 'medium', 'low'] as const;
-
-/**
- * Zod schema for creating a CAPEX item.
+ * Zod schema for creating a CAPEX item. The PP&E type, investment type and priority are the values
+ * of the dimensions of those codes (`analytics_values`, lot C1).
  */
 export const CreateCapexItemSchema = z.object({
   /** Description of the CAPEX item (required) */
   description: z.string().min(1, 'Description is required'),
-
-  /** PPE type: hardware or software */
-  ppe_type: z.enum(PpeTypes),
-
-  /** Investment type */
-  investment_type: z.enum(InvestmentTypes),
-
-  /** Priority level */
-  priority: z.enum(PriorityLevels).optional().default('medium'),
 
   /** Currency code (3 characters) */
   currency: z.string().length(3, 'Currency must be a 3-character code'),

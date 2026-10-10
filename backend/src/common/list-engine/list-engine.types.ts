@@ -22,6 +22,11 @@ export interface FieldSql {
   joins: string[];
   /** `enum`: the sort order of the values; other values sort as blank. */
   rank?: readonly string[];
+  /**
+   * `text`: an integer that orders the values before their text, in the sorts of the list and of
+   * the aggregate's keys (a dimension value's position in its dimension, D3). Null for a blank.
+   */
+  position?: string;
   /** `multi`: a `text[]` of the line's names (null or empty when none). */
   names?: string;
   /** Text filter candidates besides the value itself (`opx-N` for the item number): positive operators need any, negative ones every. */

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { PpeTypes, InvestmentTypes, PriorityLevels } from './create-capex-item.dto';
 
 /**
  * Zod schema for updating a CAPEX item.
@@ -8,15 +7,6 @@ import { PpeTypes, InvestmentTypes, PriorityLevels } from './create-capex-item.d
 export const UpdateCapexItemSchema = z.object({
   /** Description of the CAPEX item */
   description: z.string().min(1).optional(),
-
-  /** PPE type: hardware or software */
-  ppe_type: z.enum(PpeTypes).optional(),
-
-  /** Investment type */
-  investment_type: z.enum(InvestmentTypes).optional(),
-
-  /** Priority level */
-  priority: z.enum(PriorityLevels).optional(),
 
   /** Currency code (3 characters) */
   currency: z.string().length(3, 'Currency must be a 3-character code').optional(),

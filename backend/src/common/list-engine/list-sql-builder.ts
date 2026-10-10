@@ -77,10 +77,19 @@ export function sortKey(field: FieldSql): string {
   }
 }
 
-/** `ORDER BY` of the list: the sort key, then the tie-break (newest first). */
+/**
+ * The sort keys of a field, in order: its sort key, after its position when it has one (a
+ * dimension value: its place in the dimension, then its name; a blank has neither).
+ */
+export function sortKeys(field: FieldSql): string[] {
+  return field.position ? [`(${field.position})`, sortKey(field)] : [sortKey(field)];
+}
+
+/** `ORDER BY` of the list: the sort keys, then the tie-break (newest first). */
 export function orderBy(stmt: SqlStatement, config: ListConfig, state: ListState): string {
   const field = fieldOf(stmt, config, state.sort.field);
-  return `ORDER BY ${sortKey(field)} ${state.sort.direction === 'ASC' ? 'ASC' : 'DESC'}, ${config.tieBreak.join(', ')}`;
+  const direction = state.sort.direction === 'ASC' ? 'ASC' : 'DESC';
+  return `ORDER BY ${sortKeys(field).map((key) => `${key} ${direction}`).join(', ')}, ${config.tieBreak.join(', ')}`;
 }
 
 /** One page of ids with the count of the whole list (`count(*) OVER ()`). */

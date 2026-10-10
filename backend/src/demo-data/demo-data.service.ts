@@ -134,7 +134,8 @@ export const CONFIRMATION_MISMATCH_CODE = 'confirmation_mismatch';
  * before any business data. Sample data is loaded only into a workspace where they are all
  * empty, because the reset after a failed load erases them (`findTenantContent` adds the tables
  * that activation fills). None of them is written at activation, by a scheduled job or by
- * browsing: only by a user's own create, import or setting save.
+ * browsing: only by a user's own create, import or setting save. The dimension values are not
+ * here: every workspace starts with those of the three CAPEX dimensions (lot C1).
  */
 export const DEMO_LOAD_EMPTY_TABLES = [
   'applications',
@@ -154,8 +155,7 @@ export const DEMO_LOAD_EMPTY_TABLES = [
   'spend_items',
   'suppliers',
   'tasks',
-  // Configuration: budget dimension values, portfolio classification, AI integrations and agents.
-  'analytics_categories',
+  // Configuration: portfolio classification, AI integrations and agents.
   'portfolio_sources',
   'portfolio_categories',
   'portfolio_streams',
@@ -337,11 +337,11 @@ export async function findTenantContent(manager: EntityManager, tenantId: string
 
 /**
  * The tables `countCreatedSinceLoad` reads: the business and configuration tables of a workspace
- * that has data, its companies and its documents (the templates library included: a reset puts
- * back only the starting templates). Each has `created_at` (checked by the spec). Users are not
- * counted: the reset keeps the real ones.
+ * that has data, its dimension values, its companies and its documents (the templates library
+ * included: a reset puts back only the starting templates). Each has `created_at` (checked by the
+ * spec). Users are not counted: the reset keeps the real ones.
  */
-export const DEMO_CREATED_SINCE_TABLES = [...DEMO_LOAD_EMPTY_TABLES, 'companies', 'documents'] as const;
+export const DEMO_CREATED_SINCE_TABLES = [...DEMO_LOAD_EMPTY_TABLES, 'analytics_categories', 'companies', 'documents'] as const;
 
 /**
  * How many objects were created in the workspace after `since` (the end of the sample data

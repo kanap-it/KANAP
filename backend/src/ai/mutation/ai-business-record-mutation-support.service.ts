@@ -155,9 +155,6 @@ const PROJECT_ORIGINS = ['standard', 'fast_track', 'legacy'] as const;
 const REQUEST_STATUSES = ['pending_review', 'candidate', 'approved', 'on_hold', 'rejected', 'converted'] as const;
 const SCHEDULING_MODES = ['independent', 'collaborative'] as const;
 const BILLING_FREQUENCIES = ['monthly', 'quarterly', 'annual', 'other'] as const;
-const PPE_TYPES = ['hardware', 'software'] as const;
-const INVESTMENT_TYPES = ['replacement', 'capacity', 'productivity', 'security', 'conformity', 'business_growth', 'other'] as const;
-const PRIORITIES = ['mandatory', 'high', 'medium', 'low'] as const;
 const RUN_BUILD = ['run', 'build'] as const;
 const INTERFACE_ROUTES = ['direct', 'via_middleware'] as const;
 const CONNECTION_TOPOLOGIES = ['server_to_server', 'multi_server'] as const;
@@ -405,10 +402,9 @@ const ENTITY_CONFIG: Record<AiBusinessRecordEntityType, EntityConfig> = {
     // A CAPEX line lives in `spend_items` (nature `capex`, lot Z1); its audit rows keep `capex_items`.
     tableName: auditTableOf('capex', 'spend_items'),
     fields: {
+      // The PP&E type, investment type and priority are the values of the dimensions of those codes
+      // (`analytics:<code>`, lot C1): a dimension required for CAPEX lines is required on create.
       description: { label: 'Description', kind: 'text', requiredOnCreate: true, aliases: ['name'] },
-      ppe_type: { label: 'PPE Type', kind: 'enum', enumValues: PPE_TYPES, requiredOnCreate: true },
-      investment_type: { label: 'Investment Type', kind: 'enum', enumValues: INVESTMENT_TYPES, requiredOnCreate: true },
-      priority: { label: 'Priority', kind: 'enum', enumValues: PRIORITIES, requiredOnCreate: true },
       supplier_id: { label: 'Supplier', kind: 'relation', nullable: true, relationTarget: 'suppliers', aliases: ['supplier'] },
       paying_company_id: { label: 'Paying Company', kind: 'relation', requiredOnCreate: true, relationTarget: 'companies', aliases: ['company', 'paying_company'] },
       account_id: { label: 'Account', kind: 'relation', nullable: true, relationTarget: 'accounts', aliases: ['account'] },

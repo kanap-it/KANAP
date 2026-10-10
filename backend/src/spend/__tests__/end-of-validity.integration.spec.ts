@@ -163,7 +163,7 @@ async function testBudgetFileEndOfValidity(kind: Kind) {
 function createBody(kind: Kind, companyId: string, name: string, extra: Record<string, unknown>) {
   const base = kind === 'opex'
     ? { product_name: name, currency: 'EUR', effective_start: '2030-01-01', paying_company_id: companyId }
-    : { description: name, ppe_type: 'hardware', investment_type: 'replacement', priority: 'medium', currency: 'EUR', effective_start: '2030-01-01', paying_company_id: companyId };
+    : { description: name, currency: 'EUR', effective_start: '2030-01-01', paying_company_id: companyId };
   return { ...base, ...extra };
 }
 

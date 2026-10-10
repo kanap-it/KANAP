@@ -550,9 +550,6 @@ async function testRefusals() {
         `DELETE FROM accounts WHERE tenant_id = $1 AND account_number = 987654`],
       [['working_day_profiles'], `INSERT INTO working_day_profiles (tenant_id, code, name, days_by_year) VALUES ($1, 'SITE', 'Site calendar', '{}'::jsonb)`,
         `DELETE FROM working_day_profiles WHERE tenant_id = $1 AND code = 'SITE'`],
-      [['analytics_categories'], `INSERT INTO analytics_categories (tenant_id, axis_id, name)
-                                  SELECT $1, id, 'Own value' FROM analytics_axes WHERE tenant_id = $1 AND is_default`,
-        `DELETE FROM analytics_categories WHERE tenant_id = $1`],
       [['portfolio_sources'], `INSERT INTO portfolio_sources (tenant_id, name) VALUES ($1, 'Own source')`,
         `DELETE FROM portfolio_sources WHERE tenant_id = $1`],
       [['portfolio_categories', 'portfolio_streams'], `WITH c AS (INSERT INTO portfolio_categories (tenant_id, name) VALUES ($1, 'Own category') RETURNING id)
@@ -565,6 +562,15 @@ async function testRefusals() {
                                   VALUES ($1, 'triage', 'Triage', 'helpdesk', 'draft', 'production', 'A0', 'human')`,
         `DELETE FROM ai_agent_definitions WHERE tenant_id = $1`],
     ];
+    // Dimension values are not a precondition: every workspace starts with those of the three CAPEX
+    // dimensions (lot C1), and a value of its own leaves it loadable.
+    const [seeded] = await inTenant(t.tenantId, (m) => m.query(`SELECT count(*)::int AS n FROM analytics_categories WHERE tenant_id = $1`, [t.tenantId]));
+    assert.equal(seeded.n, 13, 'the values of the CAPEX dimensions');
+    await inTenant(t.tenantId, (m) => m.query(
+      `INSERT INTO analytics_categories (tenant_id, axis_id, name) SELECT $1, id, 'Own value' FROM analytics_axes WHERE tenant_id = $1 AND is_default`,
+      [t.tenantId]));
+    assert.deepEqual(await inTenant(t.tenantId, (m) => findTenantContent(m, t.tenantId)), [], 'a value of its own: still loadable');
+    await inTenant(t.tenantId, (m) => m.query(`DELETE FROM analytics_categories WHERE tenant_id = $1 AND name = 'Own value'`, [t.tenantId]));
     for (const [tables, insert, remove] of cases) {
       await inTenant(t.tenantId, (m) => m.query(insert, [t.tenantId]));
       const error = await refusal(() => h.service.load(params));

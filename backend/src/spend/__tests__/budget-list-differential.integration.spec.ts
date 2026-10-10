@@ -91,7 +91,7 @@ const GRID_ITEM_KEYS: Record<SummaryScopeConfig['scope'], string[]> = {
   // `reference`: the line's `BL-n`, on both lists since lot Z1.
   opex: ['id', 'item_number', 'reference', 'product_name', 'description', 'status', 'currency', 'effective_start', 'disabled_at', 'notes', 'created_at', 'updated_at'],
   capex: [
-    'id', 'item_number', 'reference', 'description', 'ppe_type', 'investment_type', 'priority', 'status', 'currency', 'effective_start', 'disabled_at',
+    'id', 'item_number', 'reference', 'description', 'status', 'currency', 'effective_start', 'disabled_at',
     'notes', 'created_at', 'updated_at',
   ],
 };

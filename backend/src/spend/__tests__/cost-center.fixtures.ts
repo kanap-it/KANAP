@@ -86,7 +86,7 @@ export async function disableCostCenter(runner: QueryRunner, id: string) {
 export function lineBody(kind: Kind, name: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
   const base = kind === 'opex'
     ? { product_name: name, currency: 'EUR', effective_start: '2026-01-01' }
-    : { description: name, ppe_type: 'hardware', investment_type: 'replacement', priority: 'medium', currency: 'EUR', effective_start: '2026-01-01' };
+    : { description: name, currency: 'EUR', effective_start: '2026-01-01' };
   return { ...base, ...extra };
 }
 

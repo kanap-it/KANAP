@@ -640,7 +640,7 @@ export class AiQueryExecutor {
   private mapCapexItem(row: any, registry: AiEntityFilterRegistry): AiEntitySummaryDto {
     const anchorYear = new Date().getFullYear();
     const summary = row.notes
-      ?? ([row.company_name, row.ppe_type, row.investment_type].filter(Boolean).join(' | ') || null);
+      ?? ([row.company_name, row.supplier_name].filter(Boolean).join(' | ') || null);
     return toEntitySummary('capex_items', {
       id: row.id,
       item_number: row.item_number ?? null,
@@ -650,9 +650,6 @@ export class AiQueryExecutor {
       updated_at: row.updated_at ?? null,
       metadata: {
         ...budgetItemMetadata(row, registry),
-        ppe_type: scalar(row.ppe_type),
-        investment_type: scalar(row.investment_type),
-        priority: scalar(row.priority),
         budget_anchor_year: anchorYear,
         ...budgetAmountMetadata(row, anchorYear),
       },

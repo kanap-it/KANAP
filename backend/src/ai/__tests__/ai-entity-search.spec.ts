@@ -74,11 +74,10 @@ async function testLegacySearchAllCastsNonTextFieldsBeforeLike() {
     assert.equal(result.truncated, false);
     assert.deepEqual((result as any).failed_entity_types, []);
     assert.equal(sqlStatements.some((sql) => sql.includes('acc.account_number::text')), true);
-    assert.equal(sqlStatements.some((sql) => sql.includes('ci.ppe_type::text')), true);
     assert.equal(sqlStatements.some((sql) => sql.includes("COALESCE(acc.account_number, '')")), false);
-    assert.equal(sqlStatements.some((sql) => sql.includes("COALESCE(ci.ppe_type, '')")), false);
-    assert.equal(sqlStatements.some((sql) => sql.includes('ci.priority::text')), true);
-    assert.equal(sqlStatements.some((sql) => sql.includes("COALESCE(ci.priority, '')")), false);
+    // The CAPEX criteria are dimension values since lot C1: the search names none of the former columns.
+    assert.equal(sqlStatements.some(isCapexSearch), true);
+    assert.equal(sqlStatements.some((sql) => /ci\.(ppe_type|investment_type|priority)\b/.test(sql)), false);
   });
 }
 
@@ -87,7 +86,7 @@ async function testLegacySearchAllReportsPartialEntityFailures() {
     const service = createService();
     const context = createContext(async (sql) => {
       if (isCapexSearch(sql)) {
-        throw new Error('invalid input value for enum ppe_type: ""');
+        throw new Error('invalid input value for enum status_state: ""');
       }
       return [];
     });

@@ -8,18 +8,25 @@ import { SpendItem } from './spend-item.entity';
  *
  * The CAPEX routes (`/capex-items*`, `/capex-versions*`) keep the contract they had on the
  * `capex_*` tables until the unified screens (lot U): a line's title is `description`, its number
- * is its CPX number (`legacy_number`), it has `ppe_type`, `investment_type` and `priority`, and
- * neither `product_name`, `contract_id` nor `nature`; its children name it `capex_item_id`. Every
+ * is its CPX number (`legacy_number`), and it has neither `product_name`, `contract_id` nor
+ * `nature`; its children name it `capex_item_id`. Since lot C1 its PP&E type, investment type and
+ * priority are dimension values (`analytics_values`), like on an OPEX line. Every
  * line, of both natures, also gets `reference`, its neutral `BL-n`. The audit rows of a CAPEX line
  * keep that shape (without `reference`): the conflict and history readers find the field names of
  * before.
  *
- * The OPEX contract is unchanged, `reference` aside: the CAPEX columns are never selected for it
+ * The OPEX contract is unchanged, `reference` aside: the legacy number is never selected for it
  * (`select: false` on the entity).
  */
 
 /** The columns of a line the entity never selects (`select: false`), read for a CAPEX line. */
-const HIDDEN_COLUMNS = ['legacy_number', 'ppe_type', 'investment_type', 'priority'] as const;
+const HIDDEN_COLUMNS = ['legacy_number'] as const;
+
+/**
+ * The CAPEX criteria columns of `spend_items` that lot C1 turned into dimensions (lot C2 drops
+ * them). Never read: a raw row (`SELECT *`) that still carries them shows none of them.
+ */
+const RETIRED_COLUMNS: readonly string[] = ['ppe_type', 'investment_type', 'priority'];
 
 /** Adds the hidden columns a line of `nature` shows to a query on `SpendItem` (alias given). */
 export function selectLineColumns<T extends ObjectLiteral>(qb: SelectQueryBuilder<T>, alias: string, nature: BudgetNature): SelectQueryBuilder<T> {
@@ -56,7 +63,8 @@ export function presentLine<T extends LineLike>(nature: BudgetNature, line: T): 
 /** A line as its nature's audit rows record it: the API shape without `reference`. */
 export function auditLine<T extends LineLike>(nature: BudgetNature, line: T): LineLike {
   if (!line) return line;
-  const { legacy_number, ppe_type, investment_type, priority, reference, ...rest } = line;
+  const { legacy_number, reference, ...shown } = line;
+  const rest = Object.fromEntries(Object.entries(shown).filter(([key]) => !RETIRED_COLUMNS.includes(key))) as LineLike;
   if (nature === 'opex') return rest;
   const { product_name, description, contract_id, nature: _nature, ...capex } = rest;
   void description;
@@ -67,9 +75,6 @@ export function auditLine<T extends LineLike>(nature: BudgetNature, line: T): Li
     // The CAPEX line's number of before; its own number only for a line without one.
     item_number: legacyNumberOf('capex', legacy_number) ?? line.item_number,
     description: product_name,
-    ppe_type,
-    investment_type,
-    priority,
   };
 }
 

@@ -182,7 +182,7 @@ async function run() {
     const capexOracle = new BudgetSummaryOracle(capex, capexDeps, m, tenantId, fold, ROW_OPTIONS);
     for (const query of [
       { ...all, sort: 'yBudget:DESC', limit: 10 },
-      { ...all, sort: 'priority:ASC', limit: 10, filters: f({ yBudget: { filterType: 'number', type: 'greaterThan', filter: 1e15 } }) },
+      { ...all, sort: 'status:ASC', limit: 10, filters: f({ yBudget: { filterType: 'number', type: 'greaterThan', filter: 1e15 } }) },
       { ...all, sort: 'description:ASC', limit: 10, q: 'absurd' },
     ]) {
       const e = await engine.budgetListSummary(capex, capexDeps, query, m, ROW_OPTIONS);

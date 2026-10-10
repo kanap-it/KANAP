@@ -41,8 +41,10 @@ const WRITABLE_COLUMNS: Record<ItemWriteScope, readonly string[]> = {
     'product_name', 'description', 'supplier_id', 'paying_company_id', 'account_id', 'currency', 'effective_start',
     'owner_it_id', 'owner_business_id', 'project_id', 'contract_id', 'cost_center_id', 'run_build', 'notes',
   ],
+  // The PP&E type, investment type and priority of a CAPEX line are dimension values since lot C1
+  // (`analytics_values`): a body that still names them is not written.
   capex: [
-    'description', 'ppe_type', 'investment_type', 'priority', 'supplier_id', 'paying_company_id', 'account_id', 'currency',
+    'description', 'supplier_id', 'paying_company_id', 'account_id', 'currency',
     'effective_start', 'owner_it_id', 'owner_business_id', 'project_id', 'cost_center_id', 'run_build', 'notes',
   ],
 };
@@ -57,18 +59,7 @@ const FIELD_COLUMNS: Record<ItemWriteScope, Readonly<Record<string, string>>> = 
   capex: { description: 'product_name' },
 };
 
-/**
- * The CAPEX classification a CAPEX line must carry (lot Z1: nullable columns of `spend_items`, the
- * rule lives here until lot C1 turns them into dimensions). Refused with a 400 when missing on a
- * create, cleared on an update, or outside the values (the `capex_items` columns refused them).
- */
-const CAPEX_ENUMS: ReadonlyArray<{ field: 'ppe_type' | 'investment_type' | 'priority'; label: string; values: readonly string[] }> = [
-  { field: 'ppe_type', label: 'PP&E type', values: ['hardware', 'software'] },
-  { field: 'investment_type', label: 'Investment type', values: ['replacement', 'capacity', 'productivity', 'security', 'conformity', 'business_growth', 'other'] },
-  { field: 'priority', label: 'Priority', values: ['mandatory', 'high', 'medium', 'low'] },
-];
-
-/** The fields a line update writes as given (after the id and enum checks below), by their API names. */
+/** The fields a line update writes as given (after the id checks below), by their API names. */
 export function itemWritableColumns(scope: ItemWriteScope): readonly string[] {
   return WRITABLE_COLUMNS[scope];
 }
@@ -167,14 +158,6 @@ export async function resolveItemWrite(
   // CAPEX legacy alias of the paying company.
   if (scope === 'capex' && input.company_id != null && input.paying_company_id == null) {
     values.paying_company_id = input.company_id;
-  }
-  if (scope === 'capex') {
-    for (const { field, label, values: allowed } of CAPEX_ENUMS) {
-      const given = field in values;
-      const value = values[field];
-      if ((!existing && !given) || (given && (value == null || value === ''))) throw new BadRequestException(`${label} is required.`);
-      if (given && !allowed.includes(String(value))) throw new BadRequestException(`${label} must be one of: ${allowed.join(', ')}.`);
-    }
   }
   const lifecycle: ItemWrite['lifecycle'] = {};
   for (const key of LIFECYCLE_INPUTS) {
