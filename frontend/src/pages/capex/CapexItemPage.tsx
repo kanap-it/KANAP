@@ -13,7 +13,8 @@ import { STATUS_SCOPE_PARAM } from '../../utils/statusScopeParams';
 import { compactListSearchCached } from '../../lib/listContext';
 import { useBudgetColumns } from '../../hooks/useBudgetColumns';
 import { axisRequiredFor, isHiddenAxis, useAnalyticsAxes } from '../../hooks/useAnalyticsAxes';
-import { dimensionFieldPredicate, explicitSort, filtersStringOnShownColumns } from '../../components/finance/amountColumns';
+import { explicitSort, filtersStringOnShownColumns } from '../../components/finance/amountColumns';
+import { capexListFieldPredicate } from './listFields';
 import useAutosave, { autosaveErrorMessage, useAutosaveRegistry } from '../../hooks/useAutosave';
 import { sendPatchBuffer, useSharedPatchBuffer } from '../../hooks/patchBuffer';
 import { ConflictChoice, EditConflict, conflictCompanions, useEditConflicts, useOtherConflictTargets } from '../../hooks/editConflicts';
@@ -382,10 +383,11 @@ export default function CapexItemPage() {
   // The list's sort, '' for the default one: prev/next and the list then use the current default.
   const budgetColumns = useBudgetColumns();
   // The list builds a column for each enabled dimension besides the default one; a sort or filter
-  // on another dimension falls back there, and here too.
+  // on another dimension, or on a field the list no longer has (the former CAPEX criteria), falls
+  // back there, and here too.
   const analyticsAxes = useAnalyticsAxes({ scope: 'capex' });
   const isListField = React.useMemo(
-    () => dimensionFieldPredicate(analyticsAxes.enabled.filter((axis) => !axis.is_default).map((axis) => axis.id)),
+    () => capexListFieldPredicate(analyticsAxes.enabled.filter((axis) => !axis.is_default).map((axis) => axis.id)),
     [analyticsAxes],
   );
   // Filters saved as a context (`ctx`: a link opened in a new tab, a reload) are read first.

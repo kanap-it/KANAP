@@ -538,6 +538,28 @@ describe('CapexItemPage list context and dimensions', () => {
     expect(JSON.parse(stored.filters)).toEqual(kept);
   });
 
+  it('walks prev/next like the list: a sort or filter on a former CAPEX criterion falls back', async () => {
+    const kept = { [`analytics_${NATURE}`]: { filterType: 'set', values: ['Licences'] } };
+    const filters = {
+      ...kept,
+      priority: { filterType: 'set', values: ['high'] },
+      ppe_type: { filterType: 'set', values: ['hardware'] },
+    };
+    window.sessionStorage.setItem('capex-list-context', JSON.stringify({
+      sort: 'priority:ASC', q: '', filters: JSON.stringify(filters), statusScope: 'enabled',
+    }));
+    renderAt(`/ops/capex/${ITEM_ID}/overview`);
+    await waitFor(() => expect(nav.calls.some((c) => c.enabled)).toBe(true));
+    for (const call of nav.calls.filter((c) => c.enabled)) {
+      expect(call.sort ?? null).toBeNull();
+      expect(JSON.parse(call.filters ?? '{}')).toEqual(kept);
+    }
+    // The stored list context is written back without them.
+    const stored = JSON.parse(window.sessionStorage.getItem('capex-list-context') ?? '{}');
+    expect(stored.sort).toBe('');
+    expect(JSON.parse(stored.filters)).toEqual(kept);
+  });
+
   it('keeps a sort on an enabled dimension', async () => {
     window.sessionStorage.setItem('capex-list-context', JSON.stringify({
       sort: `analytics_${NATURE}:DESC`, q: '', filters: '', statusScope: 'enabled',

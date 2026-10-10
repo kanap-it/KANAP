@@ -15,13 +15,13 @@ import { useAuth } from '../auth/AuthContext';
 import { LinkCellRenderer } from '../components/grid/renderers';
 import { formatItemRef } from '../utils/item-ref';
 import { readStoredCapexListContext, writeStoredCapexListContext } from './capex/listContextStorage';
+import { capexListFieldPredicate } from './capex/listFields';
 import { statusScopeParams } from '../utils/statusScopeParams';
 import ForbiddenPage from './ForbiddenPage';
 import {
   amountColumnYear,
   buildAmountColumnDefs,
   buildFteColumnDefs,
-  dimensionFieldPredicate,
   explicitSort,
   fteTotalsToRow,
   SummaryVersions,
@@ -92,12 +92,6 @@ const VALUES_ENDPOINT = '/capex-items/summary/filter-values';
 const pageParams = (state: Parameters<typeof visibleFteFields>[0]) => ({ shape: 'grid', fte: visibleFteFields(state).join(',') });
 
 /**
- * Fields the list no longer has: the PP&E type, investment type and priority are dimension columns
- * since lot C1. A saved or linked sort or filter on one falls back like one on a hidden column.
- */
-const RETIRED_LIST_FIELDS: ReadonlySet<string> = new Set(['ppe_type', 'investment_type', 'priority']);
-
-/**
  * The list, mounted afresh when the address enters or leaves a one-off view opened from a report
  * (`?from=report`): the menu's link to the list, followed from that view, then opens on the tab's own
  * list state instead of keeping the report's filters and Show scope on screen.
@@ -143,10 +137,10 @@ function CapexPageView() {
   budgetColumnsRef.current = budgetColumns;
   // The dimension columns the list builds: a sort or filter on another dimension, or on a field the
   // list no longer has, falls back like a hidden amount column.
-  const isListField = useMemo(() => {
-    const isDimensionField = dimensionFieldPredicate(analyticsAxes.enabled.filter((axis) => !axis.is_default).map((axis) => axis.id));
-    return (colId: string) => !RETIRED_LIST_FIELDS.has(colId) && isDimensionField(colId);
-  }, [analyticsAxes]);
+  const isListField = useMemo(
+    () => capexListFieldPredicate(analyticsAxes.enabled.filter((axis) => !axis.is_default).map((axis) => axis.id)),
+    [analyticsAxes],
+  );
   const isListFieldRef = useRef(isListField);
   isListFieldRef.current = isListField;
   // The sort to keep in the URL and the list context: '' for the default, which then follows a default change.
