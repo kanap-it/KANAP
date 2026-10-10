@@ -21,8 +21,11 @@ import { CapexCriteriaDimensions1853980000000 as Migration } from '../../migrati
 // without a value logged and named, `row_version` and `updated_at` of the lines untouched, the
 // CAPEX search entries rebuilt without the enums; a second run changes nothing; a missing column
 // is refused before any write; down() computes the columns again from the values (an unknown value
-// gives an empty column), keeps dimensions, values and links and puts lot Z1's search body back;
-// up() after down(). The assertions read this test's own rows, never table-wide counts, so the
+// gives an empty column; a criterion without a dimension, as for a deleted tenant, keeps its
+// column), keeps dimensions, values and links and puts lot Z1's search body back; up() after
+// down() names the line whose column the former version changed in between (its link kept). A
+// dimension kept as it is whose values of those names are disabled or for OPEX lines only: the
+// links are made and named with the reason. The assertions read this test's own rows, never table-wide counts, so the
 // spec passes on an empty database (CI) as on a copy of a dev database.
 // @database-spec: opens the data-source, so run-ci-tests.js runs this file on a database lane.
 
@@ -123,11 +126,19 @@ async function seedAxis(runner: QueryRunner, tenantId: string, code: string, nam
   return row.id;
 }
 
-async function seedValue(runner: QueryRunner, tenantId: string, axisId: string, name: string, sortOrder: number): Promise<string> {
+async function seedValue(
+  runner: QueryRunner,
+  tenantId: string,
+  axisId: string,
+  name: string,
+  sortOrder: number,
+  state: { status?: 'enabled' | 'disabled'; disabledAt?: string | null; appliesTo?: 'opex' | 'capex' | null } = {},
+): Promise<string> {
   await asTenant(runner, tenantId);
   const [row] = await runner.query(
-    `INSERT INTO analytics_categories (tenant_id, axis_id, name, sort_order) VALUES ($1, $2, $3, $4) RETURNING id`,
-    [tenantId, axisId, name, sortOrder],
+    `INSERT INTO analytics_categories (tenant_id, axis_id, name, sort_order, status, disabled_at, applies_to)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+    [tenantId, axisId, name, sortOrder, state.status ?? 'enabled', state.disabledAt ?? null, state.appliesTo ?? null],
   );
   await noTenant(runner);
   return row.id;
@@ -294,6 +305,9 @@ async function testUp() {
     assert.match(logA, /ppe_type created as "PP&E type", 2 value\(s\) created, 4 link\(s\) created/, logA);
     assert.match(logA, /investment_type created as "Investment type \(CAPEX\)", 7 value\(s\) created, 4 link\(s\) created/, logA);
     assert.match(logA, /priority kept \("Urgency"\), 3 value\(s\) created, 2 link\(s\) created, 1 kept \(1 kept link\(s\) name another value/, logA);
+    assert.ok(logA.includes(`name another value than the line's column: ${world.a4} (column low, value Urgent))`),
+      `the kept link that names another value is named, with the column and the value: ${logA}`);
+    assert.ok(!logA.includes('cannot choose'), `no link on an unusable value: ${logA}`);
     assert.ok(logA.includes(`1 without priority: ${world.a3}`), `the line without a value is named: ${logA}`);
     const checkA = lines.find((line) => line.includes('check:') && line.includes(world.a.slug)) ?? '';
     assert.match(checkA, /4 CAPEX line\(s\) to link \(column set: ppe_type 4, investment_type 4, priority 3\)/, checkA);
@@ -372,6 +386,17 @@ async function testDownThenUp() {
         [world.a.id, a6, value.axis, value.id]);
     }
     await noTenant(runner);
+    // Tenant B's priority dimension deleted since (its links, values, then itself): down() keeps
+    // that column of its lines as it is.
+    await asTenant(runner, world.b.id);
+    await runner.query(
+      `DELETE FROM spend_item_analytics_values v USING analytics_axes a
+        WHERE v.tenant_id = $1 AND a.tenant_id = $1 AND a.id = v.axis_id AND a.code = 'priority'`, [world.b.id]);
+    await runner.query(
+      `DELETE FROM analytics_categories c USING analytics_axes a
+        WHERE c.tenant_id = $1 AND a.tenant_id = $1 AND a.id = c.axis_id AND a.code = 'priority'`, [world.b.id]);
+    await runner.query(`DELETE FROM analytics_axes WHERE tenant_id = $1 AND code = 'priority'`, [world.b.id]);
+    await noTenant(runner);
     const aLines = [world.a1, world.a2, world.a3, world.a4, a6];
     const linksBefore = await links(runner, world.a.id, aLines);
     const versions = (await lineStates(runner, world.a.id, aLines)).map((row: any) => [row.id, row.row_version, row.updated_at]);
@@ -393,15 +418,65 @@ async function testDownThenUp() {
     const logA = lines.find((line) => line.includes(`tenant ${world.a.slug} `)) ?? '';
     assert.match(logA, /down: tenant .*: 4 CAPEX line\(s\) got their columns from their values; 2 line\(s\) with an empty column/, logA);
     assert.ok(logA.includes(world.a3) && logA.includes(world.a4), `the lines with an empty column are named: ${logA}`);
+    // A criterion the tenant has no dimension of: its column left as it is, the lines counted.
+    assert.deepEqual((await lineStates(runner, world.d.id, [world.d1])).map((row: any) => [row.ppe_type, row.investment_type, row.priority]),
+      [['hardware', 'replacement', 'mandatory']], 'a deleted tenant (no dimension): its columns as they were');
+    assert.deepEqual((await lineStates(runner, world.b.id, [world.b1])).map((row: any) => [row.ppe_type, row.investment_type, row.priority]),
+      [['hardware', 'security', 'medium']], 'a dimension deleted since: that column as it was');
+    const logD = lines.find((line) => line.includes(`tenant ${world.d.slug} `)) ?? '';
+    assert.match(logD, /0 CAPEX line\(s\) got their columns from their values; 1 line\(s\) left as they are for ppe_type, investment_type, priority \(no dimension of that code\)/, logD);
+    const logB = lines.find((line) => line.includes(`tenant ${world.b.slug} `)) ?? '';
+    assert.match(logB, /1 line\(s\) left as they are for priority \(no dimension of that code\)/, logB);
+    assert.match(lines.find((line) => line.startsWith(`${LOG_PREFIX} reverted in`)) ?? '', /left as they are for a criterion without a dimension/);
 
     await asMigration(runner, () => migration.down(runner));
     assert.deepEqual((await lineStates(runner, world.a.id, aLines)).map((row: any) => [row.id, row.row_version]), versions.map(([id, version]) => [id, version]), 'down() twice');
 
+    // The former version, run again after the revert, changes a criterion: the link stays as it was,
+    // the line is named at the next up().
+    await asTenant(runner, world.a.id);
+    await runner.query(`UPDATE spend_items SET priority = 'low' WHERE id = $1`, [world.a2]);
+    await noTenant(runner);
     const again = await asMigration(runner, () => migration.up(runner));
     assert.deepEqual(await dimensions(runner, world.a.id), dims, 'up() after down(): nothing created');
     assert.deepEqual(await links(runner, world.a.id, aLines), linksBefore, 'up() after down(): the links as they were');
+    const againA = again.lines.find((line) => line.includes(`tenant ${world.a.slug} `) && !line.includes('check:')) ?? '';
+    assert.ok(againA.includes(`${world.a2} (column low, value High)`), `the line changed by the former version is named: ${againA}`);
     assert.doesNotMatch(await capexBody(runner), /ppe_type/, 'up() after down(): the body without the enums');
     assert.ok(again.lines.some((line) => line.startsWith(`${LOG_PREFIX} done in`)));
+  });
+}
+
+async function testUnusableValues() {
+  await inRolledBackTransaction(async (runner) => {
+    await noTenant(runner);
+    // A priority dimension kept as it is: values of those names disabled, ended, for OPEX only.
+    const e = await seedTenant(runner, 'e');
+    const axis = await seedAxis(runner, e.id, 'priority', 'Urgency', 1);
+    await seedValue(runner, e.id, axis, 'Medium', 1, { status: 'disabled' });
+    await seedValue(runner, e.id, axis, 'High', 2, { disabledAt: '2020-01-01T00:00:00Z' });
+    await seedValue(runner, e.id, axis, 'Low', 3, { appliesTo: 'opex' });
+    await seedValue(runner, e.id, axis, 'Mandatory', 4);
+    const e1 = await seedLine(runner, e.id, 'capex', ['hardware', 'other', 'medium']);
+    const e2 = await seedLine(runner, e.id, 'capex', ['hardware', 'other', 'high']);
+    const e3 = await seedLine(runner, e.id, 'capex', ['hardware', 'other', 'low']);
+    const e4 = await seedLine(runner, e.id, 'capex', ['hardware', 'other', 'mandatory']);
+
+    const { lines } = await asMigration(runner, () => migration.up(runner));
+
+    assert.deepEqual(await links(runner, e.id, [e1, e2, e3, e4]).then((rows) => rows.filter((row: string) => row.includes(':priority='))), [
+      '0:priority=Medium', '1:priority=High', '2:priority=Low', '3:priority=Mandatory',
+    ], 'the links are made, the data stays');
+    const logE = lines.find((line) => line.includes(`tenant ${e.slug} `) && !line.includes('check:')) ?? '';
+    // Named in (created_at, id) order; the lines share their created_at.
+    const named = [[e1, 'Medium, disabled'], [e2, 'High, disabled'], [e3, 'Low, opex only']]
+      .sort(([x], [y]) => (x < y ? -1 : 1))
+      .map(([id, why]) => `${id} (${why})`);
+    assert.ok(
+      logE.includes(`(3 link(s) on a value CAPEX lines cannot choose: ${named.join(', ')})`),
+      `the links on a value CAPEX lines cannot choose are named with the reason: ${logE}`,
+    );
+    assert.ok(!logE.includes(e4), `a usable value is not named: ${logE}`);
   });
 }
 
@@ -409,7 +484,7 @@ async function main() {
   await dataSource.initialize();
   const failures: string[] = [];
   try {
-    for (const test of [testUp, testSecondRun, testRefusedBeforeAnyWrite, testDownThenUp]) {
+    for (const test of [testUp, testSecondRun, testRefusedBeforeAnyWrite, testDownThenUp, testUnusableValues]) {
       try {
         await test();
         console.log(`  ok ${test.name}`);

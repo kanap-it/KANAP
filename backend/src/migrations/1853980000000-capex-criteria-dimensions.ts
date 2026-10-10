@@ -3,6 +3,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 const LOG_PREFIX = '[Migration] CapexCriteriaDimensions:';
 /** Rows named in a tenant's log line (precedent 1853690000000). */
 const NAMED_ROWS = 50;
+/** The tables up() writes, analyzed at its end (in the transaction, like lot Z1). */
+const ANALYZED_TABLES = ['analytics_axes', 'analytics_categories', 'spend_item_analytics_values'];
 
 /**
  * The three CAPEX criteria and their dimensions: the column of `spend_items` (its enum type), the
@@ -223,10 +225,14 @@ const linesWithout = (criterion: Criterion) => `SELECT i.id FROM spend_items i
  *    - check, an exception otherwise (the whole transaction rolls back): no CAPEX line with a
  *      column set lacks a link on the dimension;
  *    - one log line: the dimensions created or kept, the values created, the links created and
- *      kept, the lines without a value (the first 50 named).
+ *      kept, the lines without a value; the links kept that name another value than the column
+ *      (written before this run, or by a version run again after a revert: never changed) and the
+ *      links on a value CAPEX lines cannot choose (disabled, or for OPEX lines only, on a
+ *      dimension kept as it is), the line, the column and the value or the reason given; the
+ *      first 50 lines named each time.
  * 3. `search_index_refresh_capex_items` loses the three enums from the summary and the B terms
  *    (the dimension values are already indexed, lot S); every tenant's CAPEX lines are indexed
- *    again, one tenant at a time with its app.current_tenant.
+ *    again, one tenant at a time with its app.current_tenant. `ANALYZE` of the tables written.
  *
  * The columns stay (nullable on `spend_items` since lot Z1; lot C2 drops them with the enum
  * types); the code no longer reads or writes them. A second run creates nothing, renumbers
@@ -235,7 +241,9 @@ const linesWithout = (criterion: Criterion) => `SELECT i.id FROM spend_items i
  * down() puts lot Z1's search body back, then, for each CAPEX line, computes the three columns
  * again from its values on the dimensions of those codes, by name (case-insensitive, a space for
  * an underscore: "Business growth" is `business_growth`); a value an administrator added, or no
- * value, gives an empty column (counted, named), which 1853970000000's down() then refuses. The
+ * value, gives an empty column (counted, named), which 1853970000000's down() then refuses. A
+ * tenant without a dimension of a criterion's code (deleted before this migration ran) keeps that
+ * column as it is (its lines counted). The
  * lines keep their `row_version` (their triggers off). It deletes no dimension, value or link:
  * they are the tenant's data now. The full revert is this migration, then lot Z1's.
  */
@@ -267,6 +275,8 @@ export class CapexCriteriaDimensions1853980000000 implements MigrationInterface 
         await queryRunner.query(CAPEX_REFRESH);
         const reindexMs = await reindexCapexLines(queryRunner);
         await assertSearchBodyWithoutCriteria(queryRunner);
+        // Fresh statistics for the rows written, as lot Z1 does: the list and report queries join them.
+        for (const table of ANALYZED_TABLES) await queryRunner.query(`ANALYZE ${table}`);
         console.log(
           `${LOG_PREFIX} done in ${Date.now() - started} ms: ${tenants.length} active tenant(s), `
             + `${totals.created} dimension(s) created, ${totals.kept} kept, ${totals.values} value(s) created, `
@@ -290,17 +300,20 @@ export class CapexCriteriaDimensions1853980000000 implements MigrationInterface 
         await queryRunner.query(CAPEX_REFRESH_PREVIOUS);
         let changed = 0;
         let empty = 0;
+        let leftAsIs = 0;
         await withoutUserTriggers(queryRunner, ['spend_items'], async () => {
           for (const tenant of tenants) {
             await setTenant(queryRunner, tenant.id);
             const outcome = await restoreTenant(queryRunner, tenant);
             changed += outcome.changed;
             empty += outcome.empty;
+            leftAsIs += outcome.leftAsIs;
           }
         });
         const reindexMs = await reindexCapexLines(queryRunner);
         console.log(
           `${LOG_PREFIX} reverted in ${Date.now() - started} ms: ${changed} CAPEX line(s) got their columns back from their values, `
+            + `${leftAsIs} left as they are for a criterion without a dimension, `
             + `${empty} line(s) with an empty column; dimensions, values and links kept; CAPEX search entries rebuilt in ${reindexMs} ms`,
         );
       });
@@ -461,26 +474,46 @@ async function convertTenant(
           + `and no value on the ${criterion.code} dimension after the conversion; nothing was changed.`,
       );
     }
-    // A link kept that names another value than the column (written before this run): logged, never changed.
-    const differs = await scalar(
-      queryRunner,
-      `SELECT count(*)::int AS n
+    // A link kept that names another value than the column (written before this run, or by a version
+    // run again after a revert): never changed, the lines named so that they can be fixed by hand.
+    const differsSql = `SELECT i.id, i.${criterion.code}::text AS col, c.name AS value
          FROM spend_items i
          JOIN spend_item_analytics_values v ON v.tenant_id = $1 AND v.item_id = i.id AND v.axis_id = $2::uuid
          JOIN analytics_categories c ON c.tenant_id = $1 AND c.id = v.category_id
         WHERE i.tenant_id = $1 AND i.nature = 'capex' AND i.${criterion.code} IS NOT NULL
-          AND lower(regexp_replace(btrim(c.name), '\\s+', '_', 'g')) <> i.${criterion.code}::text`,
-      [t, dimension.axisId],
-    );
+          AND lower(regexp_replace(btrim(c.name), '\\s+', '_', 'g')) <> i.${criterion.code}::text
+        ORDER BY i.created_at, i.id`;
+    const differs = await scalar(queryRunner, `SELECT count(*)::int AS n FROM (${differsSql}) x`, [t, dimension.axisId]);
+    // A link on a value CAPEX lines cannot choose (a dimension kept as it is: a value of that name
+    // disabled, or for OPEX lines only): kept, the data stays, the lines named with the reason.
+    const unusableSql = `SELECT i.id, c.name AS value,
+              CASE WHEN c.status <> 'enabled' OR (c.disabled_at IS NOT NULL AND c.disabled_at <= now()) THEN 'disabled' ELSE 'opex only' END AS reason
+         FROM spend_items i
+         JOIN spend_item_analytics_values v ON v.tenant_id = $1 AND v.item_id = i.id AND v.axis_id = $2::uuid
+         JOIN analytics_categories c ON c.tenant_id = $1 AND c.id = v.category_id
+        WHERE i.tenant_id = $1 AND i.nature = 'capex'
+          AND (c.status <> 'enabled' OR (c.disabled_at IS NOT NULL AND c.disabled_at <= now()) OR c.applies_to = 'opex')
+        ORDER BY i.created_at, i.id`;
+    const unusable = await scalar(queryRunner, `SELECT count(*)::int AS n FROM (${unusableSql}) x`, [t, dimension.axisId]);
     const emptyCount = await scalar(queryRunner, `SELECT count(*)::int AS n FROM (${linesWithout(criterion)}) x`, [t]);
     outcome.links += linked;
     outcome.empty += emptyCount;
     const label = dimension.created ? `created as "${dimension.name}"` : `kept ("${dimension.name ?? ''}")`;
-    parts.push(
-      `${criterion.code} ${label}, ${dimension.valuesCreated} value(s) created, ${linked} link(s) created`
-        + (set > linked ? `, ${set - linked} kept` : '')
-        + (differs > 0 ? ` (${differs} kept link(s) name another value than the line's column)` : ''),
-    );
+    let part = `${criterion.code} ${label}, ${dimension.valuesCreated} value(s) created, ${linked} link(s) created`
+      + (set > linked ? `, ${set - linked} kept` : '');
+    if (differs > 0) {
+      const rows: Array<{ id: string; col: string; value: string }> = await queryRunner.query(
+        `SELECT x.id::text AS id, x.col, x.value FROM (${differsSql}) x LIMIT ${NAMED_ROWS}`, [t, dimension.axisId]);
+      part += ` (${differs} kept link(s) name another value than the line's column: `
+        + `${named(rows.map((row) => `${row.id} (column ${row.col}, value ${row.value})`), differs)})`;
+    }
+    if (unusable > 0) {
+      const rows: Array<{ id: string; value: string; reason: string }> = await queryRunner.query(
+        `SELECT x.id::text AS id, x.value, x.reason FROM (${unusableSql}) x LIMIT ${NAMED_ROWS}`, [t, dimension.axisId]);
+      part += ` (${unusable} link(s) on a value CAPEX lines cannot choose: `
+        + `${named(rows.map((row) => `${row.id} (${row.value}, ${row.reason})`), unusable)})`;
+    }
+    parts.push(part);
     if (emptyCount > 0) {
       const shown = await ids(queryRunner, linesWithout(criterion), [t]);
       emptyParts.push(`${emptyCount} without ${criterion.code}: ${named(shown, emptyCount)}`);
@@ -528,16 +561,34 @@ function columnFromValue(criterion: Criterion): string {
             WHERE v.tenant_id = i.tenant_id AND v.item_id = i.id)`;
 }
 
-/** down(), one tenant (app.current_tenant set): the columns of its CAPEX lines from their values. */
-async function restoreTenant(queryRunner: QueryRunner, tenant: TenantRow): Promise<{ changed: number; empty: number }> {
+/**
+ * down(), one tenant (app.current_tenant set): the columns of its CAPEX lines from their values, for
+ * the criteria the tenant has a dimension of; a column of a criterion without one (a tenant deleted
+ * before this migration ran, a dimension deleted since) is left as it is, its lines counted.
+ */
+async function restoreTenant(
+  queryRunner: QueryRunner,
+  tenant: TenantRow,
+): Promise<{ changed: number; empty: number; leftAsIs: number }> {
   const t = tenant.id;
-  const changed = await countOf(
+  const found: Array<{ code: string }> = await queryRunner.query(
+    `SELECT DISTINCT lower(a.code) AS code FROM analytics_axes a WHERE a.tenant_id = $1 AND lower(a.code) = ANY($2::text[])`,
+    [t, CAPEX_CRITERIA.map((criterion) => criterion.code)],
+  );
+  const present = CAPEX_CRITERIA.filter((criterion) => found.some((row) => row.code === criterion.code));
+  const absent = CAPEX_CRITERIA.filter((criterion) => !present.includes(criterion));
+  const changed = present.length === 0 ? 0 : await countOf(
     queryRunner,
     `UPDATE spend_items i
-        SET ${CAPEX_CRITERIA.map((criterion) => `${criterion.code} = ${columnFromValue(criterion)}`).join(',\n            ')}
+        SET ${present.map((criterion) => `${criterion.code} = ${columnFromValue(criterion)}`).join(',\n            ')}
       WHERE i.tenant_id = $1 AND i.nature = 'capex'
-        AND (${CAPEX_CRITERIA.map((criterion) => `i.${criterion.code}`).join(', ')})
-            IS DISTINCT FROM (${CAPEX_CRITERIA.map((criterion) => columnFromValue(criterion)).join(', ')})`,
+        AND (${present.map((criterion) => `i.${criterion.code}`).join(', ')})
+            IS DISTINCT FROM (${present.map((criterion) => columnFromValue(criterion)).join(', ')})`,
+    [t],
+  );
+  const leftAsIs = absent.length === 0 ? 0 : await scalar(
+    queryRunner,
+    `SELECT count(*)::int AS n FROM spend_items i WHERE i.tenant_id = $1 AND i.nature = 'capex'`,
     [t],
   );
   const emptySql = `SELECT i.id FROM spend_items i
@@ -545,14 +596,17 @@ async function restoreTenant(queryRunner: QueryRunner, tenant: TenantRow): Promi
        AND (${CAPEX_CRITERIA.map((criterion) => `i.${criterion.code} IS NULL`).join(' OR ')})
      ORDER BY i.created_at, i.id`;
   const empty = await scalar(queryRunner, `SELECT count(*)::int AS n FROM (${emptySql}) x`, [t]);
-  if (changed > 0 || empty > 0) {
+  if (changed > 0 || empty > 0 || leftAsIs > 0) {
     const shown = empty > 0 ? await ids(queryRunner, emptySql, [t]) : [];
     console.log(
       `${LOG_PREFIX} down: tenant ${tenantName(tenant)}: ${changed} CAPEX line(s) got their columns from their values`
+        + (leftAsIs > 0
+          ? `; ${leftAsIs} line(s) left as they are for ${absent.map((criterion) => criterion.code).join(', ')} (no dimension of that code)`
+          : '')
         + (empty > 0 ? `; ${empty} line(s) with an empty column (no value, or a value added since): ${named(shown, empty)}` : ''),
     );
   }
-  return { changed, empty };
+  return { changed, empty, leftAsIs };
 }
 
 /* ------------------------------------------------------------- helpers ---- */
