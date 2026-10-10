@@ -204,9 +204,6 @@
     "columns": {
       "description": "Description",
       "company": "Company",
-      "ppeType": "PP&E type",
-      "investmentType": "Investment type",
-      "priority": "Priority",
       "yAllocation": "Y allocation",
       "yPlus1Allocation": "Y+1 allocation",
       "currency": "Currency",
@@ -232,28 +229,9 @@
       "budgetHolder": "Budget holder",
       "runBuild": "Run or build"
     },
-    "ppeTypes": {
-      "hardware": "Hardware",
-      "software": "Software"
-    },
     "runBuild": {
       "run": "Run",
       "build": "Build"
-    },
-    "investmentTypes": {
-      "replacement": "Replacement",
-      "capacity": "Capacity",
-      "productivity": "Productivity",
-      "security": "Security",
-      "conformity": "Conformity",
-      "business_growth": "Business growth",
-      "other": "Other"
-    },
-    "priorityTypes": {
-      "mandatory": "Mandatory",
-      "high": "High",
-      "medium": "Medium",
-      "low": "Low"
     },
     "workspace": {
       "newCapexItem": "New CAPEX item",
@@ -397,9 +375,6 @@
       "notes": "Notes",
       "notesPlaceholder": "e.g., renewal negotiated in Q3",
       "description": "Description",
-      "ppeType": "PP&E type",
-      "investmentType": "Investment type",
-      "priority": "Priority",
       "costCenter": "Cost center",
       "costCenterCompanyHint": "This cost center belongs to {{company}}.",
       "runBuild": "Run or build"
@@ -409,8 +384,7 @@
       "itOwner": "IT owner",
       "itOwnerMissing": "IT owner missing",
       "businessOwner": "Business owner",
-      "businessOwnerMissing": "Business owner missing",
-      "priority": "Priority"
+      "businessOwnerMissing": "Business owner missing"
     },
     "status": {
       "enabled": "Enabled",

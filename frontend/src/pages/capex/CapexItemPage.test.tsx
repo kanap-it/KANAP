@@ -190,6 +190,8 @@ describe('CapexItemPage create', () => {
       analytics_values: { 'axis-default': 'category-1', 'axis-nature': 'category-2' },
     });
     expect(mocked.post.mock.calls[0][1]).not.toHaveProperty('analytics_category_id');
+    // No preloaded PP&E type, investment type or priority: they are dimension values (lot C1).
+    for (const former of ['ppe_type', 'investment_type', 'priority']) expect(mocked.post.mock.calls[0][1]).not.toHaveProperty(former);
     // The page moves on to the new line's workspace.
     await waitFor(() => expect(mocked.get).toHaveBeenCalledWith('/capex-items/new-id', expect.objectContaining({ signal: expect.any(AbortSignal) })));
   });
@@ -569,7 +571,7 @@ describe('CapexItemPage autosave across lines', () => {
   const LINE_B = 'bbbbbbbb-0000-4000-8000-00000000000b';
   const line = (id: string, n: number, name: string) => ({
     id, item_number: n, description: name, notes: `${name} notes`, currency: 'EUR', effective_start: '2026-01-01',
-    paying_company_id: 'company-1', account_id: 'account-1', ppe_type: 'hardware', investment_type: 'replacement', priority: 'medium',
+    paying_company_id: 'company-1', account_id: 'account-1',
   });
   let busy = true;
 
@@ -915,7 +917,7 @@ describe('CapexItemPage cost center across lines', () => {
     company_id: 'company-1', company_name: 'Company', owner_user_id: 'user-1', owner_name: 'Ada Holder',
   });
   const line = (id: string, n: number, costCenter: { id: string; code: string }) => ({
-    id, item_number: n, description: `Line ${n}`, notes: '', ppe_type: 'hardware', investment_type: 'replacement', priority: 'medium',
+    id, item_number: n, description: `Line ${n}`, notes: '',
     currency: 'EUR', effective_start: '2026-01-01', paying_company_id: 'company-1', account_id: 'account-1',
     cost_center_id: costCenter.id, references: { cost_center: costCenter },
   });

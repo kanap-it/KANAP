@@ -104,15 +104,19 @@ export const DEFAULT_ANALYTICS_LIST_COLUMN = 'analytics_category_name';
  * The dimension columns of the OPEX and CAPEX lists: one per enabled dimension, in dimension order.
  * The default dimension keeps `analytics_category_name` wherever it stands, the others are
  * `analytics_<id>`. Without the default among them (dimensions not loaded), its column comes first.
+ * `required`: the dimension is required for the lines of `scope` (`axisRequiredFor`); the lists show
+ * those columns by default (lot C1, decision 3).
  */
 export function analyticsListColumns(
   axes: Pick<AnalyticsAxes, 'enabled' | 'label'>,
   defaultLabel: string,
-): Array<{ field: string; label: string }> {
+  scope?: LineType,
+): Array<{ field: string; label: string; required: boolean }> {
+  const required = (axis: AnalyticsAxis) => !!scope && axisRequiredFor(axis, scope);
   const columns = axes.enabled.map((axis) => (axis.is_default
-    ? { field: DEFAULT_ANALYTICS_LIST_COLUMN, label: defaultLabel }
-    : { field: analyticsFieldKey(axis.id), label: axes.label(axis) }));
-  if (!axes.enabled.some((axis) => axis.is_default)) columns.unshift({ field: DEFAULT_ANALYTICS_LIST_COLUMN, label: defaultLabel });
+    ? { field: DEFAULT_ANALYTICS_LIST_COLUMN, label: defaultLabel, required: required(axis) }
+    : { field: analyticsFieldKey(axis.id), label: axes.label(axis), required: required(axis) }));
+  if (!axes.enabled.some((axis) => axis.is_default)) columns.unshift({ field: DEFAULT_ANALYTICS_LIST_COLUMN, label: defaultLabel, required: false });
   return columns;
 }
 

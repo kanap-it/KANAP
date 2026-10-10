@@ -21,13 +21,8 @@ import type { CostCenterNode } from '../../../services/costCenters';
 import { axisRequiredFor, useAnalyticsAxes } from '../../../hooks/useAnalyticsAxes';
 import { drawerMenuItemSx, drawerSelectSx } from '../../../theme/formSx';
 import { matching, type ItemReferences } from '../../../components/finance/itemReferences';
-import type { CapexPriority } from './CapexMetadataBar';
 
-export type CapexPpeType = 'hardware' | 'software';
-export type CapexInvestmentType = 'replacement' | 'capacity' | 'productivity' | 'security' | 'conformity' | 'business_growth' | 'other';
 export type RunBuild = 'run' | 'build';
-
-type Option<T extends string> = { value: T; label: string };
 
 type Props = {
   mode?: 'create' | 'edit';
@@ -35,9 +30,6 @@ type Props = {
   payingCompanyId: string;
   accountId: string;
   currency: string;
-  ppeType: CapexPpeType;
-  investmentType: CapexInvestmentType;
-  priority?: CapexPriority;
   /** The line's value per dimension id; a dimension without a value is absent or null. */
   analyticsValues: Record<string, string | null>;
   costCenterId: string;
@@ -54,9 +46,6 @@ type Props = {
   onPayingCompanyChange: (next: string) => void;
   onAccountChange: (next: string) => void;
   onCurrencyChange: (next: string) => void;
-  onPpeTypeChange: (next: CapexPpeType) => void;
-  onInvestmentTypeChange: (next: CapexInvestmentType) => void;
-  onPriorityChange?: (next: CapexPriority) => void;
   onAnalyticsValueChange: (axisId: string, next: string | null) => void;
   /** `node`: the picked node (from the tree the picker loaded), null when cleared. */
   onCostCenterChange: (next: string, node: CostCenterNode | null) => void;
@@ -76,19 +65,12 @@ const hideInnerLabelSx = {
   '& .MuiFormControl-root': { m: 0 },
 } as const;
 
-function valueOption<T extends string>(options: Option<T>[], value: T): Option<T> {
-  return options.find((opt) => opt.value === value) || options[0];
-}
-
 export default function CapexPropertiesDrawer({
   mode = 'edit',
   supplierId,
   payingCompanyId,
   accountId,
   currency,
-  ppeType,
-  investmentType,
-  priority = 'medium',
   analyticsValues,
   costCenterId,
   runBuild,
@@ -106,9 +88,6 @@ export default function CapexPropertiesDrawer({
   onPayingCompanyChange,
   onAccountChange,
   onCurrencyChange,
-  onPpeTypeChange,
-  onInvestmentTypeChange,
-  onPriorityChange,
   onAnalyticsValueChange,
   onCostCenterChange,
   onRunBuildChange,
@@ -120,26 +99,6 @@ export default function CapexPropertiesDrawer({
   const { t } = useTranslation(['ops', 'common']);
   const locale = useLocale();
   const { data: currencySettings } = useCurrencySettings();
-
-  const ppeOptions = React.useMemo<Array<Option<CapexPpeType>>>(() => [
-    { value: 'hardware', label: t('capex.ppeTypes.hardware') },
-    { value: 'software', label: t('capex.ppeTypes.software') },
-  ], [t]);
-  const investmentOptions = React.useMemo<Array<Option<CapexInvestmentType>>>(() => [
-    { value: 'replacement', label: t('capex.investmentTypes.replacement') },
-    { value: 'capacity', label: t('capex.investmentTypes.capacity') },
-    { value: 'productivity', label: t('capex.investmentTypes.productivity') },
-    { value: 'security', label: t('capex.investmentTypes.security') },
-    { value: 'conformity', label: t('capex.investmentTypes.conformity') },
-    { value: 'business_growth', label: t('capex.investmentTypes.business_growth') },
-    { value: 'other', label: t('capex.investmentTypes.other') },
-  ], [t]);
-  const priorityOptions = React.useMemo<Array<Option<CapexPriority>>>(() => [
-    { value: 'mandatory', label: t('capex.priorityTypes.mandatory') },
-    { value: 'high', label: t('capex.priorityTypes.high') },
-    { value: 'medium', label: t('capex.priorityTypes.medium') },
-    { value: 'low', label: t('capex.priorityTypes.low') },
-  ], [t]);
 
   const currencyOptions = React.useMemo<CurrencyOption[]>(() => {
     const allowed = currencySettings?.allowedCurrencies;
@@ -213,50 +172,6 @@ export default function CapexPropertiesDrawer({
             )}
           />
         </PropertyRow>
-        <PropertyRow label={t('capex.fields.ppeType')} required>
-          <Autocomplete<Option<CapexPpeType>, false, true, false>
-            options={ppeOptions}
-            disableClearable
-            value={valueOption(ppeOptions, ppeType)}
-            onChange={(_e, option) => onPpeTypeChange(option?.value ?? ppeType)}
-            getOptionLabel={(option) => option.label}
-            isOptionEqualToValue={(option, value) => option.value === value.value}
-            disabled={disabled}
-            renderInput={(params) => (
-              <TextField {...params} variant="standard" />
-            )}
-          />
-        </PropertyRow>
-        <PropertyRow label={t('capex.fields.investmentType')} required>
-          <Autocomplete<Option<CapexInvestmentType>, false, true, false>
-            options={investmentOptions}
-            disableClearable
-            value={valueOption(investmentOptions, investmentType)}
-            onChange={(_e, option) => onInvestmentTypeChange(option?.value ?? investmentType)}
-            getOptionLabel={(option) => option.label}
-            isOptionEqualToValue={(option, value) => option.value === value.value}
-            disabled={disabled}
-            renderInput={(params) => (
-              <TextField {...params} variant="standard" />
-            )}
-          />
-        </PropertyRow>
-        {mode === 'create' && onPriorityChange && (
-          <PropertyRow label={t('capex.fields.priority')} required>
-            <Autocomplete<Option<CapexPriority>, false, true, false>
-              options={priorityOptions}
-              disableClearable
-              value={valueOption(priorityOptions, priority)}
-              onChange={(_e, option) => onPriorityChange(option?.value ?? priority)}
-              getOptionLabel={(option) => option.label}
-              isOptionEqualToValue={(option, value) => option.value === value.value}
-              disabled={disabled}
-              renderInput={(params) => (
-                <TextField {...params} variant="standard" />
-              )}
-            />
-          </PropertyRow>
-        )}
         {analyticsAxes.isError && analyticsAxes.axes.length === 0 ? (
           <Typography sx={{ fontSize: 12, lineHeight: 1.35, color: 'kanap.text.tertiary', py: '5px' }}>
             {t('shared.dimensionsLoadFailed')}

@@ -598,27 +598,51 @@ describe('CapexPage', () => {
     expect(column('account_display')?.valueGetter?.({ data: {} })).toBe('');
   });
 
-  it('offers the priority, investment type and PPE type values in their business order, blanks last', async () => {
+  it('has no PP&E type, investment type or priority column: they are dimension columns, shown when required', async () => {
+    const PPE = '44444444-4444-4444-8444-444444444444';
+    const PRIORITY = '55555555-5555-4555-8555-555555555555';
+    const SITE = '66666666-6666-4666-8666-666666666666';
+    const RECURRENCE = '77777777-7777-4777-8777-777777777777';
+    dimensions.list = [
+      DEFAULT_DIMENSION,
+      dimension(SITE, 'Site', 1),
+      dimension(RECURRENCE, 'Recurrence', 2, { applies_to: 'opex', required: true }),
+      dimension(PPE, 'PP&E type', 3, { applies_to: 'capex', required: true }),
+      dimension(PRIORITY, 'Priority', 4, { applies_to: 'capex', required: true, status: 'disabled', disabled_at: '2020-01-01T00:00:00.000Z' }),
+    ];
     await renderPage();
-    const listed: Record<string, Array<string | null>> = {
-      priority: ['low', 'mandatory', null, 'medium', 'high'],
-      investment_type: ['other', 'security', 'replacement', 'business_growth', 'capacity', 'conformity', 'productivity'],
-      ppe_type: ['software', 'hardware'],
-    };
-    get.mockImplementation(async (url: string, config?: { params?: { fields?: string } }) => {
-      if (url !== '/capex-items/summary/filter-values') return { data: {} };
-      const field = config?.params?.fields ?? '';
-      return { data: { [field]: listed[field] } };
-    });
-    type GetValues = (p: unknown) => Promise<Array<{ value: string | null; label: string }>>;
-    const noState = { context: { getQueryState: () => ({}) } };
-    const valuesOf = async (id: string) => (await (column(id)!.filterParams!.getValues as GetValues)(noState)).map((o) => o.value);
-    expect(await valuesOf('priority')).toEqual(['mandatory', 'high', 'medium', 'low', null]);
-    expect(await valuesOf('investment_type')).toEqual(['replacement', 'capacity', 'productivity', 'security', 'conformity', 'business_growth', 'other']);
-    expect(await valuesOf('ppe_type')).toEqual(['hardware', 'software']);
-    // Labels as translated, order kept.
-    const priority = await (column('priority')!.filterParams!.getValues as GetValues)(noState);
-    expect(priority[0]).toEqual({ value: 'mandatory', label: 'capex.priorityTypes.mandatory' });
+    const ids = lastProps().columns.map((c) => c.colId ?? c.field);
+    for (const former of ['ppe_type', 'investment_type', 'priority']) expect(ids).not.toContain(former);
+    // Required for CAPEX lines: shown by default; optional: hidden; a disabled one or one for OPEX lines only: no column.
+    expect(column(`analytics_${PPE}`)).toMatchObject({ headerName: 'PP&E type', defaultHidden: false });
+    expect(column(`analytics_${SITE}`)?.defaultHidden).toBe(true);
+    expect(column('analytics_category_name')?.defaultHidden).toBe(true);
+    expect(ids).not.toContain(`analytics_${PRIORITY}`);
+    expect(ids).not.toContain(`analytics_${RECURRENCE}`);
+  });
+
+  it('drops a stored sort or filter on the former PP&E type, investment type or priority fields', async () => {
+    const PRIORITY = '55555555-5555-4555-8555-555555555555';
+    dimensions.list = [DEFAULT_DIMENSION, dimension(PRIORITY, 'Priority', 1, { applies_to: 'capex', required: true })];
+    const kept = { [`analytics_${PRIORITY}`]: { filterType: 'set', values: ['High'] } };
+    window.sessionStorage.setItem('capex-list-context', JSON.stringify({
+      sort: 'priority:ASC',
+      q: '',
+      filters: JSON.stringify({
+        ...kept,
+        priority: { filterType: 'set', values: ['high'] },
+        ppe_type: { filterType: 'set', values: ['hardware'] },
+        investment_type: { filterType: 'set', values: ['replacement'] },
+      }),
+      statusScope: 'enabled',
+    }));
+    await renderPage();
+    expect(seen.searches.length).toBeGreaterThan(0);
+    for (const search of seen.searches) {
+      const params = new URLSearchParams(search);
+      expect(params.get('sort')).toBeNull();
+      expect(JSON.parse(params.get('filters') ?? '{}')).toEqual(kept);
+    }
   });
 
   it('keeps a linked sort on an enabled dimension', async () => {

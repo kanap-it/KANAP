@@ -759,13 +759,14 @@ function OpexListPageView() {
       ),
     },
     // One column per enabled dimension, in dimension order. The default dimension keeps its column
-    // id wherever it stands, so saved layouts, links and AI filters still find it.
-    ...analyticsListColumns(analyticsAxes, defaultAnalyticsLabel).map(({ field, label }): EnhancedColDef<SummaryRow> => ({
+    // id wherever it stands, so saved layouts, links and AI filters still find it. A dimension
+    // required for OPEX lines shows by default (lot C1, decision 3); a saved layout still decides.
+    ...analyticsListColumns(analyticsAxes, defaultAnalyticsLabel, 'opex').map(({ field, label, required }): EnhancedColDef<SummaryRow> => ({
       colId: field,
       headerName: label,
       valueGetter: (p) => (p.data as Record<string, unknown> | undefined)?.[field] ?? '',
       width: 200,
-      defaultHidden: true,
+      defaultHidden: !required,
       filter: CheckboxSetFilter,
       floatingFilterComponent: CheckboxSetFloatingFilter,
       filterParams: {
