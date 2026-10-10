@@ -17,6 +17,7 @@ import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { DataSource, EntityManager } from 'typeorm';
 import { TENANT_RESET_RUNNING_CODE, TenantResetService } from '../admin/tenants/tenant-reset.service';
+import { capexDimensionTable } from '../analytics/capex-dimensions.seed';
 import { AuthService } from '../auth/auth.service';
 import { DEFAULT_ACCESS_TOKEN_TTL, parseDurationMs } from '../auth/token-ttl.util';
 import { StripeConfigService } from '../billing/stripe/stripe.config';
@@ -135,7 +136,8 @@ export const CONFIRMATION_MISMATCH_CODE = 'confirmation_mismatch';
  * empty, because the reset after a failed load erases them (`findTenantContent` adds the tables
  * that activation fills). None of them is written at activation, by a scheduled job or by
  * browsing: only by a user's own create, import or setting save. The dimension values are not
- * here: every workspace starts with those of the three CAPEX dimensions (lot C1).
+ * here: every workspace starts with those of the three CAPEX dimensions (lot C1), so
+ * `findTenantContent` checks them apart, the seeded values left out.
  */
 export const DEMO_LOAD_EMPTY_TABLES = [
   'applications',
@@ -298,7 +300,9 @@ async function templateAccountNumbers(csv: string): Promise<string[]> {
  * starting state). Every table of `DEMO_LOAD_EMPTY_TABLES` must be empty. Activation also
  * creates, and these may hold only that: one company; documents in the templates library;
  * the chart of accounts made from the default template, with that template's accounts; the
- * standard calendar of the company's country. And no `.example` user (sample data users).
+ * standard calendar of the company's country; the values of the three CAPEX dimensions
+ * (`capex-dimensions.seed.ts`, by dimension code and value name: a value an administrator added,
+ * or renamed, counts). And no `.example` user (sample data users).
  * Runs under the tenant's RLS context.
  */
 export async function findTenantContent(manager: EntityManager, tenantId: string): Promise<string[]> {
@@ -326,11 +330,20 @@ export async function findTenantContent(manager: EntityManager, tenantId: string
           AND NOT (region_code IS NULL AND country_iso IS NOT NULL AND code = country_iso))
        OR (SELECT count(*) FROM working_day_profiles WHERE tenant_id = $1) > 1`,
     `SELECT 'users' AS t WHERE EXISTS (SELECT 1 FROM users WHERE tenant_id = $1 AND lower(email) LIKE '%.example')`,
+    `SELECT 'analytics_categories' AS t WHERE EXISTS (
+       SELECT 1 FROM analytics_categories c
+         JOIN analytics_axes a ON a.id = c.axis_id AND a.tenant_id = c.tenant_id
+        WHERE c.tenant_id = $1
+          AND NOT EXISTS (SELECT 1 FROM unnest($4::text[], $5::text[]) AS s(code, name)
+                           WHERE lower(a.code) = s.code AND lower(c.name) = s.name))`,
   ];
+  const seeded = capexDimensionTable().flatMap((dimension) => dimension.values.map((value) => [dimension.code, value.name.toLowerCase()]));
   const rows: Array<{ t: string }> = await manager.query(checks.join(' UNION ALL '), [
     tenantId,
     baselineChart?.id ?? null,
     templateNumbers,
+    seeded.map(([code]) => code),
+    seeded.map(([, name]) => name),
   ]);
   return rows.map((row) => row.t);
 }
