@@ -22,7 +22,7 @@ Nature          Program
 
 ### The default dimension
 
-Every workspace starts with one dimension, the default dimension. Until you give it a name, it shows as **Analytics dimension**, in each person's language. If your workspace already had analytics values, they belong to this dimension and every line keeps its value.
+Every workspace has one default dimension. Until you give it a name, it shows as **Analytics dimension**, in each person's language. If your workspace already had analytics values, they belong to this dimension and every line keeps its value.
 
 The default dimension has a special role:
 
@@ -31,6 +31,23 @@ The default dimension has a special role:
 - Questions to Plaid about the analytics category use it. See [Analytics dimensions in Plaid](#analytics-dimensions-in-plaid). In a budget file each dimension has its own column, the default one included: see [Load a budget from a spreadsheet](budget-file.md).
 - It stays the default dimension when you rename it, change its code or move it in the order of the dimensions.
 - Its label is reserved: no other dimension can be named "Analytics dimension", in any of the app's languages.
+
+### CAPEX dimensions
+
+Every workspace also has three dimensions that classify CAPEX lines. They are used for **CAPEX only**, required and enabled:
+
+| Dimension | Code | Values, in order |
+|---|---|---|
+| **PP&E type** | `ppe_type` | Hardware, Software |
+| **Investment type** | `investment_type` | Replacement, Capacity, Productivity, Security, Conformity, Business growth, Other |
+| **Priority** | `priority` | Mandatory, High, Medium, Low |
+
+- Their names and values are in English. They come after the dimensions the workspace already had.
+- When another dimension already has one of these names, the CAPEX dimension gets the name with " (CAPEX)" added, for example **Priority (CAPEX)**.
+- When the workspace already had a dimension with one of these codes, that dimension is kept as it is and only gets the values it lacked.
+- A CAPEX line created before these dimensions holds the value of its earlier PP&E type, investment type and priority.
+- They work like any other dimension. You can rename them and their values, add values, change the order, change their settings, disable or delete them.
+- The code names the dimension's column in the CAPEX budget file: `analytics:ppe_type`, `analytics:investment_type` and `analytics:priority`. When you change a code, a file exported before the change still has the old column name and is refused with "Unknown dimension". Export a fresh file. See [Load a budget from a spreadsheet](budget-file.md).
 
 ---
 
@@ -228,7 +245,7 @@ The values of a dimension have an order, which you set. KANAP offers the values 
 - the values CSV export
 - the values Plaid lists
 
-Report rows keep their own order, by amount. Sorting the OPEX or CAPEX list on a dimension's column sorts it by value name.
+Sorting the OPEX or CAPEX list on a dimension's column follows this order too, then the value name. Lines without a value come last in ascending order. Report rows keep their own order, by amount.
 
 At first, the values are in alphabetical order. A new value goes last in its dimension.
 
@@ -295,7 +312,7 @@ In the **Properties** panel of an OPEX or CAPEX item, and when you create one, e
 - A value applies to the whole line, across all years.
 - If the dimensions cannot be loaded, one line replaces these fields: "Dimensions could not be loaded."
 
-The OPEX and CAPEX lists have one column per enabled dimension used for that kind of line, hidden by default, with checkbox filters. See [OPEX](opex.md) and [CAPEX](capex.md).
+The OPEX and CAPEX lists have one column per enabled dimension used for that kind of line, with checkbox filters. The column of a dimension required for that kind of line shows by default, and the other columns are hidden. A column layout you saved keeps its own choice. See [OPEX](opex.md) and [CAPEX](capex.md).
 
 ---
 
@@ -320,6 +337,7 @@ The seven budget reports can also be narrowed to one value of a dimension, with 
 - Plaid's search and the `@` mentions in the chat find an OPEX or CAPEX line by the name of a value it holds on a dimension shown for its type, with or without accents.
 - Plaid can set, change or clear a line's value on any dimension when it creates or updates an OPEX or CAPEX line. Ask for example: "Set the Nature de coût of OPX-12 to Licences et maintenance". Plaid finds the value by its name within that dimension and shows the dimension and the value, before and after, in the preview. Nothing changes until you approve it.
 - Plaid follows the same rules as the app: only enabled dimensions used for the line's type, only enabled values used for the line's type, and a line keeps a value it already has.
+- When Plaid creates a line, it needs a value on each required dimension of the line's type. For a CAPEX line, this includes **PP&E type**, **Investment type** and **Priority**.
 - Plaid knows which dimensions are required. A new line needs a value on each of them, and Plaid cannot clear the value of a required dimension. Plaid refuses a request that breaks the rule and says why, for example "Nature is required for spend item creation."
 - Plaid can also create a value in the dimension you name. Without a dimension, the value goes into the default dimension.
 

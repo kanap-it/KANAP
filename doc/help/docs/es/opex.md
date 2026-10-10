@@ -60,7 +60,7 @@ La lista OPEX (en **Gestión presupuestaria > OPEX**) es su vista principal para
   - **Inicio efectivo**: Fecha de inicio
   - **Fin de validez**: Fecha en que la partida termina (en blanco significa sin fin)
   - **Responsable IT** / **Responsable de negocio**: Usuarios responsables
-  - **Dimensiones analíticas**: Una columna por dimensión activada usada para las líneas OPEX, con el nombre de la dimensión y el valor de la partida, en el orden de las dimensiones. La columna de la dimensión por defecto se titula **Dimensión analítica** hasta que se le da un nombre
+  - **Dimensiones analíticas**: Una columna por dimensión activada usada para las líneas OPEX, con el nombre de la dimensión y el valor de la partida, en el orden de las dimensiones. La columna de la dimensión por defecto se titula **Dimensión analítica** hasta que se le da un nombre. Las columnas de las dimensiones obligatorias para las líneas OPEX se muestran por defecto. Una disposición de columnas que haya guardado conserva su propia elección
   - **Centro de coste**: El código y el nombre del centro de coste. Pase el cursor por encima para ver su ruta completa en el árbol; haga clic para abrir el centro de coste
   - **Responsable del presupuesto**: El responsable del presupuesto del centro de coste de la partida. Se deriva del centro de coste y no se almacena en la partida: cambie el responsable del presupuesto de un centro de coste y todas sus partidas lo siguen
   - **Run o build**: **Run** o **Build**
@@ -82,6 +82,7 @@ La lista OPEX (en **Gestión presupuestaria > OPEX**) es su vista principal para
 **Ordenación**:
   - Haga clic en un encabezado de columna para ordenar ascendente/descendente. Todas las columnas se pueden ordenar, incluida cada columna de importe y de ETC. Las partidas sin ETC van al final en orden ascendente
   - Las columnas de texto se ordenan en orden de lectura natural: un nombre con tilde se ordena junto a su forma sin tilde (por ejemplo «Électricité» junto a «Electricite»), y las minúsculas van antes que las mayúsculas cuando las letras son iguales
+  - Una columna de dimensión se ordena según el orden de los valores de la dimensión, definido en [Dimensiones analíticas](analytics.md#ordenar-los-valores), y después por nombre. Las partidas sin valor van al final en orden ascendente
   - La ordenación predeterminada es por la columna por defecto del año actual, de mayor a menor (**Presupuesto A** con la configuración estándar). Los botones **Anterior** y **Siguiente** del espacio de trabajo siguen el mismo orden
   - La lista recuerda su última ordenación, búsqueda y filtros cuando regresa
 

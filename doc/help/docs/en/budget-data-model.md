@@ -63,9 +63,7 @@ A line lives across years: a three-year licence is one line with three budget ye
 | Number | `item_number` | Set by KANAP | Empty in the file creates a line |
 | Product name (OPEX), title (CAPEX) | `name` | Yes | |
 | Description (OPEX) | `description` | No | |
-| PP&E type (CAPEX) | `ppe_type` | Yes | `hardware` or `software` |
-| Investment type (CAPEX) | `investment_type` | Yes | `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth` or `other` |
-| Priority (CAPEX) | `priority` | Yes | `mandatory`, `high`, `medium` or `low` |
+| PP&E type, investment type, priority (CAPEX) | `analytics:ppe_type`, `analytics:investment_type`, `analytics:priority` | For a new line, while the dimension is required | Values of the three CAPEX dimensions, held like the values of any other dimension. See [CAPEX dimensions](analytics.md#capex-dimensions) |
 | Paying company | `company_name` | Yes | Taken from the cost center when only the cost center is given |
 | Supplier | `supplier_name`, `supplier_erp_id` | No | |
 | Account | `account_number` | Yes | In the chart of accounts of the paying company |

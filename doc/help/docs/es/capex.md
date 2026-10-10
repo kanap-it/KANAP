@@ -16,9 +16,7 @@ El espacio de trabajo se abre en modo de creación, con el panel **Propiedades**
 - **Empresa pagadora**: Qué empresa realiza la inversión (obligatorio para contabilidad)
 - **Cuenta**: La cuenta contable de este gasto de capital. Solo aparecen las cuentas del plan de cuentas de la empresa pagadora, y solo las que están como **OPEX y CAPEX** o **Solo CAPEX** en [Planes de cuentas y gestión de cuentas](chart-of-accounts.md#cuentas-opex-o-capex). Una partida que ya tiene una cuenta **Solo OPEX** la conserva y sigue siendo editable. Elegir una cuenta así en una partida nueva, o al cambiar la cuenta, se rechaza
 - **Moneda**: Código ISO (p. ej., USD, EUR). Por defecto la moneda CAPEX de su espacio de trabajo; puede cambiarla por partida
-- **Tipo de activo fijo**: Clasificación de propiedad, planta y equipo: Hardware o Software
-- **Tipo de inversión**: Propósito de la inversión (vea las opciones más abajo)
-- **Prioridad**: Nivel de prioridad de negocio (vea las opciones más abajo)
+- **PP&E type**, **Investment type** y **Priority**: las tres dimensiones CAPEX, un campo cada una. No hay ningún valor elegido de antemano: elija uno en cada campo. Consulte [Dimensiones CAPEX](#dimensiones-capex)
 - **Inicio de vigencia**: Cuándo comienza esta inversión (DD/MM/AAAA)
 
 **Opcional pero útil**:
@@ -39,24 +37,17 @@ Una vez creada la partida, el espacio de trabajo desbloquea las cuatro pestañas
 
 ---
 
-## Tipos de inversión
+## Dimensiones CAPEX
 
-Las partidas CAPEX deben clasificarse por tipo de inversión. Esto ayuda a analizar los patrones de gasto de capital:
+Cada espacio de trabajo clasifica las partidas CAPEX en tres dimensiones analíticas:
 
-- **Reemplazo**: Reemplazar activos existentes obsoletos o al final de su vida útil
-- **Capacidad**: Añadir capacidad para soportar el crecimiento del negocio o una demanda creciente
-- **Productividad**: Mejorar la eficiencia o reducir costes operativos
-- **Seguridad**: Reforzar la postura de seguridad, la conformidad o la mitigación de riesgos
-- **Conformidad**: Cumplir requisitos regulatorios o de conformidad
-- **Crecimiento del negocio**: Habilitar nuevos productos, mercados o capacidades de negocio
-- **Otro**: Inversiones que no encajan en las categorías anteriores
+| Dimensión | Valores |
+|---|---|
+| **PP&E type** | Hardware, Software (propiedad, planta y equipo) |
+| **Investment type** | Replacement, Capacity, Productivity, Security, Conformity, Business growth, Other |
+| **Priority** | Mandatory, High, Medium, Low |
 
-**Niveles de prioridad**:
-
-- **Obligatorio**: Debe hacerse (regulatorio, infraestructura crítica, seguridad)
-- **Alto**: Caso de negocio sólido, alto ROI o importancia estratégica
-- **Medio**: Valioso pero puede aplazarse si es necesario
-- **Bajo**: Deseable, puede posponerse
+Se usan para las líneas CAPEX y son obligatorias: una partida nueva necesita un valor en cada una. Funcionan como cualquier otra dimensión: sus campos están en el panel **Propiedades** junto a las demás dimensiones, y sus columnas se muestran por defecto en la lista CAPEX. Un administrador puede cambiarles el nombre, añadir valores, cambiar el orden de los valores, desactivarlas o eliminarlas. Consulte [Dimensiones CAPEX](analytics.md#dimensiones-capex) en Dimensiones analíticas.
 
 ---
 
@@ -74,16 +65,14 @@ La lista CAPEX (en **Gestión presupuestaria > CAPEX**) es su vista principal pa
 | **Empresa pagadora** | Qué empresa paga esta partida |
 | **Contrato** | El nombre del último contrato vinculado |
 | **Cuenta** | El número y nombre de la cuenta contable |
-| **Tipo de activo fijo** | Hardware o Software |
-| **Tipo de inversión** | Propósito de la inversión |
-| **Prioridad** | Nivel de prioridad de negocio |
 | **Asignación** | Etiqueta del método de asignación del año actual |
+| **Dimensiones obligatorias** | Una columna por dimensión activada obligatoria para las líneas CAPEX, con el nombre de la dimensión y el valor de la partida: al principio **PP&E type**, **Investment type** y **Priority** |
 | **Presupuesto A** y **Aterrizaje previsto A** | Los importes del año actual de la columna por defecto y de la última columna visible, en la moneda de reporte. Con la configuración estándar son Presupuesto y Aterrizaje previsto. Cuando la columna por defecto es también la última visible, aparece una sola columna de importe. Consulte [Columnas presupuestarias](budget-operations.md#columnas-presupuestarias) |
 | **Tarea** | Título de la tarea más reciente vinculada a esta partida |
 
 ### Columnas adicionales
 
-Estas columnas están ocultas por defecto. Muéstrelas desde el selector de columnas (menú hamburguesa en el encabezado de la cuadrícula):
+Estas columnas están ocultas por defecto. Muéstrelas desde el selector de columnas (menú hamburguesa en el encabezado de la cuadrícula). Una disposición de columnas que haya guardado conserva su propia elección de columnas:
 
 | Columna | Qué muestra |
 |---------|-------------|
@@ -94,7 +83,7 @@ Estas columnas están ocultas por defecto. Muéstrelas desde el selector de colu
 | **Inicio efectivo** | Fecha de inicio |
 | **Fin de validez** | Fecha en que la partida termina (en blanco significa sin fin) |
 | **Responsable IT** / **Responsable de negocio** | Usuarios responsables |
-| **Dimensiones analíticas** | Una columna por dimensión activada usada para las líneas CAPEX, con el nombre de la dimensión y el valor de la partida, en el orden de las dimensiones. La columna de la dimensión por defecto se titula **Dimensión analítica** hasta que se le da un nombre |
+| **Dimensiones analíticas** | Una columna por dimensión activada usada para las líneas CAPEX, con el nombre de la dimensión y el valor de la partida, en el orden de las dimensiones. La columna de la dimensión por defecto se titula **Dimensión analítica** hasta que se le da un nombre. Las columnas de las dimensiones obligatorias para las líneas CAPEX se muestran por defecto |
 | **Centro de coste** | El código y el nombre del centro de coste. Pase el cursor por encima para ver su ruta completa en el árbol; haga clic para abrir el centro de coste |
 | **Responsable del presupuesto** | El responsable del presupuesto del centro de coste de la partida. Se deriva del centro de coste y no se almacena en la partida: cambie el responsable del presupuesto de un centro de coste y todas sus partidas lo siguen |
 | **Run o build** | **Run** o **Build** |
@@ -105,11 +94,11 @@ Estas columnas están ocultas por defecto. Muéstrelas desde el selector de colu
 
 ### Búsqueda rápida
 
-El cuadro de búsqueda en la parte superior busca en la referencia, la descripción, el proveedor, la empresa pagadora, la cuenta, el contrato, los nombres de proyectos, la asignación, los responsables, los valores analíticos, el centro de coste (código, nombre y ruta), el responsable del presupuesto, el tipo de activo fijo, el tipo de inversión, la prioridad, las notas, la moneda y el estado. Los resultados se actualizan en tiempo real mientras escribe, sin distinguir acentos ni mayúsculas y minúsculas.
+El cuadro de búsqueda en la parte superior busca en la referencia, la descripción, el proveedor, la empresa pagadora, la cuenta, el contrato, los nombres de proyectos, la asignación, los responsables, los valores analíticos (por nombre de valor, por ejemplo «Business growth»), el centro de coste (código, nombre y ruta), el responsable del presupuesto, las notas, la moneda y el estado. Los resultados se actualizan en tiempo real mientras escribe, sin distinguir acentos ni mayúsculas y minúsculas.
 
 ### Filtros de columna
 
-Cada encabezado de columna filtrable tiene un icono de filtro. **Proveedor**, **Empresa pagadora**, **Cuenta**, **Tipo de activo fijo**, **Tipo de inversión**, **Prioridad**, **Asignación**, **Moneda**, **Responsable IT**, **Responsable de negocio**, cada dimensión analítica, **Centro de coste**, **Responsable del presupuesto**, **Run o build**, **ETC declarados** y **Habilitado** usan filtros de conjunto de casillas con **Todos**, **Ninguno** y un botón de limpiar. El filtro **ETC declarados** ofrece **Sí** y **No**. El filtro **Habilitado** ofrece **Activado** y **Desactivado**, con el mismo significado que **Mostrar**, y restringe la lista cuando **Mostrar** está en **Todos**. Si hace clic en **Limpiar** dentro del filtro, o desmarca ambos valores, la lista no muestra nada, sea cual sea la opción de **Mostrar**. Múltiples filtros se combinan con lógica AND.
+Cada encabezado de columna filtrable tiene un icono de filtro. **Proveedor**, **Empresa pagadora**, **Cuenta**, **Asignación**, **Moneda**, **Responsable IT**, **Responsable de negocio**, cada dimensión analítica, **Centro de coste**, **Responsable del presupuesto**, **Run o build**, **ETC declarados** y **Habilitado** usan filtros de conjunto de casillas con **Todos**, **Ninguno** y un botón de limpiar. El filtro **ETC declarados** ofrece **Sí** y **No**. El filtro **Habilitado** ofrece **Activado** y **Desactivado**, con el mismo significado que **Mostrar**, y restringe la lista cuando **Mostrar** está en **Todos**. Si hace clic en **Limpiar** dentro del filtro, o desmarca ambos valores, la lista no muestra nada, sea cual sea la opción de **Mostrar**. Múltiples filtros se combinan con lógica AND.
 
 Marque **Todos** y luego desmarque los valores que quiera excluir: el filtro conserva todo salvo esos (el encabezado muestra, por ejemplo, **Todos menos 3**), y un valor creado más tarde se incluye automáticamente.
 
@@ -123,7 +112,7 @@ Las columnas de texto usan filtros de texto, sin distinguir acentos ni mayúscul
 
 ### Ordenación
 
-Haga clic en un encabezado de columna para ordenar ascendente o descendente. Todas las columnas se pueden ordenar, incluida cada columna de importe y de ETC. Las partidas sin ETC van al final en orden ascendente. Las columnas de texto se ordenan en orden de lectura natural: un nombre con tilde se ordena junto a su forma sin tilde (por ejemplo «Électricité» junto a «Electricite»), y las minúsculas van antes que las mayúsculas cuando las letras son iguales. La ordenación predeterminada es la columna por defecto del año actual, de mayor a menor (**Presupuesto A** con la configuración estándar). **Anterior** y **Siguiente** en el espacio de trabajo siguen el mismo orden. La lista recuerda su última ordenación cuando regresa.
+Haga clic en un encabezado de columna para ordenar ascendente o descendente. Todas las columnas se pueden ordenar, incluida cada columna de importe y de ETC. Las partidas sin ETC van al final en orden ascendente. Las columnas de texto se ordenan en orden de lectura natural: un nombre con tilde se ordena junto a su forma sin tilde (por ejemplo «Électricité» junto a «Electricite»), y las minúsculas van antes que las mayúsculas cuando las letras son iguales. Una columna de dimensión se ordena según el orden de los valores de la dimensión, definido en [Dimensiones analíticas](analytics.md#ordenar-los-valores), y después por nombre. Las partidas sin valor van al final en orden ascendente. La ordenación predeterminada es la columna por defecto del año actual, de mayor a menor (**Presupuesto A** con la configuración estándar). **Anterior** y **Siguiente** en el espacio de trabajo siguen el mismo orden. La lista recuerda su última ordenación cuando regresa.
 
 ### Fila de totales
 
@@ -135,7 +124,7 @@ Cada columna de ETC visible muestra la suma del ETC de las partidas. Cuando algu
 
 Haga clic en cualquier celda de una fila para abrir el espacio de trabajo en la pestaña más relevante para esa columna:
 
-- **Descripción**, **Proveedor**, **Empresa pagadora**, **Tipo de activo fijo**, **Tipo de inversión**, **Prioridad** y las demás columnas generales: Abre **Vista general**
+- **Descripción**, **Proveedor**, **Empresa pagadora**, las columnas de dimensión y las demás columnas generales: Abre **Vista general**
 - **Columnas de importes** (Presupuesto A, Aterrizaje previsto A, Revisión A+1, etc.) y **Columnas de ETC**: Abre la pestaña **Presupuesto** en el año de la columna
 - **Asignación**: Abre la pestaña **Asignaciones** para el año actual
 - **Tarea**: Abre la pestaña **Vista general**, donde está el panel de tareas
@@ -156,7 +145,7 @@ Estos mismos filtros también se guardan en la dirección web de la página, de 
 
 Cuando abre una partida, el espacio de trabajo muestra botones **Ant.** y **Sig.**. Estos navegan por la lista en el orden actual, respetando filtros y búsqueda, y guardan primero sus cambios pendientes. El contador (p. ej., "Partida 3 de 47") muestra su posición en la lista filtrada.
 
-**Consejo**: Utilice filtros de columna y búsqueda rápida para construir vistas enfocadas (p. ej., "Todas las inversiones en hardware con prioridad alta"), luego navegue partida por partida con **Ant.**/**Sig.** para revisar presupuestos.
+**Consejo**: Utilice filtros de columna y búsqueda rápida para construir vistas enfocadas (por ejemplo, **Hardware** en el filtro **PP&E type** y **High** en el filtro **Priority**), luego navegue partida por partida con **Ant.**/**Sig.** para revisar presupuestos.
 
 ---
 
@@ -165,7 +154,7 @@ Cuando abre una partida, el espacio de trabajo muestra botones **Ant.** y **Sig.
 Haga clic en cualquier fila de la lista para abrir el espacio de trabajo. Tiene cuatro partes:
 
 - **Cabecera**: la referencia de la partida (p. ej., `CPX-7`) con un botón para copiarla, el nombre de la inversión (haga clic en él para cambiar el nombre de la partida), **Ant.** / **Sig.**, **Enviar enlace** y el botón de cierre
-- **Barra de metadatos** bajo el título: **Estado**, **Prioridad**, **Responsable de TI** y **Responsable de negocio**, editables en el sitio. Cuando el centro de coste de la partida tiene un responsable del presupuesto, **Responsable del presupuesto** aparece a continuación. Es de solo lectura y se deriva del centro de coste, no se almacena en la partida: pase el cursor por encima para ver de qué centro de coste procede, y cámbielo en el centro de coste (consulte [Centros de coste](cost-centers.md#responsable-del-presupuesto-en-las-lineas-de-presupuesto))
+- **Barra de metadatos** bajo el título: **Estado**, **Responsable de TI** y **Responsable de negocio**, editables en el sitio. Cuando el centro de coste de la partida tiene un responsable del presupuesto, **Responsable del presupuesto** aparece a continuación. Es de solo lectura y se deriva del centro de coste, no se almacena en la partida: pase el cursor por encima para ver de qué centro de coste procede, y cámbielo en el centro de coste (consulte [Centros de coste](cost-centers.md#responsable-del-presupuesto-en-las-lineas-de-presupuesto))
 - **Cuatro pestañas**: **Vista general**, **Presupuesto**, **Asignaciones** y **Relaciones** (la pestaña Relaciones muestra cuántos vínculos tiene la partida)
 - **Panel Propiedades** a la derecha: los campos principales de la partida. Ábralo o ciérrelo con el botón de propiedades; el espacio de trabajo recuerda su elección
 
@@ -205,11 +194,10 @@ La pestaña Vista general contiene los detalles de la inversión y sus tareas.
 
 **Panel Propiedades**:
 
-- **Proveedor**, **Centro de coste**, **Empresa pagadora**, **Cuenta** (filtrada por el plan de cuentas de la empresa pagadora), **Moneda** (solo las monedas permitidas en su espacio de trabajo), **Tipo de activo fijo**, **Tipo de inversión**, un campo por dimensión analítica, **Run o build** e **Inicio de vigencia**
+- **Proveedor**, **Centro de coste**, **Empresa pagadora**, **Cuenta** (filtrada por el plan de cuentas de la empresa pagadora), **Moneda** (solo las monedas permitidas en su espacio de trabajo), un campo por dimensión analítica (entre ellas **PP&E type**, **Investment type** y **Priority**), **Run o build** e **Inicio de vigencia**
 - **Ciclo de vida**: el interruptor de estado, cuya etiqueta muestra el estado actual (**Activado** o **Desactivado**), y la fecha de **Fin de validez**. Consulte [Estado y ciclo de vida](#estado-y-ciclo-de-vida)
 - Fechas **Creado** y **Actualizado** (solo lectura)
 - Escriba en **Proveedor**, **Empresa pagadora**, **Cuenta**, **Responsable IT**, **Responsable de negocio** o un campo de dimensión analítica para buscar por nombre. Las coincidencias aparecen mientras escribe, de modo que puede encontrar cualquier valor incluso en una lista muy larga; una línea bajo la lista muestra «Escriba para acotar: hay más resultados» cuando hay más coincidencias de las que se muestran
-- La **Prioridad** se define en el panel Propiedades al crear la partida y después en la barra de metadatos
 
 **Centro de coste**:
 
@@ -604,11 +592,11 @@ Si no puede realizar una acción (p. ej., falta el botón **Importar CSV**), con
 
 ## Consejos
 
-- **Empiece simple**: Cree partidas con solo lo esencial (descripción, tipo de activo fijo, tipo de inversión, empresa pagadora, cuenta), luego añada presupuestos y asignaciones a medida que planifica.
+- **Empiece simple**: Cree partidas con solo lo esencial (título, empresa pagadora, cuenta y dimensiones obligatorias), luego añada presupuestos y asignaciones a medida que planifica.
 - **Use asignación por Plantilla**: Para la mayoría de inversiones de capital, Plantilla es suficiente. Reserve asignaciones manuales para inversiones que benefician solo a empresas o departamentos específicos.
 - **Vincule contratos**: Si gestiona compras de capital mediante contratos, vincúlelos en la pestaña Relaciones para el seguimiento de adquisiciones.
 - **Suba documentación**: Utilice la funcionalidad de adjuntos para almacenar presupuestos de proveedores, memorandos de aprobación y especificaciones técnicas junto a la partida.
-- **Clasifique con precisión**: Utilice Tipo de inversión y Prioridad consistentemente para habilitar análisis significativos del gasto de capital y la priorización.
+- **Clasifique con precisión**: Utilice las dimensiones **Investment type** y **Priority** de forma coherente para habilitar análisis significativos del gasto de capital y la priorización.
 - **Mantenga actualizadas las métricas de empresa**: Las asignaciones dependen de la plantilla, usuarios IT y facturación de la empresa. Las métricas desactualizadas causan errores de asignación.
 - **Use CSV para configuración masiva**: Si está migrando desde otro sistema o tiene muchas partidas de capital, comience con importación CSV. Exporte un archivo nuevo, rellene sus filas y compruébelo antes de cargar.
 - **Desactive, no elimine**: Preserve el historial desactivando partidas cuando los activos se eliminen o los proyectos se completen.

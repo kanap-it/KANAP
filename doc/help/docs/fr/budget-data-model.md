@@ -63,9 +63,7 @@ Un poste vit sur plusieurs années : une licence sur trois ans est un poste avec
 | Numéro | `item_number` | Attribué par KANAP | Vide dans le fichier : crée un poste |
 | Nom du produit (OPEX), titre (CAPEX) | `name` | Oui | |
 | Description (OPEX) | `description` | Non | |
-| Type d'immobilisation (CAPEX) | `ppe_type` | Oui | `hardware` ou `software` |
-| Type d'investissement (CAPEX) | `investment_type` | Oui | `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth` ou `other` |
-| Priorité (CAPEX) | `priority` | Oui | `mandatory`, `high`, `medium` ou `low` |
+| Type d'immobilisation, type d'investissement, priorité (CAPEX) | `analytics:ppe_type`, `analytics:investment_type`, `analytics:priority` | Pour une nouvelle ligne, tant que la dimension est obligatoire | Valeurs des trois dimensions CAPEX, portées comme les valeurs de toute autre dimension. Voir [Dimensions CAPEX](analytics.md#dimensions-capex) |
 | Société payeuse | `company_name` | Oui | Reprise du centre de coûts quand seul le centre de coûts est donné |
 | Fournisseur | `supplier_name`, `supplier_erp_id` | Non | |
 | Compte | `account_number` | Oui | Dans le plan comptable de la société payeuse |

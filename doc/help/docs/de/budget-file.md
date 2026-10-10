@@ -73,16 +73,13 @@ Sie sind in beiden Dateien gleich, außer den typspezifischen Spalten am Zeilena
 |---|---|---|
 | `item_number` | Die Nummer der Position: `CPX-3` oder `3` | Leer: Die Zeile legt eine Position an |
 | `name` | Der Titel der Investition | Erforderlich |
-| `ppe_type` | `hardware` oder `software` | Erforderlich |
-| `investment_type` | `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth` oder `other` | Erforderlich |
-| `priority` | `mandatory`, `high`, `medium` oder `low` | Erforderlich |
 | `company_name` | Zahlendes Unternehmen | Erforderlich, außer die Position hat eine Kostenstelle |
 | `supplier_name` | Name des Lieferanten | Optional |
 | `supplier_erp_id` | Die ID des Lieferanten in Ihrem ERP | Optional |
 | `account_number` | Kontonummer, im Kontenplan des zahlenden Unternehmens | Erforderlich |
 | `cost_center_code` | Code der Kostenstelle. Eine Gruppe wird abgelehnt | Optional |
 | `run_build` | `run` oder `build` | Optional |
-| `analytics:<code>` | Der Name des Werts in der Dimension, deren Code dies ist. Eine Spalte pro aktivierter Dimension, die für CAPEX-Zeilen verwendet wird, die Standarddimension eingeschlossen | Optional, außer bei einer erforderlichen Dimension. Ein nicht vorhandener Wert wird beim Laden angelegt |
+| `analytics:<code>` | Der Name des Werts in der Dimension, deren Code dies ist, unabhängig von Groß- und Kleinschreibung. Eine Spalte pro aktivierter Dimension, die für CAPEX-Zeilen verwendet wird, die Standarddimension eingeschlossen. Anlagentyp, Investitionsart und Priorität stehen in `analytics:ppe_type`, `analytics:investment_type` und `analytics:priority`, zum Beispiel `Hardware`, `Business growth` oder `High` | Optional, außer bei einer erforderlichen Dimension, wie den drei CAPEX-Dimensionen. Ein nicht vorhandener Wert wird beim Laden angelegt |
 | `owner_it_email` | E-Mail-Adresse eines aktiven Benutzers | Optional |
 | `owner_business_email` | E-Mail-Adresse eines aktiven Benutzers | Optional |
 | `project` | Projektnummer, zum Beispiel `PRJ-3` | Optional |
@@ -164,6 +161,10 @@ Eine Spalte, die KANAP nicht kennt, wird mit einer Warnung ignoriert. Eine Spalt
 Eine Datei in einem älteren Format wird als Ganzes abgelehnt: die Positionsdateien mit Spalten der Art `y_budget` und die Datei der Budgetzeilen mit den Spalten `measure` und `jan` … `dec`. Der Bildschirm zeigt diese Meldung:
 
 > Diese Datei stammt aus einer früheren Version von KANAP. Exportieren Sie eine neue Datei aus dieser Liste, übertragen Sie Ihre Änderungen hinein und importieren Sie sie erneut.
+
+Eine CAPEX-Datei mit einer Spalte `ppe_type`, `investment_type` oder `priority` wird ebenfalls als Ganzes abgelehnt. Diese Werte stehen jetzt in Dimensionsspalten. Der Bildschirm zeigt diese Meldung:
+
+> The ppe_type, investment_type and priority columns are now dimension columns (analytics:ppe_type, analytics:investment_type, analytics:priority). Export a fresh file from this list, copy your changes into it, and import it again.
 
 Exportieren Sie eine neue Datei und übertragen Sie Ihre Zeilen hinein.
 

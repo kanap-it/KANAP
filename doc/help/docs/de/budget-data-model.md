@@ -63,9 +63,7 @@ Eine Position lebt über mehrere Jahre: Eine Lizenz über drei Jahre ist eine Po
 | Nummer | `item_number` | Von KANAP vergeben | Leer in der Datei: legt eine Position an |
 | Produktname (OPEX), Titel (CAPEX) | `name` | Ja | |
 | Beschreibung (OPEX) | `description` | Nein | |
-| Anlagentyp (CAPEX) | `ppe_type` | Ja | `hardware` oder `software` |
-| Investitionsart (CAPEX) | `investment_type` | Ja | `replacement`, `capacity`, `productivity`, `security`, `conformity`, `business_growth` oder `other` |
-| Priorität (CAPEX) | `priority` | Ja | `mandatory`, `high`, `medium` oder `low` |
+| Anlagentyp, Investitionsart, Priorität (CAPEX) | `analytics:ppe_type`, `analytics:investment_type`, `analytics:priority` | Bei einer neuen Zeile, solange die Dimension erforderlich ist | Werte der drei CAPEX-Dimensionen, gespeichert wie die Werte jeder anderen Dimension. Siehe [CAPEX-Dimensionen](analytics.md#capex-dimensionen) |
 | Zahlendes Unternehmen | `company_name` | Ja | Wird von der Kostenstelle übernommen, wenn nur die Kostenstelle angegeben ist |
 | Lieferant | `supplier_name`, `supplier_erp_id` | Nein | |
 | Konto | `account_number` | Ja | Im Kontenplan des zahlenden Unternehmens |
