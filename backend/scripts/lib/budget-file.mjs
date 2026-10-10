@@ -17,10 +17,13 @@
 /** The five amount columns, in the order the export writes them. */
 const FILE_COLUMNS = ['budget', 'revision', 'forecast', 'actual', 'landing'];
 
-/** Detail columns before the dimension columns, per scope. */
+/**
+ * Detail columns before the dimension columns, per scope. The PP&E type, investment type and
+ * priority of a CAPEX line are dimension columns (`analytics:<code>`), copied like the others.
+ */
 const DETAIL_START = {
   opex: ['item_number', 'name', 'description'],
-  capex: ['item_number', 'name', 'ppe_type', 'investment_type', 'priority'],
+  capex: ['item_number', 'name'],
 };
 
 const DETAIL_BEFORE_DIMENSIONS = [
@@ -39,7 +42,7 @@ const DETAIL_RENAME = {
 
 /** Detail columns copied under their own name when the source has them. */
 const DETAIL_SAME_NAME = [
-  'ppe_type', 'investment_type', 'priority', 'company_name', 'supplier_name', 'supplier_erp_id',
+  'company_name', 'supplier_name', 'supplier_erp_id',
   'account_number', 'cost_center_code', 'run_build', 'owner_it_email', 'owner_business_email',
   'project', 'currency', 'effective_start', 'notes',
 ];

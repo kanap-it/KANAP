@@ -155,7 +155,7 @@ const ASSET = {
   [IT]: { intangible: '205000', tangible: '215000' },
   [US]: { intangible: '151000', tangible: '161000' },
 };
-const assetAccount = (company, ppe) => ASSET[company][ppe === 'hardware' ? 'tangible' : 'intangible'];
+const assetAccount = (company, ppe) => ASSET[company][ppe === 'Hardware' ? 'tangible' : 'intangible'];
 
 // ── OPEX items ──────────────────────────────────────────────────────────────
 // Existing lines of the fixture, now attached to a cost centre and classified.
@@ -401,45 +401,49 @@ for (const [cc, profile, supplier, price, quantity, runBuild, nature, reference,
 out('14-spend-items.csv', opexRows);
 
 // ── CAPEX items ──────────────────────────────────────────────────────────────
-const CAPEX_HEADER = ['item_number', 'description', 'ppe_type', 'investment_type', 'priority', 'currency', 'effective_start', 'status', 'disabled_at', 'notes',
-  'company_name', 'account_number', 'owner_it_email', 'owner_business_email', 'analytics_category', 'analytics:nature', 'analytics:reference', 'analytics:recurrence', 'cost_center_code', 'run_build',
+// The PP&E type, investment type and priority are the values of the dimensions every tenant
+// starts with (codes ppe_type, investment_type, priority), written by name.
+const CAPEX_HEADER = ['item_number', 'description', 'currency', 'effective_start', 'status', 'disabled_at', 'notes',
+  'company_name', 'account_number', 'owner_it_email', 'owner_business_email', 'analytics_category', 'analytics:nature', 'analytics:reference', 'analytics:recurrence',
+  'analytics:ppe_type', 'analytics:investment_type', 'analytics:priority', 'cost_center_code', 'run_build',
   'y_minus1_budget', 'y_minus1_landing', 'y_budget', 'y_follow_up', 'y_landing', 'y_revision', 'y_plus1_budget', 'y_plus1_revision', 'y_plus2_budget'];
 const capexRows = [CAPEX_HEADER];
-// Existing CAPEX lines, re-attached: [description, cost centre, nature, reference, landing ratio]
+// Existing CAPEX lines, re-attached: [description, PP&E type, investment type, priority, currency, effective start,
+// end of validity, notes, company, domain, cost centre, nature, reference, landing ratio, budget Y-1, landing Y-1, budget]
 const EXISTING_CAPEX = [
-  ['SAP Cheddar Migration — S/4HANA upgrade', 'FR-DIS-200', 'cdc', 'sap', 1.09],
-  ['Data Center Refresh — Paris DC', 'FR-TRV-400', 'hardware', '', 1.04],
-  ['D2C E-commerce Platform — La Boutique', 'FR-BOU-100', 'cdc', 'ecom', 0.96],
+  ['SAP Cheddar Migration — S/4HANA upgrade', 'Software', 'Replacement', 'Mandatory', 'EUR', '2025-07-01', '2027-12-31',
+    'Migration from SAP ECC to S/4HANA with cheese industry customizations — 2.5 year program', FR, 'ERP', 'FR-DIS-200', 'cdc', 'sap', 1.09, 50000, 45000, 350000],
+  ['Data Center Refresh — Paris DC', 'Hardware', 'Replacement', 'Mandatory', 'EUR', '2026-01-01', '2026-12-31',
+    'Server and storage refresh for Paris data center — replace aging ESXi hosts and SAN', FR, 'Infrastructure', 'FR-TRV-400', 'hardware', '', 1.04, 0, 0, 250000],
+  ['D2C E-commerce Platform — La Boutique', 'Software', 'Business growth', 'High', 'EUR', '2025-06-01', '2026-09-30',
+    'Fromage-as-a-Service — custom e-commerce platform on AWS (React + Node.js)', FR, 'E-commerce', 'FR-BOU-100', 'cdc', 'ecom', 0.96, 80000, 90000, 120000],
 ];
-const capexExisting = parseCsv(readFileSync(path.join(ROOT, '15-capex-items.csv'), 'utf8'));
-for (const [description, cc, nature, reference, ratio] of EXISTING_CAPEX) {
-  const r = capexExisting.find((x) => x.description === description);
-  if (!r) throw new Error(`Existing CAPEX line not found: ${description}`);
-  const budget = Number(r.y_budget);
+for (const [description, ppe, inv, prio, currency, start, end, notes, company, domain, cc, nature, reference, ratio, budgetBefore, landingBefore, budget] of EXISTING_CAPEX) {
   const landing = round(budget * ratio, 1000);
-  capexRows.push(['', r.description, r.ppe_type, r.investment_type, r.priority, r.currency, r.effective_start, statusFor(r.disabled_at), r.disabled_at, r.notes,
-    r.company_name, assetAccount(r.company_name, r.ppe_type), OWNER_IT[cc], OWNER_BUSINESS[ccGroup[cc]], r.analytics_category, NATURE[nature], reference ? REFERENCE[reference][0] : '', RECURRENCE.no, cc, 'build',
-    r.y_minus1_budget, r.y_minus1_landing, budget, '', landing, round(budget * between(0.98, 1.05), 1000), '', '', '']);
-  const endMonth = r.disabled_at?.startsWith('2026-') ? Number(r.disabled_at.slice(5, 7)) : 12;
+  capexRows.push(['', description, currency, start, statusFor(end), end, notes,
+    company, assetAccount(company, ppe), OWNER_IT[cc], OWNER_BUSINESS[ccGroup[cc]], domain, NATURE[nature], reference ? REFERENCE[reference][0] : '', RECURRENCE.no,
+    ppe, inv, prio, cc, 'build',
+    budgetBefore, landingBefore, budget, '', landing, round(budget * between(0.98, 1.05), 1000), '', '', '']);
+  const endMonth = end?.startsWith('2026-') ? Number(end.slice(5, 7)) : 12;
   pushActuals('capex', description, flat(landing, 1, endMonth));
 }
-// New CAPEX lines. [description, ppe_type, investment_type, priority, cost centre, domain, nature, reference, budget 2026, start, end, landing ratio, staffing line | null]
+// New CAPEX lines. [description, PP&E type, investment type, priority, cost centre, domain, nature, reference, budget 2026, start, end, landing ratio, staffing line | null]
 const NEW_CAPEX = [
-  ['S/4HANA — capitalized custom development', 'software', 'replacement', 'mandatory', 'FR-DIS-200', 'ERP', 'cdc', 'sap', 0, '2026-01-01', '2027-06-30', 1.0,
+  ['S/4HANA — capitalized custom development', 'Software', 'Replacement', 'Mandatory', 'FR-DIS-200', 'ERP', 'cdc', 'sap', 0, '2026-01-01', '2027-06-30', 1.0,
     ['SAP ABAP developer', 'Nearshore Digital Lisboa', 520, 2, ['01-01', '12-31'], ['01-01', '12-31']]],
-  ['S/4HANA — HANA servers', 'hardware', 'replacement', 'mandatory', 'FR-TRV-400', 'ERP', 'hardware', 'sap', 180000, '2026-01-01', '2026-12-31', 1.02, null],
-  ['La Boutique — version 2 (subscriptions and marketplace)', 'software', 'business_growth', 'high', 'FR-BOU-100', 'E-commerce', 'cdc', 'ecom', 0, '2026-01-01', '2027-03-31', 1.0,
+  ['S/4HANA — HANA servers', 'Hardware', 'Replacement', 'Mandatory', 'FR-TRV-400', 'ERP', 'hardware', 'sap', 180000, '2026-01-01', '2026-12-31', 1.02, null],
+  ['La Boutique — version 2 (subscriptions and marketplace)', 'Software', 'Business growth', 'High', 'FR-BOU-100', 'E-commerce', 'cdc', 'ecom', 0, '2026-01-01', '2027-03-31', 1.0,
     ['E-commerce full-stack developer', 'Nearshore Digital Lisboa', 480, 2, ['01-01', '12-31'], ['01-01', '12-31']]],
-  ['Boutiques — renouvellement des caisses', 'hardware', 'replacement', 'high', 'FR-BOU-310', 'Retail', 'hardware', '', 140000, '2026-01-01', '2026-12-31', 0.9, null],
-  ['Formaggio — nuove casse punti vendita', 'hardware', 'replacement', 'high', 'IT-BOU-310', 'Retail', 'hardware', '', 45000, '2026-03-01', '2026-12-31', 1.0, null],
-  ['US — warehouse management system', 'software', 'business_growth', 'high', 'US-BOU-310', 'Supply Chain', 'licence', '', 95000, '2026-01-01', '2026-12-31', 1.15, null],
-  ['Kaasmeester — WMS upgrade', 'software', 'replacement', 'high', 'NL-DIS-300', 'Supply Chain', 'licence', '', 60000, '2026-01-01', '2026-09-30', 1.0, null],
-  ['CaveGuard — rollout to all 8 caves', 'hardware', 'business_growth', 'high', 'FR-DIS-300', 'IoT', 'hardware', '', 75000, '2026-01-01', '2026-12-31', 1.0, null],
-  ['Data platform — build', 'software', 'business_growth', 'high', 'FR-TRV-700', 'Analytics', 'cdc', 'data', 0, '2026-01-01', '2026-12-31', 1.0,
+  ['Boutiques — renouvellement des caisses', 'Hardware', 'Replacement', 'High', 'FR-BOU-310', 'Retail', 'hardware', '', 140000, '2026-01-01', '2026-12-31', 0.9, null],
+  ['Formaggio — nuove casse punti vendita', 'Hardware', 'Replacement', 'High', 'IT-BOU-310', 'Retail', 'hardware', '', 45000, '2026-03-01', '2026-12-31', 1.0, null],
+  ['US — warehouse management system', 'Software', 'Business growth', 'High', 'US-BOU-310', 'Supply Chain', 'licence', '', 95000, '2026-01-01', '2026-12-31', 1.15, null],
+  ['Kaasmeester — WMS upgrade', 'Software', 'Replacement', 'High', 'NL-DIS-300', 'Supply Chain', 'licence', '', 60000, '2026-01-01', '2026-09-30', 1.0, null],
+  ['CaveGuard — rollout to all 8 caves', 'Hardware', 'Business growth', 'High', 'FR-DIS-300', 'IoT', 'hardware', '', 75000, '2026-01-01', '2026-12-31', 1.0, null],
+  ['Data platform — build', 'Software', 'Business growth', 'High', 'FR-TRV-700', 'Analytics', 'cdc', 'data', 0, '2026-01-01', '2026-12-31', 1.0,
     ['Platform data engineer', 'Alpine Data Experts', 780, 2, ['01-01', '12-31'], ['01-01', '12-31']]],
-  ['Zero Trust — plant network segmentation', 'hardware', 'replacement', 'mandatory', 'FR-TRV-600', 'Security', 'hardware', 'zt', 120000, '2026-01-01', '2026-12-31', 1.05, null],
-  ['Workstations — plant refresh', 'hardware', 'replacement', 'high', 'FR-TRV-500', 'Workplace', 'hardware', '', 85000, '2026-01-01', '2026-12-31', 1.0, null],
-  ['Réseau Wi-Fi des caves et des entrepôts', 'hardware', 'replacement', 'high', 'FR-TRV-400', 'Network', 'hardware', '', 55000, '2026-01-01', '2026-12-31', 1.0, null],
+  ['Zero Trust — plant network segmentation', 'Hardware', 'Replacement', 'Mandatory', 'FR-TRV-600', 'Security', 'hardware', 'zt', 120000, '2026-01-01', '2026-12-31', 1.05, null],
+  ['Workstations — plant refresh', 'Hardware', 'Replacement', 'High', 'FR-TRV-500', 'Workplace', 'hardware', '', 85000, '2026-01-01', '2026-12-31', 1.0, null],
+  ['Réseau Wi-Fi des caves et des entrepôts', 'Hardware', 'Replacement', 'High', 'FR-TRV-400', 'Network', 'hardware', '', 55000, '2026-01-01', '2026-12-31', 1.0, null],
 ];
 for (const [description, ppe, inv, prio, cc, domain, nature, reference, budgetRaw, start, end, ratio, staffing] of NEW_CAPEX) {
   const company = ccCompany[cc];
@@ -459,8 +463,9 @@ for (const [description, ppe, inv, prio, cc, domain, nature, reference, budgetRa
     const endMonth = end?.startsWith('2026-') ? Number(end.slice(5, 7)) : 12;
     pushActuals('capex', description, flat(landing, 1, endMonth));
   }
-  capexRows.push(['', description, ppe, inv, prio, CURRENCY[company], start, statusFor(end), end, '',
-    company, assetAccount(company, ppe), OWNER_IT[cc], OWNER_BUSINESS[ccGroup[cc]], domain, NATURE[nature], reference ? REFERENCE[reference][0] : '', RECURRENCE.no, cc, 'build',
+  capexRows.push(['', description, CURRENCY[company], start, statusFor(end), end, '',
+    company, assetAccount(company, ppe), OWNER_IT[cc], OWNER_BUSINESS[ccGroup[cc]], domain, NATURE[nature], reference ? REFERENCE[reference][0] : '', RECURRENCE.no,
+    ppe, inv, prio, cc, 'build',
     '', '', budget, '', landing, rnd() < 0.5 ? round(budget * between(0.98, 1.05), 1000) : '', '', '', '']);
 }
 out('15-capex-items.csv', capexRows);
