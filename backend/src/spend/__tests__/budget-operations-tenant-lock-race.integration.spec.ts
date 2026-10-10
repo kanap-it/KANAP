@@ -41,8 +41,7 @@ const copyColumn = (manager: any, dryRun = false) => copyBudgetColumn(
 function newLineFile(kind: 'opex' | 'capex'): string {
   return kind === 'opex'
     ? `item_number,name,company_name,account_number,currency,budget_${YEAR}\n,Imported line,Race company,6000,EUR,1200.00\n`
-    : `item_number,name,ppe_type,investment_type,priority,company_name,account_number,currency,budget_${YEAR}\n`
-      + `,Imported CAPEX line,hardware,replacement,medium,Race company,6000,EUR,1200.00\n`;
+    : `item_number,name,company_name,account_number,currency,budget_${YEAR}\n,Imported CAPEX line,Race company,6000,EUR,1200.00\n`;
 }
 
 /** Refused at once with a 409 `operation_running` that names the running operation. */

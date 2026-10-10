@@ -104,9 +104,6 @@ function exportRow(
   values.set('item_number', input.scope === 'opex' ? `OPX-${line.itemNumber}` : `CPX-${line.itemNumber}`);
   values.set('name', line.name ?? '');
   values.set('description', line.description ?? '');
-  values.set('ppe_type', line.ppeType ?? '');
-  values.set('investment_type', line.investmentType ?? '');
-  values.set('priority', line.priority ?? '');
   values.set('company_name', line.companyName ?? '');
   values.set('supplier_name', line.supplierName ?? '');
   values.set('supplier_erp_id', line.supplierErpId ?? '');

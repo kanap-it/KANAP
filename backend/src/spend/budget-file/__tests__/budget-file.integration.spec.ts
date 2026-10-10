@@ -39,6 +39,8 @@ import { itemService, seedCompany, seedCostCenter, seedUser } from '../../__test
 import { BUDGET_FILE_OPTIONS, budgetFileService, exportBudgetFile, fileRows, loadBudgetFile, preflightBudgetFile, withCell } from '../../__tests__/budget-file.fixtures';
 import { upsertRoundInput } from '../../round-inputs.util';
 import { ANALYTICS_VALUE_ORDER_SQL, ensureDefaultAnalyticsAxis } from '../../../analytics/analytics-axes.util';
+import { ensureCapexDimensions } from '../../../analytics/capex-dimensions.seed';
+import { CRITERIA_COLUMNS_MESSAGE } from '../columns';
 import { lockTenantBudgetOperations } from '../../budget-locks';
 
 // The loader against the schema. The transaction rolls back, so this writes nothing that stays.
@@ -437,18 +439,17 @@ function csvOf(columns: string[], rows: Array<Record<string, string>>): string {
   return `${columns.join(',')}\n${rows.map((row) => columns.map((column) => row[column] ?? '').join(',')).join('\n')}\n`;
 }
 
-/** The detail columns a new line of the type needs, then `extra`. */
-function newLineColumns(kind: Kind, extra: string[] = []): string[] {
-  return kind === 'opex'
-    ? ['item_number', 'name', 'company_name', 'account_number', 'currency', ...extra]
-    : ['item_number', 'name', 'ppe_type', 'investment_type', 'priority', 'company_name', 'account_number', 'currency', ...extra];
+/**
+ * The detail columns a new line of the type needs, then `extra`. The tenants of these tests are
+ * inserted raw, without the CAPEX dimensions: a CAPEX line needs no dimension value there
+ * (`testCapexCriteriaColumns` seeds them).
+ */
+function newLineColumns(_kind: Kind, extra: string[] = []): string[] {
+  return ['item_number', 'name', 'company_name', 'account_number', 'currency', ...extra];
 }
 
-function newLine(kind: Kind, name: string, cells: Record<string, string> = {}): Record<string, string> {
-  const base: Record<string, string> = kind === 'opex'
-    ? { name, company_name: 'File company', account_number: '6000', currency: 'EUR' }
-    : { name, ppe_type: 'hardware', investment_type: 'replacement', priority: 'medium', company_name: 'File company', account_number: '6000', currency: 'EUR' };
-  return { ...base, ...cells };
+function newLine(_kind: Kind, name: string, cells: Record<string, string> = {}): Record<string, string> {
+  return { name, company_name: 'File company', account_number: '6000', currency: 'EUR', ...cells };
 }
 
 function ref(kind: Kind, n: number): string {
@@ -852,6 +853,57 @@ async function testRequiredDimensionCells(runner: { query: Function; manager: En
 }
 
 /**
+ * Lot C1a: the PP&E type, investment type and priority of a CAPEX line travel in the dimension
+ * columns of their codes. A tenant with the CAPEX dimensions: a new line without one is refused on
+ * its column, naming the dimension; one with the three is created with its values (case-insensitive
+ * names); the export writes the value names in those columns and reads back unchanged; a file
+ * with the former columns is refused as a whole, nothing written.
+ */
+async function testCapexCriteriaColumns(runner: { query: Function; manager: EntityManager }) {
+  const tenantId = await seedTenant(runner as any, 'csv-c1-criteria');
+  await seedCompany(runner as any, tenantId, 'File company');
+  await ensureDefaultAnalyticsAxis(runner.manager, tenantId);
+  await ensureCapexDimensions(runner.manager, tenantId);
+  const criteria = ['analytics:ppe_type', 'analytics:investment_type', 'analytics:priority'];
+
+  const missing = await preflightBudgetFile(runner.manager, 'capex', tenantId, csvOf(newLineColumns('capex', ['analytics:ppe_type']), [
+    newLine('capex', 'No priority', { 'analytics:ppe_type': 'Hardware' }),
+  ]));
+  assert.deepEqual(rowErrors(missing), [
+    '2 analytics:investment_type: The Investment type dimension is required. Choose a value.',
+    '2 analytics:priority: The Priority dimension is required. Choose a value.',
+  ], 'a new CAPEX line without the values');
+
+  await loadBudgetFile(runner.manager, 'capex', tenantId, csvOf(newLineColumns('capex', criteria), [
+    newLine('capex', 'Servers', { 'analytics:ppe_type': 'hardware', 'analytics:investment_type': 'Business growth', 'analytics:priority': 'MANDATORY' }),
+  ]));
+  const line = (await linesByName(runner, 'capex', tenantId)).get('Servers');
+  const values = await runner.query(
+    `SELECT a.code, c.name FROM spend_item_analytics_values v
+       JOIN analytics_axes a ON a.id = v.axis_id AND a.tenant_id = v.tenant_id
+       JOIN analytics_categories c ON c.id = v.category_id AND c.tenant_id = v.tenant_id
+      WHERE v.tenant_id = $1 AND v.item_id = $2 AND a.code = ANY($3::text[]) ORDER BY a.sort_order`,
+    [tenantId, line.id, ['ppe_type', 'investment_type', 'priority']],
+  );
+  assert.deepEqual(values.map((row: any) => `${row.code}=${row.name}`), ['ppe_type=Hardware', 'investment_type=Business growth', 'priority=Mandatory']);
+  const [stored] = await runner.query(`SELECT ppe_type, investment_type, priority FROM spend_items WHERE id = $1`, [line.id]);
+  assert.deepEqual({ ...stored }, { ppe_type: null, investment_type: null, priority: null }, 'the former columns are not written');
+
+  const exported = await exportBudgetFile(runner.manager, 'capex', tenantId, [line.id]);
+  const header = exported.replace(/^\uFEFF/, '').split('\n')[0].split(',');
+  for (const former of ['ppe_type', 'investment_type', 'priority']) assert.ok(!header.includes(former), `the export has no ${former} column`);
+  const [row] = fileRows(exported);
+  assert.deepEqual(criteria.map((column) => row[column]), ['Hardware', 'Business growth', 'Mandatory'], 'the export writes the value names');
+  const again = await preflightBudgetFile(runner.manager, 'capex', tenantId, exported);
+  assert.equal(again.ok, true, JSON.stringify(again.errors));
+  assert.equal(again.changes.unchanged, 1, 'the export reads back unchanged');
+
+  const former = await preflightBudgetFile(runner.manager, 'capex', tenantId,
+    'item_number,name,ppe_type,investment_type,priority,company_name,account_number,currency\n,Former,hardware,replacement,medium,File company,6000,EUR\n');
+  assert.deepEqual([former.ok, former.fileErrors, former.errors.length], [false, [CRITERIA_COLUMNS_MESSAGE], 0], 'a file with the former columns');
+}
+
+/**
  * The values a load creates go last in their dimension, in file order (not by name), with
  * consecutive positions after the dimension's highest; the values already there keep theirs.
  */
@@ -1175,6 +1227,7 @@ async function main() {
       await testNewDimensionValuesGoLast(runner, kind);
     }
     await testOwnersAccountsAndCurrency(runner);
+    await testCapexCriteriaColumns(runner);
     await setTenant(runner, tenantId);
     await testOperationRunning(service, caller, loadDeps);
 

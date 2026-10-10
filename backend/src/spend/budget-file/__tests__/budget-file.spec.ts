@@ -6,7 +6,7 @@ import { buildBudgetExport, exportListQuery, parseAmountYears, parseFileColumns 
 import { readBudgetCsv } from '../interpret';
 import { periodForYearlyTotal } from '../period';
 import { buildPreflight, planBudgetFile } from '../preflight';
-import { budgetFileSchema, OLD_BUDGET_FILE_MESSAGE } from '../columns';
+import { budgetFileSchema, CRITERIA_COLUMNS_MESSAGE, OLD_BUDGET_FILE_MESSAGE } from '../columns';
 import { formatToken, parseToken, tokenError } from '../token';
 import { BUDGET_FILE_MAX_BYTES } from '../upload';
 import {
@@ -29,9 +29,6 @@ function line(patch: Partial<StoredLine> = {}): StoredLine {
     rowVersion: 7,
     name: 'Widget',
     description: null,
-    ppeType: null,
-    investmentType: null,
-    priority: null,
     companyId: null,
     companyName: null,
     supplierId: null,
@@ -158,6 +155,20 @@ async function testOldFiles() {
   assert.equal(opex.rows.length, 0, 'an old file produces no row errors');
   const rows = await readBudgetCsv('item_type,measure,jan\nopex,budget,1\n', { scope: 'opex', language: 'en', dimensionCodes: [] });
   assert.deepEqual(rows.fileErrors, [OLD_BUDGET_FILE_MESSAGE]);
+  // The CAPEX criteria columns of before lot C1: refused as a whole, never read as dimensions.
+  for (const [scope, header] of [
+    ['capex', 'item_number,name,ppe_type,investment_type,priority,currency'],
+    ['capex', 'item_number,name,Priority,currency'],
+    ['opex', 'item_number,name,investment type,currency'],
+  ] as Array<[BudgetFileScope, string]>) {
+    const criteria = await readBudgetCsv(`${header}\nCPX-3,Server,hardware,replacement,high,EUR\n`, { scope, language: 'en', dimensionCodes: ['priority'] });
+    assert.deepEqual(criteria.fileErrors, [CRITERIA_COLUMNS_MESSAGE], `${scope}: ${header}`);
+    assert.equal(criteria.rows.length, 0, 'no row errors besides');
+  }
+  const dimensions = await readBudgetCsv('item_number,name,analytics:priority,currency\nCPX-3,Server,High,EUR\n', {
+    scope: 'capex', language: 'en', dimensionCodes: ['ppe_type', 'investment_type', 'priority'],
+  });
+  assert.deepEqual(dimensions.fileErrors, [], 'the dimension columns are the new form');
   const fresh = await preflight('opex', 'item_number,name,currency,status\nOPX-3,Widget,EUR,enabled\n', [line()]);
   assert.deepEqual(fresh.fileErrors, []);
   assert.deepEqual(fresh.warnings.ignoredColumns, ['status']);
@@ -283,8 +294,22 @@ async function testCreateRules() {
   });
   const missing = await preflight('opex', 'item_number,name,company_name,account_number,currency\n,Widget,Other,1200,EUR\n', [], { cat });
   assert.ok(missing.missing.some((item) => item.message.startsWith('Missing: 1 company (Other): Master data > Companies')));
-  const capex = await preflight('capex', 'item_number,name,company_name,account_number,currency\n,Server,Acme,1200,EUR\n', [], { cat });
-  assert.ok(capex.errors.some((error) => error.message === 'ppe_type is required.'));
+  // A new CAPEX line needs the values of the CAPEX dimensions (lot C1): the dimension is named, on its column.
+  const capexCat = catalog({
+    ...cat,
+    dimensions: [
+      { code: 'ppe_type', name: 'PP&E type', required: true, axisName: 'PP&E type', values: [{ id: 'p1', name: 'Hardware', disabledAt: null }] },
+      { code: 'priority', name: 'Priority', required: true, axisName: 'Priority', values: [{ id: 'r1', name: 'High', disabledAt: null }] },
+    ],
+  });
+  const capex = await preflight('capex', 'item_number,name,company_name,account_number,currency,analytics:ppe_type\n,Server,Acme,1200,EUR,hardware\n', [], {
+    cat: capexCat, dimensions: ['ppe_type', 'priority'],
+  });
+  assert.deepEqual(
+    capex.errors.map((error) => [error.column, error.message]),
+    [['analytics:priority', 'The Priority dimension is required. Choose a value.']],
+    'the missing CAPEX dimension, by its name',
+  );
   const dash = await preflight('opex', 'item_number,name,currency\nOPX-3,-,EUR\n', [line()]);
   assert.ok(dash.errors.some((error) => error.message === 'name is required.'));
 }
@@ -420,6 +445,20 @@ async function testRequiredDimension() {
 }
 
 async function testExportShape() {
+  const capexHeaders = buildBudgetExport({
+    scope: 'capex', language: 'en', years: [YEAR], columns: ['budget'], detail: 'yearly', lines: [],
+    dimensionCodes: ['default', 'ppe_type', 'investment_type', 'priority'],
+  }).headers;
+  assert.deepEqual(capexHeaders.slice(0, 13), [
+    'item_number', 'name', 'company_name', 'supplier_name', 'supplier_erp_id', 'account_number', 'cost_center_code', 'run_build',
+    'analytics:default', 'analytics:ppe_type', 'analytics:investment_type', 'analytics:priority', 'owner_it_email',
+  ], 'a CAPEX file: the criteria as dimension columns, after run_build');
+  const capexRow = buildBudgetExport({
+    scope: 'capex', language: 'en', years: [YEAR], columns: ['budget'], detail: 'yearly', dimensionCodes: ['ppe_type', 'priority'],
+    lines: [line({ analytics: { ppe_type: 'Hardware', priority: 'High' } })],
+  });
+  const cell = (header: string) => capexRow.rows[0][capexRow.headers.indexOf(header)];
+  assert.deepEqual([cell('analytics:ppe_type'), cell('analytics:priority')], ['Hardware', 'High'], 'the value names');
   const built = buildBudgetExport({
     scope: 'opex', language: 'en', years: [YEAR], columns: ['budget'], detail: 'months', lines: [], dimensionCodes: ['nature'],
   });

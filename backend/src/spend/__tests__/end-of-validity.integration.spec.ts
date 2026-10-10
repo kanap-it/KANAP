@@ -89,14 +89,10 @@ async function readItem(runner: QueryRunner, kind: Kind, name: string) {
 /** A budget file of the type: detail columns, then one row per line (`item_number` blank for a new line). */
 function budgetFile(kind: Kind, rows: Array<{ item?: number; name: string; end: string }>): string {
   const prefix = kind === 'opex' ? 'OPX' : 'CPX';
-  const header = kind === 'opex'
-    ? 'item_number,name,company_name,account_number,currency,effective_start,end_of_validity'
-    : 'item_number,name,ppe_type,investment_type,priority,company_name,account_number,currency,effective_start,end_of_validity';
+  const header = 'item_number,name,company_name,account_number,currency,effective_start,end_of_validity';
   const line = (row: { item?: number; name: string; end: string }) => {
     const number = row.item ? `${prefix}-${row.item}` : '';
-    return kind === 'opex'
-      ? `${number},${row.name},${COMPANY},6000,EUR,2019-01-01,${row.end}`
-      : `${number},${row.name},hardware,replacement,medium,${COMPANY},6000,EUR,2019-01-01,${row.end}`;
+    return `${number},${row.name},${COMPANY},6000,EUR,2019-01-01,${row.end}`;
   };
   return `${header}\n${rows.map(line).join('\n')}\n`;
 }

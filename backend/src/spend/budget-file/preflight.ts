@@ -33,13 +33,8 @@ const CLEARABLE = new Set([
 ]);
 
 const ENUMS: Record<string, readonly string[]> = {
-  ppe_type: ['hardware', 'software'],
-  investment_type: ['replacement', 'capacity', 'productivity', 'security', 'conformity', 'business_growth', 'other'],
-  priority: ['mandatory', 'high', 'medium', 'low'],
   run_build: ['run', 'build'],
 };
-
-const CAPEX_REQUIRED = ['ppe_type', 'investment_type', 'priority'];
 
 const MISSING_LABELS: Record<string, { one: string; many: string; where: string }> = {
   companies: { one: 'company', many: 'companies', where: 'Master data > Companies' },
@@ -198,7 +193,7 @@ function resolveRow(
   resolveAccount(input, row, live, creating, company, blocked, fail, bag, changes, draft);
   const supplier = resolveSupplier(input, row, live, creating, blocked, fail, bag, changes, draft);
   resolveText(input.scope, row, live, creating, blocked, fail, changes, draft);
-  resolveEnums(input.scope, row, live, creating, blocked, fail, changes, draft);
+  resolveEnums(row, live, creating, blocked, fail, changes, draft);
   resolveCurrency(input, row, live, creating, blocked, fail, changes, draft);
   resolveOwners(input, row, live, creating, blocked, fail, bag, changes, draft);
   resolveProject(input, row, live, creating, blocked, fail, bag, changes, draft);
@@ -560,7 +555,6 @@ function resolveText(
 }
 
 function resolveEnums(
-  scope: BudgetFileScope,
   row: InterpretedRow,
   live: StoredLine | null,
   creating: boolean,
@@ -569,14 +563,12 @@ function resolveEnums(
   changes: string[],
   draft: LineDraft,
 ): void {
+  // The PP&E type, investment type and priority of a CAPEX line are dimension values since lot C1
+  // (`resolveAnalytics`, their `analytics:<code>` columns).
   const fields: Array<{ id: string; stored: string | null; required: boolean }> = [
-    { id: 'ppe_type', stored: live?.ppeType ?? null, required: scope === 'capex' },
-    { id: 'investment_type', stored: live?.investmentType ?? null, required: scope === 'capex' },
-    { id: 'priority', stored: live?.priority ?? null, required: scope === 'capex' },
     { id: 'run_build', stored: live?.runBuild ?? null, required: false },
   ];
   for (const field of fields) {
-    if (scope === 'opex' && CAPEX_REQUIRED.includes(field.id)) continue;
     const cell = row.fields[field.id] ?? { kind: 'absent' as const };
     if (blocked(field.id)) continue;
     const allowed = ENUMS[field.id];
